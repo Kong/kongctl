@@ -77,6 +77,15 @@ Once both App credentials are available, manually dispatch
 scopes and private SDK reads without publishing or modifying repositories.
 The check also runs for same-repository PRs that change its definition;
 fork PRs skip it.
+For an approved write rehearsal, dispatch it with `rehearse_homebrew=true`, or
+label a same-repository PR `homebrew-app-rehearsal` before pushing a change
+to the authentication-check workflow. The opt-in job uses production tap
+publication scripts to prepend a run-specific comment to the existing cask
+and formula, run the formula's checks and guarded publisher, then remove
+only that run's comments from the latest recipes. A Git commit hook rejects
+any recipe or unrelated file changes. This makes real, reversible tap commits
+and a formula PR, but creates no kongctl release or new binaries. Inspect a
+failed run for an unmerged rehearsal PR and cleanup failures before retrying.
 Then validate SDK preview PR checks, run installer sync, and
 verify cask and formula publication during the next approved release. Then
 remove `PAT`, `GH_TOKEN_PRIVATE_READ`, `GET_KONGHQ_COM_TOKEN`, and

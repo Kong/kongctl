@@ -1,7 +1,12 @@
 name: Verify GitHub App authentication
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      rehearse_homebrew:
+        description: Publish and clean up comment-only tap metadata to exercise App writes
+        type: boolean
+        default: false
   pull_request:
     paths:
       - .github/workflows/github-app-auth-check.yml
@@ -9,6 +14,84 @@ on:
 permissions: {}
 
 jobs:
+  rehearse-homebrew:
+    needs: verify
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.rehearse_homebrew) ||
+      (github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      contains(github.event.pull_request.labels.*.name, 'homebrew-app-rehearsal'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    concurrency:
+      group: homebrew-app-rehearsal
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Set rehearsal directory
+        run: echo "REHEARSAL_DIR=$RUNNER_TEMP/homebrew-app-rehearsal" >> "$GITHUB_ENV"
+      - name: Create cask publication token
+        id: cask-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.KONGCTL_RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.KONGCTL_RELEASE_APP_PRIVATE_KEY }}
+          owner: Kong
+          repositories: homebrew-kongctl
+          permission-contents: write
+      - name: Prepare marker-only recipes and enforce the commit guard
+        id: recipes
+        env:
+          GH_TOKEN: ${{ steps.cask-token.outputs.token }}
+        run: python3 scripts/homebrew/rehearse-app-publication.py prepare
+      - name: Exercise production cask publication
+        env:
+          GH_TOKEN: ${{ steps.cask-token.outputs.token }}
+          VERSION: ${{ steps.recipes.outputs.cask_version }}
+        run: bash scripts/homebrew/publish-tap.sh cask "$REHEARSAL_DIR/cask.rb" "$VERSION"
+      - name: Create formula publication token
+        id: formula-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.KONGCTL_RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.KONGCTL_RELEASE_APP_PRIVATE_KEY }}
+          owner: Kong
+          repositories: homebrew-kongctl
+          permission-contents: write
+          permission-pull-requests: write
+          permission-actions: write
+          permission-checks: read
+          permission-statuses: read
+      - name: Exercise production formula PR, checks, and guarded publisher
+        env:
+          GH_TOKEN: ${{ steps.formula-token.outputs.token }}
+          VERSION: ${{ steps.recipes.outputs.formula_version }}
+        run: bash scripts/homebrew/publish-tap.sh formula "$REHEARSAL_DIR/formula.rb" "$VERSION"
+      - name: Create cleanup token
+        if: always()
+        id: cleanup-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.KONGCTL_RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.KONGCTL_RELEASE_APP_PRIVATE_KEY }}
+          owner: Kong
+          repositories: homebrew-kongctl
+          permission-contents: write
+      - name: Remove only this run's markers from the latest tap recipes
+        if: always() && steps.cleanup-token.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ steps.cleanup-token.outputs.token }}
+        run: python3 scripts/homebrew/rehearse-app-publication.py cleanup
+
   verify:
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
