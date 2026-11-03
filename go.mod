@@ -13,7 +13,7 @@ require (
 	github.com/alecthomas/chroma/v2 v2.27.0
 	github.com/atotto/clipboard v0.1.4
 	github.com/charmbracelet/colorprofile v0.4.3
-	github.com/charmbracelet/glamour v1.0.0
+	github.com/charmbracelet/glamour/v2 v2.0.1
 	github.com/charmbracelet/x/ansi v0.11.9
 	github.com/daveshanley/vacuum v0.30.6
 	github.com/google/go-cmp v0.7.0
