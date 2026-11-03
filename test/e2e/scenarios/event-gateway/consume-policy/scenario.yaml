@@ -1116,7 +1116,7 @@ steps:
           - --mode
           - apply
         outputFormat: disable
-        stdoutFile: '{{ .workdir }}/create.json'
+        stdoutFile: "{{ .workdir }}/create.json"
         assertions:
           - select: summary
             expect:
@@ -1198,7 +1198,7 @@ steps:
           - --mode
           - sync
         outputFormat: disable
-        stdoutFile: '{{ .workdir }}/delete.json'
+        stdoutFile: "{{ .workdir }}/delete.json"
         assertions:
           - select: summary
             expect:
@@ -1272,7 +1272,7 @@ steps:
           - --mode
           - apply
         outputFormat: disable
-        stdoutFile: '{{ .workdir }}/create.json'
+        stdoutFile: "{{ .workdir }}/create.json"
         assertions:
           - select: summary
             expect:
@@ -1370,7 +1370,7 @@ steps:
                 total_changes: 0
   - name: 019-transcode-delete
     inputOverlayDirs:
-      - overlays/008-decrypt-fields-prerequisites
+      - overlays/013-transcode-delete
     commands:
       - name: plan-delete
         run:
@@ -1380,7 +1380,7 @@ steps:
           - --mode
           - sync
         outputFormat: disable
-        stdoutFile: '{{ .workdir }}/delete.json'
+        stdoutFile: "{{ .workdir }}/delete.json"
         assertions:
           - select: summary
             expect:
@@ -1456,12 +1456,6 @@ steps:
             expect:
               fields:
                 total_changes: 0
-    inputOverlayOps:
-      - file: config.yaml
-        match: event_gateways[?ref=='egw-cp-for-vc-consume-policy-test'] | [0]
-        set:
-          schema_registries: []
-
   - name: 020-sync-delete-decrypt-fields-prerequisites
     inputOverlayDirs:
       - overlays/010-sync-delete-decrypt-fields-prerequisites
