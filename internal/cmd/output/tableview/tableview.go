@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"os"
 	"reflect"
 	"slices"
 	"sort"
@@ -20,6 +21,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/glamour/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/mattn/go-isatty"
@@ -28,7 +30,6 @@ import (
 
 	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/colorprofile"
-	"github.com/charmbracelet/glamour"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	columnoutput "github.com/kong/kongctl/internal/cmd/output/columns"
@@ -1203,9 +1204,15 @@ func renderMarkdownContent(raw string, width int) string {
 	if width <= 0 {
 		width = 80
 	}
+	style := "notty"
+	if term.IsTerminal(int(os.Stdout.Fd())) {
+		style = "dark"
+		if !termenv.HasDarkBackground() {
+			style = "light"
+		}
+	}
 	renderer, err := glamour.NewTermRenderer(
-		glamour.WithAutoStyle(),
-		glamour.WithColorProfile(termenv.TrueColor),
+		glamour.WithStandardStyle(style),
 		glamour.WithWordWrap(width),
 	)
 	if err != nil {
