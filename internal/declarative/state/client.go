@@ -330,7 +330,7 @@ type AIGatewayAuthStrategy struct {
 	Raw              map[string]any
 	NormalizedLabels map[string]string
 	Datastores       []kkComps.AIGatewayDatastoreRef
-	TokenVault       *kkComps.AIGatewayTokenVaultCredentialManagerInput
+	TokenVault       *kkComps.AIGatewayTokenVaultEnrollmentProtectionInput
 }
 
 // AIGatewayPolicy represents a Konnect AI Gateway Policy for internal use.

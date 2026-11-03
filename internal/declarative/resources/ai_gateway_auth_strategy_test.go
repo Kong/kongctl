@@ -3,8 +3,29 @@ package resources
 import (
 	"testing"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/stretchr/testify/require"
 )
+
+func TestAIGatewayAuthStrategyEnrollmentProtectionRequiresDatastore(t *testing.T) {
+	resource := AIGatewayAuthStrategyResource{
+		BaseResource: BaseResource{Ref: "oidc"},
+		Name:         "oidc",
+		Type:         "openid-connect",
+		DisplayName:  "OIDC",
+		Config:       map[string]any{"issuer": "https://example.com", "cache_tokens_salt": "salt"},
+	}
+	require.NoError(t, resource.Validate())
+	for _, enabled := range []*bool{nil, new(false), new(true)} {
+		resource.Datastores = nil
+		resource.TokenVault = &kkComps.AIGatewayTokenVaultEnrollmentProtectionInput{
+			EnableCredentialManager: enabled,
+		}
+		require.ErrorContains(t, resource.Validate(), "token_vault requires exactly one")
+		resource.Datastores = []kkComps.AIGatewayDatastoreRef{{Name: "vault"}}
+		require.NoError(t, resource.Validate())
+	}
+}
 
 func TestAIGatewayAuthStrategyExplainRequiresOpenIDConnectAPIFields(t *testing.T) {
 	node, err := aiGatewayAuthStrategyExplainNode(ExplainBuildContext{})

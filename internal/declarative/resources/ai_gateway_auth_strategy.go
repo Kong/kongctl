@@ -82,7 +82,7 @@ type AIGatewayAuthStrategyResource struct {
 
 	Datastores []kkComps.AIGatewayDatastoreRef `yaml:"datastores,omitempty" json:"datastores,omitempty"`
 
-	TokenVault *kkComps.AIGatewayTokenVaultCredentialManagerInput `yaml:"token_vault,omitempty" json:"token_vault,omitempty"` //nolint:lll
+	TokenVault *kkComps.AIGatewayTokenVaultEnrollmentProtectionInput `yaml:"token_vault,omitempty" json:"token_vault,omitempty"` //nolint:lll
 }
 
 // GetType returns the resource type.
@@ -142,9 +142,7 @@ func (a AIGatewayAuthStrategyResource) Validate() error {
 			)
 		}
 	}
-	managerEnabled := a.TokenVault != nil && a.TokenVault.EnableCredentialManager != nil &&
-		*a.TokenVault.EnableCredentialManager
-	if err := validateAIGatewayTokenVault(a.Datastores, managerEnabled); err != nil {
+	if err := validateAIGatewayTokenVault(a.Datastores, a.TokenVault != nil); err != nil {
 		return err
 	}
 	return nil
@@ -250,17 +248,17 @@ func (a AIGatewayAuthStrategyResource) MarshalYAML() (any, error) {
 // UnmarshalJSON decodes the declaration separately from its SDK payload.
 func (a *AIGatewayAuthStrategyResource) UnmarshalJSON(data []byte) error {
 	var raw struct {
-		Ref         string                                             `json:"ref"`
-		AIGateway   string                                             `json:"ai_gateway,omitempty"`
-		Name        string                                             `json:"name"`
-		Type        string                                             `json:"type"`
-		DisplayName string                                             `json:"display_name"`
-		Labels      map[string]string                                  `json:"labels,omitempty"`
-		ManagedBy   map[string]string                                  `json:"managed_by,omitempty"`
-		Config      map[string]any                                     `json:"config"`
-		Datastores  []kkComps.AIGatewayDatastoreRef                    `json:"datastores,omitempty"`
-		TokenVault  *kkComps.AIGatewayTokenVaultCredentialManagerInput `json:"token_vault,omitempty"`
-		Kongctl     *KongctlMeta                                       `json:"kongctl,omitempty"`
+		Ref         string                                                `json:"ref"`
+		AIGateway   string                                                `json:"ai_gateway,omitempty"`
+		Name        string                                                `json:"name"`
+		Type        string                                                `json:"type"`
+		DisplayName string                                                `json:"display_name"`
+		Labels      map[string]string                                     `json:"labels,omitempty"`
+		ManagedBy   map[string]string                                     `json:"managed_by,omitempty"`
+		Config      map[string]any                                        `json:"config"`
+		Datastores  []kkComps.AIGatewayDatastoreRef                       `json:"datastores,omitempty"`
+		TokenVault  *kkComps.AIGatewayTokenVaultEnrollmentProtectionInput `json:"token_vault,omitempty"`
+		Kongctl     *KongctlMeta                                          `json:"kongctl,omitempty"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
