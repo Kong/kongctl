@@ -1,4 +1,3 @@
-
 baseInputsPath: testdata
 
 steps:
@@ -219,6 +218,56 @@ steps:
             expect:
               fields:
                 "length(@)": 0
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 005b-dump-and-round-trip
+    skipInputs: true
+    commands:
+      - name: dump-portal-and-strategies
+        run:
+          - dump
+          - declarative
+          - --resources=portals,application_auth_strategies
+          - --include-child-resources
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: '{{ .workdir }}/dump.yaml'
+        assertions:
+          - select: length(portals)
+            expect:
+              fields:
+                '@': 1
+          - select: portals[?name=='My Simple Portal'] | [0]
+            expect:
+              fields:
+                name: My Simple Portal
+                default_application_auth_strategy_id: '{{ .vars.authStrategyV2ID }}'
+          - select: length(application_auth_strategies)
+            expect:
+              fields:
+                '@': 2
+          - select: application_auth_strategies[?name=='apikey-app-auth-strategy'] | [0]
+            expect:
+              fields:
+                strategy_type: key_auth
+          - select: application_auth_strategies[?name=='apikey-app-auth-strategy-v2'] | [0]
+            expect:
+              fields:
+                strategy_type: key_auth
+                configs."key-auth".key_names:
+                  - X-API-Key-V2
+      - name: plan-from-dump
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/dump.yaml'
+          - --mode
+          - apply
+        outputFormat: disable
+        assertions:
           - select: summary
             expect:
               fields:
