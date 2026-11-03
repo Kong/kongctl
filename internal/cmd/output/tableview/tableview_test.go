@@ -2,6 +2,7 @@ package tableview
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -62,6 +63,29 @@ func executeCmd(t *testing.T, model *bubbleModel, cmd tea.Cmd) *bubbleModel {
 		}
 	}
 	return model
+}
+
+func TestRenderMarkdownContent(t *testing.T) {
+	const raw = "This is **rendered Markdown** with enough words to wrap across several lines."
+	for _, width := range []int{0, -1, 24} {
+		t.Run(fmt.Sprintf("width_%d", width), func(t *testing.T) {
+			rendered := renderMarkdownContent(raw, width)
+			// The non-terminal style retains Markdown emphasis markers.
+			plain := strings.ReplaceAll(ansi.Strip(rendered), "**", "")
+			require.Equal(
+				t,
+				"This is rendered Markdown with enough words to wrap across several lines.",
+				strings.Join(strings.Fields(plain), " "),
+			)
+			maxWidth := width
+			if maxWidth <= 0 {
+				maxWidth = 80
+			}
+			for line := range strings.SplitSeq(rendered, "\n") {
+				require.LessOrEqual(t, ansi.StringWidth(line), maxWidth)
+			}
+		})
+	}
 }
 
 func TestRender_StaticOutput(t *testing.T) {
