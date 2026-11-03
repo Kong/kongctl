@@ -235,6 +235,49 @@ steps:
                         - match: "*updated"
                       resource_type: "transactional_id"
 
+  - name: 002b-dump-acls-round-trip
+    skipInputs: true
+    commands:
+      - name: dump-cluster-policy
+        run:
+          - dump
+          - declarative
+          - --resources=event_gateways
+          - --include-child-resources
+          - --filter-name={{ .vars.egwName }}
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: '{{ .workdir }}/dump.yaml'
+        assertions:
+          - select: event_gateways[?name=='{{ .vars.egwName }}'] | [0].virtual_clusters[?name=='{{ .vars.virtualClusterName
+              }}'] | [0].cluster_policies[?name=='{{ .vars.clusterPolicyName }}'] | [0]
+            expect:
+              fields:
+                name: '{{ .vars.clusterPolicyName }}'
+                type: acls
+                description: Default Cluster Policy description updated
+                enabled: false
+                labels.env: staging
+                labels.version: v2
+                length(config.rules): 1
+                config.rules[0].action: allow
+                config.rules[0].operations[0].name: describe_configs
+                config.rules[0].resource_names[0].match: '*updated'
+                config.rules[0].resource_type: transactional_id
+      - name: plan-from-dump
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/dump.yaml'
+          - --mode
+          - sync
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
   - name: 003-idempotency-check
     inputOverlayDirs:
       - overlays/001-update-fields
@@ -601,6 +644,48 @@ steps:
             expect:
               fields:
                 total_changes: 0
+  - name: 008b-dump-request-rules-round-trip
+    skipInputs: true
+    commands:
+      - name: dump-cluster-policy
+        run:
+          - dump
+          - declarative
+          - --resources=event_gateways
+          - --include-child-resources
+          - --filter-name={{ .vars.egwName }}
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: '{{ .workdir }}/dump.yaml'
+        assertions:
+          - select: event_gateways[?name=='{{ .vars.egwName }}'] | [0].virtual_clusters[?name=='{{ .vars.virtualClusterName
+              }}'] | [0].cluster_policies[?name=='request-rules'] | [0]
+            expect:
+              fields:
+                name: request-rules
+                type: request_rule_validator
+                description: Validate produce requests updated
+                enabled: false
+                labels.env: staging
+                length(config.requests): 1
+                config.requests[0].type: produce
+                length(config.requests[0].rules): 1
+                config.requests[0].rules[0].action: reject
+                config.requests[0].rules[0].rule: context.produce.acks != 0
+      - name: plan-from-dump
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/dump.yaml'
+          - --mode
+          - sync
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
   - name: 009-request-rules-delete
     inputOverlayDirs:
       - overlays/004-sync-delete-root-level-declaration
