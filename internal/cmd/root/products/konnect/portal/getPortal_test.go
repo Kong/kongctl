@@ -22,3 +22,13 @@ func TestBuildPortalChildViewIncludesDescription(t *testing.T) {
 	require.Equal(t, "developers", view.Rows[0][0])
 	require.Equal(t, description, view.Rows[0][1])
 }
+
+func TestPortalIDFromAPIRegistrationParent(t *testing.T) {
+	registration := kkComps.APIRegistration{
+		Portal: kkComps.APIRegistrationPortal{ID: " portal-id ", Name: "Developers"},
+	}
+
+	id, err := portalIDFromParent(&registration.Portal)
+	require.NoError(t, err)
+	require.Equal(t, "portal-id", id)
+}
