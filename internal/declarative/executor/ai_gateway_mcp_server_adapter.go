@@ -27,6 +27,9 @@ func (a *AIGatewayMCPServerAdapter) MapCreateFields(
 	fields map[string]any,
 	create *kkComps.CreateAIGatewayMCPServerRequest,
 ) error {
+	if err := resources.ValidateAIGatewayMCPServerACLs(fields); err != nil {
+		return err
+	}
 	if err := mapAIGatewaySDKRequest("AI Gateway MCP Server create", fields, create); err != nil {
 		return err
 	}
@@ -48,6 +51,9 @@ func (a *AIGatewayMCPServerAdapter) MapUpdateFields(
 	update *kkComps.UpdateAIGatewayMCPServerRequest,
 	_ map[string]string,
 ) error {
+	if err := resources.ValidateAIGatewayMCPServerACLs(fields); err != nil {
+		return err
+	}
 	if err := mapAIGatewaySDKRequest("AI Gateway MCP Server update", fields, update); err != nil {
 		return err
 	}

@@ -356,6 +356,9 @@ func (a *AIGatewayMCPServerResource) UnmarshalJSON(data []byte) error {
 	if err := rejectUnsupportedAIGatewayMCPServerAccess(raw); err != nil {
 		return err
 	}
+	if err := validateAIGatewayMCPServerACLs(raw); err != nil {
+		return err
+	}
 
 	payload, err := json.Marshal(raw)
 	if err != nil {
@@ -369,6 +372,61 @@ func (a *AIGatewayMCPServerResource) UnmarshalJSON(data []byte) error {
 	a.BaseResource = BaseResource{Ref: meta.Ref, Kongctl: meta.Kongctl}
 	a.AIGateway = meta.AIGateway
 	a.CreateAIGatewayMCPServerRequest = req
+	return nil
+}
+
+// ValidateAIGatewayMCPServerACLs checks ACL exclusivity before SDK union decoding.
+func ValidateAIGatewayMCPServerACLs(payload map[string]any) error {
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("invalid MCP Server payload: %w", err)
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return fmt.Errorf("invalid MCP Server payload: %w", err)
+	}
+	return validateAIGatewayMCPServerACLs(raw)
+}
+
+func validateAIGatewayMCPServerACLs(raw map[string]json.RawMessage) error {
+	validateAccess := func(data json.RawMessage, path string) error {
+		var access map[string]json.RawMessage
+		if len(data) == 0 {
+			return nil
+		}
+		if err := json.Unmarshal(data, &access); err != nil {
+			return fmt.Errorf("invalid %s: %w", path, err)
+		}
+		data, ok := access["acls"]
+		if !ok || string(data) == "null" {
+			return nil
+		}
+		var acls map[string]json.RawMessage
+		if err := json.Unmarshal(data, &acls); err != nil {
+			return fmt.Errorf("invalid %s.acls: %w", path, err)
+		}
+		for field := range acls {
+			if len(acls) == 1 && slices.Contains([]string{"allow", "deny", "allow_when", "deny_when"}, field) {
+				return nil
+			}
+		}
+		return fmt.Errorf("%s.acls must specify exactly one of allow, deny, allow_when, or deny_when", path)
+	}
+	// Check the original input before SDK union decoding can discard another ACL branch.
+	if err := validateAccess(raw["access"], "access"); err != nil {
+		return err
+	}
+	var tools []map[string]json.RawMessage
+	if data := raw["tools"]; len(data) > 0 {
+		if err := json.Unmarshal(data, &tools); err != nil {
+			return fmt.Errorf("invalid MCP tools: %w", err)
+		}
+	}
+	for i, tool := range tools {
+		if err := validateAccess(tool["access"], fmt.Sprintf("tools[%d].access", i)); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -733,7 +791,7 @@ func aiGatewayMCPServerAccessExplainNode() *ExplainNode {
 		explainField("acl_attribute_type", explainStringNode("consumer"), true, true),
 		explainField("access_token_claim_field", explainStringNode("sub"), false, false),
 		explainField("acls", aiGatewayMCPACLsExplainNode(), false, false),
-		explainField("default_tool_acls", aiGatewayMCPACLsExplainNode(), false, false),
+		explainField("default_tool_acls", aiGatewayMCPDefaultToolACLsExplainNode(), false, false),
 		explainField(
 			SchemaFieldAuthStrategies,
 			explainArrayOf(explainStringNode("auth-strategy-name")),
@@ -797,6 +855,12 @@ func aiGatewayMCPServerConfigExplainNode() *ExplainNode {
 }
 
 func aiGatewayMCPACLsExplainNode() *ExplainNode {
+	node := aiGatewayMCPDefaultToolACLsExplainNode()
+	node.Description = "Specify exactly one of allow, deny, allow_when, or deny_when."
+	return node
+}
+
+func aiGatewayMCPDefaultToolACLsExplainNode() *ExplainNode {
 	return explainObject(
 		explainField("allow", explainArrayOf(explainStringNode("consumer-group")), false, false),
 		explainField("deny", explainArrayOf(explainStringNode("consumer-group")), false, false),

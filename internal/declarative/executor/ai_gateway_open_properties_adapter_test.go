@@ -44,3 +44,31 @@ func TestAIGatewayMCPServerAdapterRejectsAdditionalProperties(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "future_mcp_server_field")
 }
+
+func TestAIGatewayMCPServerAdapterRejectsCombinedACLs(t *testing.T) {
+	for _, location := range []string{"server", "tool"} {
+		t.Run(location, func(t *testing.T) {
+			fields := map[string]any{
+				planner.FieldType:        "passthrough-listener",
+				planner.FieldName:        "support",
+				planner.FieldDisplayName: "Support",
+				planner.FieldConfig: map[string]any{
+					"url": "https://example.com", "route": map[string]any{"paths": []string{"/mcp"}},
+				},
+			}
+			access := map[string]any{"acls": map[string]any{"allow": []string{}, "deny": []string{}}}
+			if location == "server" {
+				fields[planner.FieldAccess] = access
+			} else {
+				fields[planner.FieldTools] = []any{map[string]any{"name": "lookup", "access": access}}
+			}
+			adapter := NewAIGatewayMCPServerAdapter(nil)
+			var create kkComps.CreateAIGatewayMCPServerRequest
+			err := adapter.MapCreateFields(t.Context(), nil, fields, &create)
+			require.ErrorContains(t, err, "acls must specify exactly one")
+			var update kkComps.UpdateAIGatewayMCPServerRequest
+			err = adapter.MapUpdateFields(t.Context(), nil, fields, &update, nil)
+			require.ErrorContains(t, err, "acls must specify exactly one")
+		})
+	}
+}
