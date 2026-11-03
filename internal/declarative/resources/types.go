@@ -31,7 +31,6 @@ const (
 	ResourceTypeAIGatewayConfigStore                    ResourceType = "ai_gateway_config_store"
 	ResourceTypeAIGatewayConfigStoreSecret              ResourceType = "ai_gateway_config_store_secret"
 	ResourceTypeAIGatewayVault                          ResourceType = "ai_gateway_vault"
-	ResourceTypeAICostManagementTags                    ResourceType = "ai_cost_management_tags"
 	ResourceTypeAIGatewayDatastore                      ResourceType = "ai_gateway_datastore"
 	ResourceTypeAIGatewayDataPlaneCertificate           ResourceType = "ai_gateway_data_plane_certificate"
 	ResourceTypeAIGatewayCertificate                    ResourceType = "ai_gateway_certificate"
@@ -164,7 +163,6 @@ type ResourceSet struct {
 	AIGatewayConfigStores             []AIGatewayConfigStoreResource             `yaml:"ai_gateway_config_stores,omitempty"                       json:"ai_gateway_config_stores,omitempty"`              //nolint:lll
 	AIGatewayConfigStoreSecrets       []AIGatewayConfigStoreSecretResource       `yaml:"ai_gateway_config_store_secrets,omitempty"                json:"ai_gateway_config_store_secrets,omitempty"`       //nolint:lll
 	AIGatewayVaults                   []AIGatewayVaultResource                   `yaml:"ai_gateway_vaults,omitempty"                              json:"ai_gateway_vaults,omitempty"`                     //nolint:lll
-	AICostManagementTags              []AICostManagementTagsResource             `yaml:"ai_cost_management_tags,omitempty" json:"ai_cost_management_tags,omitempty"`                                      //nolint:lll
 	AIGatewayDatastores               []AIGatewayDatastoreResource               `yaml:"ai_gateway_datastores,omitempty"                              json:"ai_gateway_datastores,omitempty"`             //nolint:lll
 	AIGatewayDataPlaneCertificates    []AIGatewayDataPlaneCertificateResource    `yaml:"ai_gateway_data_plane_certificates,omitempty"              json:"ai_gateway_data_plane_certificates,omitempty"`   //nolint:lll
 	AIGatewayCertificates             []AIGatewayCertificateResource             `yaml:"ai_gateway_certificates,omitempty"                         json:"ai_gateway_certificates,omitempty"`              //nolint:lll

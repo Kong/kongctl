@@ -35,7 +35,6 @@ type SDKAPI interface {
 	GetAIGatewayConfigStoresAPI() AIGatewayConfigStoresAPI
 	GetAIGatewayVaultsAPI() AIGatewayVaultsAPI
 	GetAIGatewayDatastoresAPI() AIGatewayDatastoresAPI
-	GetAICostManagementTagsAPI() AICostManagementTagsAPI
 	GetAIGatewayNodesAPI() AIGatewayNodesAPI
 	GetAIGatewayDataPlaneCertificatesAPI() AIGatewayDataPlaneCertificatesAPI
 	GetAIGatewayCertificatesAPI() AIGatewayCertificatesAPI
@@ -767,11 +766,4 @@ func (k *KonnectSDK) GetAIGatewayCustomPoliciesAPI() AIGatewayCustomPoliciesAPI 
 	}
 
 	return &AIGatewayCustomPoliciesAPIImpl{SDK: k.SDK}
-}
-
-func (k *KonnectSDK) GetAICostManagementTagsAPI() AICostManagementTagsAPI {
-	if k.SDK == nil || k.SDK.AIGatewayCostManagementTags == nil {
-		return nil
-	}
-	return &AICostManagementTagsAPIImpl{SDK: k.SDK}
 }

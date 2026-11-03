@@ -48,7 +48,6 @@ type ClientConfig struct {
 	AIGatewayConfigStoresAPI          helpers.AIGatewayConfigStoresAPI
 	AIGatewayVaultsAPI                helpers.AIGatewayVaultsAPI
 	AIGatewayDatastoresAPI            helpers.AIGatewayDatastoresAPI
-	AICostManagementTagsAPI           helpers.AICostManagementTagsAPI
 	AIGatewayDataPlaneCertificatesAPI helpers.AIGatewayDataPlaneCertificatesAPI
 	AIGatewayCertificatesAPI          helpers.AIGatewayCertificatesAPI
 	AIGatewayCACertificatesAPI        helpers.AIGatewayCACertificatesAPI
@@ -128,7 +127,6 @@ type Client struct {
 	aiGatewayConfigStoresAPI          helpers.AIGatewayConfigStoresAPI
 	aiGatewayVaultsAPI                helpers.AIGatewayVaultsAPI
 	aiGatewayDatastoresAPI            helpers.AIGatewayDatastoresAPI
-	aiCostManagementTagsAPI           helpers.AICostManagementTagsAPI
 	aiGatewayDataPlaneCertificatesAPI helpers.AIGatewayDataPlaneCertificatesAPI
 	aiGatewayCertificatesAPI          helpers.AIGatewayCertificatesAPI
 	aiGatewayCACertificatesAPI        helpers.AIGatewayCACertificatesAPI
@@ -209,7 +207,6 @@ func NewClient(config ClientConfig) *Client {
 		aiGatewayConfigStoresAPI:          config.AIGatewayConfigStoresAPI,
 		aiGatewayVaultsAPI:                config.AIGatewayVaultsAPI,
 		aiGatewayDatastoresAPI:            config.AIGatewayDatastoresAPI,
-		aiCostManagementTagsAPI:           config.AICostManagementTagsAPI,
 		aiGatewayDataPlaneCertificatesAPI: config.AIGatewayDataPlaneCertificatesAPI,
 		aiGatewayCertificatesAPI:          config.AIGatewayCertificatesAPI,
 		aiGatewayCACertificatesAPI:        config.AIGatewayCACertificatesAPI,

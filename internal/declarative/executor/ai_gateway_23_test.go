@@ -6,7 +6,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -163,68 +162,4 @@ func TestAIGateway23DatastorePlanAndExecution(t *testing.T) {
 		GeneratePlan(t.Context(), rs, planner.Options{Mode: planner.PlanModeApply})
 	require.NoError(t, err)
 	require.Empty(t, repeated.Changes, "%+v", repeated.Changes)
-}
-
-func TestAICostManagementTagsPlanAndExecution(t *testing.T) {
-	for _, desired := range []string{`headers: [{name: my-tenant-id, tag_key: tenant}]
-  prefixes: [{name: my-co}]`, `headers: []
-  prefixes: []`} {
-		t.Run(desired, func(t *testing.T) {
-			filename := filepath.Join(t.TempDir(), "cost.yaml")
-			require.NoError(
-				t,
-				os.WriteFile(
-					filename,
-					[]byte("ai_cost_management_tags:\n- ref: capture\n  "+desired+"\n"),
-					0o600,
-				),
-			)
-			rs, err := loader.New().LoadFile(filename)
-			require.NoError(t, err)
-			var written map[string]any
-			httpClient := aiGateway23HTTPClient(func(req *http.Request) (*http.Response, error) {
-				require.Equal(t, "/v1/ai-cost-management/tag-capture", req.URL.Path)
-				body := `{"headers":[{"name":"previous-header","tag_key":"previous"}],"prefixes":[]}`
-				if req.Method == http.MethodPut {
-					require.NoError(t, json.NewDecoder(req.Body).Decode(&written))
-					data, err := json.Marshal(written)
-					require.NoError(t, err)
-					body = string(data)
-				} else {
-					require.Equal(t, http.MethodGet, req.Method)
-				}
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Header:     http.Header{"Content-Type": {"application/json"}},
-					Body:       io.NopCloser(strings.NewReader(body)),
-					Request:    req,
-				}, nil
-			})
-			sdk := &helpers.KonnectSDK{
-				SDK: kkSDK.New(
-					kkSDK.WithServerURL("https://konnect.test"),
-					kkSDK.WithClient(httpClient),
-				),
-			}
-			client := state.NewClient(
-				state.ClientConfig{AICostManagementTagsAPI: sdk.GetAICostManagementTagsAPI()},
-			)
-			plan, err := planner.NewPlanner(client, slog.Default()).
-				GeneratePlan(t.Context(), rs, planner.Options{Mode: planner.PlanModeApply})
-			require.NoError(t, err)
-			require.Len(t, plan.Changes, 1)
-			require.Equal(t, planner.ActionUpdate, plan.Changes[0].Action)
-			result := New(
-				client,
-				nil,
-				false,
-			).Execute(context.WithValue(t.Context(), log.LoggerKey, slog.Default()), plan)
-			require.Zero(t, result.FailureCount, "%+v", result.Errors)
-			require.Equal(t, plan.Changes[0].Fields["headers"], written["headers"])
-			require.Equal(t, plan.Changes[0].Fields["prefixes"], written["prefixes"])
-			_, err = planner.NewPlanner(client, slog.Default()).
-				GeneratePlan(t.Context(), rs, planner.Options{Mode: planner.PlanModeDelete})
-			require.ErrorContains(t, err, "cannot be deleted")
-		})
-	}
 }

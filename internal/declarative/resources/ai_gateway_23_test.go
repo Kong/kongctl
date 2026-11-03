@@ -64,14 +64,3 @@ func TestTokenVaultRequiresOneDatastore(t *testing.T) {
 		validateAIGatewayTokenVault([]kkComps.AIGatewayDatastoreRef{{Name: "one"}}, true),
 	)
 }
-
-func TestAICostManagementTagsRequireExplicitArrays(t *testing.T) {
-	r := AICostManagementTagsResource{BaseResource: BaseResource{Ref: "capture"}}
-	require.ErrorContains(t, r.Validate(), "explicit arrays")
-	r.Headers = []kkComps.CostTagHeader{}
-	require.ErrorContains(t, r.Validate(), "explicit arrays")
-	r.Prefixes = []kkComps.CostTagPrefix{}
-	require.NoError(t, r.Validate())
-	r.Headers = []kkComps.CostTagHeader{{Name: "my-header", TagKey: "tenant"}, {Name: "MY-HEADER", TagKey: "other"}}
-	require.ErrorContains(t, r.Validate(), "duplicate")
-}

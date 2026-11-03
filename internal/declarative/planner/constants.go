@@ -261,7 +261,6 @@ const (
 	ResourceTypeAIGatewayConfigStore             = string(resources.ResourceTypeAIGatewayConfigStore)
 	ResourceTypeAIGatewayConfigStoreSecret       = string(resources.ResourceTypeAIGatewayConfigStoreSecret)
 	ResourceTypeAIGatewayVault                   = string(resources.ResourceTypeAIGatewayVault)
-	ResourceTypeAICostManagementTags             = string(resources.ResourceTypeAICostManagementTags)
 	ResourceTypeAIGatewayDatastore               = string(resources.ResourceTypeAIGatewayDatastore)
 	ResourceTypeAIGatewayDataPlaneCertificate    = string(resources.ResourceTypeAIGatewayDataPlaneCertificate)
 	ResourceTypeAIGatewayCertificate             = string(resources.ResourceTypeAIGatewayCertificate)

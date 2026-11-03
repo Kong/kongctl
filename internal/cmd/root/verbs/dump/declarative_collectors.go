@@ -36,28 +36,6 @@ var declarativeCollectors = buildDeclarativeCollectors()
 func buildDeclarativeCollectors() map[string]declarativeCollector {
 	registrations := []declarativeCollector{
 		rootCollector(
-			"ai_cost_management_tags",
-			func(ctx context.Context, d *declarativeDumpContext) ([]declresources.AICostManagementTagsResource, error) {
-				value, err := d.stateClient.GetAICostManagementTags(ctx)
-				if err != nil {
-					return nil, err
-				}
-				return []declresources.AICostManagementTagsResource{
-					{
-						BaseResource: declresources.BaseResource{Ref: "ai-cost-management-tags"},
-						Headers:      value.Headers,
-						Prefixes:     value.Prefixes,
-						Labels:       value.Labels,
-						ManagedBy:    value.ManagedBy,
-					},
-				}, nil
-			},
-			func(rs *declresources.ResourceSet) *[]declresources.AICostManagementTagsResource {
-				return &rs.AICostManagementTags
-			},
-			nil,
-		),
-		rootCollector(
 			"portals",
 			func(ctx context.Context, d *declarativeDumpContext) ([]declresources.PortalResource, error) {
 				return collectDeclarativePortals(ctx, d.sdk.GetPortalAPI(), d.pageSize, d.filter)

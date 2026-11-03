@@ -994,32 +994,6 @@ expressions. Gateway PUT updates preserve existing server `managed_by`
 metadata. This field is reserved for Kong tools and cannot be declared in
 manifests.
 
-### Organization-wide AI cost-tag capture
-
-`ai_cost_management_tags` is a regional organization-wide singleton, separate
-from gateway children. Declare at most one entry across the loaded manifest:
-
-```yaml
-ai_cost_management_tags:
-  - ref: cost-capture
-    headers:
-      - name: my-tenant-id
-        tag_key: tenant
-    prefixes:
-      - name: my-co
-```
-
-Both arrays are required. Apply and sync replace this configuration through
-PUT. Omission, including an empty root collection, leaves capture untouched.
-Explicit `headers: []` and `prefixes: []` reset custom capture; the API still
-captures its built-in `ai-cost-` headers. Delete mode is unsupported. Configure
-capture in the intended Konnect region using the usual region/base URL flags.
-The API rejects credential header names and prefixes.
-
-Use `kongctl get ai-cost-management tag-capture` to inspect it,
-`kongctl apply -f cost-capture.yaml` to manage the declarative configuration,
-or
-`kongctl dump declarative --resources ai_cost_management_tags` to export it.
 Use `kongctl get ai-gateway datastores --gateway-name support` to list stores.
 
 ## Configuration Templates
