@@ -1,6 +1,6 @@
 _defaults:
   kongctl:
-    namespace: federated-team-a
+    namespace: !env FEDERATED_MODEL_NAMESPACE
 ai_gateways:
   - ref: shared
     _external:

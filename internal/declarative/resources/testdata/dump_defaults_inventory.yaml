@@ -443,10 +443,6 @@ resources:
         type: integer
         value: 0
         source: sdk
-      - path: models.config.balancer.vectordb.database
-        type: string
-        value: kong-pgvector
-        source: sdk
       - path: models.config.balancer.vectordb.host
         type: string
         value: 127.0.0.1
@@ -454,10 +450,6 @@ resources:
       - path: models.config.balancer.vectordb.keepalive.pool_size
         type: integer
         value: 256
-        source: sdk
-      - path: models.config.balancer.vectordb.port
-        type: integer
-        value: 5432
         source: sdk
       - path: models.config.balancer.vectordb.read_timeout
         type: integer
@@ -479,33 +471,9 @@ resources:
         type: boolean
         value: true
         source: sdk
-      - path: models.config.balancer.vectordb.ssl.enabled
-        type: boolean
-        value: true
-        source: sdk
-      - path: models.config.balancer.vectordb.ssl.required
-        type: boolean
-        value: true
-        source: sdk
-      - path: models.config.balancer.vectordb.ssl.verify
-        type: boolean
-        value: true
-        source: sdk
-      - path: models.config.balancer.vectordb.ssl.version
-        type: string
-        value: tlsv1_2
-        source: sdk
       - path: models.config.balancer.vectordb.ssl_verify
         type: boolean
         value: true
-        source: sdk
-      - path: models.config.balancer.vectordb.timeout
-        type: number
-        value: 5000
-        source: sdk
-      - path: models.config.balancer.vectordb.user
-        type: string
-        value: postgres
         source: sdk
       - path: models.config.balancer.write_timeout
         type: integer
@@ -1123,10 +1091,6 @@ resources:
         type: integer
         value: 0
         source: sdk
-      - path: config.balancer.vectordb.database
-        type: string
-        value: kong-pgvector
-        source: sdk
       - path: config.balancer.vectordb.host
         type: string
         value: 127.0.0.1
@@ -1134,10 +1098,6 @@ resources:
       - path: config.balancer.vectordb.keepalive.pool_size
         type: integer
         value: 256
-        source: sdk
-      - path: config.balancer.vectordb.port
-        type: integer
-        value: 5432
         source: sdk
       - path: config.balancer.vectordb.read_timeout
         type: integer
@@ -1159,33 +1119,9 @@ resources:
         type: boolean
         value: true
         source: sdk
-      - path: config.balancer.vectordb.ssl.enabled
-        type: boolean
-        value: true
-        source: sdk
-      - path: config.balancer.vectordb.ssl.required
-        type: boolean
-        value: true
-        source: sdk
-      - path: config.balancer.vectordb.ssl.verify
-        type: boolean
-        value: true
-        source: sdk
-      - path: config.balancer.vectordb.ssl.version
-        type: string
-        value: tlsv1_2
-        source: sdk
       - path: config.balancer.vectordb.ssl_verify
         type: boolean
         value: true
-        source: sdk
-      - path: config.balancer.vectordb.timeout
-        type: number
-        value: 5000
-        source: sdk
-      - path: config.balancer.vectordb.user
-        type: string
-        value: postgres
         source: sdk
       - path: config.balancer.write_timeout
         type: integer

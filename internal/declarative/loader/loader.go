@@ -360,6 +360,12 @@ func (l *Loader) parsePreparedYAML(prepared *preparedYAML) (*resources.ResourceS
 		return nil, fmt.Errorf("failed to parse deferred !env tags in %s: %w", sourcePath, placeholderErr)
 	}
 
+	// Decode aliases and merges before resolving ownership metadata. Resolve in
+	// both representations so ordinary fields sharing an anchor stay deferred.
+	if err := resolveNamespaceEnvPlaceholders(&temp, &placeholderTemp); err != nil {
+		return nil, fmt.Errorf("failed to resolve namespace environment values in %s: %w", sourcePath, err)
+	}
+
 	// Extract the clean ResourceSet
 	rs := temp.ResourceSet
 	placeholderRS := placeholderTemp.ResourceSet

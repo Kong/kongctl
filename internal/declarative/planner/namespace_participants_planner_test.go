@@ -1,6 +1,7 @@
 package planner
 
 import (
+	"encoding/json"
 	"io"
 	"log/slog"
 	"os"
@@ -20,11 +21,12 @@ import (
 )
 
 func TestExternalOnlyDefaultDoesNotExpandSyncNamespaces(t *testing.T) {
+	t.Setenv("EXTERNAL_DEFAULT_NS", "platform")
 	file := filepath.Join(t.TempDir(), "external.yaml")
 	require.NoError(t, os.WriteFile(file, []byte(`
 _defaults:
   kongctl:
-    namespace: platform
+    namespace: !env EXTERNAL_DEFAULT_NS
 portals:
   - ref: shared-portal
     _external:
@@ -65,4 +67,38 @@ func TestGetResourceNamespacesExternalAIGatewayMapsToExternal(t *testing.T) {
 	rs := &resources.ResourceSet{AIGateways: []resources.AIGatewayResource{gateway}}
 
 	assert.Equal(t, []string{resources.NamespaceExternal}, planner.getResourceNamespaces(rs))
+}
+
+func TestEnvNamespaceSyncScopeSavedPlan(t *testing.T) {
+	t.Setenv("SCOPE_DEFAULT_NS", "team-prod")
+	t.Setenv("SCOPE_GATEWAY_NS", "platform-prod")
+	file := filepath.Join(t.TempDir(), "scope.yaml")
+	require.NoError(t, os.WriteFile(file, []byte(`_defaults:
+  kongctl:
+    namespace: !env SCOPE_DEFAULT_NS
+ai_gateways:
+  - ref: gateway
+    name: prod-gateway
+    display_name: Prod Gateway
+    kongctl: {namespace: !env SCOPE_GATEWAY_NS}
+    models: []
+`), 0o600))
+	rs, err := loader.New().LoadFromSources([]loader.Source{{Type: loader.SourceTypeFile, Path: file}}, false)
+	require.NoError(t, err)
+	plan := NewPlan("1.0", "test", PlanModeSync)
+	plan.Metadata.SyncScope = syncScopeMetadata(rs.SyncScope)
+	saved, err := json.Marshal(plan)
+	require.NoError(t, err)
+	require.NotContains(t, string(saved), "__ENV__:")
+	t.Setenv("SCOPE_DEFAULT_NS", "team-dev")
+	t.Setenv("SCOPE_GATEWAY_NS", "platform-dev")
+	var restored Plan
+	require.NoError(t, json.Unmarshal(saved, &restored))
+	require.Equal(t, []string{"platform-prod"}, restored.Metadata.SyncScope.GatewayNamespaces)
+	require.Equal(t, []string{"team-prod"}, restored.Metadata.SyncScope.ModelNamespaces["gateway"])
+	require.NoError(t, os.WriteFile(file, []byte("_defaults: {kongctl: {namespace: !env SCOPE_DEFAULT_NS}}"), 0o600))
+	rs, err = loader.New().LoadFromSources([]loader.Source{{Type: loader.SourceTypeFile, Path: file}}, false)
+	require.NoError(t, err)
+	require.Equal(t, []string{"team-dev"}, rs.DefaultNamespaces,
+		"defaults-only input selects its resolved namespace")
 }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/tags"
+	"github.com/kong/kongctl/internal/declarative/validator"
 	"gopkg.in/yaml.v3" //nolint:gomodguard_v2 // yaml.v3 required for custom tag processing
 )
 
@@ -45,13 +46,20 @@ func resolveStoredEnvNode(node *yaml.Node, destinations []reflect.Type, path []s
 	case yaml.MappingNode:
 		for i := 0; i+1 < len(node.Content); i += 2 {
 			key := node.Content[i].Value
-			if tags.IsStoredEnvNode(node.Content[i+1]) && storedIdentityField(destinations, key) {
-				return fmt.Errorf("stored environment tags are not supported on refs or kongctl.namespace (field %s)",
+			value := node.Content[i+1]
+			stored := tags.IsStoredEnvNode(value)
+			if stored && storedResourceRefField(destinations, key) {
+				return fmt.Errorf("stored environment tags are not supported on refs (field %s)",
 					strings.Join(append(path, key), "."))
 			}
 			childTypes := storedChildTypes(destinations, key, false)
-			if err := resolveStoredEnvNode(node.Content[i+1], childTypes, append(path, key)); err != nil {
+			if err := resolveStoredEnvNode(value, childTypes, append(path, key)); err != nil {
 				return err
+			}
+			if stored && namespaceField(destinations, key) {
+				if err := validator.NewNamespaceValidator().ValidateNamespace(value.Value); err != nil {
+					return fmt.Errorf("field %s: %w", strings.Join(append(path, key), "."), err)
+				}
 			}
 		}
 	case yaml.SequenceNode:
@@ -104,7 +112,7 @@ func resolveStoredEnvValue(node *yaml.Node, destinations []reflect.Type) error {
 	return nil
 }
 
-func storedIdentityField(parents []reflect.Type, key string) bool {
+func storedResourceRefField(parents []reflect.Type, key string) bool {
 	for _, parent := range parents {
 		parent = derefType(parent)
 		if parent == nil {
@@ -113,8 +121,18 @@ func storedIdentityField(parents []reflect.Type, key string) bool {
 		if key == "ref" && reflect.PointerTo(parent).Implements(reflect.TypeFor[resources.Resource]()) {
 			return true
 		}
-		if key == "namespace" && (parent == reflect.TypeFor[resources.KongctlMeta]() ||
-			parent == reflect.TypeFor[resources.KongctlMetaDefaults]()) {
+	}
+	return false
+}
+
+func namespaceField(parents []reflect.Type, key string) bool {
+	if key != "namespace" {
+		return false
+	}
+	for _, parent := range parents {
+		parent = derefType(parent)
+		if parent == reflect.TypeFor[resources.KongctlMeta]() ||
+			parent == reflect.TypeFor[resources.KongctlMetaDefaults]() {
 			return true
 		}
 	}

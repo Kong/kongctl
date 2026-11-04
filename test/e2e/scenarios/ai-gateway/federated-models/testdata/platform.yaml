@@ -1,6 +1,6 @@
 _defaults:
   kongctl:
-    namespace: federated-platform
+    namespace: !env FEDERATED_PLATFORM_NAMESPACE
 ai_gateways:
   - ref: shared
     name: federated-models-e2e
