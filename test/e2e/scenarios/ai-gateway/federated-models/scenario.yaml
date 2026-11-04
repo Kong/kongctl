@@ -1,20 +1,60 @@
 baseInputsPath: testdata
 env:
   FEDERATED_MODEL_AUTH: test-placeholder
+  FEDERATED_PLATFORM_NAMESPACE: federated-platform
+  FEDERATED_MODEL_NAMESPACE: federated-team-a
+  FEDERATED_TEAM_B_SETTINGS: '{"namespace":"federated-team-b"}'
+  FEDERATED_MODEL_DISPLAY_NAME: Team A chat
 defaults:
   retry:
     attempts: 1
 steps:
+  - name: reject-invalid-environment-namespaces
+    commands:
+      - name: empty-namespace
+        run: [plan, -f, '{{ .workdir }}/team-a.yaml', --mode, sync]
+        env:
+          FEDERATED_MODEL_NAMESPACE: ''
+        expectFailure:
+          exitCode: 1
+          contains: namespace cannot be empty
+      - name: invalid-namespace
+        run: [plan, -f, '{{ .workdir }}/team-a.yaml', --mode, sync]
+        env:
+          FEDERATED_MODEL_NAMESPACE: Invalid_Namespace
+        expectFailure:
+          exitCode: 1
+          contains: "namespace 'Invalid_Namespace' is invalid"
+      - name: wrong-required-namespace
+        run: [plan, -f, '{{ .workdir }}/team-a.yaml', --mode, sync, --require-namespace=federated-team-b]
+        expectFailure:
+          exitCode: 1
+          contains: namespace enforcement
   - name: create-shared-gateway
     commands:
       - name: platform
         run: [apply, -f, '{{ .workdir }}/platform.yaml', --auto-approve]
   - name: independently-create-models
     commands:
-      - name: team-a
-        run: [sync, -f, '{{ .workdir }}/team-a.yaml', --auto-approve]
+      - name: team-a-plan
+        run: [plan, -f, '{{ .workdir }}/team-a.yaml', --mode, apply, --require-namespace=federated-team-a]
+        outputFormat: disable
+        stdoutFile: '{{ .workdir }}/team-a-plan.json'
+        env:
+          FEDERATED_MODEL_DISPLAY_NAME: Team A planned
+        assertions:
+          - select: changes[?resource_type=='ai_gateway_model'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: federated-team-a
+                fields.display_name: __ENV__:FEDERATED_MODEL_DISPLAY_NAME
+      - name: team-a-apply-with-changed-namespace
+        run: [apply, --plan, '{{ .workdir }}/team-a-plan.json', --auto-approve]
+        env:
+          FEDERATED_MODEL_NAMESPACE: federated-team-b
       - name: team-b
-        run: [sync, -f, '{{ .workdir }}/team-b.yaml', --auto-approve]
+        run: [sync, -f, '{{ .workdir }}/team-b.yaml', --require-namespace=federated-team-b, --auto-approve]
       - name: models-retained
         run: [get, ai-gateway, models, --gateway-name, federated-models-e2e]
         assertions:
@@ -26,6 +66,7 @@ steps:
                 sort([].managed_by.tool): [kongctl, kongctl]
                 'length([?managed_by.version])': 2
                 '[?name == `"team-a-chat"`] | [0].managed_by."kongctl-namespace"': federated-team-a
+                '[?name == `"team-a-chat"`] | [0].display_name': Team A chat
                 '[?name == `"team-b-files"`] | [0].managed_by."kongctl-namespace"': federated-team-b
   - name: converged-team-sync
     commands:
@@ -68,7 +109,7 @@ steps:
   - name: apply-never-prunes
     commands:
       - name: empty-apply
-        run: [plan, -f, '{{ .workdir }}/empty-a.yaml', --mode, apply]
+        run: [plan, -f, '{{ .workdir }}/empty-a.yaml', --mode, apply, --require-any-namespace]
         outputFormat: disable
         assertions:
           - select: summary
@@ -78,6 +119,7 @@ steps:
   - name: remove-team-as-last-model
     commands:
       - name: scoped-delete-plan
+        stdoutFile: '{{ .workdir }}/delete-plan.json'
         run: [plan, -f, '{{ .workdir }}/empty-a.yaml', --mode, sync]
         outputFormat: disable
         assertions:
@@ -86,8 +128,20 @@ steps:
               fields:
                 total_changes: 1
                 by_action.DELETE: 1
-      - name: empty-sync
-        run: [sync, -f, '{{ .workdir }}/empty-a.yaml', --auto-approve]
+          - select: changes[0]
+            expect:
+              fields:
+                action: DELETE
+                resource_type: ai_gateway_model
+                namespace: federated-team-a
+          - select: metadata.sync_scope.model_namespaces
+            expect:
+              fields:
+                'values(@)[]': [federated-team-a]
+      - name: empty-sync-with-changed-namespace
+        run: [sync, --plan, '{{ .workdir }}/delete-plan.json', --auto-approve]
+        env:
+          FEDERATED_MODEL_NAMESPACE: federated-team-b
       - name: team-b-retained
         run: [get, ai-gateway, models, --gateway-name, federated-models-e2e]
         assertions:
@@ -112,6 +166,7 @@ steps:
             expect:
               fields:
                 length(@): 1
+                '[0].labels."KONGCTL-namespace"': federated-platform
   - name: cleanup
     commands:
       - name: remove-gateway

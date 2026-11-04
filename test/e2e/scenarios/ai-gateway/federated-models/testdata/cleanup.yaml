@@ -1,4 +1,4 @@
 _defaults:
   kongctl:
-    namespace: federated-platform
+    namespace: !env FEDERATED_PLATFORM_NAMESPACE
 ai_gateways: []

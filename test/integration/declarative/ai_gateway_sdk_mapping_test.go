@@ -29,6 +29,13 @@ func TestAIGatewayScenarioCreatePayloadsSurviveSDKMapping(t *testing.T) {
 
 func prepareAIGatewayScenarioConfig(t *testing.T, path string) string {
 	t.Helper()
+	if filepath.Base(filepath.Dir(filepath.Dir(path))) == "federated-models" {
+		// Offline schema and SDK checks load inputs without the scenario harness.
+		t.Setenv("FEDERATED_PLATFORM_NAMESPACE", "federated-platform")
+		t.Setenv("FEDERATED_MODEL_NAMESPACE", "federated-team-a")
+		t.Setenv("FEDERATED_TEAM_B_SETTINGS", `{"namespace":"federated-team-b"}`)
+		t.Setenv("FEDERATED_MODEL_DISPLAY_NAME", "Team A chat")
+	}
 	if filepath.Base(filepath.Dir(filepath.Dir(path))) != "vault-matrix" {
 		return path
 	}
