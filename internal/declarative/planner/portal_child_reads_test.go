@@ -85,8 +85,46 @@ func TestPortalChildSelectionCoversRegisteredTypes(t *testing.T) {
 				p.resources.SyncScope.AddChild(resources.ResourceTypePortal, desired.Ref, kind)
 				require.True(t, portal.shouldPlanPortalChild(sync, *desired, kind, false))
 				require.False(t, portal.shouldPlanPortalChild(apply, *desired, kind, false))
+				for _, mode := range []PlanMode{PlanModeDelete, "", "unknown"} {
+					other := NewPlan(CurrentPlanVersion, "test", mode)
+					require.Equal(t, !external, portal.shouldPlanPortalChild(other, *desired, kind, false),
+						"preserve existing selection outside apply and sync: %s", mode)
+				}
 			}
 		})
+	}
+}
+
+func TestPortalCreateOnlySingletonSelection(t *testing.T) {
+	for _, external := range []bool{false, true} {
+		for _, declared := range []bool{false, true} {
+			t.Run(fmt.Sprintf("external=%v/declared=%v", external, declared), func(t *testing.T) {
+				var logs bytes.Buffer
+				transport := &portalChildReadsTransport{}
+				root, p, desired, cfg := portalTraversalFixture(t, false, external, "",
+					portalChildReadsConfig(transport), &logs)
+				p.desiredPortals = p.resources.Portals
+				if declared {
+					p.desiredPortalIPAllowLists = []resources.PortalIPAllowListResource{{
+						Ref: "allow-list", Portal: desired.Ref, AllowedIPs: []string{"192.0.2.1"},
+					}}
+					p.desiredPortalAuthSettings = []resources.PortalAuthSettingsResource{{
+						Ref: "auth", Portal: desired.Ref,
+					}}
+					p.desiredPortalAuthSettings[0].BasicAuthEnabled = new(true)
+				}
+				plan := NewPlan(CurrentPlanVersion, "test", PlanModeApply)
+				require.NoError(t, root.PlanChanges(t.Context(), cfg, plan))
+				require.Empty(t, transport.calls, "create-only planning must not observe child APIs")
+				require.Equal(t, declared, plan.HasChange(ResourceTypePortalIPAllowList, "allow-list"))
+				require.Equal(t, declared, plan.HasChange(ResourceTypePortalAuthSettings, "auth"))
+				for _, change := range plan.Changes {
+					if change.ResourceType != ResourceTypePortal {
+						require.True(t, declared, "omitted children must not synthesize singleton defaults")
+					}
+				}
+			})
+		}
 	}
 }
 
