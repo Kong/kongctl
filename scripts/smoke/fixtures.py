@@ -114,7 +114,9 @@ def render(values):
     text = "".join(f"    {key}: {json.dumps(value)}\n" for key, value in values.items())
     return text.replace('"SMOKE_BACKEND_REFERENCE"', "!ref smoke-backend-ref#id").replace(
         '"SMOKE_POLICY_REFERENCE"', "!ref smoke-policy-ref#name"
-    ).replace('"SMOKE_DATASTORE_REFERENCE"', "!ref smoke-store-ref#name")
+    ).replace('"SMOKE_DATASTORE_REFERENCE"', "!ref smoke-store-ref#name").replace(
+        '"SMOKE_NAMESPACE_REFERENCE"', "!env {var: KONGCTL_SMOKE_NAMESPACE_AI_GATEWAY}"
+    )
 
 
 def main():
@@ -128,6 +130,10 @@ def main():
         updated["backend_clusters"][0]["description"] += " updated"
         updated["virtual_clusters"][0]["description"] += " updated"
     elif key == "ai_gateway":
+        # These children own namespaces independently of their gateway.
+        for field in ("model_providers", "policies", "models", "mcp_servers"):
+            for child in updated[field]:
+                child["kongctl"] = {"namespace": "SMOKE_NAMESPACE_REFERENCE"}
         updated["datastores"][0]["display_name"] = "Smoke store updated"
         updated["policies"][0]["config"]["minute"] = 20
         mcp = updated["mcp_servers"][0]
