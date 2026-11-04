@@ -94,4 +94,4 @@ lists a snapshot.
 
 Custom policy definitions remain a separate integration under #2487. See the
 [shared contract](ai-gateway-child-ownership.md) and
-[runnable manifests](examples/declarative/ai-gateway-federated-policies).
+[runnable manifests](examples/declarative/ai-gateway/federated/policies).

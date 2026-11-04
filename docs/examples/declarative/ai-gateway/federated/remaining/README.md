@@ -8,8 +8,9 @@ See the [ownership and API limits][ownership].
 Omit `certificates` from team manifests; an empty collection is not team-scoped.
 See the [runtime certificate limitation][tls].
 
-[ownership]: ../../../ai-gateway-remaining-child-ownership.md
-[tls]: ../../../ai-gateway-federation.md#deferred-operations-and-api-limitations
+[ownership]: ../../../../../ai-gateway-remaining-child-ownership.md
+[tls]:
+ ../../../../../ai-gateway-federation.md#deferred-operations-and-api-limitations
 
 Run from this directory with an ephemeral Konnect profile. Generate disposable
 certificate material locally (never commit the generated keys):

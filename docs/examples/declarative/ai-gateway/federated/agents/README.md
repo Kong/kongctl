@@ -14,4 +14,4 @@ kongctl sync -f cleanup.yaml --auto-approve
 The two agent types belong to separate namespaces and reference platform-owned
 policy/auth resources. Removing team A leaves team B and the platform intact.
 The final command deletes the disposable gateway and all descendants.
-See [ownership and migration](../../../ai-gateway-agent-ownership.md).
+See [ownership and migration](../../../../../ai-gateway-agent-ownership.md).

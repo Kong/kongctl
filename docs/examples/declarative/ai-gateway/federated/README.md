@@ -8,6 +8,8 @@ gateway.
 
 ## Structure
 
+The shared gateway example uses these team directories:
+
 ```text
 ai-gateway/federated/
 |-- central-team/
@@ -70,12 +72,18 @@ unowned children need explicit adoption. See the
 
 The peer files are standalone in shape, but they still need the parent gateway
 declaration in the same declarative load. Run the directory recursively so
-kongctl sees both the central gateway and the peer-owned resources:
+kongctl sees both the central gateway and the peer-owned resources. Select
+these team directories explicitly; the other subdirectories contain independent
+examples:
 
 ```sh
-kongctl plan -f docs/examples/declarative/ai-gateway/federated --recursive \
+kongctl plan \
+  -f docs/examples/declarative/ai-gateway/federated/central-team \
+  -f docs/examples/declarative/ai-gateway/federated/peer-team --recursive \
   --mode sync
-kongctl sync -f docs/examples/declarative/ai-gateway/federated --recursive
+kongctl sync \
+  -f docs/examples/declarative/ai-gateway/federated/central-team \
+  -f docs/examples/declarative/ai-gateway/federated/peer-team --recursive
 ```
 
 The external peer file is for a team that does not load the central team's
@@ -95,3 +103,15 @@ Set these environment variables before planning or syncing:
 - `OPENAI_AUTH_HEADER`: full OpenAI authorization header value, such as
   `Bearer ...`
 - `ANTHROPIC_API_KEY`: Anthropic API key used as the `x-api-key` header value
+
+## Child management examples
+
+Run each example independently, following its README for setup and cleanup:
+
+- [Agents](agents): agent ownership across team namespaces.
+- [Auth strategies](auth-strategies): gateway and model auth strategy ownership.
+- [Custom policies](custom-policies): custom definitions and policy instances.
+- [Policies](policies): gateway and model policy ownership.
+- [Providers](providers): model provider and model ownership.
+- [Remaining children](remaining): MCP servers, vaults, consumers, consumer
+  groups, CA certificates, and SNIs.

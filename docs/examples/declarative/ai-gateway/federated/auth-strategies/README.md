@@ -13,4 +13,4 @@ strategy collection untouched. Sync `cleanup.yaml` to delete the disposable
 gateway using the platform owner's cascade authority.
 
 These manifests create disposable resources. See the
-[ownership guide](../../../ai-gateway-auth-strategy-ownership.md).
+[ownership guide](../../../../../ai-gateway-auth-strategy-ownership.md).

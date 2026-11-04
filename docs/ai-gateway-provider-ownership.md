@@ -102,4 +102,4 @@ an ownership namespace, dump warns before omitting that ineffective protection
 key. It does not infer ownership or adopt the provider.
 
 See [the shared ownership contract](ai-gateway-child-ownership.md) and
-[runnable manifests](examples/declarative/ai-gateway-federated-providers).
+[runnable manifests](examples/declarative/ai-gateway/federated/providers).

@@ -26,5 +26,5 @@ kongctl sync -f empty-a.yaml -f empty-model-team.yaml --auto-approve
 
 Do not use these example names against production resources.
 
-See [provider ownership](../../../ai-gateway-provider-ownership.md) for
+See [provider ownership](../../../../../ai-gateway-provider-ownership.md) for
 explicit adoption, migration, protection, and credential constraints.

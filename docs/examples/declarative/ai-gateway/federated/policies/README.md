@@ -11,4 +11,4 @@ the policy, retaining team B's global policy. `omitted-a.yaml` leaves policies
 untouched. Sync `cleanup.yaml` to remove the disposable gateway using its
 platform owner's cascade authority.
 
-See [policy ownership](../../../ai-gateway-policy-ownership.md).
+See [policy ownership](../../../../../ai-gateway-policy-ownership.md).
