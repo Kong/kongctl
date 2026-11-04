@@ -1,12 +1,34 @@
 # Portal customization replay
 
+## Apply child-scope refresh
+
+The [fresh live recording][refresh-record] passed all scenario assertions
+and before/after resets under the existing acceptance-3 organization lock.
+It was captured from commit `155dfd85` for issue #2706.
+[Three network-isolated replays][refresh-replay] each consumed all 31
+recorded exchanges and passed every assertion.
+
+Scenario inputs, overlays, assertions, and replay eligibility are unchanged.
+Apply planning now skips children absent from the manifest, so the recording
+omits their former comparison reads. Declared-child reads and mutations
+retain their assertions, and command/reset boundaries stay intact.
+
+Every exchange remains strictly ordered; no parallel annotations are needed.
+
+The committed cassette preserves the fresh recording's requests, responses,
+media types, provenance, and input fingerprint. Large recordings are packed
+losslessly into hash-addressed chunks. Matcher and sanitizer rules are
+unchanged. The current validation above covers the committed representation.
+
+## Previous recording (superseded)
+
 The scenario passed [live recording and three isolated replays][record]
 with 71 HTTP exchanges. Recording used the existing acceptance-3 lock and
 successful before/after organization resets. The only scenario change sets
 diagnostic logging from `debug` to the replay-supported `info` level.
 Inputs, overlays, commands, and assertions are otherwise unchanged.
 
-## Coverage and ordering
+### Coverage and ordering
 
 Coverage includes portal creation, initial customization and no-op planning,
 updates to theme, layout, renderer settings, robots and menus, and another
@@ -29,7 +51,7 @@ email-config and custom-domain 404s retain `application/problem+json`.
 The cassette is byte-for-byte the successful candidate and is below the
 per-file size limit; no chunk packing is needed.
 
-## Measurements
+### Measurements
 
 The three loopback-only replays passed all assertions and matched all 71
 exchanges. Scenario durations were 2.132, 2.138, and 2.124 seconds; wrapper
@@ -52,3 +74,6 @@ reset transactions. Input or assertion changes require a new reviewed
 recording in the same PR; follow the repository replay refresh procedure.
 
 [record]: https://github.com/Kong/kongctl/actions/runs/35453473003
+
+[refresh-record]: https://github.com/Kong/kongctl/actions/runs/41902473830
+[refresh-replay]: https://github.com/Kong/kongctl/actions/runs/41902473830

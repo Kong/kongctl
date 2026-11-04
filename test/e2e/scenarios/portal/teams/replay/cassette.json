@@ -4,9 +4,4717 @@
   "inputs_sha256": "sha256:741602061bffb16c415dce24f057688f55a718a36657654dc3abc80fe6443537",
   "source": {
     "kind": "recorded",
-    "commit": "9c76a8b3a182cf4168da020e75fdf0bcbc05f33b",
-    "run_url": "https://github.com/Kong/kongctl/actions/runs/35419035814"
+    "commit": "155dfd8599c2d844c707069fc1e662f2d4dc1a14",
+    "run_url": "https://github.com/Kong/kongctl/actions/runs/41902501492"
   },
+  "interactions": [
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "POST",
+        "path": "/v3/portals",
+        "query": [],
+        "body": {
+          "authentication_enabled": false,
+          "auto_approve_applications": false,
+          "auto_approve_developers": false,
+          "description": "Portal for testing team management",
+          "display_name": "Developer Portal",
+          "labels": {
+            "KONGCTL-namespace": "portal-teams-test"
+          },
+          "name": "Developer Portal",
+          "notifications_developer_pii_visibility_enabled": false,
+          "rbac_enabled": false,
+          "sipr_enabled": false
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "name": "Developer Portal",
+          "display_name": "Developer Portal",
+          "description": "Portal for testing team management",
+          "default_domain": "4f828eecf001.us.kongportals.com",
+          "authentication_enabled": false,
+          "rbac_enabled": false,
+          "auto_approve_developers": false,
+          "auto_approve_applications": false,
+          "default_api_visibility": "public",
+          "default_page_visibility": "public",
+          "default_application_auth_strategy_id": null,
+          "labels": {
+            "KONGCTL-namespace": "portal-teams-test"
+          },
+          "updated_at": "2026-11-04T20:19:14.839Z",
+          "created_at": "2026-11-04T20:19:14.839Z",
+          "canonical_domain": "4f828eecf001.us.kongportals.com",
+          "sipr_enabled": false,
+          "notifications_developer_pii_visibility_enabled": false
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "POST",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
+        "query": [],
+        "body": {
+          "can_own_applications": false,
+          "description": "Mobile app developers",
+          "name": "Mobile Team"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "can_own_applications": false,
+          "created_at": "2026-11-04T20:19:15.347920116Z",
+          "description": "Mobile app developers",
+          "id": "00000000-0000-4000-8000-000000000002",
+          "konnect_managed": false,
+          "name": "Mobile Team",
+          "updated_at": "2026-11-04T20:19:15.347920257Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "POST",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
+        "query": [],
+        "body": {
+          "can_own_applications": false,
+          "description": "Frontend developers building UIs",
+          "name": "Frontend Team"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "can_own_applications": false,
+          "created_at": "2026-11-04T20:19:15.553514577Z",
+          "description": "Frontend developers building UIs",
+          "id": "00000000-0000-4000-8000-000000000003",
+          "konnect_managed": false,
+          "name": "Frontend Team",
+          "updated_at": "2026-11-04T20:19:15.55351472Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "POST",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
+        "query": [],
+        "body": {
+          "can_own_applications": false,
+          "description": "Backend developers working on APIs",
+          "name": "Backend Team"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "can_own_applications": false,
+          "created_at": "2026-11-04T20:19:15.737001032Z",
+          "description": "Backend developers working on APIs",
+          "id": "00000000-0000-4000-8000-000000000004",
+          "konnect_managed": false,
+          "name": "Backend Team",
+          "updated_at": "2026-11-04T20:19:15.737001157Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "Developer Portal",
+              "description": "Portal for testing team management",
+              "display_name": "Developer Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "4f828eecf001.us.kongportals.com",
+              "default_domain": "4f828eecf001.us.kongportals.com",
+              "created_at": "2026-11-04T20:19:14.839Z",
+              "updated_at": "2026-11-04T20:19:14.839Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-teams-test"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 10,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.737001Z",
+              "description": "Backend developers working on APIs",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Backend Team",
+              "updated_at": "2026-11-04T20:19:15.737001Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.553514Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000003",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-04T20:19:15.553514Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.34792Z",
+              "description": "Mobile app developers",
+              "id": "00000000-0000-4000-8000-000000000002",
+              "konnect_managed": false,
+              "name": "Mobile Team",
+              "updated_at": "2026-11-04T20:19:15.34792Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 3
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "Developer Portal",
+              "description": "Portal for testing team management",
+              "display_name": "Developer Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "4f828eecf001.us.kongportals.com",
+              "default_domain": "4f828eecf001.us.kongportals.com",
+              "created_at": "2026-11-04T20:19:14.839Z",
+              "updated_at": "2026-11-04T20:19:14.839Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-teams-test"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 10,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.737001Z",
+              "description": "Backend developers working on APIs",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Backend Team",
+              "updated_at": "2026-11-04T20:19:15.737001Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.553514Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000003",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-04T20:19:15.553514Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.34792Z",
+              "description": "Mobile app developers",
+              "id": "00000000-0000-4000-8000-000000000002",
+              "konnect_managed": false,
+              "name": "Mobile Team",
+              "updated_at": "2026-11-04T20:19:15.34792Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 3
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000004",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "can_own_applications": false,
+          "created_at": "2026-11-04T20:19:15.737001Z",
+          "description": "Backend developers working on APIs",
+          "id": "00000000-0000-4000-8000-000000000004",
+          "konnect_managed": false,
+          "name": "Backend Team",
+          "updated_at": "2026-11-04T20:19:15.737001Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "Developer Portal",
+              "description": "Portal for testing team management",
+              "display_name": "Developer Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "4f828eecf001.us.kongportals.com",
+              "default_domain": "4f828eecf001.us.kongportals.com",
+              "created_at": "2026-11-04T20:19:14.839Z",
+              "updated_at": "2026-11-04T20:19:14.839Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-teams-test"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.737001Z",
+              "description": "Backend developers working on APIs",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Backend Team",
+              "updated_at": "2026-11-04T20:19:15.737001Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.553514Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000003",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-04T20:19:15.553514Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.34792Z",
+              "description": "Mobile app developers",
+              "id": "00000000-0000-4000-8000-000000000002",
+              "konnect_managed": false,
+              "name": "Mobile Team",
+              "updated_at": "2026-11-04T20:19:15.34792Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 3
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "Developer Portal",
+              "description": "Portal for testing team management",
+              "display_name": "Developer Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "4f828eecf001.us.kongportals.com",
+              "default_domain": "4f828eecf001.us.kongportals.com",
+              "created_at": "2026-11-04T20:19:14.839Z",
+              "updated_at": "2026-11-04T20:19:14.839Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-teams-test"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.737001Z",
+              "description": "Backend developers working on APIs",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Backend Team",
+              "updated_at": "2026-11-04T20:19:15.737001Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.553514Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000003",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-04T20:19:15.553514Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.34792Z",
+              "description": "Mobile app developers",
+              "id": "00000000-0000-4000-8000-000000000002",
+              "konnect_managed": false,
+              "name": "Mobile Team",
+              "updated_at": "2026-11-04T20:19:15.34792Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 3
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "Developer Portal",
+              "description": "Portal for testing team management",
+              "display_name": "Developer Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "4f828eecf001.us.kongportals.com",
+              "default_domain": "4f828eecf001.us.kongportals.com",
+              "created_at": "2026-11-04T20:19:14.839Z",
+              "updated_at": "2026-11-04T20:19:14.839Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-teams-test"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.737001Z",
+              "description": "Backend developers working on APIs",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Backend Team",
+              "updated_at": "2026-11-04T20:19:15.737001Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.553514Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000003",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-04T20:19:15.553514Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.34792Z",
+              "description": "Mobile app developers",
+              "id": "00000000-0000-4000-8000-000000000002",
+              "konnect_managed": false,
+              "name": "Mobile Team",
+              "updated_at": "2026-11-04T20:19:15.34792Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 3
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "PATCH",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000004",
+        "query": [],
+        "body": {
+          "description": "Updated: Backend API developers"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "can_own_applications": false,
+          "created_at": "2026-11-04T20:19:15.737001Z",
+          "description": "Updated: Backend API developers",
+          "id": "00000000-0000-4000-8000-000000000004",
+          "konnect_managed": false,
+          "name": "Backend Team",
+          "updated_at": "2026-11-04T20:19:18.863542Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "Developer Portal",
+              "description": "Portal for testing team management",
+              "display_name": "Developer Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "4f828eecf001.us.kongportals.com",
+              "default_domain": "4f828eecf001.us.kongportals.com",
+              "created_at": "2026-11-04T20:19:14.839Z",
+              "updated_at": "2026-11-04T20:19:14.839Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-teams-test"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 10,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.737001Z",
+              "description": "Updated: Backend API developers",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Backend Team",
+              "updated_at": "2026-11-04T20:19:18.863542Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.553514Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000003",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-04T20:19:15.553514Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.34792Z",
+              "description": "Mobile app developers",
+              "id": "00000000-0000-4000-8000-000000000002",
+              "konnect_managed": false,
+              "name": "Mobile Team",
+              "updated_at": "2026-11-04T20:19:15.34792Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 3
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "Developer Portal",
+              "description": "Portal for testing team management",
+              "display_name": "Developer Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "4f828eecf001.us.kongportals.com",
+              "default_domain": "4f828eecf001.us.kongportals.com",
+              "created_at": "2026-11-04T20:19:14.839Z",
+              "updated_at": "2026-11-04T20:19:14.839Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-teams-test"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.737001Z",
+              "description": "Updated: Backend API developers",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Backend Team",
+              "updated_at": "2026-11-04T20:19:18.863542Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.553514Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000003",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-04T20:19:15.553514Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.34792Z",
+              "description": "Mobile app developers",
+              "id": "00000000-0000-4000-8000-000000000002",
+              "konnect_managed": false,
+              "name": "Mobile Team",
+              "updated_at": "2026-11-04T20:19:15.34792Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 3
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "Developer Portal",
+              "description": "Portal for testing team management",
+              "display_name": "Developer Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "4f828eecf001.us.kongportals.com",
+              "default_domain": "4f828eecf001.us.kongportals.com",
+              "created_at": "2026-11-04T20:19:14.839Z",
+              "updated_at": "2026-11-04T20:19:14.839Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-teams-test"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.737001Z",
+              "description": "Updated: Backend API developers",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Backend Team",
+              "updated_at": "2026-11-04T20:19:18.863542Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.553514Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000003",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-04T20:19:15.553514Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.34792Z",
+              "description": "Mobile app developers",
+              "id": "00000000-0000-4000-8000-000000000002",
+              "konnect_managed": false,
+              "name": "Mobile Team",
+              "updated_at": "2026-11-04T20:19:15.34792Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 3
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "Developer Portal",
+              "description": "Portal for testing team management",
+              "display_name": "Developer Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "4f828eecf001.us.kongportals.com",
+              "default_domain": "4f828eecf001.us.kongportals.com",
+              "created_at": "2026-11-04T20:19:14.839Z",
+              "updated_at": "2026-11-04T20:19:14.839Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-teams-test"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "Developer Portal",
+              "description": "Portal for testing team management",
+              "display_name": "Developer Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "4f828eecf001.us.kongportals.com",
+              "default_domain": "4f828eecf001.us.kongportals.com",
+              "created_at": "2026-11-04T20:19:14.839Z",
+              "updated_at": "2026-11-04T20:19:14.839Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-teams-test"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.737001Z",
+              "description": "Updated: Backend API developers",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Backend Team",
+              "updated_at": "2026-11-04T20:19:18.863542Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.553514Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000003",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-04T20:19:15.553514Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.34792Z",
+              "description": "Mobile app developers",
+              "id": "00000000-0000-4000-8000-000000000002",
+              "konnect_managed": false,
+              "name": "Mobile Team",
+              "updated_at": "2026-11-04T20:19:15.34792Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 3
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "DELETE",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000002",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 204,
+        "body": null,
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "Developer Portal",
+              "description": "Portal for testing team management",
+              "display_name": "Developer Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "4f828eecf001.us.kongportals.com",
+              "default_domain": "4f828eecf001.us.kongportals.com",
+              "created_at": "2026-11-04T20:19:14.839Z",
+              "updated_at": "2026-11-04T20:19:14.839Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-teams-test"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 10,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.737001Z",
+              "description": "Updated: Backend API developers",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Backend Team",
+              "updated_at": "2026-11-04T20:19:18.863542Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.553514Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000003",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-04T20:19:15.553514Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 2
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "Developer Portal",
+              "description": "Portal for testing team management",
+              "display_name": "Developer Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "4f828eecf001.us.kongportals.com",
+              "default_domain": "4f828eecf001.us.kongportals.com",
+              "created_at": "2026-11-04T20:19:14.839Z",
+              "updated_at": "2026-11-04T20:19:14.839Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-teams-test"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.737001Z",
+              "description": "Updated: Backend API developers",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Backend Team",
+              "updated_at": "2026-11-04T20:19:18.863542Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.553514Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000003",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-04T20:19:15.553514Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 2
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "Developer Portal",
+              "description": "Portal for testing team management",
+              "display_name": "Developer Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "4f828eecf001.us.kongportals.com",
+              "default_domain": "4f828eecf001.us.kongportals.com",
+              "created_at": "2026-11-04T20:19:14.839Z",
+              "updated_at": "2026-11-04T20:19:14.839Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-teams-test"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "POST",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
+        "query": [],
+        "body": {
+          "can_own_applications": false,
+          "description": "Quality Assurance team",
+          "name": "QA Team"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "can_own_applications": false,
+          "created_at": "2026-11-04T20:19:23.066041028Z",
+          "description": "Quality Assurance team",
+          "id": "00000000-0000-4000-8000-000000000005",
+          "konnect_managed": false,
+          "name": "QA Team",
+          "updated_at": "2026-11-04T20:19:23.066041171Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "Developer Portal",
+              "description": "Portal for testing team management",
+              "display_name": "Developer Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "4f828eecf001.us.kongportals.com",
+              "default_domain": "4f828eecf001.us.kongportals.com",
+              "created_at": "2026-11-04T20:19:14.839Z",
+              "updated_at": "2026-11-04T20:19:14.839Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-teams-test"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 10,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.737001Z",
+              "description": "Updated: Backend API developers",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Backend Team",
+              "updated_at": "2026-11-04T20:19:18.863542Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.553514Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000003",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-04T20:19:15.553514Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:23.066041Z",
+              "description": "Quality Assurance team",
+              "id": "00000000-0000-4000-8000-000000000005",
+              "konnect_managed": false,
+              "name": "QA Team",
+              "updated_at": "2026-11-04T20:19:23.066041Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 3
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/apis",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "Developer Portal",
+              "description": "Portal for testing team management",
+              "display_name": "Developer Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "4f828eecf001.us.kongportals.com",
+              "default_domain": "4f828eecf001.us.kongportals.com",
+              "created_at": "2026-11-04T20:19:14.839Z",
+              "updated_at": "2026-11-04T20:19:14.839Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-teams-test"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.737001Z",
+              "description": "Updated: Backend API developers",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Backend Team",
+              "updated_at": "2026-11-04T20:19:18.863542Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.553514Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000003",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-04T20:19:15.553514Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:23.066041Z",
+              "description": "Quality Assurance team",
+              "id": "00000000-0000-4000-8000-000000000005",
+              "konnect_managed": false,
+              "name": "QA Team",
+              "updated_at": "2026-11-04T20:19:23.066041Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 3
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000005/assigned-roles",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 0
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000004/assigned-roles",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 0
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000003/assigned-roles",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 0
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "POST",
+        "path": "/v3/apis",
+        "query": [],
+        "body": {
+          "description": "API for testing portal team roles",
+          "labels": {
+            "KONGCTL-namespace": "portal-teams-test"
+          },
+          "name": "roles-api"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000006",
+          "name": "roles-api",
+          "version": null,
+          "description": "API for testing portal team roles",
+          "labels": {
+            "KONGCTL-namespace": "portal-teams-test"
+          },
+          "created_at": "2026-11-04T20:19:25.413Z",
+          "updated_at": "2026-11-04T20:19:25.413Z",
+          "slug": "roles-api",
+          "api_spec_ids": [],
+          "implementation_mode": null,
+          "current_version_summary": null,
+          "portals": [],
+          "attributes": {},
+          "images": null
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "POST",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000003/assigned-roles",
+        "query": [],
+        "body": {
+          "entity_id": "00000000-0000-4000-8000-000000000006",
+          "entity_region": "us",
+          "entity_type_name": "Services",
+          "role_name": "API Consumer"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000007",
+          "role_name": "API Consumer",
+          "entity_id": "00000000-0000-4000-8000-000000000006",
+          "entity_ids": [
+            "00000000-0000-4000-8000-000000000006"
+          ],
+          "entity_type_name": "Services",
+          "entity_region": "us"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "POST",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000005/assigned-roles",
+        "query": [],
+        "body": {
+          "entity_id": "00000000-0000-4000-8000-000000000006",
+          "entity_region": "us",
+          "entity_type_name": "Services",
+          "role_name": "API Viewer"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000008",
+          "role_name": "API Viewer",
+          "entity_id": "00000000-0000-4000-8000-000000000006",
+          "entity_ids": [
+            "00000000-0000-4000-8000-000000000006"
+          ],
+          "entity_type_name": "Services",
+          "entity_region": "us"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "POST",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000004/assigned-roles",
+        "query": [],
+        "body": {
+          "entity_id": "00000000-0000-4000-8000-000000000006",
+          "entity_region": "us",
+          "entity_type_name": "Services",
+          "role_name": "API Viewer"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000009",
+          "role_name": "API Viewer",
+          "entity_id": "00000000-0000-4000-8000-000000000006",
+          "entity_ids": [
+            "00000000-0000-4000-8000-000000000006"
+          ],
+          "entity_type_name": "Services",
+          "entity_region": "us"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "Developer Portal",
+              "description": "Portal for testing team management",
+              "display_name": "Developer Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "4f828eecf001.us.kongportals.com",
+              "default_domain": "4f828eecf001.us.kongportals.com",
+              "created_at": "2026-11-04T20:19:14.839Z",
+              "updated_at": "2026-11-04T20:19:14.839Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-teams-test"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 10,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.737001Z",
+              "description": "Updated: Backend API developers",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Backend Team",
+              "updated_at": "2026-11-04T20:19:18.863542Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.553514Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000003",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-04T20:19:15.553514Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:23.066041Z",
+              "description": "Quality Assurance team",
+              "id": "00000000-0000-4000-8000-000000000005",
+              "konnect_managed": false,
+              "name": "QA Team",
+              "updated_at": "2026-11-04T20:19:23.066041Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 3
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000004/assigned-roles",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000009",
+              "role_name": "API Viewer",
+              "entity_region": "us",
+              "entity_type_name": "Services",
+              "entity_id": "00000000-0000-4000-8000-000000000006",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000006"
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/apis",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000006",
+              "name": "roles-api",
+              "version": null,
+              "description": "API for testing portal team roles",
+              "labels": {
+                "KONGCTL-namespace": "portal-teams-test"
+              },
+              "created_at": "2026-11-04T20:19:25.413Z",
+              "updated_at": "2026-11-04T20:19:25.413Z",
+              "slug": "roles-api",
+              "api_spec_ids": [],
+              "implementation_mode": null,
+              "current_version_summary": null,
+              "portals": [],
+              "attributes": {},
+              "images": null
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "Developer Portal",
+              "description": "Portal for testing team management",
+              "display_name": "Developer Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "4f828eecf001.us.kongportals.com",
+              "default_domain": "4f828eecf001.us.kongportals.com",
+              "created_at": "2026-11-04T20:19:14.839Z",
+              "updated_at": "2026-11-04T20:19:14.839Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-teams-test"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.737001Z",
+              "description": "Updated: Backend API developers",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Backend Team",
+              "updated_at": "2026-11-04T20:19:18.863542Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.553514Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000003",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-04T20:19:15.553514Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:23.066041Z",
+              "description": "Quality Assurance team",
+              "id": "00000000-0000-4000-8000-000000000005",
+              "konnect_managed": false,
+              "name": "QA Team",
+              "updated_at": "2026-11-04T20:19:23.066041Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 3
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000005/assigned-roles",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000008",
+              "role_name": "API Viewer",
+              "entity_region": "us",
+              "entity_type_name": "Services",
+              "entity_id": "00000000-0000-4000-8000-000000000006",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000006"
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000004/assigned-roles",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000009",
+              "role_name": "API Viewer",
+              "entity_region": "us",
+              "entity_type_name": "Services",
+              "entity_id": "00000000-0000-4000-8000-000000000006",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000006"
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000003/assigned-roles",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000007",
+              "role_name": "API Consumer",
+              "entity_region": "us",
+              "entity_type_name": "Services",
+              "entity_id": "00000000-0000-4000-8000-000000000006",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000006"
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "Developer Portal",
+              "description": "Portal for testing team management",
+              "display_name": "Developer Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "4f828eecf001.us.kongportals.com",
+              "default_domain": "4f828eecf001.us.kongportals.com",
+              "created_at": "2026-11-04T20:19:14.839Z",
+              "updated_at": "2026-11-04T20:19:14.839Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-teams-test"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 10,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "name": "Developer Portal",
+          "description": "Portal for testing team management",
+          "display_name": "Developer Portal",
+          "authentication_enabled": false,
+          "rbac_enabled": false,
+          "sipr_enabled": false,
+          "default_api_visibility": "public",
+          "default_page_visibility": "public",
+          "default_application_auth_strategy_id": null,
+          "notifications_developer_pii_visibility_enabled": false,
+          "ai": {
+            "enabled": false,
+            "features": {
+              "mcp_server": {
+                "enabled": false,
+                "write_operations_enabled": false
+              }
+            }
+          },
+          "auto_approve_developers": false,
+          "auto_approve_applications": false,
+          "canonical_domain": "4f828eecf001.us.kongportals.com",
+          "default_domain": "4f828eecf001.us.kongportals.com",
+          "created_at": "2026-11-04T20:19:14.839Z",
+          "updated_at": "2026-11-04T20:19:14.839Z",
+          "labels": {
+            "KONGCTL-namespace": "portal-teams-test"
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "2"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 10,
+              "number": 2
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/pages",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/snippets",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.737001Z",
+              "description": "Updated: Backend API developers",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Backend Team",
+              "updated_at": "2026-11-04T20:19:18.863542Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.553514Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000003",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-04T20:19:15.553514Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:23.066041Z",
+              "description": "Quality Assurance team",
+              "id": "00000000-0000-4000-8000-000000000005",
+              "konnect_managed": false,
+              "name": "QA Team",
+              "updated_at": "2026-11-04T20:19:23.066041Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 3
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000004/assigned-roles",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000009",
+              "role_name": "API Viewer",
+              "entity_region": "us",
+              "entity_type_name": "Services",
+              "entity_id": "00000000-0000-4000-8000-000000000006",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000006"
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000003/assigned-roles",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000007",
+              "role_name": "API Consumer",
+              "entity_region": "us",
+              "entity_type_name": "Services",
+              "entity_id": "00000000-0000-4000-8000-000000000006",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000006"
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000005/assigned-roles",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000008",
+              "role_name": "API Viewer",
+              "entity_region": "us",
+              "entity_type_name": "Services",
+              "entity_id": "00000000-0000-4000-8000-000000000006",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000006"
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/identity-providers",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": [],
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/authentication-settings",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "basic_auth_enabled": true,
+          "oidc_auth_enabled": false,
+          "saml_auth_enabled": false,
+          "konnect_mapping_enabled": true,
+          "oidc_team_mapping_enabled": false,
+          "idp_mapping_enabled": false,
+          "oidc_config": null
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/ip-allow-list",
+        "query": [
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "next": null,
+            "previous": null,
+            "size": 0
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/integrations",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {},
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/customization",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {},
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/custom-domain",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "status": 404,
+          "title": "Not Found",
+          "instance": "kong:trace:12018111303163728589",
+          "detail": "custom domain not found"
+        },
+        "content_type": "application/problem+json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/email-config",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "status": 404,
+          "title": "Not Found",
+          "instance": "kong:trace:6334399222760977455",
+          "detail": "Portal email config not found"
+        },
+        "content_type": "application/problem+json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/email-templates",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/audit-log-webhook",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "enabled": false,
+          "audit_log_destination_id": "",
+          "include_principal_name": false
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/assets/logo",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjQuMTMiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMS4yNSAxMDIuNTggMzcuNSIgZmlsbD0ibm9uZSI+CiAgPHRpdGxlPkFjbWU8L3RpdGxlPgogIDxnIGZpbGw9IiM3NjdBODUiIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0yIDgpIj48cmVjdCB4PSIyIiB5PSIyIiB3aWR0aD0iOSIgaGVpZ2h0PSI5IiByeD0iMiIvPjxwYXRoIGQ9Ik0xMyAyQTkgOSAwIDAgMSAyMiAxMUgxM1oiLz48cGF0aCBkPSJNMiAxM0gxMVYyMkE5IDkgMCAwIDEgMiAxM1oiLz48Y2lyY2xlIGN4PSIxNy41IiBjeT0iMTcuNSIgcj0iNC41Ii8+PC9nPgogIDxwYXRoIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0yIDApIiBkPSJNNDYuMSAyMEE2LjEgNi4xIDAgMSAwIDMzLjkgMjBBNi4xIDYuMSAwIDEgMCA0Ni4xIDIwTTQ2LjEgMTMuOVYyNi4xTTYyLjY4IDE1LjQ3QTYuMSA2LjEgMCAxIDAgNjIuNjggMjQuNTNNNjguODggMjYuMVYxMy45TTY4Ljg4IDE3LjdBMy44IDMuOCAwIDAgMSA3Ni40OCAxNy43VjI2LjFNNzYuNDggMTcuN0EzLjggMy44IDAgMCAxIDg0LjA4IDE3LjdWMjYuMU05MC40OCAyMEgxMDIuNjhBNi4xIDYuMSAwIDEgMCAxMDEuMjUgMjMuOTIiIHN0cm9rZT0iIzc2N0E4NSIgc3Ryb2tlLXdpZHRoPSIzLjgiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4K"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/assets/favicon",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": "data:image/ico;base64,AAABAAMAEBAAAAEAIABtAQAANgAAACAgAAABACAAWwIAAKMBAAAwMAAAAQAgABQDAAD+AwAAiVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABIklEQVR4nKSSbW7CMAyG7STHQEKbxjGG2EV2iX0VVlQQHXRfl9hFhtgxhph6jampZ5e0ol1gU3l/pJHtPHFfxwArCBZnFrJT2BEZ+HyJx1/wh/A6nJ2oXG18SY73wGSdPFfvLjR9mt9PajWYQW8fvdkVK7odPVAQzgYVAFqISEdHAmjAnUxaA5yKLpQGs9l7E0/iAADEC5SNTKJppoCTZLguC32AJB4vjWx46fLyXU9nHV7WZaF8b4bzc/k+L0YfZRUKfWfONSmVX8jhq7u4rzW+gVy0VWotXb4+hitV0g+pcVjUdTEoPHAjiXwdWKstIq18YCLsF2OU54mIS2ih6h0g2qmvwBmWelKp5CqAeMGdyC/9AolhDUjqYlsP/ivfGH8AAAD//0aqIOQAAAAGSURBVAMAI4h2DnUe0vEAAAAASUVORK5CYIKJUE5HDQoaCgAAAA1JSERSAAAAIAAAACAIBgAAAHN6evQAAAIQSURBVHicxJa9TsMwEMfPoXRhQeIFmGDjFShbK16AAcTGzAKlaVBSkaa0LMys8AqIbpTXYOIFkBhgKTTmLrIjJ4TEDqX5S5HzcRf/7LvcxYKKVVMvTmz/iAFbz3PgwF+uAudGvXfmXDTC0GrQ+SjoemAgJk9OO8EDMN7U8uJsPBrYrdjX7ns4uCmrng6MJSY/1J6chLa0WwVWLoJxAZcPgC/cBEMVhSoF4kEuwP/LbXeDR6gQADjnjSyIhQFIiHQ4Fgog5FYNAOou1KACMca25XklO0C5QNUzBqDyCoYq45OlCCCq7ZyPtb3QNt0PTCV7R5wDo4HTatv9PQ6wlecYNaNBcnLLCif4QjAR+dDIoGJVkoSqohCo/VxXtIWX/vkk61knCNZmH2ETt3eDrjGsz9Plr/trz3vLBBCTu2AgEfNJ+j4Wme7snfsUXa7cr0+X6ZmD/wh91d6Sq4E5CJP4Fgc/x8QXNkmAeYhWjiveL7IjG7JNAFAssTxOoKSOPW8V8leelk95EgNEZJw/QUnVP2u7YChK0gSA6d+sKpntZXzSOdCDBSsBQLtQJhfoOwdDSZ8fX8Gwb++YQiytWPqNTIgKUyaAhACDcAxs+xUHB/TlyKr4ax0QSakNQRUOE+uuyI5s1GpoFbzUw4PpggyD7gHk74QjbFQgM8kfyrxmRIWJaoPajChPRKjgTwDz1jcAAAD//9/mCoYAAAAGSURBVAMAwk/WgVw9VjEAAAAASUVORK5CYIKJUE5HDQoaCgAAAA1JSERSAAAAMAAAADAIBgAAAFcC+YcAAALJSURBVHic7FpNctMwFP7k5has2HCAwp6wYMcMHIEFXICB0sZh3AxJWn6GC9BDwEx3LBp2LIADsGHFMerHex7bURwlUeynpprpt+h4ZOmrPj/p6XtqE0SOBJGj12x4mY4fJzCPQLgNGPiBpOvfHHT+cTL86upxMJgcG2PuE9H3qu39ND1GRyzM8HU6PeFfcIgOMIZO302GR8125r5g7r5jyEh+tBVTCyi+PJkvUEBu6EkzEmsE2BhtKySZP/CyUUIHroyXGh0O3/Z9B8w3cbHmldCRK8+TC9kzPn2tLOS7YX2gwpX5iLjuaXSjiBjOgbUiYjnIslUbO5qTmGgvc7VHJID6rihE5YVcUYhMwHIUonOjzSj0EBmafsqKAEEPmlzLsJfRXAD7eWhBk8sB9kr96rkWIMUIlKDJ5YIURtVzLUD8uxQj6AjhWFWVhcDCJpZKigubHyFKSikl+ctBA3ZZqumhd4LobyVuBOwa9Sau7m2gANlkvrcLL46md/YMPeQveY9TwS1p4435Lwd+XpL59ulk8Gfd+FpAeenUhwJ8ss2rwWSfU+6I1RY3GPbZLc/M8LRnCAfp+JzIZB+m6W8Xz06WEE/+GU/wF8jj+oX7SF8Z43pdC7Bza0iUk/+MLSFjXCLmF1tJPkNgFMumxeQrlCL27bZawOn4zQyBUax5ZY5k8aWZIRAk23it+U1gjoKrREPAZecvtAqSKqEEm2tBgCyjUFGQPA8l2FxLaTRUFKpDSptrSUDIKISA8yALEQWxB1CCzeUUUKZUVRHibaAEm2ullSjNmJoIMWZQgs211gtpiihcpVEo9pnDdqgbzZymCHGV6Igmh5cbFRHslR6gI8QScwp8jpaQsU1b7W2nZWOzEDH6naLBEzhrI6Kc/Fmzfet6QKJhCWklphRx12tPcB/p65p88RoKsP+GVf07wVWVlDf3QrvGfwAAAP//GBoCGwAAAAZJREFUAwAXpzvvq5xffAAAAABJRU5ErkJggg=="
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/apis",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000006",
+              "name": "roles-api",
+              "version": null,
+              "description": "API for testing portal team roles",
+              "labels": {
+                "KONGCTL-namespace": "portal-teams-test"
+              },
+              "created_at": "2026-11-04T20:19:25.413Z",
+              "updated_at": "2026-11-04T20:19:25.413Z",
+              "slug": "roles-api",
+              "api_spec_ids": [],
+              "implementation_mode": null,
+              "current_version_summary": null,
+              "portals": [],
+              "attributes": {},
+              "images": null
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 10,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/apis/00000000-0000-4000-8000-000000000006/versions",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/apis/00000000-0000-4000-8000-000000000006/documents",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/api-publications",
+        "query": [
+          [
+            "filter[api_id][eq]",
+            "00000000-0000-4000-8000-000000000006"
+          ],
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 0
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/api-implementations",
+        "query": [
+          [
+            "filter[api_id][eq]",
+            "00000000-0000-4000-8000-000000000006"
+          ],
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/apis",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000006",
+              "name": "roles-api",
+              "version": null,
+              "description": "API for testing portal team roles",
+              "labels": {
+                "KONGCTL-namespace": "portal-teams-test"
+              },
+              "created_at": "2026-11-04T20:19:25.413Z",
+              "updated_at": "2026-11-04T20:19:25.413Z",
+              "slug": "roles-api",
+              "api_spec_ids": [],
+              "implementation_mode": null,
+              "current_version_summary": null,
+              "portals": [],
+              "attributes": {},
+              "images": null
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "Developer Portal",
+              "description": "Portal for testing team management",
+              "display_name": "Developer Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "4f828eecf001.us.kongportals.com",
+              "default_domain": "4f828eecf001.us.kongportals.com",
+              "created_at": "2026-11-04T20:19:14.839Z",
+              "updated_at": "2026-11-04T20:19:14.839Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-teams-test"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/authentication-settings",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "basic_auth_enabled": true,
+          "oidc_auth_enabled": false,
+          "saml_auth_enabled": false,
+          "konnect_mapping_enabled": true,
+          "oidc_team_mapping_enabled": false,
+          "idp_mapping_enabled": false,
+          "oidc_config": null
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/customization",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {},
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.737001Z",
+              "description": "Updated: Backend API developers",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Backend Team",
+              "updated_at": "2026-11-04T20:19:18.863542Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.553514Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000003",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-04T20:19:15.553514Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:23.066041Z",
+              "description": "Quality Assurance team",
+              "id": "00000000-0000-4000-8000-000000000005",
+              "konnect_managed": false,
+              "name": "QA Team",
+              "updated_at": "2026-11-04T20:19:23.066041Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 3
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000005/assigned-roles",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000008",
+              "role_name": "API Viewer",
+              "entity_region": "us",
+              "entity_type_name": "Services",
+              "entity_id": "00000000-0000-4000-8000-000000000006",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000006"
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000004/assigned-roles",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000009",
+              "role_name": "API Viewer",
+              "entity_region": "us",
+              "entity_type_name": "Services",
+              "entity_id": "00000000-0000-4000-8000-000000000006",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000006"
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000003/assigned-roles",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000007",
+              "role_name": "API Consumer",
+              "entity_region": "us",
+              "entity_type_name": "Services",
+              "entity_id": "00000000-0000-4000-8000-000000000006",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000006"
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/assets/logo",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjQuMTMiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMS4yNSAxMDIuNTggMzcuNSIgZmlsbD0ibm9uZSI+CiAgPHRpdGxlPkFjbWU8L3RpdGxlPgogIDxnIGZpbGw9IiM3NjdBODUiIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0yIDgpIj48cmVjdCB4PSIyIiB5PSIyIiB3aWR0aD0iOSIgaGVpZ2h0PSI5IiByeD0iMiIvPjxwYXRoIGQ9Ik0xMyAyQTkgOSAwIDAgMSAyMiAxMUgxM1oiLz48cGF0aCBkPSJNMiAxM0gxMVYyMkE5IDkgMCAwIDEgMiAxM1oiLz48Y2lyY2xlIGN4PSIxNy41IiBjeT0iMTcuNSIgcj0iNC41Ii8+PC9nPgogIDxwYXRoIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0yIDApIiBkPSJNNDYuMSAyMEE2LjEgNi4xIDAgMSAwIDMzLjkgMjBBNi4xIDYuMSAwIDEgMCA0Ni4xIDIwTTQ2LjEgMTMuOVYyNi4xTTYyLjY4IDE1LjQ3QTYuMSA2LjEgMCAxIDAgNjIuNjggMjQuNTNNNjguODggMjYuMVYxMy45TTY4Ljg4IDE3LjdBMy44IDMuOCAwIDAgMSA3Ni40OCAxNy43VjI2LjFNNzYuNDggMTcuN0EzLjggMy44IDAgMCAxIDg0LjA4IDE3LjdWMjYuMU05MC40OCAyMEgxMDIuNjhBNi4xIDYuMSAwIDEgMCAxMDEuMjUgMjMuOTIiIHN0cm9rZT0iIzc2N0E4NSIgc3Ryb2tlLXdpZHRoPSIzLjgiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4K"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/assets/favicon",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": "data:image/ico;base64,AAABAAMAEBAAAAEAIABtAQAANgAAACAgAAABACAAWwIAAKMBAAAwMAAAAQAgABQDAAD+AwAAiVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABIklEQVR4nKSSbW7CMAyG7STHQEKbxjGG2EV2iX0VVlQQHXRfl9hFhtgxhph6jampZ5e0ol1gU3l/pJHtPHFfxwArCBZnFrJT2BEZ+HyJx1/wh/A6nJ2oXG18SY73wGSdPFfvLjR9mt9PajWYQW8fvdkVK7odPVAQzgYVAFqISEdHAmjAnUxaA5yKLpQGs9l7E0/iAADEC5SNTKJppoCTZLguC32AJB4vjWx46fLyXU9nHV7WZaF8b4bzc/k+L0YfZRUKfWfONSmVX8jhq7u4rzW+gVy0VWotXb4+hitV0g+pcVjUdTEoPHAjiXwdWKstIq18YCLsF2OU54mIS2ih6h0g2qmvwBmWelKp5CqAeMGdyC/9AolhDUjqYlsP/ivfGH8AAAD//0aqIOQAAAAGSURBVAMAI4h2DnUe0vEAAAAASUVORK5CYIKJUE5HDQoaCgAAAA1JSERSAAAAIAAAACAIBgAAAHN6evQAAAIQSURBVHicxJa9TsMwEMfPoXRhQeIFmGDjFShbK16AAcTGzAKlaVBSkaa0LMys8AqIbpTXYOIFkBhgKTTmLrIjJ4TEDqX5S5HzcRf/7LvcxYKKVVMvTmz/iAFbz3PgwF+uAudGvXfmXDTC0GrQ+SjoemAgJk9OO8EDMN7U8uJsPBrYrdjX7ns4uCmrng6MJSY/1J6chLa0WwVWLoJxAZcPgC/cBEMVhSoF4kEuwP/LbXeDR6gQADjnjSyIhQFIiHQ4Fgog5FYNAOou1KACMca25XklO0C5QNUzBqDyCoYq45OlCCCq7ZyPtb3QNt0PTCV7R5wDo4HTatv9PQ6wlecYNaNBcnLLCif4QjAR+dDIoGJVkoSqohCo/VxXtIWX/vkk61knCNZmH2ETt3eDrjGsz9Plr/trz3vLBBCTu2AgEfNJ+j4Wme7snfsUXa7cr0+X6ZmD/wh91d6Sq4E5CJP4Fgc/x8QXNkmAeYhWjiveL7IjG7JNAFAssTxOoKSOPW8V8leelk95EgNEZJw/QUnVP2u7YChK0gSA6d+sKpntZXzSOdCDBSsBQLtQJhfoOwdDSZ8fX8Gwb++YQiytWPqNTIgKUyaAhACDcAxs+xUHB/TlyKr4ax0QSakNQRUOE+uuyI5s1GpoFbzUw4PpggyD7gHk74QjbFQgM8kfyrxmRIWJaoPajChPRKjgTwDz1jcAAAD//9/mCoYAAAAGSURBVAMAwk/WgVw9VjEAAAAASUVORK5CYIKJUE5HDQoaCgAAAA1JSERSAAAAMAAAADAIBgAAAFcC+YcAAALJSURBVHic7FpNctMwFP7k5has2HCAwp6wYMcMHIEFXICB0sZh3AxJWn6GC9BDwEx3LBp2LIADsGHFMerHex7bURwlUeynpprpt+h4ZOmrPj/p6XtqE0SOBJGj12x4mY4fJzCPQLgNGPiBpOvfHHT+cTL86upxMJgcG2PuE9H3qu39ND1GRyzM8HU6PeFfcIgOMIZO302GR8125r5g7r5jyEh+tBVTCyi+PJkvUEBu6EkzEmsE2BhtKySZP/CyUUIHroyXGh0O3/Z9B8w3cbHmldCRK8+TC9kzPn2tLOS7YX2gwpX5iLjuaXSjiBjOgbUiYjnIslUbO5qTmGgvc7VHJID6rihE5YVcUYhMwHIUonOjzSj0EBmafsqKAEEPmlzLsJfRXAD7eWhBk8sB9kr96rkWIMUIlKDJ5YIURtVzLUD8uxQj6AjhWFWVhcDCJpZKigubHyFKSikl+ctBA3ZZqumhd4LobyVuBOwa9Sau7m2gANlkvrcLL46md/YMPeQveY9TwS1p4435Lwd+XpL59ulk8Gfd+FpAeenUhwJ8ss2rwWSfU+6I1RY3GPbZLc/M8LRnCAfp+JzIZB+m6W8Xz06WEE/+GU/wF8jj+oX7SF8Z43pdC7Bza0iUk/+MLSFjXCLmF1tJPkNgFMumxeQrlCL27bZawOn4zQyBUax5ZY5k8aWZIRAk23it+U1gjoKrREPAZecvtAqSKqEEm2tBgCyjUFGQPA8l2FxLaTRUFKpDSptrSUDIKISA8yALEQWxB1CCzeUUUKZUVRHibaAEm2ullSjNmJoIMWZQgs211gtpiihcpVEo9pnDdqgbzZymCHGV6Igmh5cbFRHslR6gI8QScwp8jpaQsU1b7W2nZWOzEDH6naLBEzhrI6Kc/Fmzfet6QKJhCWklphRx12tPcB/p65p88RoKsP+GVf07wVWVlDf3QrvGfwAAAP//GBoCGwAAAAZJREFUAwAXpzvvq5xffAAAAABJRU5ErkJggg=="
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/apis",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000006",
+              "name": "roles-api",
+              "version": null,
+              "description": "API for testing portal team roles",
+              "labels": {
+                "KONGCTL-namespace": "portal-teams-test"
+              },
+              "created_at": "2026-11-04T20:19:25.413Z",
+              "updated_at": "2026-11-04T20:19:25.413Z",
+              "slug": "roles-api",
+              "api_spec_ids": [],
+              "implementation_mode": null,
+              "current_version_summary": null,
+              "portals": [],
+              "attributes": {},
+              "images": null
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "Developer Portal",
+              "description": "Portal for testing team management",
+              "display_name": "Developer Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "4f828eecf001.us.kongportals.com",
+              "default_domain": "4f828eecf001.us.kongportals.com",
+              "created_at": "2026-11-04T20:19:14.839Z",
+              "updated_at": "2026-11-04T20:19:14.839Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-teams-test"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.737001Z",
+              "description": "Updated: Backend API developers",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Backend Team",
+              "updated_at": "2026-11-04T20:19:18.863542Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.553514Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000003",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-04T20:19:15.553514Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:23.066041Z",
+              "description": "Quality Assurance team",
+              "id": "00000000-0000-4000-8000-000000000005",
+              "konnect_managed": false,
+              "name": "QA Team",
+              "updated_at": "2026-11-04T20:19:23.066041Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 3
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000004/assigned-roles",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000009",
+              "role_name": "API Viewer",
+              "entity_region": "us",
+              "entity_type_name": "Services",
+              "entity_id": "00000000-0000-4000-8000-000000000006",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000006"
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000003/assigned-roles",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000007",
+              "role_name": "API Consumer",
+              "entity_region": "us",
+              "entity_type_name": "Services",
+              "entity_id": "00000000-0000-4000-8000-000000000006",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000006"
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000005/assigned-roles",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000008",
+              "role_name": "API Viewer",
+              "entity_region": "us",
+              "entity_type_name": "Services",
+              "entity_id": "00000000-0000-4000-8000-000000000006",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000006"
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "Developer Portal",
+              "description": "Portal for testing team management",
+              "display_name": "Developer Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "4f828eecf001.us.kongportals.com",
+              "default_domain": "4f828eecf001.us.kongportals.com",
+              "created_at": "2026-11-04T20:19:14.839Z",
+              "updated_at": "2026-11-04T20:19:14.839Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-teams-test"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "Developer Portal",
+              "description": "Portal for testing team management",
+              "display_name": "Developer Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "4f828eecf001.us.kongportals.com",
+              "default_domain": "4f828eecf001.us.kongportals.com",
+              "created_at": "2026-11-04T20:19:14.839Z",
+              "updated_at": "2026-11-04T20:19:14.839Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-teams-test"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000005/assigned-roles",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000008",
+              "role_name": "API Viewer",
+              "entity_region": "us",
+              "entity_type_name": "Services",
+              "entity_id": "00000000-0000-4000-8000-000000000006",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000006"
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "DELETE",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000005/assigned-roles/00000000-0000-4000-8000-000000000008",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 204,
+        "body": null,
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "Developer Portal",
+              "description": "Portal for testing team management",
+              "display_name": "Developer Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "4f828eecf001.us.kongportals.com",
+              "default_domain": "4f828eecf001.us.kongportals.com",
+              "created_at": "2026-11-04T20:19:14.839Z",
+              "updated_at": "2026-11-04T20:19:14.839Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-teams-test"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 10,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.737001Z",
+              "description": "Updated: Backend API developers",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Backend Team",
+              "updated_at": "2026-11-04T20:19:18.863542Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.553514Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000003",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-04T20:19:15.553514Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:23.066041Z",
+              "description": "Quality Assurance team",
+              "id": "00000000-0000-4000-8000-000000000005",
+              "konnect_managed": false,
+              "name": "QA Team",
+              "updated_at": "2026-11-04T20:19:23.066041Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 3
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000005/assigned-roles",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 0
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/apis",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000006",
+              "name": "roles-api",
+              "version": null,
+              "description": "API for testing portal team roles",
+              "labels": {
+                "KONGCTL-namespace": "portal-teams-test"
+              },
+              "created_at": "2026-11-04T20:19:25.413Z",
+              "updated_at": "2026-11-04T20:19:25.413Z",
+              "slug": "roles-api",
+              "api_spec_ids": [],
+              "implementation_mode": null,
+              "current_version_summary": null,
+              "portals": [],
+              "attributes": {},
+              "images": null
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "Developer Portal",
+              "description": "Portal for testing team management",
+              "display_name": "Developer Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "4f828eecf001.us.kongportals.com",
+              "default_domain": "4f828eecf001.us.kongportals.com",
+              "created_at": "2026-11-04T20:19:14.839Z",
+              "updated_at": "2026-11-04T20:19:14.839Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-teams-test"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.737001Z",
+              "description": "Updated: Backend API developers",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Backend Team",
+              "updated_at": "2026-11-04T20:19:18.863542Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:15.553514Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000003",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-04T20:19:15.553514Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-04T20:19:23.066041Z",
+              "description": "Quality Assurance team",
+              "id": "00000000-0000-4000-8000-000000000005",
+              "konnect_managed": false,
+              "name": "QA Team",
+              "updated_at": "2026-11-04T20:19:23.066041Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 3
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000004/assigned-roles",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000009",
+              "role_name": "API Viewer",
+              "entity_region": "us",
+              "entity_type_name": "Services",
+              "entity_id": "00000000-0000-4000-8000-000000000006",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000006"
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000003/assigned-roles",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000007",
+              "role_name": "API Consumer",
+              "entity_region": "us",
+              "entity_type_name": "Services",
+              "entity_id": "00000000-0000-4000-8000-000000000006",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000006"
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    }
+  ],
   "parallel_phases": [
     {
       "start": 3,
@@ -14,13 +4722,28 @@
       "after": {}
     },
     {
-      "start": 73,
-      "end": 75,
+      "start": 39,
+      "end": 41,
       "after": {}
     },
     {
-      "start": 78,
-      "end": 80,
+      "start": 43,
+      "end": 45,
+      "after": {}
+    },
+    {
+      "start": 52,
+      "end": 54,
+      "after": {}
+    },
+    {
+      "start": 61,
+      "end": 63,
+      "after": {}
+    },
+    {
+      "start": 85,
+      "end": 87,
       "after": {}
     },
     {
@@ -29,28 +4752,9 @@
       "after": {}
     },
     {
-      "start": 103,
-      "end": 105,
-      "after": {}
-    },
-    {
-      "start": 133,
-      "end": 135,
-      "after": {}
-    },
-    {
-      "start": 142,
-      "end": 144,
-      "after": {}
-    },
-    {
-      "start": 161,
-      "end": 162,
+      "start": 106,
+      "end": 107,
       "after": {}
     }
-  ],
-  "interaction_chunks": [
-    "b4da843866cb48c56b76060051cfa5d193740886180b0cf496c16cd4db1411d4",
-    "831dea45581ec10a8644a185123bc7a195ce727f2f63ba590d94ab43db96146f"
   ]
 }

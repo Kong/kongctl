@@ -4,8 +4,8 @@
   "inputs_sha256": "sha256:efadb05eb5706eccf14eb998814b000c4392a6f9d480ca252d9143de773d2986",
   "source": {
     "kind": "recorded",
-    "commit": "e1efd99426267881cc29cc09b0597d5d8344e018",
-    "run_url": "https://github.com/Kong/kongctl/actions/runs/35453473003"
+    "commit": "155dfd8599c2d844c707069fc1e662f2d4dc1a14",
+    "run_url": "https://github.com/Kong/kongctl/actions/runs/41902473830"
   },
   "interactions": [
     {
@@ -100,7 +100,7 @@
           "name": "portal-customization",
           "display_name": "Portal Customization",
           "description": "Portal with customization managed declaratively",
-          "default_domain": "39a5bfbb0109.us.kongportals.com",
+          "default_domain": "5403540318f7.us.kongportals.com",
           "authentication_enabled": true,
           "rbac_enabled": false,
           "auto_approve_developers": false,
@@ -111,9 +111,9 @@
           "labels": {
             "KONGCTL-namespace": "portal-customization"
           },
-          "updated_at": "2026-09-19T16:03:58.604Z",
-          "created_at": "2026-09-19T16:03:58.604Z",
-          "canonical_domain": "39a5bfbb0109.us.kongportals.com",
+          "updated_at": "2026-11-04T20:18:36.499Z",
+          "created_at": "2026-11-04T20:18:36.499Z",
+          "canonical_domain": "5403540318f7.us.kongportals.com",
           "sipr_enabled": false,
           "notifications_developer_pii_visibility_enabled": false
         },
@@ -164,10 +164,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "39a5bfbb0109.us.kongportals.com",
-              "default_domain": "39a5bfbb0109.us.kongportals.com",
-              "created_at": "2026-09-19T16:03:58.604Z",
-              "updated_at": "2026-09-19T16:03:58.604Z",
+              "canonical_domain": "5403540318f7.us.kongportals.com",
+              "default_domain": "5403540318f7.us.kongportals.com",
+              "created_at": "2026-11-04T20:18:36.499Z",
+              "updated_at": "2026-11-04T20:18:36.499Z",
               "labels": {
                 "KONGCTL-namespace": "portal-customization"
               }
@@ -361,10 +361,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "39a5bfbb0109.us.kongportals.com",
-              "default_domain": "39a5bfbb0109.us.kongportals.com",
-              "created_at": "2026-09-19T16:03:58.604Z",
-              "updated_at": "2026-09-19T16:03:59.109Z",
+              "canonical_domain": "5403540318f7.us.kongportals.com",
+              "default_domain": "5403540318f7.us.kongportals.com",
+              "created_at": "2026-11-04T20:18:36.499Z",
+              "updated_at": "2026-11-04T20:18:37.248Z",
               "labels": {
                 "KONGCTL-namespace": "portal-customization"
               }
@@ -377,131 +377,6 @@
               "number": 1
             }
           }
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/pages",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "data": []
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/snippets",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "total": 0,
-              "size": 100,
-              "number": 1
-            }
-          },
-          "data": []
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/ip-allow-list",
-        "query": [
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "data": [],
-          "meta": {
-            "next": null,
-            "previous": null,
-            "size": 0
-          }
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/identity-providers",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": [],
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/email-config",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 404,
-        "body": {
-          "status": 404,
-          "title": "Not Found",
-          "instance": "kong:trace:5253779822329514364",
-          "detail": "Portal email config not found"
-        },
-        "content_type": "application/problem+json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/audit-log-webhook",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "enabled": false,
-          "audit_log_destination_id": "",
-          "include_principal_name": false
         },
         "content_type": "application/json"
       }
@@ -584,57 +459,6 @@
       "request": {
         "endpoint": "regional",
         "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "data": [],
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 100,
-              "total": 0
-            }
-          }
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/custom-domain",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 404,
-        "body": {
-          "status": 404,
-          "title": "Not Found",
-          "instance": "kong:trace:2149384015295682021",
-          "detail": "custom domain not found"
-        },
-        "content_type": "application/problem+json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
         "path": "/v3/portals",
         "query": [
           [
@@ -675,10 +499,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "39a5bfbb0109.us.kongportals.com",
-              "default_domain": "39a5bfbb0109.us.kongportals.com",
-              "created_at": "2026-09-19T16:03:58.604Z",
-              "updated_at": "2026-09-19T16:03:59.109Z",
+              "canonical_domain": "5403540318f7.us.kongportals.com",
+              "default_domain": "5403540318f7.us.kongportals.com",
+              "created_at": "2026-11-04T20:18:36.499Z",
+              "updated_at": "2026-11-04T20:18:37.248Z",
               "labels": {
                 "KONGCTL-namespace": "portal-customization"
               }
@@ -691,131 +515,6 @@
               "number": 1
             }
           }
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/pages",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "data": []
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/snippets",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "total": 0,
-              "size": 100,
-              "number": 1
-            }
-          },
-          "data": []
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/ip-allow-list",
-        "query": [
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "data": [],
-          "meta": {
-            "next": null,
-            "previous": null,
-            "size": 0
-          }
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/identity-providers",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": [],
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/email-config",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 404,
-        "body": {
-          "status": 404,
-          "title": "Not Found",
-          "instance": "kong:trace:7972647727418811767",
-          "detail": "Portal email config not found"
-        },
-        "content_type": "application/problem+json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/audit-log-webhook",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "enabled": false,
-          "audit_log_destination_id": "",
-          "include_principal_name": false
         },
         "content_type": "application/json"
       }
@@ -898,57 +597,6 @@
       "request": {
         "endpoint": "regional",
         "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "data": [],
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 100,
-              "total": 0
-            }
-          }
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/custom-domain",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 404,
-        "body": {
-          "status": 404,
-          "title": "Not Found",
-          "instance": "kong:trace:16397108068890453381",
-          "detail": "custom domain not found"
-        },
-        "content_type": "application/problem+json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
         "path": "/v3/portals",
         "query": [
           [
@@ -989,10 +637,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "39a5bfbb0109.us.kongportals.com",
-              "default_domain": "39a5bfbb0109.us.kongportals.com",
-              "created_at": "2026-09-19T16:03:58.604Z",
-              "updated_at": "2026-09-19T16:03:59.109Z",
+              "canonical_domain": "5403540318f7.us.kongportals.com",
+              "default_domain": "5403540318f7.us.kongportals.com",
+              "created_at": "2026-11-04T20:18:36.499Z",
+              "updated_at": "2026-11-04T20:18:37.248Z",
               "labels": {
                 "KONGCTL-namespace": "portal-customization"
               }
@@ -1053,10 +701,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "39a5bfbb0109.us.kongportals.com",
-              "default_domain": "39a5bfbb0109.us.kongportals.com",
-              "created_at": "2026-09-19T16:03:58.604Z",
-              "updated_at": "2026-09-19T16:03:59.109Z",
+              "canonical_domain": "5403540318f7.us.kongportals.com",
+              "default_domain": "5403540318f7.us.kongportals.com",
+              "created_at": "2026-11-04T20:18:36.499Z",
+              "updated_at": "2026-11-04T20:18:37.248Z",
               "labels": {
                 "KONGCTL-namespace": "portal-customization"
               }
@@ -1117,10 +765,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "39a5bfbb0109.us.kongportals.com",
-              "default_domain": "39a5bfbb0109.us.kongportals.com",
-              "created_at": "2026-09-19T16:03:58.604Z",
-              "updated_at": "2026-09-19T16:03:59.109Z",
+              "canonical_domain": "5403540318f7.us.kongportals.com",
+              "default_domain": "5403540318f7.us.kongportals.com",
+              "created_at": "2026-11-04T20:18:36.499Z",
+              "updated_at": "2026-11-04T20:18:37.248Z",
               "labels": {
                 "KONGCTL-namespace": "portal-customization"
               }
@@ -1290,10 +938,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "39a5bfbb0109.us.kongportals.com",
-              "default_domain": "39a5bfbb0109.us.kongportals.com",
-              "created_at": "2026-09-19T16:03:58.604Z",
-              "updated_at": "2026-09-19T16:04:03.432Z",
+              "canonical_domain": "5403540318f7.us.kongportals.com",
+              "default_domain": "5403540318f7.us.kongportals.com",
+              "created_at": "2026-11-04T20:18:36.499Z",
+              "updated_at": "2026-11-04T20:18:40.548Z",
               "labels": {
                 "KONGCTL-namespace": "portal-customization"
               }
@@ -1306,131 +954,6 @@
               "number": 1
             }
           }
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/pages",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "data": []
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/snippets",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "total": 0,
-              "size": 100,
-              "number": 1
-            }
-          },
-          "data": []
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/ip-allow-list",
-        "query": [
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "data": [],
-          "meta": {
-            "next": null,
-            "previous": null,
-            "size": 0
-          }
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/identity-providers",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": [],
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/email-config",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 404,
-        "body": {
-          "status": 404,
-          "title": "Not Found",
-          "instance": "kong:trace:14360871343695513086",
-          "detail": "Portal email config not found"
-        },
-        "content_type": "application/problem+json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/audit-log-webhook",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "enabled": false,
-          "audit_log_destination_id": "",
-          "include_principal_name": false
         },
         "content_type": "application/json"
       }
@@ -1501,57 +1024,6 @@
       "request": {
         "endpoint": "regional",
         "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "data": [],
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 100,
-              "total": 0
-            }
-          }
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/custom-domain",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 404,
-        "body": {
-          "status": 404,
-          "title": "Not Found",
-          "instance": "kong:trace:9870997473908644774",
-          "detail": "custom domain not found"
-        },
-        "content_type": "application/problem+json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
         "path": "/v3/portals",
         "query": [
           [
@@ -1592,10 +1064,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "39a5bfbb0109.us.kongportals.com",
-              "default_domain": "39a5bfbb0109.us.kongportals.com",
-              "created_at": "2026-09-19T16:03:58.604Z",
-              "updated_at": "2026-09-19T16:04:03.432Z",
+              "canonical_domain": "5403540318f7.us.kongportals.com",
+              "default_domain": "5403540318f7.us.kongportals.com",
+              "created_at": "2026-11-04T20:18:36.499Z",
+              "updated_at": "2026-11-04T20:18:40.548Z",
               "labels": {
                 "KONGCTL-namespace": "portal-customization"
               }
@@ -1816,10 +1288,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "39a5bfbb0109.us.kongportals.com",
-              "default_domain": "39a5bfbb0109.us.kongportals.com",
-              "created_at": "2026-09-19T16:03:58.604Z",
-              "updated_at": "2026-09-19T16:04:05.447Z",
+              "canonical_domain": "5403540318f7.us.kongportals.com",
+              "default_domain": "5403540318f7.us.kongportals.com",
+              "created_at": "2026-11-04T20:18:36.499Z",
+              "updated_at": "2026-11-04T20:18:42.278Z",
               "labels": {
                 "KONGCTL-namespace": "portal-customization"
               }
@@ -1832,131 +1304,6 @@
               "number": 1
             }
           }
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/pages",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "data": []
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/snippets",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "total": 0,
-              "size": 100,
-              "number": 1
-            }
-          },
-          "data": []
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/ip-allow-list",
-        "query": [
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "data": [],
-          "meta": {
-            "next": null,
-            "previous": null,
-            "size": 0
-          }
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/identity-providers",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": [],
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/email-config",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 404,
-        "body": {
-          "status": 404,
-          "title": "Not Found",
-          "instance": "kong:trace:8398228153993897494",
-          "detail": "Portal email config not found"
-        },
-        "content_type": "application/problem+json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/audit-log-webhook",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "enabled": false,
-          "audit_log_destination_id": "",
-          "include_principal_name": false
         },
         "content_type": "application/json"
       }
@@ -2029,57 +1376,6 @@
       "request": {
         "endpoint": "regional",
         "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "data": [],
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 100,
-              "total": 0
-            }
-          }
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/custom-domain",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 404,
-        "body": {
-          "status": 404,
-          "title": "Not Found",
-          "instance": "kong:trace:9990102685868793998",
-          "detail": "custom domain not found"
-        },
-        "content_type": "application/problem+json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
         "path": "/v3/portals",
         "query": [
           [
@@ -2120,10 +1416,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "39a5bfbb0109.us.kongportals.com",
-              "default_domain": "39a5bfbb0109.us.kongportals.com",
-              "created_at": "2026-09-19T16:03:58.604Z",
-              "updated_at": "2026-09-19T16:04:05.447Z",
+              "canonical_domain": "5403540318f7.us.kongportals.com",
+              "default_domain": "5403540318f7.us.kongportals.com",
+              "created_at": "2026-11-04T20:18:36.499Z",
+              "updated_at": "2026-11-04T20:18:42.278Z",
               "labels": {
                 "KONGCTL-namespace": "portal-customization"
               }
@@ -2184,10 +1480,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "39a5bfbb0109.us.kongportals.com",
-              "default_domain": "39a5bfbb0109.us.kongportals.com",
-              "created_at": "2026-09-19T16:03:58.604Z",
-              "updated_at": "2026-09-19T16:04:05.447Z",
+              "canonical_domain": "5403540318f7.us.kongportals.com",
+              "default_domain": "5403540318f7.us.kongportals.com",
+              "created_at": "2026-11-04T20:18:36.499Z",
+              "updated_at": "2026-11-04T20:18:42.278Z",
               "labels": {
                 "KONGCTL-namespace": "portal-customization"
               }
@@ -2248,10 +1544,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "39a5bfbb0109.us.kongportals.com",
-              "default_domain": "39a5bfbb0109.us.kongportals.com",
-              "created_at": "2026-09-19T16:03:58.604Z",
-              "updated_at": "2026-09-19T16:04:05.447Z",
+              "canonical_domain": "5403540318f7.us.kongportals.com",
+              "default_domain": "5403540318f7.us.kongportals.com",
+              "created_at": "2026-11-04T20:18:36.499Z",
+              "updated_at": "2026-11-04T20:18:42.278Z",
               "labels": {
                 "KONGCTL-namespace": "portal-customization"
               }
@@ -2394,10 +1690,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "39a5bfbb0109.us.kongportals.com",
-              "default_domain": "39a5bfbb0109.us.kongportals.com",
-              "created_at": "2026-09-19T16:03:58.604Z",
-              "updated_at": "2026-09-19T16:04:08.021Z",
+              "canonical_domain": "5403540318f7.us.kongportals.com",
+              "default_domain": "5403540318f7.us.kongportals.com",
+              "created_at": "2026-11-04T20:18:36.499Z",
+              "updated_at": "2026-11-04T20:18:44.702Z",
               "labels": {
                 "KONGCTL-namespace": "portal-customization"
               }
@@ -2410,131 +1706,6 @@
               "number": 1
             }
           }
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/pages",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "data": []
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/snippets",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "total": 0,
-              "size": 100,
-              "number": 1
-            }
-          },
-          "data": []
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/ip-allow-list",
-        "query": [
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "data": [],
-          "meta": {
-            "next": null,
-            "previous": null,
-            "size": 0
-          }
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/identity-providers",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": [],
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/email-config",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 404,
-        "body": {
-          "status": 404,
-          "title": "Not Found",
-          "instance": "kong:trace:13903510906602535714",
-          "detail": "Portal email config not found"
-        },
-        "content_type": "application/problem+json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/audit-log-webhook",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "enabled": false,
-          "audit_log_destination_id": "",
-          "include_principal_name": false
         },
         "content_type": "application/json"
       }
@@ -2581,57 +1752,6 @@
       "request": {
         "endpoint": "regional",
         "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "data": [],
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 100,
-              "total": 0
-            }
-          }
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/custom-domain",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 404,
-        "body": {
-          "status": 404,
-          "title": "Not Found",
-          "instance": "kong:trace:17139453576711911747",
-          "detail": "custom domain not found"
-        },
-        "content_type": "application/problem+json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
         "path": "/v3/portals",
         "query": [
           [
@@ -2672,10 +1792,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "39a5bfbb0109.us.kongportals.com",
-              "default_domain": "39a5bfbb0109.us.kongportals.com",
-              "created_at": "2026-09-19T16:03:58.604Z",
-              "updated_at": "2026-09-19T16:04:08.021Z",
+              "canonical_domain": "5403540318f7.us.kongportals.com",
+              "default_domain": "5403540318f7.us.kongportals.com",
+              "created_at": "2026-11-04T20:18:36.499Z",
+              "updated_at": "2026-11-04T20:18:44.702Z",
               "labels": {
                 "KONGCTL-namespace": "portal-customization"
               }
@@ -2736,10 +1856,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "39a5bfbb0109.us.kongportals.com",
-              "default_domain": "39a5bfbb0109.us.kongportals.com",
-              "created_at": "2026-09-19T16:03:58.604Z",
-              "updated_at": "2026-09-19T16:04:08.021Z",
+              "canonical_domain": "5403540318f7.us.kongportals.com",
+              "default_domain": "5403540318f7.us.kongportals.com",
+              "created_at": "2026-11-04T20:18:36.499Z",
+              "updated_at": "2026-11-04T20:18:44.702Z",
               "labels": {
                 "KONGCTL-namespace": "portal-customization"
               }
@@ -2800,10 +1920,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "39a5bfbb0109.us.kongportals.com",
-              "default_domain": "39a5bfbb0109.us.kongportals.com",
-              "created_at": "2026-09-19T16:03:58.604Z",
-              "updated_at": "2026-09-19T16:04:08.021Z",
+              "canonical_domain": "5403540318f7.us.kongportals.com",
+              "default_domain": "5403540318f7.us.kongportals.com",
+              "created_at": "2026-11-04T20:18:36.499Z",
+              "updated_at": "2026-11-04T20:18:44.702Z",
               "labels": {
                 "KONGCTL-namespace": "portal-customization"
               }

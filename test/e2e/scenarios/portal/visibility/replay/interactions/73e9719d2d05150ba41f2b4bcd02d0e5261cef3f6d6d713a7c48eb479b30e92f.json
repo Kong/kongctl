@@ -3,111 +3,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/apis/00000000-0000-4000-8000-000000000003/versions/00000000-0000-4000-8000-000000000010",
-      "query": [],
-      "body": null
-    },
-    "response": {
-      "status": 200,
-      "body": {
-        "id": "00000000-0000-4000-8000-000000000010",
-        "version": "2.0.0",
-        "spec": {
-          "content": "{\"components\":{\"schemas\":{\"BulkMessageRequest\":{\"properties\":{\"messages\":{\"description\":\"Array of messages to send\",\"items\":{\"properties\":{\"message\":{\"example\":\"Hello World!\",\"maxLength\":1600,\"type\":\"string\"},\"message_id\":{\"description\":\"Optional client-provided message ID\",\"example\":\"client-msg-001\",\"type\":\"string\"},\"recipient\":{\"example\":\"+447700900000\",\"pattern\":\"^\\\\+?[1-9]\\\\d{1,14}$\",\"type\":\"string\"}},\"required\":[\"recipient\",\"message\"],\"type\":\"object\"},\"maxItems\":100,\"type\":\"array\"},\"sender_id\":{\"description\":\"The sender identifier for all messages\",\"example\":\"AcmeInc\",\"type\":\"string\"}},\"required\":[\"sender_id\",\"messages\"],\"type\":\"object\"},\"BulkMessageResponse\":{\"properties\":{\"accepted_messages\":{\"example\":48,\"type\":\"integer\"},\"batch_id\":{\"description\":\"Unique identifier for this batch\",\"example\":\"batch_123456\",\"type\":\"string\"},\"messages\":{\"items\":{\"$ref\":\"#/components/schemas/MessageResponseV2\"},\"type\":\"array\"},\"rejected_messages\":{\"example\":2,\"type\":\"integer\"},\"total_cost\":{\"example\":1.65,\"format\":\"decimal\",\"type\":\"number\"},\"total_messages\":{\"example\":50,\"type\":\"integer\"}},\"type\":\"object\"},\"DeliveryOptions\":{\"properties\":{\"delivery_receipt_url\":{\"description\":\"Webhook URL for delivery receipts\",\"example\":\"https://example.com/webhooks/sms-receipt\",\"format\":\"uri\",\"type\":\"string\"},\"retry_policy\":{\"default\":\"standard\",\"description\":\"Retry policy for failed deliveries\",\"enum\":[\"none\",\"standard\",\"aggressive\"],\"type\":\"string\"},\"ttl_seconds\":{\"default\":72000,\"description\":\"Time to live in seconds\",\"maximum\":259200,\"minimum\":300,\"type\":\"integer\"}},\"type\":\"object\"},\"Error\":{\"description\":\"Error\",\"properties\":{\"message-count\":{\"description\":\"The amount of messages in the request\",\"example\":\"1\",\"type\":\"string\"},\"messages\":{\"items\":{\"$ref\":\"#/components/schemas/ErrorMessage\"},\"type\":\"array\"}},\"type\":\"object\"},\"ErrorMessage\":{\"properties\":{\"error-text\":{\"description\":\"The description of the error\",\"example\":\"Missing to param\",\"type\":\"string\"},\"status\":{\"description\":\"The error status of the message\",\"example\":\"2\",\"type\":\"string\"}},\"type\":\"object\",\"xml\":{\"name\":\"message\"}},\"ErrorResponseV2\":{\"properties\":{\"error\":{\"properties\":{\"code\":{\"example\":\"INVALID_RECIPIENT\",\"type\":\"string\"},\"details\":{\"additionalProperties\":true,\"type\":\"object\"},\"message\":{\"example\":\"The recipient phone number is invalid\",\"type\":\"string\"}},\"type\":\"object\"},\"request_id\":{\"description\":\"Unique identifier for this request\",\"example\":\"req_123456789\",\"type\":\"string\"}},\"type\":\"object\"},\"ErrorXml\":{\"description\":\"Error\",\"properties\":{\"messages\":{\"items\":{\"$ref\":\"#/components/schemas/ErrorMessage\"},\"type\":\"array\"}},\"type\":\"object\",\"xml\":{\"name\":\"mt-submission-response\"}},\"Message\":{\"properties\":{\"message-id\":{\"description\":\"The ID of the message\",\"example\":\"0A0000000123ABCD1\",\"type\":\"string\",\"xml\":{\"name\":\"messageId\"}},\"message-price\":{\"description\":\"The estimated cost of the message\",\"example\":\"0.03330000\",\"type\":\"string\",\"xml\":{\"name\":\"messagePrice\"}},\"network\":{\"description\":\"The estimated ID of the network of the recipient\",\"example\":\"12345\",\"type\":\"string\"},\"remaining-balance\":{\"description\":\"Your estimated remaining balance\",\"example\":\"3.14159265\",\"type\":\"string\",\"xml\":{\"name\":\"remainingBalance\"}},\"status\":{\"description\":\"The status of the message. See [Troubleshooting Failed SMS](/messaging/sms/guides/troubleshooting-sms).\",\"example\":\"0\",\"type\":\"string\"},\"to\":{\"description\":\"The number the message was sent to. Numbers are specified in E.164 format.\",\"example\":\"447700900000\",\"type\":\"string\"}},\"type\":\"object\"},\"MessageRequestV2\":{\"properties\":{\"delivery_options\":{\"$ref\":\"#/components/schemas/DeliveryOptions\"},\"message\":{\"description\":\"The message content to send\",\"example\":\"Hello World!\",\"maxLength\":1600,\"type\":\"string\"},\"message_type\":{\"default\":\"text\",\"description\":\"The type of message content\",\"enum\":[\"text\",\"unicode\",\"binary\"],\"type\":\"string\"},\"metadata\":{\"additionalProperties\":true,\"description\":\"Custom metadata for tracking purposes\",\"type\":\"object\"},\"priority\":{\"default\":\"normal\",\"description\":\"Message delivery priority\",\"enum\":[\"low\",\"normal\",\"high\"],\"type\":\"string\"},\"recipient\":{\"description\":\"The recipient phone number in E.164 format\",\"example\":\"+447700900000\",\"pattern\":\"^\\\\+?[1-9]\\\\d{1,14}$\",\"type\":\"string\"},\"sender_id\":{\"description\":\"The sender identifier (phone number or alphanumeric ID)\",\"example\":\"AcmeInc\",\"type\":\"string\"}},\"required\":[\"sender_id\",\"recipient\",\"message\"],\"type\":\"object\"},\"MessageResponseV2\":{\"properties\":{\"estimated_cost\":{\"example\":0.033,\"format\":\"decimal\",\"type\":\"number\"},\"message_id\":{\"description\":\"Unique identifier for the sent message\",\"example\":\"msg_123456789\",\"type\":\"string\"},\"parts_count\":{\"description\":\"Number of SMS parts for this message\",\"example\":1,\"type\":\"integer\"},\"recipient\":{\"example\":\"+447700900000\",\"type\":\"string\"},\"remaining_balance\":{\"example\":15.67,\"format\":\"decimal\",\"type\":\"number\"},\"status\":{\"enum\":[\"accepted\",\"queued\",\"sent\",\"failed\"],\"example\":\"accepted\",\"type\":\"string\"}},\"type\":\"object\"},\"MessageStatusResponse\":{\"properties\":{\"delivered_at\":{\"example\":\"2024-01-15T10:30:15Z\",\"format\":\"date-time\",\"type\":\"string\"},\"error_code\":{\"description\":\"Error code if status is failed\",\"example\":null,\"type\":\"string\"},\"error_message\":{\"description\":\"Human readable error message\",\"example\":null,\"type\":\"string\"},\"message_id\":{\"example\":\"msg_123456789\",\"type\":\"string\"},\"recipient\":{\"example\":\"+447700900000\",\"type\":\"string\"},\"sent_at\":{\"example\":\"2024-01-15T10:30:00Z\",\"format\":\"date-time\",\"type\":\"string\"},\"status\":{\"enum\":[\"queued\",\"sent\",\"delivered\",\"failed\",\"expired\",\"rejected\"],\"example\":\"delivered\",\"type\":\"string\"}},\"type\":\"object\"},\"NewMessage\":{\"properties\":{\"api_key\":{\"description\":\"Your API key\",\"example\":\"abcd1234\",\"maxLength\":8,\"minLength\":8,\"type\":\"string\"},\"api_secret\":{\"description\":\"Your API secret. Required unless `sig` is provided\",\"example\":\"abcdef0123456789\",\"maxLength\":32,\"minLength\":6,\"type\":\"string\"},\"from\":{\"description\":\"The name or number the message should be sent from. Alphanumeric senderID's are not supported in all countries, see [Global Messaging](/messaging/sms/guides/global-messaging#country-specific-features) for more details. If alphanumeric, spaces will be ignored. Numbers are specified in E.164 format.\",\"example\":\"AcmeInc\",\"type\":\"string\"},\"sig\":{\"description\":\"The hash of the request parameters in alphabetical order, a timestamp and the signature secret. See [Signing Requests](/concepts/guides/signing-messages) for more details.\",\"maxLength\":60,\"minLength\":16,\"type\":\"string\"},\"text\":{\"description\":\"The body of the message being sent. If your message contains characters that can be encoded according to the GSM Standard and Extended tables then you can set the `type` to `text`. If your message contains characters outside this range, then you will need to set the `type` to `unicode`.\",\"example\":\"Hello World!\",\"type\":\"string\"},\"to\":{\"description\":\"The number that the message should be sent to. Numbers are specified in E.164 format.\",\"example\":\"447700900000\",\"maxLength\":15,\"minLength\":7,\"pattern\":\"\\\\d{7,15}\",\"type\":\"string\"}},\"required\":[\"api_key\",\"from\",\"to\"]},\"SMS\":{\"description\":\"Message sent\",\"properties\":{\"message-count\":{\"description\":\"The amount of messages in the request\",\"example\":\"1\",\"type\":\"string\"},\"messages\":{\"items\":{\"$ref\":\"#/components/schemas/Message\"},\"type\":\"array\"}},\"type\":\"object\"},\"SMSXml\":{\"description\":\"Message sent\",\"properties\":{\"messages\":{\"items\":{\"$ref\":\"#/components/schemas/Message\"},\"properties\":{\"count\":{\"example\":1,\"type\":\"integer\",\"xml\":{\"attribute\":true}}},\"type\":\"array\",\"x-skip-response-description\":true}},\"type\":\"object\",\"xml\":{\"name\":\"mt-submission-response\"}}}},\"info\":{\"contact\":{\"email\":\"devrel@vonage.com\",\"name\":\"Vonage DevRel\",\"url\":\"https://developer.nexmo.com/\"},\"description\":\"Enhanced SMS API v2 with improved messaging capabilities, bulk operations, and better error handling. Numbers are specified in E.164 format. More SMS API documentation is at <https://developer.nexmo.com/messaging/sms/overview>\",\"title\":\"SMS API\",\"version\":\"2.0.0\"},\"openapi\":\"3.0.0\",\"paths\":{\"/messages\":{\"post\":{\"description\":\"Send an outbound SMS message using the enhanced v2 API with improved error handling and response format\",\"operationId\":\"send-message-v2\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/MessageRequestV2\"}}},\"required\":true},\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/MessageResponseV2\"}}},\"description\":\"Success\"},\"400\":{\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/ErrorResponseV2\"}}},\"description\":\"Bad Request\"},\"401\":{\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/ErrorResponseV2\"}}},\"description\":\"Unauthorized\"},\"422\":{\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/ErrorResponseV2\"}}},\"description\":\"Validation Error\"}},\"summary\":\"Send SMS Message (v2)\"}},\"/messages/bulk\":{\"post\":{\"description\":\"Send multiple SMS messages in a single request for improved efficiency\",\"operationId\":\"send-bulk-messages\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/BulkMessageRequest\"}}},\"required\":true},\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/BulkMessageResponse\"}}},\"description\":\"Success\"},\"400\":{\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/ErrorResponseV2\"}}},\"description\":\"Bad Request\"}},\"summary\":\"Send Bulk SMS Messages\"}},\"/messages/{messageId}/status\":{\"get\":{\"description\":\"Retrieve the current delivery status of a sent message\",\"operationId\":\"get-message-status\",\"parameters\":[{\"in\":\"path\",\"name\":\"messageId\",\"required\":true,\"schema\":{\"example\":\"0A0000000123ABCD1\",\"type\":\"string\"}}],\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/MessageStatusResponse\"}}},\"description\":\"Success\"},\"404\":{\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/ErrorResponseV2\"}}},\"description\":\"Message not found\"}},\"summary\":\"Get Message Status\"}},\"/{format}\":{\"post\":{\"deprecated\":true,\"description\":\"Send an outbound SMS from your Vonage account. This endpoint is deprecated in v2, use /messages instead.\",\"operationId\":\"send-an-sms\",\"parameters\":[{\"description\":\"The format of the response\",\"in\":\"path\",\"name\":\"format\",\"required\":true,\"schema\":{\"default\":\"json\",\"enum\":[\"json\",\"xml\"],\"example\":\"json\",\"type\":\"string\"}}],\"requestBody\":{\"content\":{\"application/x-www-form-urlencoded\":{\"schema\":{\"$ref\":\"#/components/schemas/NewMessage\"}}},\"required\":true},\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"oneOf\":[{\"$ref\":\"#/components/schemas/SMS\"},{\"$ref\":\"#/components/schemas/Error\"}]}},\"text/xml\":{\"schema\":{\"oneOf\":[{\"$ref\":\"#/components/schemas/SMSXml\"},{\"$ref\":\"#/components/schemas/ErrorXml\"}]}}},\"description\":\"Success\"}},\"summary\":\"Send an SMS (Deprecated - Use /messages instead)\"}}},\"servers\":[{\"url\":\"https://rest.nexmo.com/sms/v2\"}],\"x-errors\":{\"INSUFFICIENT_CREDITS\":{\"description\":\"Your account does not have enough credits to send this message.\",\"resolution\":\"Top up your account balance and try again.\"},\"INVALID_RECIPIENT\":{\"description\":\"The recipient phone number is invalid or not in E.164 format.\",\"resolution\":\"Check the phone number format and try again.\"},\"INVALID_SENDER\":{\"description\":\"The sender ID is invalid or not authorized for your account.\",\"resolution\":\"Use a valid sender ID or contact support for authorization.\"},\"MESSAGE_TOO_LONG\":{\"description\":\"The message content exceeds the maximum allowed length.\",\"resolution\":\"Shorten your message or split it into multiple messages.\"},\"RATE_LIMIT_EXCEEDED\":{\"description\":\"You have exceeded the rate limit for your account.\",\"resolution\":\"Reduce your sending rate or contact support to increase limits.\"}}}",
-          "type": "oas3",
-          "validation_messages": []
-        },
-        "created_at": "2026-10-21T20:18:40.446Z",
-        "updated_at": "2026-10-21T20:18:40.446Z"
-      },
-      "content_type": "application/json"
-    }
-  },
-  {
-    "request": {
-      "endpoint": "regional",
-      "method": "GET",
-      "path": "/v3/apis/00000000-0000-4000-8000-000000000003/documents",
-      "query": [],
-      "body": null
-    },
-    "response": {
-      "status": 200,
-      "body": {
-        "data": [
-          {
-            "id": "00000000-0000-4000-8000-000000000011",
-            "parent_document_id": null,
-            "title": "SMS API: Getting Started",
-            "slug": "sms-getting-started",
-            "status": "published",
-            "children": [],
-            "created_at": "2026-10-21T20:18:41.134Z",
-            "updated_at": "2026-10-21T20:18:41.145Z"
-          },
-          {
-            "id": "00000000-0000-4000-8000-000000000012",
-            "parent_document_id": null,
-            "title": "SMS API: Authentication Guide",
-            "slug": "sms-authentication",
-            "status": "published",
-            "children": [],
-            "created_at": "2026-10-21T20:18:41.853Z",
-            "updated_at": "2026-10-21T20:18:41.879Z"
-          },
-          {
-            "id": "00000000-0000-4000-8000-000000000013",
-            "parent_document_id": null,
-            "title": "SMS API: Error Handling",
-            "slug": "sms-errors",
-            "status": "published",
-            "children": [],
-            "created_at": "2026-10-21T20:18:42.214Z",
-            "updated_at": "2026-10-21T20:18:42.235Z"
-          },
-          {
-            "id": "00000000-0000-4000-8000-000000000015",
-            "parent_document_id": null,
-            "title": "SMS API: Webhooks",
-            "slug": "sms-webhooks",
-            "status": "published",
-            "children": [],
-            "created_at": "2026-10-21T20:18:42.895Z",
-            "updated_at": "2026-10-21T20:18:42.907Z"
-          }
-        ]
-      },
-      "content_type": "application/json"
-    }
-  },
-  {
-    "request": {
-      "endpoint": "regional",
-      "method": "GET",
-      "path": "/v3/apis/00000000-0000-4000-8000-000000000003/documents/00000000-0000-4000-8000-000000000011",
-      "query": [],
-      "body": null
-    },
-    "response": {
-      "status": 200,
-      "body": {
-        "id": "00000000-0000-4000-8000-000000000011",
-        "parent_document_id": null,
-        "title": "SMS API: Getting Started",
-        "slug": "sms-getting-started",
-        "status": "published",
-        "content": "# SMS API: Getting Started\n\nWelcome to the SMS API! This guide will help you send your first SMS message in just a few minutes.\n\n## Overview\n\nThe SMS API allows you to:\n- Send SMS messages to phone numbers worldwide\n- Receive delivery receipts for sent messages\n- Handle inbound SMS messages to your virtual numbers\n- Send messages in multiple formats (text, binary, Unicode)\n\n## Prerequisites\n\nBefore you begin, you'll need:\n1. An API key and secret\n2. A sender ID or virtual number (depending on your region)\n3. The recipient's phone number in E.164 format\n\n## Quick Start\n\n### 1. Send Your First SMS\n\nHere's a simple example to send an SMS message:\n\n```bash\ncurl -X POST https://rest.nexmo.com/sms/json \\\n  -d \"api_key=YOUR_API_KEY\" \\\n  -d \"api_secret=YOUR_API_SECRET\" \\\n  -d \"to=447700900000\" \\\n  -d \"from=AcmeInc\" \\\n  -d \"text=Hello from the SMS API!\"\n```\n\n### 2. Understanding the Response\n\nA successful response looks like this:\n\n```json\n{\n  \"message-count\": \"1\",\n  \"messages\": [{\n    \"to\": \"447700900000\",\n    \"message-id\": \"0A0000000123ABCD1\",\n    \"status\": \"0\",\n    \"remaining-balance\": \"3.14159265\",\n    \"message-price\": \"0.03330000\",\n    \"network\": \"23430\"\n  }]\n}\n```\n\nKey fields:\n- `status`: \"0\" means success\n- `message-id`: Unique identifier for tracking\n- `remaining-balance`: Your account balance after sending\n\n## Supported Regions\n\nThe SMS API supports sending to most countries worldwide. However, some regions have specific requirements:\n\n- **USA/Canada**: Requires a Vonage virtual number as sender\n- **India**: Requires pre-registered sender IDs and templates\n- **Europe**: Alphanumeric sender IDs are generally supported\n\n## Message Types\n\n### Text Messages\nStandard SMS messages up to 160 characters:\n\n```bash\ncurl -X POST https://rest.nexmo.com/sms/json \\\n  -d \"api_key=YOUR_API_KEY\" \\\n  -d \"api_secret=YOUR_API_SECRET\" \\\n  -d \"to=447700900000\" \\\n  -d \"from=AcmeInc\" \\\n  -d \"text=Your verification code is: 123456\"\n```\n\n### Unicode Messages\nFor non-Latin characters (Arabic, Chinese, etc.):\n\n```bash\ncurl -X POST https://rest.nexmo.com/sms/json \\\n  -d \"api_key=YOUR_API_KEY\" \\\n  -d \"api_secret=YOUR_API_SECRET\" \\\n  -d \"to=447700900000\" \\\n  -d \"from=AcmeInc\" \\\n  -d \"text=\u4f60\u597d\u4e16\u754c\" \\\n  -d \"type=unicode\"\n```\n\n## Best Practices\n\n1. **Use E.164 Format**: Always format phone numbers with country code (e.g., 447700900000)\n2. **Handle Errors**: Check the status field in responses\n3. **Monitor Balance**: Track your remaining balance to avoid failed sends\n4. **Request Delivery Receipts**: Enable callbacks to track message delivery\n5. **Respect Rate Limits**: Default limit is 30 messages per second\n\n## Next Steps\n\n- [Authentication Guide](./authentication) - Learn about API keys and signatures\n- [Error Handling](./errors) - Understand error codes and troubleshooting\n- [Webhooks](./webhooks) - Set up delivery receipts and inbound SMS\n- [API Reference](https://rest.nexmo.com/sms) - Full API documentation\n\n## Need Help?\n\n- Email: devrel@vonage.com\n- Documentation: https://developer.nexmo.com/messaging/sms/overview\n- Status: https://api.vonage.com/status",
-        "created_at": "2026-10-21T20:18:41.134Z",
-        "updated_at": "2026-10-21T20:18:41.145Z"
-      },
-      "content_type": "application/json"
-    }
-  },
-  {
-    "request": {
-      "endpoint": "regional",
-      "method": "GET",
-      "path": "/v3/apis/00000000-0000-4000-8000-000000000003/documents/00000000-0000-4000-8000-000000000012",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000001/documents/00000000-0000-4000-8000-000000000012",
       "query": [],
       "body": null
     },
@@ -120,8 +16,8 @@
         "slug": "sms-authentication",
         "status": "published",
         "content": "# SMS API: Authentication Guide\n\nThe SMS API supports two methods of authentication to ensure secure access to your account.\n\n## Authentication Methods\n\n### 1. API Key and Secret\n\nThe simplest authentication method uses your API key and secret as request parameters.\n\n#### How to Authenticate\n\nInclude these parameters in every request:\n\n```bash\ncurl -X POST https://rest.nexmo.com/sms/json \\\n  -d \"api_key=abcd1234\" \\\n  -d \"api_secret=abcdef0123456789\" \\\n  -d \"to=447700900000\" \\\n  -d \"from=AcmeInc\" \\\n  -d \"text=Hello World\"\n```\n\n#### Security Considerations\n\n- **Never expose credentials**: Don't commit API secrets to version control\n- **Use environment variables**: Store credentials securely\n- **Rotate regularly**: Change your API secret periodically\n- **Use HTTPS**: Always use encrypted connections\n\n### 2. Signature Authentication\n\nFor enhanced security, you can use signature-based authentication instead of sending your API secret directly.\n\n#### How It Works\n\n1. Create a signature using your request parameters\n2. Include the signature instead of your API secret\n3. The server validates the signature using your shared secret\n\n#### Generating a Signature\n\nThe signature is an MD5 hash of:\n- All request parameters (except `sig`) in alphabetical order\n- A timestamp\n- Your signature secret\n\nExample in Python:\n\n```python\nimport hashlib\nimport time\n\ndef generate_signature(params, signature_secret):\n    # Remove sig parameter if present\n    params = {k: v for k, v in params.items() if k != 'sig'}\n    \n    # Sort parameters alphabetically\n    sorted_params = sorted(params.items())\n    \n    # Create parameter string\n    param_string = '&'.join([f\"{k}={v}\" for k, v in sorted_params])\n    \n    # Add signature secret\n    signature_string = param_string + signature_secret\n    \n    # Generate MD5 hash\n    return hashlib.md5(signature_string.encode()).hexdigest()\n\n# Example usage\nparams = {\n    'api_key': 'abcd1234',\n    'to': '447700900000',\n    'from': 'AcmeInc',\n    'text': 'Hello World',\n    'timestamp': str(int(time.time()))\n}\n\nsignature = generate_signature(params, 'your_signature_secret')\nparams['sig'] = signature\n```\n\n#### Using Signature Authentication\n\n```bash\ncurl -X POST https://rest.nexmo.com/sms/json \\\n  -d \"api_key=abcd1234\" \\\n  -d \"to=447700900000\" \\\n  -d \"from=AcmeInc\" \\\n  -d \"text=Hello World\" \\\n  -d \"timestamp=1234567890\" \\\n  -d \"sig=7a8c1f3d4e5b6a9c8d7e6f5a4b3c2d1e\"\n```\n\n## Getting Your Credentials\n\n### API Key and Secret\n\n1. Log in to your Vonage Dashboard\n2. Navigate to Settings \u2192 API Settings\n3. Your API key is displayed\n4. Click \"Show API Secret\" to reveal your secret\n\n### Signature Secret\n\n1. In the Dashboard, go to Settings \u2192 API Settings\n2. Click \"Signature Secret\"\n3. Generate or update your signature secret\n\n## Security Best Practices\n\n### 1. Environment Variables\n\nStore credentials in environment variables:\n\n```bash\nexport VONAGE_API_KEY=\"abcd1234\"\nexport VONAGE_API_SECRET=\"abcdef0123456789\"\n```\n\nThen use them in your code:\n\n```python\nimport os\n\napi_key = os.environ.get('VONAGE_API_KEY')\napi_secret = os.environ.get('VONAGE_API_SECRET')\n```\n\n### 2. Configuration Files\n\nIf using configuration files:\n- Never commit them to version control\n- Use `.gitignore` to exclude them\n- Set appropriate file permissions (e.g., 600)\n\n### 3. Key Rotation\n\nRegularly rotate your credentials:\n1. Generate new API secret in Dashboard\n2. Update your applications\n3. Monitor for any failures\n4. Remove old credentials\n\n### 4. IP Whitelisting\n\nFor additional security:\n1. Go to Dashboard \u2192 API Settings\n2. Add trusted IP addresses\n3. Only requests from these IPs will be accepted\n\n## Troubleshooting Authentication\n\n### Common Errors\n\n#### Invalid Credentials (Status 4)\n```json\n{\n  \"message-count\": \"1\",\n  \"messages\": [{\n    \"status\": \"4\",\n    \"error-text\": \"Invalid credentials\"\n  }]\n}\n```\n\n**Solution**: Verify your API key and secret are correct\n\n#### Invalid Signature (Status 14)\n```json\n{\n  \"message-count\": \"1\",\n  \"messages\": [{\n    \"status\": \"14\",\n    \"error-text\": \"Invalid signature\"\n  }]\n}\n```\n\n**Solution**: Check your signature generation algorithm\n\n#### Missing Parameters (Status 2)\n```json\n{\n  \"message-count\": \"1\",\n  \"messages\": [{\n    \"status\": \"2\",\n    \"error-text\": \"Missing api_key\"\n  }]\n}\n```\n\n**Solution**: Ensure all required parameters are included\n\n## Next Steps\n\n- [Error Handling](./errors) - Learn about error codes\n- [Getting Started](./getting-started) - Send your first SMS\n- [Webhooks](./webhooks) - Set up callbacks",
-        "created_at": "2026-10-21T20:18:41.853Z",
-        "updated_at": "2026-10-21T20:18:41.879Z"
+        "created_at": "2026-11-04T20:12:34.651Z",
+        "updated_at": "2026-11-04T20:12:34.663Z"
       },
       "content_type": "application/json"
     }
@@ -130,7 +26,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/apis/00000000-0000-4000-8000-000000000003/documents/00000000-0000-4000-8000-000000000013",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000001/documents/00000000-0000-4000-8000-000000000013",
       "query": [],
       "body": null
     },
@@ -143,8 +39,8 @@
         "slug": "sms-errors",
         "status": "published",
         "content": "# SMS API: Error Handling\n\nThis guide helps you understand and handle errors when using the SMS API.\n\n## Error Response Format\n\nWhen an error occurs, the API returns a response with a non-zero status code:\n\n```json\n{\n  \"message-count\": \"1\",\n  \"messages\": [{\n    \"status\": \"2\",\n    \"error-text\": \"Missing to param\"\n  }]\n}\n```\n\n## Common Error Codes\n\n### Request Errors (1-9)\n\n#### Status 1: Throttled\n**Description**: You are sending SMS faster than the account limit.\n\n**Solution**: \n- Implement rate limiting in your application\n- Default limit is 30 messages per second\n- Contact support to increase limits if needed\n\n#### Status 2: Missing Parameters\n**Description**: Your request is missing required parameters.\n\n**Example**:\n```json\n{\n  \"status\": \"2\",\n  \"error-text\": \"Missing to param\"\n}\n```\n\n**Solution**: Ensure all required parameters are included:\n- `api_key` - Your API key\n- `api_secret` or `sig` - Authentication\n- `from` - Sender ID or number\n- `to` - Recipient number\n- `text` - Message content\n\n#### Status 3: Invalid Parameters\n**Description**: One or more parameter values are invalid.\n\n**Common Causes**:\n- Phone number not in E.164 format\n- Message text too long\n- Invalid sender ID for destination\n\n**Solution**: Validate parameters before sending:\n```python\nimport re\n\ndef validate_phone_number(number):\n    # E.164 format: 7-15 digits\n    pattern = r'^\\d{7,15}$'\n    return re.match(pattern, number) is not None\n\ndef validate_message_length(text, encoding='text'):\n    if encoding == 'text':\n        return len(text) <= 160\n    elif encoding == 'unicode':\n        return len(text) <= 70\n    return False\n```\n\n#### Status 4: Invalid Credentials\n**Description**: Your API key and/or secret are incorrect, invalid, or disabled.\n\n**Solution**:\n- Verify credentials in Dashboard\n- Check for typos or extra spaces\n- Ensure account is active\n- Regenerate credentials if needed\n\n#### Status 5: Internal Error\n**Description**: An error occurred in the platform while processing.\n\n**Solution**:\n- Retry with exponential backoff\n- If persistent, contact support@nexmo.com\n- Include request ID in support ticket\n\n### Billing and Account Errors (8-9)\n\n#### Status 8: Partner Account Barred\n**Description**: Your Vonage account has been suspended.\n\n**Solution**: Contact support@nexmo.com immediately\n\n#### Status 9: Partner Quota Violation\n**Description**: Insufficient credit to send the message.\n\n**Solution**:\n- Check account balance\n- Top up your account\n- Implement balance monitoring\n\n### Destination Errors (6-7, 29, 33, 40)\n\n#### Status 6: Invalid Message\n**Description**: Platform unable to process the message.\n\n**Common Causes**:\n- Unrecognized number prefix\n- Invalid destination country\n\n#### Status 7: Number Barred\n**Description**: The recipient number is blacklisted.\n\n**Solution**:\n- Verify the number is correct\n- Check if recipient has opted out\n- Contact support for unblocking\n\n#### Status 29: Non-Whitelisted Destination\n**Description**: Account is in demo mode with destination restrictions.\n\n**Solution**:\n- Add number to whitelist in Dashboard\n- Or top up account to remove restrictions\n\n### Authentication Errors (14, 32)\n\n#### Status 14: Invalid Signature\n**Description**: The signature supplied could not be verified.\n\n**Solution**: Review signature generation:\n```python\n# Correct signature generation\ndef generate_signature(params, secret):\n    # Sort parameters alphabetically\n    sorted_params = sorted(params.items())\n    # Exclude 'sig' parameter\n    filtered = [(k, v) for k, v in sorted_params if k != 'sig']\n    # Create string\n    param_string = '&'.join([f\"{k}={v}\" for k, v in filtered])\n    # Add secret and hash\n    return hashlib.md5(f\"{param_string}{secret}\".encode()).hexdigest()\n```\n\n### Regional Errors (15, 22)\n\n#### Status 15: Invalid Sender Address\n**Description**: Using non-authorized sender ID.\n\n**Common in**:\n- North America (requires long number)\n- Countries with sender ID registration\n\n**Solution**:\n- Use approved sender IDs only\n- Purchase virtual number for region\n- Check country-specific requirements\n\n## Error Handling Best Practices\n\n### 1. Implement Retry Logic\n\n```python\nimport time\nimport random\n\ndef send_sms_with_retry(params, max_retries=3):\n    retryable_errors = [1, 5]  # Throttled, Internal Error\n    \n    for attempt in range(max_retries):\n        response = send_sms(params)\n        status = int(response['messages'][0]['status'])\n        \n        if status == 0:  # Success\n            return response\n        \n        if status not in retryable_errors:\n            # Non-retryable error\n            raise Exception(f\"SMS failed: {response}\")\n        \n        # Exponential backoff with jitter\n        wait_time = (2 ** attempt) + random.uniform(0, 1)\n        time.sleep(wait_time)\n    \n    raise Exception(\"Max retries exceeded\")\n```\n\n### 2. Log Errors for Analysis\n\n```python\nimport logging\n\ndef handle_sms_error(response):\n    for message in response['messages']:\n        if message['status'] != '0':\n            logging.error(\n                \"SMS failed\",\n                extra={\n                    'status': message['status'],\n                    'error_text': message.get('error-text'),\n                    'to': message.get('to'),\n                    'message_id': message.get('message-id')\n                }\n            )\n```\n\n### 3. Monitor Error Rates\n\nTrack error patterns to identify issues:\n- Sudden increase in auth errors \u2192 credential issue\n- Regional error patterns \u2192 compliance issue\n- Consistent throttling \u2192 need rate limit adjustment\n\n## Testing Error Scenarios\n\nUse these test numbers to simulate errors:\n\n| Number | Error Simulated |\n|--------|----------------|\n| 447700900001 | Throttled (Status 1) |\n| 447700900002 | Missing Parameters (Status 2) |\n| 447700900009 | Insufficient Credit (Status 9) |\n\n## Getting Help\n\nIf you encounter persistent errors:\n\n1. Check the [API Status Page](https://api.vonage.com/status)\n2. Review your Dashboard for account issues\n3. Contact support with:\n   - Error message and status code\n   - Request parameters (excluding credentials)\n   - Message IDs if available\n   - Time of occurrence\n\n## Next Steps\n\n- [Getting Started](./getting-started) - Send your first SMS\n- [Authentication](./authentication) - Secure your requests\n- [Webhooks](./webhooks) - Handle delivery receipts",
-        "created_at": "2026-10-21T20:18:42.214Z",
-        "updated_at": "2026-10-21T20:18:42.235Z"
+        "created_at": "2026-11-04T20:12:34.936Z",
+        "updated_at": "2026-11-04T20:12:34.949Z"
       },
       "content_type": "application/json"
     }
@@ -153,7 +49,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/apis/00000000-0000-4000-8000-000000000003/documents/00000000-0000-4000-8000-000000000015",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000001/documents/00000000-0000-4000-8000-000000000015",
       "query": [],
       "body": null
     },
@@ -166,8 +62,8 @@
         "slug": "sms-webhooks",
         "status": "published",
         "content": "# SMS API: Webhooks\n\nWebhooks allow you to receive real-time notifications about SMS events, including delivery receipts and inbound messages.\n\n## Overview\n\nThe SMS API supports two types of webhooks:\n\n1. **Delivery Receipts** - Status updates for sent messages\n2. **Inbound SMS** - Messages received on your virtual numbers\n\n## Delivery Receipts\n\n### Setting Up Delivery Receipts\n\nYou can configure delivery receipts at two levels:\n\n#### 1. Account Level (Dashboard)\nSet a default webhook URL for all SMS:\n1. Log in to Dashboard\n2. Go to Settings \u2192 Account Settings\n3. Set \"Delivery Receipt Webhook URL\"\n\n#### 2. Per Message\nOverride the default for specific messages:\n\n```bash\ncurl -X POST https://rest.nexmo.com/sms/json \\\n  -d \"api_key=YOUR_API_KEY\" \\\n  -d \"api_secret=YOUR_API_SECRET\" \\\n  -d \"to=447700900000\" \\\n  -d \"from=AcmeInc\" \\\n  -d \"text=Hello World\" \\\n  -d \"status-report-req=true\" \\\n  -d \"callback=https://example.com/webhooks/delivery\"\n```\n\n### Delivery Receipt Format\n\n```json\n{\n  \"msisdn\": \"447700900000\",\n  \"to\": \"AcmeInc\",\n  \"network-code\": \"23430\",\n  \"messageId\": \"0A0000001234567B\",\n  \"price\": \"0.03330000\",\n  \"status\": \"delivered\",\n  \"scts\": \"2001011400\",\n  \"err-code\": \"0\",\n  \"api-key\": \"abcd1234\",\n  \"client-ref\": \"my-reference\",\n  \"message-timestamp\": \"2020-01-01 12:00:00\",\n  \"timestamp\": \"1582650446\",\n  \"nonce\": \"ec11dd3e-1e7f-4db5-9467-82b02cd223b9\",\n  \"sig\": \"1A20E4E2069B609FDA6CECA9DE18D5CAFE99720DDB628BD6BE8B19942A336E1C\"\n}\n```\n\n### Status Values\n\n| Status | Description | Final? |\n|--------|-------------|--------|\n| `delivered` | Message delivered to handset | Yes |\n| `expired` | Delivery attempt expired | Yes |\n| `failed` | Delivery failed | Yes |\n| `rejected` | Message rejected by carrier | Yes |\n| `accepted` | Message accepted by carrier | No |\n| `buffered` | Message queued by carrier | No |\n| `unknown` | Status unknown | No |\n\n### Error Codes\n\nThe `err-code` field provides additional details:\n\n| Code | Description |\n|------|-------------|\n| `0` | Delivered successfully |\n| `1` | Unknown subscriber |\n| `2` | Subscriber busy |\n| `3` | Subscriber absent |\n| `4` | Subscriber memory full |\n| `5` | Routing error |\n| `6` | Network error |\n| `99` | General error |\n\n## Inbound SMS\n\n### Setting Up Inbound SMS\n\n1. **Purchase a Virtual Number**\n   - Use Dashboard or Number API\n   - Choose number with SMS capability\n\n2. **Configure Webhook URL**\n   - In Dashboard: Numbers \u2192 Your Number \u2192 SMS Webhook URL\n   - Or via API when purchasing\n\n### Inbound SMS Format\n\n```json\n{\n  \"api-key\": \"abcd1234\",\n  \"msisdn\": \"447700900001\",\n  \"to\": \"447700900000\",\n  \"messageId\": \"0A0000000123ABCD1\",\n  \"text\": \"Hello world\",\n  \"type\": \"text\",\n  \"keyword\": \"HELLO\",\n  \"message-timestamp\": \"2020-01-01 12:00:00\",\n  \"timestamp\": \"1578787200\",\n  \"nonce\": \"aaaaaaaa-bbbb-cccc-dddd-0123456789ab\",\n  \"concat\": \"true\",\n  \"concat-ref\": \"1\",\n  \"concat-total\": \"3\",\n  \"concat-part\": \"2\"\n}\n```\n\n### Handling Concatenated Messages\n\nLong messages are split into parts:\n\n```python\n# Store message parts\nmessage_parts = {}\n\ndef handle_inbound_sms(webhook_data):\n    if webhook_data.get('concat') == 'true':\n        # Part of a multi-part message\n        ref = webhook_data['concat-ref']\n        part = int(webhook_data['concat-part'])\n        total = int(webhook_data['concat-total'])\n        \n        if ref not in message_parts:\n            message_parts[ref] = {}\n        \n        message_parts[ref][part] = webhook_data['text']\n        \n        # Check if all parts received\n        if len(message_parts[ref]) == total:\n            # Reconstruct full message\n            full_text = ''\n            for i in range(1, total + 1):\n                full_text += message_parts[ref][i]\n            \n            # Process complete message\n            process_message(webhook_data['msisdn'], full_text)\n            \n            # Clean up\n            del message_parts[ref]\n    else:\n        # Single part message\n        process_message(webhook_data['msisdn'], webhook_data['text'])\n```\n\n## Webhook Security\n\n### 1. Validate Signatures\n\nVerify webhooks are from Vonage:\n\n```python\nimport hashlib\nimport hmac\n\ndef validate_webhook_signature(params, signature_secret):\n    # Get signature from params\n    provided_sig = params.get('sig')\n    if not provided_sig:\n        return False\n    \n    # Sort parameters (excluding sig)\n    sorted_params = sorted(\n        [(k, v) for k, v in params.items() if k != 'sig']\n    )\n    \n    # Build string\n    param_string = '&'.join([f\"{k}={v}\" for k, v in sorted_params])\n    \n    # Calculate expected signature\n    expected_sig = hashlib.md5(\n        f\"{param_string}{signature_secret}\".encode()\n    ).hexdigest()\n    \n    # Compare signatures\n    return hmac.compare_digest(provided_sig, expected_sig)\n```\n\n### 2. Implement Idempotency\n\nPrevent duplicate processing:\n\n```python\nprocessed_messages = set()\n\ndef handle_webhook(data):\n    message_id = data.get('messageId')\n    \n    if message_id in processed_messages:\n        # Already processed\n        return {'status': 'duplicate'}\n    \n    # Process webhook\n    process_webhook(data)\n    \n    # Mark as processed\n    processed_messages.add(message_id)\n    \n    return {'status': 'success'}\n```\n\n### 3. Use HTTPS\n\nAlways use HTTPS endpoints for webhooks:\n- Encrypts data in transit\n- Prevents tampering\n- Required for signature validation\n\n## Webhook Best Practices\n\n### 1. Respond Quickly\n\n- Return 2xx status code immediately\n- Process webhooks asynchronously\n- Timeout is 5 seconds\n\n```python\nfrom flask import Flask, request\nfrom queue import Queue\nimport threading\n\napp = Flask(__name__)\nwebhook_queue = Queue()\n\n@app.route('/webhooks/sms', methods=['POST'])\ndef webhook_handler():\n    # Quick validation\n    data = request.get_json()\n    if not data:\n        return '', 400\n    \n    # Queue for processing\n    webhook_queue.put(data)\n    \n    # Return immediately\n    return '', 200\n\ndef process_webhooks():\n    while True:\n        data = webhook_queue.get()\n        # Process webhook\n        handle_webhook_data(data)\n```\n\n### 2. Handle Retries\n\nVonage retries failed webhooks:\n- Retries for 24 hours\n- Exponential backoff\n- Must return 2xx to stop retries\n\n### 3. Log Everything\n\n```python\nimport logging\n\ndef log_webhook(data):\n    logging.info(\n        \"Webhook received\",\n        extra={\n            'type': 'inbound' if 'text' in data else 'delivery',\n            'message_id': data.get('messageId'),\n            'from': data.get('msisdn'),\n            'to': data.get('to'),\n            'status': data.get('status'),\n            'timestamp': data.get('message-timestamp')\n        }\n    )\n```\n\n## Testing Webhooks\n\n### Using ngrok for Local Development\n\n1. Install ngrok: `brew install ngrok`\n2. Start local server: `python app.py`\n3. Create tunnel: `ngrok http 5000`\n4. Use ngrok URL in Dashboard\n\n### Webhook Testing Service\n\nUse webhook.site for quick testing:\n1. Visit https://webhook.site\n2. Copy unique URL\n3. Use as webhook URL\n4. View incoming webhooks\n\n## Common Issues\n\n### Not Receiving Webhooks\n\n1. **Check URL is accessible**\n   ```bash\n   curl -X POST https://your-webhook-url.com/sms \\\n     -H \"Content-Type: application/json\" \\\n     -d '{\"test\": \"data\"}'\n   ```\n\n2. **Verify webhook configuration**\n   - Check Dashboard settings\n   - Ensure URL is HTTPS\n   - No authentication required\n\n3. **Check firewall/security groups**\n   - Allow Vonage IP ranges\n   - No rate limiting on webhook endpoint\n\n### Duplicate Webhooks\n\n- Implement idempotency checking\n- Store processed message IDs\n- Return 200 quickly to prevent retries\n\n## Next Steps\n\n- [Getting Started](./getting-started) - Send your first SMS\n- [Authentication](./authentication) - Secure your API requests\n- [Error Handling](./errors) - Handle errors gracefully",
-        "created_at": "2026-10-21T20:18:42.895Z",
-        "updated_at": "2026-10-21T20:18:42.907Z"
+        "created_at": "2026-11-04T20:12:35.498Z",
+        "updated_at": "2026-11-04T20:12:35.523Z"
       },
       "content_type": "application/json"
     }
@@ -180,7 +76,7 @@
       "query": [
         [
           "filter[api_id][eq]",
-          "00000000-0000-4000-8000-000000000003"
+          "00000000-0000-4000-8000-000000000001"
         ],
         [
           "page[number]",
@@ -198,12 +94,12 @@
       "body": {
         "data": [
           {
-            "api_id": "00000000-0000-4000-8000-000000000003",
+            "api_id": "00000000-0000-4000-8000-000000000001",
             "entity_type": "api",
             "visibility": "public",
-            "portal_id": "00000000-0000-4000-8000-000000000002",
-            "created_at": "2026-10-21T20:18:42.568Z",
-            "updated_at": "2026-10-21T20:20:02.650Z",
+            "portal_id": "00000000-0000-4000-8000-000000000003",
+            "created_at": "2026-11-04T20:12:35.218Z",
+            "updated_at": "2026-11-04T20:13:35.037Z",
             "form_id": null,
             "auto_approve_registrations": false,
             "environment": {
@@ -234,7 +130,7 @@
       "query": [
         [
           "filter[api_id][eq]",
-          "00000000-0000-4000-8000-000000000003"
+          "00000000-0000-4000-8000-000000000001"
         ],
         [
           "page[number]",
@@ -285,6 +181,34 @@
         "data": [
           {
             "id": "00000000-0000-4000-8000-000000000001",
+            "name": "SMS API",
+            "version": "3.2.0",
+            "description": "With the SMS API you can send SMS from your account and lookup messages both messages that you've sent as well as messages sent to your virtual numbers. Numbers are specified in E.164 format. More SMS API documentation is at <https://developer.nexmo.com/messaging/sms/overview>",
+            "labels": {
+              "category": "messaging",
+              "protocol": "rest",
+              "KONGCTL-namespace": "default"
+            },
+            "created_at": "2026-11-04T20:12:28.945Z",
+            "updated_at": "2026-11-04T20:13:35.037Z",
+            "slug": "sms-api-3",
+            "api_spec_ids": [
+              "00000000-0000-4000-8000-000000000009"
+            ],
+            "implementation_mode": null,
+            "current_version_summary": null,
+            "portals": [
+              {
+                "id": "00000000-0000-4000-8000-000000000003",
+                "name": "My First Portal",
+                "display_name": "A Getting Started Portal"
+              }
+            ],
+            "attributes": {},
+            "images": null
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
             "name": "Voice API",
             "version": "1.3.7",
             "description": "The Voice API lets you create outbound calls, control in-progress calls and get information about historical calls. More information about the Voice API can be found at <https://developer.nexmo.com/voice/voice-api/overview>.",
@@ -293,8 +217,8 @@
               "protocol": "rest",
               "KONGCTL-namespace": "default"
             },
-            "created_at": "2026-10-21T20:18:36.410Z",
-            "updated_at": "2026-10-21T20:18:45.529Z",
+            "created_at": "2026-11-04T20:12:29.300Z",
+            "updated_at": "2026-11-04T20:12:37.617Z",
             "slug": "voice-api",
             "api_spec_ids": [
               "00000000-0000-4000-8000-000000000016"
@@ -308,35 +232,7 @@
             },
             "portals": [
               {
-                "id": "00000000-0000-4000-8000-000000000002",
-                "name": "My First Portal",
-                "display_name": "A Getting Started Portal"
-              }
-            ],
-            "attributes": {},
-            "images": null
-          },
-          {
-            "id": "00000000-0000-4000-8000-000000000003",
-            "name": "SMS API",
-            "version": "3.2.0",
-            "description": "With the SMS API you can send SMS from your account and lookup messages both messages that you've sent as well as messages sent to your virtual numbers. Numbers are specified in E.164 format. More SMS API documentation is at <https://developer.nexmo.com/messaging/sms/overview>",
-            "labels": {
-              "category": "messaging",
-              "protocol": "rest",
-              "KONGCTL-namespace": "default"
-            },
-            "created_at": "2026-10-21T20:18:37.392Z",
-            "updated_at": "2026-10-21T20:20:02.650Z",
-            "slug": "sms-api-3",
-            "api_spec_ids": [
-              "00000000-0000-4000-8000-000000000009"
-            ],
-            "implementation_mode": null,
-            "current_version_summary": null,
-            "portals": [
-              {
-                "id": "00000000-0000-4000-8000-000000000002",
+                "id": "00000000-0000-4000-8000-000000000003",
                 "name": "My First Portal",
                 "display_name": "A Getting Started Portal"
               }
@@ -360,7 +256,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/apis/00000000-0000-4000-8000-000000000003/documents",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000001/documents",
       "query": [],
       "body": null
     },
@@ -375,8 +271,8 @@
             "slug": "sms-getting-started",
             "status": "published",
             "children": [],
-            "created_at": "2026-10-21T20:18:41.134Z",
-            "updated_at": "2026-10-21T20:18:41.145Z"
+            "created_at": "2026-11-04T20:12:34.005Z",
+            "updated_at": "2026-11-04T20:12:34.029Z"
           },
           {
             "id": "00000000-0000-4000-8000-000000000012",
@@ -385,8 +281,8 @@
             "slug": "sms-authentication",
             "status": "published",
             "children": [],
-            "created_at": "2026-10-21T20:18:41.853Z",
-            "updated_at": "2026-10-21T20:18:41.879Z"
+            "created_at": "2026-11-04T20:12:34.651Z",
+            "updated_at": "2026-11-04T20:12:34.663Z"
           },
           {
             "id": "00000000-0000-4000-8000-000000000013",
@@ -395,8 +291,8 @@
             "slug": "sms-errors",
             "status": "published",
             "children": [],
-            "created_at": "2026-10-21T20:18:42.214Z",
-            "updated_at": "2026-10-21T20:18:42.235Z"
+            "created_at": "2026-11-04T20:12:34.936Z",
+            "updated_at": "2026-11-04T20:12:34.949Z"
           },
           {
             "id": "00000000-0000-4000-8000-000000000015",
@@ -405,8 +301,8 @@
             "slug": "sms-webhooks",
             "status": "published",
             "children": [],
-            "created_at": "2026-10-21T20:18:42.895Z",
-            "updated_at": "2026-10-21T20:18:42.907Z"
+            "created_at": "2026-11-04T20:12:35.498Z",
+            "updated_at": "2026-11-04T20:12:35.523Z"
           }
         ]
       },
@@ -417,7 +313,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/apis/00000000-0000-4000-8000-000000000003/documents/00000000-0000-4000-8000-000000000011",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000001/documents/00000000-0000-4000-8000-000000000011",
       "query": [],
       "body": null
     },
@@ -430,8 +326,8 @@
         "slug": "sms-getting-started",
         "status": "published",
         "content": "# SMS API: Getting Started\n\nWelcome to the SMS API! This guide will help you send your first SMS message in just a few minutes.\n\n## Overview\n\nThe SMS API allows you to:\n- Send SMS messages to phone numbers worldwide\n- Receive delivery receipts for sent messages\n- Handle inbound SMS messages to your virtual numbers\n- Send messages in multiple formats (text, binary, Unicode)\n\n## Prerequisites\n\nBefore you begin, you'll need:\n1. An API key and secret\n2. A sender ID or virtual number (depending on your region)\n3. The recipient's phone number in E.164 format\n\n## Quick Start\n\n### 1. Send Your First SMS\n\nHere's a simple example to send an SMS message:\n\n```bash\ncurl -X POST https://rest.nexmo.com/sms/json \\\n  -d \"api_key=YOUR_API_KEY\" \\\n  -d \"api_secret=YOUR_API_SECRET\" \\\n  -d \"to=447700900000\" \\\n  -d \"from=AcmeInc\" \\\n  -d \"text=Hello from the SMS API!\"\n```\n\n### 2. Understanding the Response\n\nA successful response looks like this:\n\n```json\n{\n  \"message-count\": \"1\",\n  \"messages\": [{\n    \"to\": \"447700900000\",\n    \"message-id\": \"0A0000000123ABCD1\",\n    \"status\": \"0\",\n    \"remaining-balance\": \"3.14159265\",\n    \"message-price\": \"0.03330000\",\n    \"network\": \"23430\"\n  }]\n}\n```\n\nKey fields:\n- `status`: \"0\" means success\n- `message-id`: Unique identifier for tracking\n- `remaining-balance`: Your account balance after sending\n\n## Supported Regions\n\nThe SMS API supports sending to most countries worldwide. However, some regions have specific requirements:\n\n- **USA/Canada**: Requires a Vonage virtual number as sender\n- **India**: Requires pre-registered sender IDs and templates\n- **Europe**: Alphanumeric sender IDs are generally supported\n\n## Message Types\n\n### Text Messages\nStandard SMS messages up to 160 characters:\n\n```bash\ncurl -X POST https://rest.nexmo.com/sms/json \\\n  -d \"api_key=YOUR_API_KEY\" \\\n  -d \"api_secret=YOUR_API_SECRET\" \\\n  -d \"to=447700900000\" \\\n  -d \"from=AcmeInc\" \\\n  -d \"text=Your verification code is: 123456\"\n```\n\n### Unicode Messages\nFor non-Latin characters (Arabic, Chinese, etc.):\n\n```bash\ncurl -X POST https://rest.nexmo.com/sms/json \\\n  -d \"api_key=YOUR_API_KEY\" \\\n  -d \"api_secret=YOUR_API_SECRET\" \\\n  -d \"to=447700900000\" \\\n  -d \"from=AcmeInc\" \\\n  -d \"text=\u4f60\u597d\u4e16\u754c\" \\\n  -d \"type=unicode\"\n```\n\n## Best Practices\n\n1. **Use E.164 Format**: Always format phone numbers with country code (e.g., 447700900000)\n2. **Handle Errors**: Check the status field in responses\n3. **Monitor Balance**: Track your remaining balance to avoid failed sends\n4. **Request Delivery Receipts**: Enable callbacks to track message delivery\n5. **Respect Rate Limits**: Default limit is 30 messages per second\n\n## Next Steps\n\n- [Authentication Guide](./authentication) - Learn about API keys and signatures\n- [Error Handling](./errors) - Understand error codes and troubleshooting\n- [Webhooks](./webhooks) - Set up delivery receipts and inbound SMS\n- [API Reference](https://rest.nexmo.com/sms) - Full API documentation\n\n## Need Help?\n\n- Email: devrel@vonage.com\n- Documentation: https://developer.nexmo.com/messaging/sms/overview\n- Status: https://api.vonage.com/status",
-        "created_at": "2026-10-21T20:18:41.134Z",
-        "updated_at": "2026-10-21T20:18:41.145Z"
+        "created_at": "2026-11-04T20:12:34.005Z",
+        "updated_at": "2026-11-04T20:12:34.029Z"
       },
       "content_type": "application/json"
     }
@@ -440,7 +336,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/apis/00000000-0000-4000-8000-000000000003/documents/00000000-0000-4000-8000-000000000012",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000001/documents/00000000-0000-4000-8000-000000000012",
       "query": [],
       "body": null
     },
@@ -453,8 +349,8 @@
         "slug": "sms-authentication",
         "status": "published",
         "content": "# SMS API: Authentication Guide\n\nThe SMS API supports two methods of authentication to ensure secure access to your account.\n\n## Authentication Methods\n\n### 1. API Key and Secret\n\nThe simplest authentication method uses your API key and secret as request parameters.\n\n#### How to Authenticate\n\nInclude these parameters in every request:\n\n```bash\ncurl -X POST https://rest.nexmo.com/sms/json \\\n  -d \"api_key=abcd1234\" \\\n  -d \"api_secret=abcdef0123456789\" \\\n  -d \"to=447700900000\" \\\n  -d \"from=AcmeInc\" \\\n  -d \"text=Hello World\"\n```\n\n#### Security Considerations\n\n- **Never expose credentials**: Don't commit API secrets to version control\n- **Use environment variables**: Store credentials securely\n- **Rotate regularly**: Change your API secret periodically\n- **Use HTTPS**: Always use encrypted connections\n\n### 2. Signature Authentication\n\nFor enhanced security, you can use signature-based authentication instead of sending your API secret directly.\n\n#### How It Works\n\n1. Create a signature using your request parameters\n2. Include the signature instead of your API secret\n3. The server validates the signature using your shared secret\n\n#### Generating a Signature\n\nThe signature is an MD5 hash of:\n- All request parameters (except `sig`) in alphabetical order\n- A timestamp\n- Your signature secret\n\nExample in Python:\n\n```python\nimport hashlib\nimport time\n\ndef generate_signature(params, signature_secret):\n    # Remove sig parameter if present\n    params = {k: v for k, v in params.items() if k != 'sig'}\n    \n    # Sort parameters alphabetically\n    sorted_params = sorted(params.items())\n    \n    # Create parameter string\n    param_string = '&'.join([f\"{k}={v}\" for k, v in sorted_params])\n    \n    # Add signature secret\n    signature_string = param_string + signature_secret\n    \n    # Generate MD5 hash\n    return hashlib.md5(signature_string.encode()).hexdigest()\n\n# Example usage\nparams = {\n    'api_key': 'abcd1234',\n    'to': '447700900000',\n    'from': 'AcmeInc',\n    'text': 'Hello World',\n    'timestamp': str(int(time.time()))\n}\n\nsignature = generate_signature(params, 'your_signature_secret')\nparams['sig'] = signature\n```\n\n#### Using Signature Authentication\n\n```bash\ncurl -X POST https://rest.nexmo.com/sms/json \\\n  -d \"api_key=abcd1234\" \\\n  -d \"to=447700900000\" \\\n  -d \"from=AcmeInc\" \\\n  -d \"text=Hello World\" \\\n  -d \"timestamp=1234567890\" \\\n  -d \"sig=7a8c1f3d4e5b6a9c8d7e6f5a4b3c2d1e\"\n```\n\n## Getting Your Credentials\n\n### API Key and Secret\n\n1. Log in to your Vonage Dashboard\n2. Navigate to Settings \u2192 API Settings\n3. Your API key is displayed\n4. Click \"Show API Secret\" to reveal your secret\n\n### Signature Secret\n\n1. In the Dashboard, go to Settings \u2192 API Settings\n2. Click \"Signature Secret\"\n3. Generate or update your signature secret\n\n## Security Best Practices\n\n### 1. Environment Variables\n\nStore credentials in environment variables:\n\n```bash\nexport VONAGE_API_KEY=\"abcd1234\"\nexport VONAGE_API_SECRET=\"abcdef0123456789\"\n```\n\nThen use them in your code:\n\n```python\nimport os\n\napi_key = os.environ.get('VONAGE_API_KEY')\napi_secret = os.environ.get('VONAGE_API_SECRET')\n```\n\n### 2. Configuration Files\n\nIf using configuration files:\n- Never commit them to version control\n- Use `.gitignore` to exclude them\n- Set appropriate file permissions (e.g., 600)\n\n### 3. Key Rotation\n\nRegularly rotate your credentials:\n1. Generate new API secret in Dashboard\n2. Update your applications\n3. Monitor for any failures\n4. Remove old credentials\n\n### 4. IP Whitelisting\n\nFor additional security:\n1. Go to Dashboard \u2192 API Settings\n2. Add trusted IP addresses\n3. Only requests from these IPs will be accepted\n\n## Troubleshooting Authentication\n\n### Common Errors\n\n#### Invalid Credentials (Status 4)\n```json\n{\n  \"message-count\": \"1\",\n  \"messages\": [{\n    \"status\": \"4\",\n    \"error-text\": \"Invalid credentials\"\n  }]\n}\n```\n\n**Solution**: Verify your API key and secret are correct\n\n#### Invalid Signature (Status 14)\n```json\n{\n  \"message-count\": \"1\",\n  \"messages\": [{\n    \"status\": \"14\",\n    \"error-text\": \"Invalid signature\"\n  }]\n}\n```\n\n**Solution**: Check your signature generation algorithm\n\n#### Missing Parameters (Status 2)\n```json\n{\n  \"message-count\": \"1\",\n  \"messages\": [{\n    \"status\": \"2\",\n    \"error-text\": \"Missing api_key\"\n  }]\n}\n```\n\n**Solution**: Ensure all required parameters are included\n\n## Next Steps\n\n- [Error Handling](./errors) - Learn about error codes\n- [Getting Started](./getting-started) - Send your first SMS\n- [Webhooks](./webhooks) - Set up callbacks",
-        "created_at": "2026-10-21T20:18:41.853Z",
-        "updated_at": "2026-10-21T20:18:41.879Z"
+        "created_at": "2026-11-04T20:12:34.651Z",
+        "updated_at": "2026-11-04T20:12:34.663Z"
       },
       "content_type": "application/json"
     }
@@ -463,7 +359,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/apis/00000000-0000-4000-8000-000000000003/documents/00000000-0000-4000-8000-000000000013",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000001/documents/00000000-0000-4000-8000-000000000013",
       "query": [],
       "body": null
     },
@@ -476,8 +372,8 @@
         "slug": "sms-errors",
         "status": "published",
         "content": "# SMS API: Error Handling\n\nThis guide helps you understand and handle errors when using the SMS API.\n\n## Error Response Format\n\nWhen an error occurs, the API returns a response with a non-zero status code:\n\n```json\n{\n  \"message-count\": \"1\",\n  \"messages\": [{\n    \"status\": \"2\",\n    \"error-text\": \"Missing to param\"\n  }]\n}\n```\n\n## Common Error Codes\n\n### Request Errors (1-9)\n\n#### Status 1: Throttled\n**Description**: You are sending SMS faster than the account limit.\n\n**Solution**: \n- Implement rate limiting in your application\n- Default limit is 30 messages per second\n- Contact support to increase limits if needed\n\n#### Status 2: Missing Parameters\n**Description**: Your request is missing required parameters.\n\n**Example**:\n```json\n{\n  \"status\": \"2\",\n  \"error-text\": \"Missing to param\"\n}\n```\n\n**Solution**: Ensure all required parameters are included:\n- `api_key` - Your API key\n- `api_secret` or `sig` - Authentication\n- `from` - Sender ID or number\n- `to` - Recipient number\n- `text` - Message content\n\n#### Status 3: Invalid Parameters\n**Description**: One or more parameter values are invalid.\n\n**Common Causes**:\n- Phone number not in E.164 format\n- Message text too long\n- Invalid sender ID for destination\n\n**Solution**: Validate parameters before sending:\n```python\nimport re\n\ndef validate_phone_number(number):\n    # E.164 format: 7-15 digits\n    pattern = r'^\\d{7,15}$'\n    return re.match(pattern, number) is not None\n\ndef validate_message_length(text, encoding='text'):\n    if encoding == 'text':\n        return len(text) <= 160\n    elif encoding == 'unicode':\n        return len(text) <= 70\n    return False\n```\n\n#### Status 4: Invalid Credentials\n**Description**: Your API key and/or secret are incorrect, invalid, or disabled.\n\n**Solution**:\n- Verify credentials in Dashboard\n- Check for typos or extra spaces\n- Ensure account is active\n- Regenerate credentials if needed\n\n#### Status 5: Internal Error\n**Description**: An error occurred in the platform while processing.\n\n**Solution**:\n- Retry with exponential backoff\n- If persistent, contact support@nexmo.com\n- Include request ID in support ticket\n\n### Billing and Account Errors (8-9)\n\n#### Status 8: Partner Account Barred\n**Description**: Your Vonage account has been suspended.\n\n**Solution**: Contact support@nexmo.com immediately\n\n#### Status 9: Partner Quota Violation\n**Description**: Insufficient credit to send the message.\n\n**Solution**:\n- Check account balance\n- Top up your account\n- Implement balance monitoring\n\n### Destination Errors (6-7, 29, 33, 40)\n\n#### Status 6: Invalid Message\n**Description**: Platform unable to process the message.\n\n**Common Causes**:\n- Unrecognized number prefix\n- Invalid destination country\n\n#### Status 7: Number Barred\n**Description**: The recipient number is blacklisted.\n\n**Solution**:\n- Verify the number is correct\n- Check if recipient has opted out\n- Contact support for unblocking\n\n#### Status 29: Non-Whitelisted Destination\n**Description**: Account is in demo mode with destination restrictions.\n\n**Solution**:\n- Add number to whitelist in Dashboard\n- Or top up account to remove restrictions\n\n### Authentication Errors (14, 32)\n\n#### Status 14: Invalid Signature\n**Description**: The signature supplied could not be verified.\n\n**Solution**: Review signature generation:\n```python\n# Correct signature generation\ndef generate_signature(params, secret):\n    # Sort parameters alphabetically\n    sorted_params = sorted(params.items())\n    # Exclude 'sig' parameter\n    filtered = [(k, v) for k, v in sorted_params if k != 'sig']\n    # Create string\n    param_string = '&'.join([f\"{k}={v}\" for k, v in filtered])\n    # Add secret and hash\n    return hashlib.md5(f\"{param_string}{secret}\".encode()).hexdigest()\n```\n\n### Regional Errors (15, 22)\n\n#### Status 15: Invalid Sender Address\n**Description**: Using non-authorized sender ID.\n\n**Common in**:\n- North America (requires long number)\n- Countries with sender ID registration\n\n**Solution**:\n- Use approved sender IDs only\n- Purchase virtual number for region\n- Check country-specific requirements\n\n## Error Handling Best Practices\n\n### 1. Implement Retry Logic\n\n```python\nimport time\nimport random\n\ndef send_sms_with_retry(params, max_retries=3):\n    retryable_errors = [1, 5]  # Throttled, Internal Error\n    \n    for attempt in range(max_retries):\n        response = send_sms(params)\n        status = int(response['messages'][0]['status'])\n        \n        if status == 0:  # Success\n            return response\n        \n        if status not in retryable_errors:\n            # Non-retryable error\n            raise Exception(f\"SMS failed: {response}\")\n        \n        # Exponential backoff with jitter\n        wait_time = (2 ** attempt) + random.uniform(0, 1)\n        time.sleep(wait_time)\n    \n    raise Exception(\"Max retries exceeded\")\n```\n\n### 2. Log Errors for Analysis\n\n```python\nimport logging\n\ndef handle_sms_error(response):\n    for message in response['messages']:\n        if message['status'] != '0':\n            logging.error(\n                \"SMS failed\",\n                extra={\n                    'status': message['status'],\n                    'error_text': message.get('error-text'),\n                    'to': message.get('to'),\n                    'message_id': message.get('message-id')\n                }\n            )\n```\n\n### 3. Monitor Error Rates\n\nTrack error patterns to identify issues:\n- Sudden increase in auth errors \u2192 credential issue\n- Regional error patterns \u2192 compliance issue\n- Consistent throttling \u2192 need rate limit adjustment\n\n## Testing Error Scenarios\n\nUse these test numbers to simulate errors:\n\n| Number | Error Simulated |\n|--------|----------------|\n| 447700900001 | Throttled (Status 1) |\n| 447700900002 | Missing Parameters (Status 2) |\n| 447700900009 | Insufficient Credit (Status 9) |\n\n## Getting Help\n\nIf you encounter persistent errors:\n\n1. Check the [API Status Page](https://api.vonage.com/status)\n2. Review your Dashboard for account issues\n3. Contact support with:\n   - Error message and status code\n   - Request parameters (excluding credentials)\n   - Message IDs if available\n   - Time of occurrence\n\n## Next Steps\n\n- [Getting Started](./getting-started) - Send your first SMS\n- [Authentication](./authentication) - Secure your requests\n- [Webhooks](./webhooks) - Handle delivery receipts",
-        "created_at": "2026-10-21T20:18:42.214Z",
-        "updated_at": "2026-10-21T20:18:42.235Z"
+        "created_at": "2026-11-04T20:12:34.936Z",
+        "updated_at": "2026-11-04T20:12:34.949Z"
       },
       "content_type": "application/json"
     }
@@ -486,7 +382,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/apis/00000000-0000-4000-8000-000000000003/documents/00000000-0000-4000-8000-000000000015",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000001/documents/00000000-0000-4000-8000-000000000015",
       "query": [],
       "body": null
     },
@@ -499,8 +395,8 @@
         "slug": "sms-webhooks",
         "status": "published",
         "content": "# SMS API: Webhooks\n\nWebhooks allow you to receive real-time notifications about SMS events, including delivery receipts and inbound messages.\n\n## Overview\n\nThe SMS API supports two types of webhooks:\n\n1. **Delivery Receipts** - Status updates for sent messages\n2. **Inbound SMS** - Messages received on your virtual numbers\n\n## Delivery Receipts\n\n### Setting Up Delivery Receipts\n\nYou can configure delivery receipts at two levels:\n\n#### 1. Account Level (Dashboard)\nSet a default webhook URL for all SMS:\n1. Log in to Dashboard\n2. Go to Settings \u2192 Account Settings\n3. Set \"Delivery Receipt Webhook URL\"\n\n#### 2. Per Message\nOverride the default for specific messages:\n\n```bash\ncurl -X POST https://rest.nexmo.com/sms/json \\\n  -d \"api_key=YOUR_API_KEY\" \\\n  -d \"api_secret=YOUR_API_SECRET\" \\\n  -d \"to=447700900000\" \\\n  -d \"from=AcmeInc\" \\\n  -d \"text=Hello World\" \\\n  -d \"status-report-req=true\" \\\n  -d \"callback=https://example.com/webhooks/delivery\"\n```\n\n### Delivery Receipt Format\n\n```json\n{\n  \"msisdn\": \"447700900000\",\n  \"to\": \"AcmeInc\",\n  \"network-code\": \"23430\",\n  \"messageId\": \"0A0000001234567B\",\n  \"price\": \"0.03330000\",\n  \"status\": \"delivered\",\n  \"scts\": \"2001011400\",\n  \"err-code\": \"0\",\n  \"api-key\": \"abcd1234\",\n  \"client-ref\": \"my-reference\",\n  \"message-timestamp\": \"2020-01-01 12:00:00\",\n  \"timestamp\": \"1582650446\",\n  \"nonce\": \"ec11dd3e-1e7f-4db5-9467-82b02cd223b9\",\n  \"sig\": \"1A20E4E2069B609FDA6CECA9DE18D5CAFE99720DDB628BD6BE8B19942A336E1C\"\n}\n```\n\n### Status Values\n\n| Status | Description | Final? |\n|--------|-------------|--------|\n| `delivered` | Message delivered to handset | Yes |\n| `expired` | Delivery attempt expired | Yes |\n| `failed` | Delivery failed | Yes |\n| `rejected` | Message rejected by carrier | Yes |\n| `accepted` | Message accepted by carrier | No |\n| `buffered` | Message queued by carrier | No |\n| `unknown` | Status unknown | No |\n\n### Error Codes\n\nThe `err-code` field provides additional details:\n\n| Code | Description |\n|------|-------------|\n| `0` | Delivered successfully |\n| `1` | Unknown subscriber |\n| `2` | Subscriber busy |\n| `3` | Subscriber absent |\n| `4` | Subscriber memory full |\n| `5` | Routing error |\n| `6` | Network error |\n| `99` | General error |\n\n## Inbound SMS\n\n### Setting Up Inbound SMS\n\n1. **Purchase a Virtual Number**\n   - Use Dashboard or Number API\n   - Choose number with SMS capability\n\n2. **Configure Webhook URL**\n   - In Dashboard: Numbers \u2192 Your Number \u2192 SMS Webhook URL\n   - Or via API when purchasing\n\n### Inbound SMS Format\n\n```json\n{\n  \"api-key\": \"abcd1234\",\n  \"msisdn\": \"447700900001\",\n  \"to\": \"447700900000\",\n  \"messageId\": \"0A0000000123ABCD1\",\n  \"text\": \"Hello world\",\n  \"type\": \"text\",\n  \"keyword\": \"HELLO\",\n  \"message-timestamp\": \"2020-01-01 12:00:00\",\n  \"timestamp\": \"1578787200\",\n  \"nonce\": \"aaaaaaaa-bbbb-cccc-dddd-0123456789ab\",\n  \"concat\": \"true\",\n  \"concat-ref\": \"1\",\n  \"concat-total\": \"3\",\n  \"concat-part\": \"2\"\n}\n```\n\n### Handling Concatenated Messages\n\nLong messages are split into parts:\n\n```python\n# Store message parts\nmessage_parts = {}\n\ndef handle_inbound_sms(webhook_data):\n    if webhook_data.get('concat') == 'true':\n        # Part of a multi-part message\n        ref = webhook_data['concat-ref']\n        part = int(webhook_data['concat-part'])\n        total = int(webhook_data['concat-total'])\n        \n        if ref not in message_parts:\n            message_parts[ref] = {}\n        \n        message_parts[ref][part] = webhook_data['text']\n        \n        # Check if all parts received\n        if len(message_parts[ref]) == total:\n            # Reconstruct full message\n            full_text = ''\n            for i in range(1, total + 1):\n                full_text += message_parts[ref][i]\n            \n            # Process complete message\n            process_message(webhook_data['msisdn'], full_text)\n            \n            # Clean up\n            del message_parts[ref]\n    else:\n        # Single part message\n        process_message(webhook_data['msisdn'], webhook_data['text'])\n```\n\n## Webhook Security\n\n### 1. Validate Signatures\n\nVerify webhooks are from Vonage:\n\n```python\nimport hashlib\nimport hmac\n\ndef validate_webhook_signature(params, signature_secret):\n    # Get signature from params\n    provided_sig = params.get('sig')\n    if not provided_sig:\n        return False\n    \n    # Sort parameters (excluding sig)\n    sorted_params = sorted(\n        [(k, v) for k, v in params.items() if k != 'sig']\n    )\n    \n    # Build string\n    param_string = '&'.join([f\"{k}={v}\" for k, v in sorted_params])\n    \n    # Calculate expected signature\n    expected_sig = hashlib.md5(\n        f\"{param_string}{signature_secret}\".encode()\n    ).hexdigest()\n    \n    # Compare signatures\n    return hmac.compare_digest(provided_sig, expected_sig)\n```\n\n### 2. Implement Idempotency\n\nPrevent duplicate processing:\n\n```python\nprocessed_messages = set()\n\ndef handle_webhook(data):\n    message_id = data.get('messageId')\n    \n    if message_id in processed_messages:\n        # Already processed\n        return {'status': 'duplicate'}\n    \n    # Process webhook\n    process_webhook(data)\n    \n    # Mark as processed\n    processed_messages.add(message_id)\n    \n    return {'status': 'success'}\n```\n\n### 3. Use HTTPS\n\nAlways use HTTPS endpoints for webhooks:\n- Encrypts data in transit\n- Prevents tampering\n- Required for signature validation\n\n## Webhook Best Practices\n\n### 1. Respond Quickly\n\n- Return 2xx status code immediately\n- Process webhooks asynchronously\n- Timeout is 5 seconds\n\n```python\nfrom flask import Flask, request\nfrom queue import Queue\nimport threading\n\napp = Flask(__name__)\nwebhook_queue = Queue()\n\n@app.route('/webhooks/sms', methods=['POST'])\ndef webhook_handler():\n    # Quick validation\n    data = request.get_json()\n    if not data:\n        return '', 400\n    \n    # Queue for processing\n    webhook_queue.put(data)\n    \n    # Return immediately\n    return '', 200\n\ndef process_webhooks():\n    while True:\n        data = webhook_queue.get()\n        # Process webhook\n        handle_webhook_data(data)\n```\n\n### 2. Handle Retries\n\nVonage retries failed webhooks:\n- Retries for 24 hours\n- Exponential backoff\n- Must return 2xx to stop retries\n\n### 3. Log Everything\n\n```python\nimport logging\n\ndef log_webhook(data):\n    logging.info(\n        \"Webhook received\",\n        extra={\n            'type': 'inbound' if 'text' in data else 'delivery',\n            'message_id': data.get('messageId'),\n            'from': data.get('msisdn'),\n            'to': data.get('to'),\n            'status': data.get('status'),\n            'timestamp': data.get('message-timestamp')\n        }\n    )\n```\n\n## Testing Webhooks\n\n### Using ngrok for Local Development\n\n1. Install ngrok: `brew install ngrok`\n2. Start local server: `python app.py`\n3. Create tunnel: `ngrok http 5000`\n4. Use ngrok URL in Dashboard\n\n### Webhook Testing Service\n\nUse webhook.site for quick testing:\n1. Visit https://webhook.site\n2. Copy unique URL\n3. Use as webhook URL\n4. View incoming webhooks\n\n## Common Issues\n\n### Not Receiving Webhooks\n\n1. **Check URL is accessible**\n   ```bash\n   curl -X POST https://your-webhook-url.com/sms \\\n     -H \"Content-Type: application/json\" \\\n     -d '{\"test\": \"data\"}'\n   ```\n\n2. **Verify webhook configuration**\n   - Check Dashboard settings\n   - Ensure URL is HTTPS\n   - No authentication required\n\n3. **Check firewall/security groups**\n   - Allow Vonage IP ranges\n   - No rate limiting on webhook endpoint\n\n### Duplicate Webhooks\n\n- Implement idempotency checking\n- Store processed message IDs\n- Return 200 quickly to prevent retries\n\n## Next Steps\n\n- [Getting Started](./getting-started) - Send your first SMS\n- [Authentication](./authentication) - Secure your API requests\n- [Error Handling](./errors) - Handle errors gracefully",
-        "created_at": "2026-10-21T20:18:42.895Z",
-        "updated_at": "2026-10-21T20:18:42.907Z"
+        "created_at": "2026-11-04T20:12:35.498Z",
+        "updated_at": "2026-11-04T20:12:35.523Z"
       },
       "content_type": "application/json"
     }
@@ -509,7 +405,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/apis/00000000-0000-4000-8000-000000000003/versions",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000001/versions",
       "query": [
         [
           "page[number]",
@@ -532,8 +428,8 @@
             "spec": {
               "type": "oas3"
             },
-            "created_at": "2026-10-21T20:18:40.012Z",
-            "updated_at": "2026-10-21T20:18:40.012Z"
+            "created_at": "2026-11-04T20:12:33.074Z",
+            "updated_at": "2026-11-04T20:12:33.074Z"
           },
           {
             "id": "00000000-0000-4000-8000-000000000010",
@@ -541,8 +437,8 @@
             "spec": {
               "type": "oas3"
             },
-            "created_at": "2026-10-21T20:18:40.446Z",
-            "updated_at": "2026-10-21T20:18:40.446Z"
+            "created_at": "2026-11-04T20:12:33.418Z",
+            "updated_at": "2026-11-04T20:12:33.418Z"
           }
         ],
         "meta": {
@@ -560,7 +456,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/apis/00000000-0000-4000-8000-000000000003/versions/00000000-0000-4000-8000-000000000009",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000001/versions/00000000-0000-4000-8000-000000000009",
       "query": [],
       "body": null
     },
@@ -574,8 +470,8 @@
           "type": "oas3",
           "validation_messages": []
         },
-        "created_at": "2026-10-21T20:18:40.012Z",
-        "updated_at": "2026-10-21T20:18:40.012Z"
+        "created_at": "2026-11-04T20:12:33.074Z",
+        "updated_at": "2026-11-04T20:12:33.074Z"
       },
       "content_type": "application/json"
     }
@@ -584,7 +480,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/apis/00000000-0000-4000-8000-000000000003/versions/00000000-0000-4000-8000-000000000010",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000001/versions/00000000-0000-4000-8000-000000000010",
       "query": [],
       "body": null
     },
@@ -598,8 +494,8 @@
           "type": "oas3",
           "validation_messages": []
         },
-        "created_at": "2026-10-21T20:18:40.446Z",
-        "updated_at": "2026-10-21T20:18:40.446Z"
+        "created_at": "2026-11-04T20:12:33.418Z",
+        "updated_at": "2026-11-04T20:12:33.418Z"
       },
       "content_type": "application/json"
     }
@@ -612,7 +508,7 @@
       "query": [
         [
           "filter[api_id][eq]",
-          "00000000-0000-4000-8000-000000000003"
+          "00000000-0000-4000-8000-000000000001"
         ],
         [
           "page[number]",
@@ -630,12 +526,12 @@
       "body": {
         "data": [
           {
-            "api_id": "00000000-0000-4000-8000-000000000003",
+            "api_id": "00000000-0000-4000-8000-000000000001",
             "entity_type": "api",
             "visibility": "public",
-            "portal_id": "00000000-0000-4000-8000-000000000002",
-            "created_at": "2026-10-21T20:18:42.568Z",
-            "updated_at": "2026-10-21T20:20:02.650Z",
+            "portal_id": "00000000-0000-4000-8000-000000000003",
+            "created_at": "2026-11-04T20:12:35.218Z",
+            "updated_at": "2026-11-04T20:13:35.037Z",
             "form_id": null,
             "auto_approve_registrations": false,
             "environment": {
@@ -680,7 +576,7 @@
       "body": {
         "data": [
           {
-            "id": "00000000-0000-4000-8000-000000000002",
+            "id": "00000000-0000-4000-8000-000000000003",
             "name": "My First Portal",
             "description": "A comprehensive developer portal with guides, API documentation, and getting started content",
             "display_name": "A Getting Started Portal",
@@ -702,10 +598,10 @@
             },
             "auto_approve_developers": false,
             "auto_approve_applications": true,
-            "canonical_domain": "e4d8640b243d.us.kongportals.com",
-            "default_domain": "e4d8640b243d.us.kongportals.com",
-            "created_at": "2026-10-21T20:18:36.785Z",
-            "updated_at": "2026-10-21T20:19:17.100Z",
+            "canonical_domain": "cd56fe99e6dd.us.kongportals.com",
+            "default_domain": "cd56fe99e6dd.us.kongportals.com",
+            "created_at": "2026-11-04T20:12:30.157Z",
+            "updated_at": "2026-11-04T20:13:01.217Z",
             "labels": {
               "KONGCTL-namespace": "default"
             }
@@ -748,7 +644,7 @@
       "body": {
         "data": [
           {
-            "id": "00000000-0000-4000-8000-000000000002",
+            "id": "00000000-0000-4000-8000-000000000003",
             "name": "My First Portal",
             "description": "A comprehensive developer portal with guides, API documentation, and getting started content",
             "display_name": "A Getting Started Portal",
@@ -770,10 +666,10 @@
             },
             "auto_approve_developers": false,
             "auto_approve_applications": true,
-            "canonical_domain": "e4d8640b243d.us.kongportals.com",
-            "default_domain": "e4d8640b243d.us.kongportals.com",
-            "created_at": "2026-10-21T20:18:36.785Z",
-            "updated_at": "2026-10-21T20:19:17.100Z",
+            "canonical_domain": "cd56fe99e6dd.us.kongportals.com",
+            "default_domain": "cd56fe99e6dd.us.kongportals.com",
+            "created_at": "2026-11-04T20:12:30.157Z",
+            "updated_at": "2026-11-04T20:13:01.217Z",
             "labels": {
               "KONGCTL-namespace": "default"
             }
@@ -794,14 +690,14 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003",
       "query": [],
       "body": null
     },
     "response": {
       "status": 200,
       "body": {
-        "id": "00000000-0000-4000-8000-000000000002",
+        "id": "00000000-0000-4000-8000-000000000003",
         "name": "My First Portal",
         "description": "A comprehensive developer portal with guides, API documentation, and getting started content",
         "display_name": "A Getting Started Portal",
@@ -823,10 +719,10 @@
         },
         "auto_approve_developers": false,
         "auto_approve_applications": true,
-        "canonical_domain": "e4d8640b243d.us.kongportals.com",
-        "default_domain": "e4d8640b243d.us.kongportals.com",
-        "created_at": "2026-10-21T20:18:36.785Z",
-        "updated_at": "2026-10-21T20:19:17.100Z",
+        "canonical_domain": "cd56fe99e6dd.us.kongportals.com",
+        "default_domain": "cd56fe99e6dd.us.kongportals.com",
+        "created_at": "2026-11-04T20:12:30.157Z",
+        "updated_at": "2026-11-04T20:13:01.217Z",
         "labels": {
           "KONGCTL-namespace": "default"
         }
@@ -874,7 +770,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/pages",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/pages",
       "query": [],
       "body": null
     },
@@ -890,8 +786,8 @@
             "status": "published",
             "description": "Start building and innovating with our APIs",
             "parent_page_id": null,
-            "created_at": "2026-10-21T20:18:45.206076Z",
-            "updated_at": "2026-10-21T20:18:45.219429Z",
+            "created_at": "2026-11-04T20:12:37.352578Z",
+            "updated_at": "2026-11-04T20:12:37.363813Z",
             "children": []
           },
           {
@@ -902,8 +798,8 @@
             "status": "published",
             "description": "API Products available in this Developer Portal.",
             "parent_page_id": null,
-            "created_at": "2026-10-21T20:18:46.319627Z",
-            "updated_at": "2026-10-21T20:18:46.328778Z",
+            "created_at": "2026-11-04T20:12:38.266205Z",
+            "updated_at": "2026-11-04T20:12:38.27453Z",
             "children": []
           },
           {
@@ -914,8 +810,8 @@
             "status": "published",
             "description": "Get started with our new Developer Portal!",
             "parent_page_id": null,
-            "created_at": "2026-10-21T20:18:46.625281Z",
-            "updated_at": "2026-10-21T20:18:46.636316Z",
+            "created_at": "2026-11-04T20:12:38.527413Z",
+            "updated_at": "2026-11-04T20:12:38.535447Z",
             "children": []
           },
           {
@@ -926,8 +822,8 @@
             "status": "published",
             "description": "Step-by-step guides to help you build, integrate, and optimize with our platform. Start coding faster with practical examples and best practices.",
             "parent_page_id": null,
-            "created_at": "2026-10-21T20:18:46.934485Z",
-            "updated_at": "2026-10-21T20:18:46.961601Z",
+            "created_at": "2026-11-04T20:12:38.771317Z",
+            "updated_at": "2026-11-04T20:12:38.781075Z",
             "children": [
               {
                 "id": "00000000-0000-4000-8000-000000000026",
@@ -937,8 +833,8 @@
                 "status": "published",
                 "description": "Learn best practices for exposing, versioning, and managing your APIs to accelerate integration and developer adoption.",
                 "parent_page_id": "00000000-0000-4000-8000-000000000024",
-                "created_at": "2026-10-21T20:18:47.595653Z",
-                "updated_at": "2026-10-21T20:18:47.620146Z",
+                "created_at": "2026-11-04T20:12:39.346809Z",
+                "updated_at": "2026-11-04T20:12:39.370592Z",
                 "children": [
                   {
                     "id": "00000000-0000-4000-8000-000000000028",
@@ -948,8 +844,8 @@
                     "status": "published",
                     "description": "Learn best practices for API versioning to manage changes, ensure stability, and support developers over time.",
                     "parent_page_id": "00000000-0000-4000-8000-000000000026",
-                    "created_at": "2026-10-21T20:18:48.266028Z",
-                    "updated_at": "2026-10-21T20:18:48.287196Z",
+                    "created_at": "2026-11-04T20:12:39.95962Z",
+                    "updated_at": "2026-11-04T20:12:39.979393Z",
                     "children": []
                   }
                 ]
@@ -962,8 +858,8 @@
                 "status": "published",
                 "description": "Discover best practices, tools, and examples to help developers understand and use your APIs with confidence.",
                 "parent_page_id": "00000000-0000-4000-8000-000000000024",
-                "created_at": "2026-10-21T20:18:47.925432Z",
-                "updated_at": "2026-10-21T20:18:47.951213Z",
+                "created_at": "2026-11-04T20:12:39.701915Z",
+                "updated_at": "2026-11-04T20:12:39.71426Z",
                 "children": []
               }
             ]
@@ -977,7 +873,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/pages/00000000-0000-4000-8000-000000000020",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/pages/00000000-0000-4000-8000-000000000020",
       "query": [],
       "body": null
     },
@@ -992,8 +888,8 @@
         "description": "Start building and innovating with our APIs",
         "parent_page_id": null,
         "title": "Kong API",
-        "created_at": "2026-10-21T20:18:45.206076Z",
-        "updated_at": "2026-10-21T20:18:45.219429Z"
+        "created_at": "2026-11-04T20:12:37.352578Z",
+        "updated_at": "2026-11-04T20:12:37.363813Z"
       },
       "content_type": "application/json"
     }
@@ -1002,7 +898,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/pages/00000000-0000-4000-8000-000000000022",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/pages/00000000-0000-4000-8000-000000000022",
       "query": [],
       "body": null
     },
@@ -1017,8 +913,8 @@
         "description": "API Products available in this Developer Portal.",
         "parent_page_id": null,
         "title": "APIs",
-        "created_at": "2026-10-21T20:18:46.319627Z",
-        "updated_at": "2026-10-21T20:18:46.328778Z"
+        "created_at": "2026-11-04T20:12:38.266205Z",
+        "updated_at": "2026-11-04T20:12:38.27453Z"
       },
       "content_type": "application/json"
     }
@@ -1027,7 +923,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/pages/00000000-0000-4000-8000-000000000023",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/pages/00000000-0000-4000-8000-000000000023",
       "query": [],
       "body": null
     },
@@ -1042,8 +938,8 @@
         "description": "Get started with our new Developer Portal!",
         "parent_page_id": null,
         "title": "Getting started",
-        "created_at": "2026-10-21T20:18:46.625281Z",
-        "updated_at": "2026-10-21T20:18:46.636316Z"
+        "created_at": "2026-11-04T20:12:38.527413Z",
+        "updated_at": "2026-11-04T20:12:38.535447Z"
       },
       "content_type": "application/json"
     }
@@ -1052,7 +948,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/pages/00000000-0000-4000-8000-000000000024",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/pages/00000000-0000-4000-8000-000000000024",
       "query": [],
       "body": null
     },
@@ -1067,8 +963,8 @@
         "description": "Step-by-step guides to help you build, integrate, and optimize with our platform. Start coding faster with practical examples and best practices.",
         "parent_page_id": null,
         "title": "Guides",
-        "created_at": "2026-10-21T20:18:46.934485Z",
-        "updated_at": "2026-10-21T20:18:46.961601Z"
+        "created_at": "2026-11-04T20:12:38.771317Z",
+        "updated_at": "2026-11-04T20:12:38.781075Z"
       },
       "content_type": "application/json"
     }
@@ -1077,7 +973,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/pages/00000000-0000-4000-8000-000000000026",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/pages/00000000-0000-4000-8000-000000000026",
       "query": [],
       "body": null
     },
@@ -1092,8 +988,8 @@
         "description": "Learn best practices for exposing, versioning, and managing your APIs to accelerate integration and developer adoption.",
         "parent_page_id": "00000000-0000-4000-8000-000000000024",
         "title": "Publish APIs",
-        "created_at": "2026-10-21T20:18:47.595653Z",
-        "updated_at": "2026-10-21T20:18:47.620146Z"
+        "created_at": "2026-11-04T20:12:39.346809Z",
+        "updated_at": "2026-11-04T20:12:39.370592Z"
       },
       "content_type": "application/json"
     }
@@ -1102,7 +998,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/pages/00000000-0000-4000-8000-000000000028",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/pages/00000000-0000-4000-8000-000000000028",
       "query": [],
       "body": null
     },
@@ -1117,8 +1013,8 @@
         "description": "Learn best practices for API versioning to manage changes, ensure stability, and support developers over time.",
         "parent_page_id": "00000000-0000-4000-8000-000000000026",
         "title": "API Versioning",
-        "created_at": "2026-10-21T20:18:48.266028Z",
-        "updated_at": "2026-10-21T20:18:48.287196Z"
+        "created_at": "2026-11-04T20:12:39.95962Z",
+        "updated_at": "2026-11-04T20:12:39.979393Z"
       },
       "content_type": "application/json"
     }
@@ -1127,7 +1023,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/pages/00000000-0000-4000-8000-000000000027",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/pages/00000000-0000-4000-8000-000000000027",
       "query": [],
       "body": null
     },
@@ -1142,8 +1038,8 @@
         "description": "Discover best practices, tools, and examples to help developers understand and use your APIs with confidence.",
         "parent_page_id": "00000000-0000-4000-8000-000000000024",
         "title": "Document APIs",
-        "created_at": "2026-10-21T20:18:47.925432Z",
-        "updated_at": "2026-10-21T20:18:47.951213Z"
+        "created_at": "2026-11-04T20:12:39.701915Z",
+        "updated_at": "2026-11-04T20:12:39.71426Z"
       },
       "content_type": "application/json"
     }
@@ -1152,7 +1048,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/snippets",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/snippets",
       "query": [
         [
           "page[number]",
@@ -1183,38 +1079,38 @@
             "visibility": "public",
             "status": "published",
             "description": "A snippet to display the page navigation starting with the /guides page. Ideally utilized in the 'page-layout.sidebar-left' page config.",
-            "created_at": "2026-10-21T20:18:37.892249Z",
-            "updated_at": "2026-10-21T20:18:37.901437Z"
+            "created_at": "2026-11-04T20:12:31.234013Z",
+            "updated_at": "2026-11-04T20:12:31.241658Z"
           },
           {
             "id": "00000000-0000-4000-8000-000000000005",
-            "name": "example-hero-image",
-            "title": "Hero Image Example",
-            "visibility": "public",
-            "status": "published",
-            "description": "An example of a hero snippet containing a reusable SVG image.",
-            "created_at": "2026-10-21T20:18:38.197697Z",
-            "updated_at": "2026-10-21T20:18:38.206195Z"
-          },
-          {
-            "id": "00000000-0000-4000-8000-000000000006",
             "name": "example-page-toc",
             "title": "On this page",
             "visibility": "public",
             "status": "published",
             "description": "Description in API. A snippet to display the table of contents for a page. Ideally utilized in the 'page-layout.sidebar-right' page config.",
-            "created_at": "2026-10-21T20:18:38.549244Z",
-            "updated_at": "2026-10-21T20:18:38.570555Z"
+            "created_at": "2026-11-04T20:12:31.508008Z",
+            "updated_at": "2026-11-04T20:12:31.533957Z"
           },
           {
-            "id": "00000000-0000-4000-8000-000000000007",
+            "id": "00000000-0000-4000-8000-000000000006",
             "name": "example-guides-page-header",
             "title": "Example Guides Page Header",
             "visibility": "public",
             "status": "published",
             "description": "An example of a page header reusable snippet with dynamic data.",
-            "created_at": "2026-10-21T20:18:38.86387Z",
-            "updated_at": "2026-10-21T20:18:38.874075Z"
+            "created_at": "2026-11-04T20:12:31.769014Z",
+            "updated_at": "2026-11-04T20:12:31.781151Z"
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000007",
+            "name": "example-hero-image",
+            "title": "Hero Image Example",
+            "visibility": "public",
+            "status": "published",
+            "description": "An example of a hero snippet containing a reusable SVG image.",
+            "created_at": "2026-11-04T20:12:32.0581Z",
+            "updated_at": "2026-11-04T20:12:32.079355Z"
           },
           {
             "id": "00000000-0000-4000-8000-000000000008",
@@ -1223,8 +1119,8 @@
             "visibility": "public",
             "status": "published",
             "description": "An example of a snippet containing a row of SVG logos.",
-            "created_at": "2026-10-21T20:18:39.281861Z",
-            "updated_at": "2026-10-21T20:18:39.296935Z"
+            "created_at": "2026-11-04T20:12:32.371281Z",
+            "updated_at": "2026-11-04T20:12:32.386694Z"
           },
           {
             "id": "00000000-0000-4000-8000-000000000025",
@@ -1233,8 +1129,8 @@
             "visibility": "public",
             "status": "published",
             "description": "An example of a page banner reusable snippet.",
-            "created_at": "2026-10-21T20:18:47.26559Z",
-            "updated_at": "2026-10-21T20:18:47.272815Z"
+            "created_at": "2026-11-04T20:12:39.0869Z",
+            "updated_at": "2026-11-04T20:12:39.091951Z"
           }
         ]
       },
@@ -1245,7 +1141,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/snippets/00000000-0000-4000-8000-000000000004",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/snippets/00000000-0000-4000-8000-000000000004",
       "query": [],
       "body": null
     },
@@ -1259,8 +1155,8 @@
         "status": "published",
         "description": "A snippet to display the page navigation starting with the /guides page. Ideally utilized in the 'page-layout.sidebar-left' page config.",
         "title": "Guides",
-        "created_at": "2026-10-21T20:18:37.892249Z",
-        "updated_at": "2026-10-21T20:18:37.901437Z"
+        "created_at": "2026-11-04T20:12:31.234013Z",
+        "updated_at": "2026-11-04T20:12:31.241658Z"
       },
       "content_type": "application/json"
     }
@@ -1269,7 +1165,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/snippets/00000000-0000-4000-8000-000000000005",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/snippets/00000000-0000-4000-8000-000000000005",
       "query": [],
       "body": null
     },
@@ -1277,14 +1173,14 @@
       "status": 200,
       "body": {
         "id": "00000000-0000-4000-8000-000000000005",
-        "content": "<svg width=\"980\" height=\"490\" viewBox=\"0 0 980 490\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n<path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M10 0C4.47715 0 0 4.47715 0 10V480C0 485.523 4.47715 490 10 490H970C975.523 490 980 485.523 980 480V10C980 4.47715 975.523 0 970 0H10Z\" fill=\"var(--kui-color-background-primary, #8250FF)\"/>\n<path opacity=\"0.7\" fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M857.5 0C789.88 -5.91153e-06 735 54.8435 735 122.419L857.5 122.419V0ZM122.459 122.458C122.459 57.4972 71.8431 4.29384 7.94942 0.210449C3.69567 1.09701 0.433482 4.68616 0.0400391 9.10072L0.040044 122.458L122.459 122.458ZM367.5 489.673L367.5 367.254H490C490 434.829 435.12 489.673 367.5 489.673ZM612.5 367.256V489.673C680.12 489.673 735 434.829 735 367.254H612.5V244.837L490 244.837C490 312.412 544.88 367.256 612.5 367.256ZM367.5 122.417C299.88 122.417 245 177.261 245 244.836L367.5 244.836V122.417ZM734.919 245C667.344 245 612.5 190.12 612.5 122.5H734.919V245ZM245 367.498C245 435.073 190.12 489.917 122.5 489.917V367.498H245ZM857.5 489.917C925.12 489.917 980 435.073 980 367.498H857.5V489.917ZM735 367.419C735 299.844 789.88 245 857.5 245V367.419L735 367.419Z\" fill=\"var(--kui-color-background-primary-strong, #5E00F5)\"/>\n<path opacity=\"0.7\" fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M612.5 0C680.075 8.05825e-07 734.918 54.88 734.918 122.5H612.5V0ZM367.5 122.419L367.5 5.35367e-06C435.12 1.12652e-05 490 54.8435 490 122.419L367.5 122.419ZM490 122.419V122.417C557.62 122.417 612.5 177.261 612.5 244.836L490 244.836L490 122.419ZM490 489.673L490 367.256H367.5C367.5 299.681 422.38 244.837 490 244.837V367.254C557.62 367.254 612.5 422.098 612.5 489.673H490ZM245 244.837L245 367.256C312.62 367.256 367.5 312.412 367.5 244.837L245 244.837ZM735 122.5C735 190.12 789.844 245 857.419 245V122.5H735ZM122.5 245V122.5L122.5 0L244.919 1.45983e-06C244.919 67.6057 190.098 122.477 122.543 122.5C190.098 122.523 244.919 177.394 244.919 245H122.5ZM857.459 122.46V0.0415307C925.079 0.0415248 979.959 54.885 979.959 122.46L857.459 122.46ZM122.459 367.459H0.0400391C0.040042 435.078 54.8836 489.958 122.459 489.958L122.459 367.459ZM857.5 367.498C857.5 435.073 802.62 489.917 735 489.917V367.498H857.5Z\" fill=\"var(--kui-color-background-primary-weak, #9878FF)\"/>\n<path opacity=\"0.7\" fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M245 122.5H367.419L367.419 0C299.844 0 245 54.88 245 122.5ZM612.5 244.837V367.256H735C735 299.681 680.12 244.837 612.5 244.837ZM367.5 244.836L367.5 122.417L490 122.417C490 189.992 435.12 244.836 367.5 244.836ZM367.5 367.254C299.88 367.254 245 422.098 245 489.673H367.5V367.254ZM612.419 122.5C544.844 122.5 490 67.62 490 0H612.419V122.5ZM0 122.5C0 190.12 54.8435 245 122.419 245V122.5H0ZM857.5 122.5C925.075 122.5 979.918 177.38 979.918 245H857.5V122.5ZM245 245C177.38 245 122.5 299.843 122.5 367.419H245L245 245ZM857.5 367.419C857.5 299.843 912.38 245 980 245V367.419H857.5Z\" fill=\"var(--kui-color-background-primary-stronger, #4900C2)\"/>\n</svg>\n\n",
-        "name": "example-hero-image",
+        "content": "::page-toc\n---\ntitle: \"Foo Sections\"\n---\n::\n\n",
+        "name": "example-page-toc",
         "visibility": "public",
         "status": "published",
-        "description": "An example of a hero snippet containing a reusable SVG image.",
-        "title": "Hero Image Example",
-        "created_at": "2026-10-21T20:18:38.197697Z",
-        "updated_at": "2026-10-21T20:18:38.206195Z"
+        "description": "Description in API. A snippet to display the table of contents for a page. Ideally utilized in the 'page-layout.sidebar-right' page config.",
+        "title": "On this page",
+        "created_at": "2026-11-04T20:12:31.508008Z",
+        "updated_at": "2026-11-04T20:12:31.533957Z"
       },
       "content_type": "application/json"
     }
@@ -1293,7 +1189,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/snippets/00000000-0000-4000-8000-000000000006",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/snippets/00000000-0000-4000-8000-000000000006",
       "query": [],
       "body": null
     },
@@ -1301,14 +1197,14 @@
       "status": 200,
       "body": {
         "id": "00000000-0000-4000-8000-000000000006",
-        "content": "::page-toc\n---\ntitle: \"Foo Sections\"\n---\n::\n\n",
-        "name": "example-page-toc",
+        "content": "<!--\nExample Usage:\n\n::snippet\n---\nname: \"example-guides-page-header\"\ndata:\n  tagline: \"Guides\" # Optional tagline\n  title: \"Document APIs\"\n  description: \"Discover best practices, tools, and examples to help developers understand and use your APIs with confidence.\"\n---\n::\n-->\n\n::page-header\n---\ntitle-tag: \"h1\"\n---\n#tagline\n{{ snippet.tagline }}\n\n#title\n{{ snippet.title }}\n\n#description\n{{ snippet.description }}\n::\n\n",
+        "name": "example-guides-page-header",
         "visibility": "public",
         "status": "published",
-        "description": "Description in API. A snippet to display the table of contents for a page. Ideally utilized in the 'page-layout.sidebar-right' page config.",
-        "title": "On this page",
-        "created_at": "2026-10-21T20:18:38.549244Z",
-        "updated_at": "2026-10-21T20:18:38.570555Z"
+        "description": "An example of a page header reusable snippet with dynamic data.",
+        "title": "Example Guides Page Header",
+        "created_at": "2026-11-04T20:12:31.769014Z",
+        "updated_at": "2026-11-04T20:12:31.781151Z"
       },
       "content_type": "application/json"
     }
@@ -1317,7 +1213,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/snippets/00000000-0000-4000-8000-000000000007",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/snippets/00000000-0000-4000-8000-000000000007",
       "query": [],
       "body": null
     },
@@ -1325,14 +1221,14 @@
       "status": 200,
       "body": {
         "id": "00000000-0000-4000-8000-000000000007",
-        "content": "<!--\nExample Usage:\n\n::snippet\n---\nname: \"example-guides-page-header\"\ndata:\n  tagline: \"Guides\" # Optional tagline\n  title: \"Document APIs\"\n  description: \"Discover best practices, tools, and examples to help developers understand and use your APIs with confidence.\"\n---\n::\n-->\n\n::page-header\n---\ntitle-tag: \"h1\"\n---\n#tagline\n{{ snippet.tagline }}\n\n#title\n{{ snippet.title }}\n\n#description\n{{ snippet.description }}\n::\n\n",
-        "name": "example-guides-page-header",
+        "content": "<svg width=\"980\" height=\"490\" viewBox=\"0 0 980 490\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n<path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M10 0C4.47715 0 0 4.47715 0 10V480C0 485.523 4.47715 490 10 490H970C975.523 490 980 485.523 980 480V10C980 4.47715 975.523 0 970 0H10Z\" fill=\"var(--kui-color-background-primary, #8250FF)\"/>\n<path opacity=\"0.7\" fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M857.5 0C789.88 -5.91153e-06 735 54.8435 735 122.419L857.5 122.419V0ZM122.459 122.458C122.459 57.4972 71.8431 4.29384 7.94942 0.210449C3.69567 1.09701 0.433482 4.68616 0.0400391 9.10072L0.040044 122.458L122.459 122.458ZM367.5 489.673L367.5 367.254H490C490 434.829 435.12 489.673 367.5 489.673ZM612.5 367.256V489.673C680.12 489.673 735 434.829 735 367.254H612.5V244.837L490 244.837C490 312.412 544.88 367.256 612.5 367.256ZM367.5 122.417C299.88 122.417 245 177.261 245 244.836L367.5 244.836V122.417ZM734.919 245C667.344 245 612.5 190.12 612.5 122.5H734.919V245ZM245 367.498C245 435.073 190.12 489.917 122.5 489.917V367.498H245ZM857.5 489.917C925.12 489.917 980 435.073 980 367.498H857.5V489.917ZM735 367.419C735 299.844 789.88 245 857.5 245V367.419L735 367.419Z\" fill=\"var(--kui-color-background-primary-strong, #5E00F5)\"/>\n<path opacity=\"0.7\" fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M612.5 0C680.075 8.05825e-07 734.918 54.88 734.918 122.5H612.5V0ZM367.5 122.419L367.5 5.35367e-06C435.12 1.12652e-05 490 54.8435 490 122.419L367.5 122.419ZM490 122.419V122.417C557.62 122.417 612.5 177.261 612.5 244.836L490 244.836L490 122.419ZM490 489.673L490 367.256H367.5C367.5 299.681 422.38 244.837 490 244.837V367.254C557.62 367.254 612.5 422.098 612.5 489.673H490ZM245 244.837L245 367.256C312.62 367.256 367.5 312.412 367.5 244.837L245 244.837ZM735 122.5C735 190.12 789.844 245 857.419 245V122.5H735ZM122.5 245V122.5L122.5 0L244.919 1.45983e-06C244.919 67.6057 190.098 122.477 122.543 122.5C190.098 122.523 244.919 177.394 244.919 245H122.5ZM857.459 122.46V0.0415307C925.079 0.0415248 979.959 54.885 979.959 122.46L857.459 122.46ZM122.459 367.459H0.0400391C0.040042 435.078 54.8836 489.958 122.459 489.958L122.459 367.459ZM857.5 367.498C857.5 435.073 802.62 489.917 735 489.917V367.498H857.5Z\" fill=\"var(--kui-color-background-primary-weak, #9878FF)\"/>\n<path opacity=\"0.7\" fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M245 122.5H367.419L367.419 0C299.844 0 245 54.88 245 122.5ZM612.5 244.837V367.256H735C735 299.681 680.12 244.837 612.5 244.837ZM367.5 244.836L367.5 122.417L490 122.417C490 189.992 435.12 244.836 367.5 244.836ZM367.5 367.254C299.88 367.254 245 422.098 245 489.673H367.5V367.254ZM612.419 122.5C544.844 122.5 490 67.62 490 0H612.419V122.5ZM0 122.5C0 190.12 54.8435 245 122.419 245V122.5H0ZM857.5 122.5C925.075 122.5 979.918 177.38 979.918 245H857.5V122.5ZM245 245C177.38 245 122.5 299.843 122.5 367.419H245L245 245ZM857.5 367.419C857.5 299.843 912.38 245 980 245V367.419H857.5Z\" fill=\"var(--kui-color-background-primary-stronger, #4900C2)\"/>\n</svg>\n\n",
+        "name": "example-hero-image",
         "visibility": "public",
         "status": "published",
-        "description": "An example of a page header reusable snippet with dynamic data.",
-        "title": "Example Guides Page Header",
-        "created_at": "2026-10-21T20:18:38.86387Z",
-        "updated_at": "2026-10-21T20:18:38.874075Z"
+        "description": "An example of a hero snippet containing a reusable SVG image.",
+        "title": "Hero Image Example",
+        "created_at": "2026-11-04T20:12:32.0581Z",
+        "updated_at": "2026-11-04T20:12:32.079355Z"
       },
       "content_type": "application/json"
     }
@@ -1341,7 +1237,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/snippets/00000000-0000-4000-8000-000000000008",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/snippets/00000000-0000-4000-8000-000000000008",
       "query": [],
       "body": null
     },
@@ -1355,8 +1251,8 @@
         "status": "published",
         "description": "An example of a snippet containing a row of SVG logos.",
         "title": "Example Logo Bar",
-        "created_at": "2026-10-21T20:18:39.281861Z",
-        "updated_at": "2026-10-21T20:18:39.296935Z"
+        "created_at": "2026-11-04T20:12:32.371281Z",
+        "updated_at": "2026-11-04T20:12:32.386694Z"
       },
       "content_type": "application/json"
     }
@@ -1365,7 +1261,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/snippets/00000000-0000-4000-8000-000000000025",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/snippets/00000000-0000-4000-8000-000000000025",
       "query": [],
       "body": null
     },
@@ -1379,8 +1275,8 @@
         "status": "published",
         "description": "An example of a page banner reusable snippet.",
         "title": "Example Page Banner",
-        "created_at": "2026-10-21T20:18:47.26559Z",
-        "updated_at": "2026-10-21T20:18:47.272815Z"
+        "created_at": "2026-11-04T20:12:39.0869Z",
+        "updated_at": "2026-11-04T20:12:39.091951Z"
       },
       "content_type": "application/json"
     }
@@ -1389,7 +1285,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/teams",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/teams",
       "query": [
         [
           "page[number]",
@@ -1421,7 +1317,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/identity-providers",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/identity-providers",
       "query": [],
       "body": null
     },
@@ -1435,7 +1331,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/authentication-settings",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/authentication-settings",
       "query": [],
       "body": null
     },
@@ -1457,7 +1353,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/ip-allow-list",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/ip-allow-list",
       "query": [
         [
           "page[size]",
@@ -1483,7 +1379,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/integrations",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/integrations",
       "query": [],
       "body": null
     },
@@ -1497,7 +1393,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/customization",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/customization",
       "query": [],
       "body": null
     },
@@ -1624,7 +1520,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/custom-domain",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/custom-domain",
       "query": [],
       "body": null
     },
@@ -1633,7 +1529,7 @@
       "body": {
         "status": 404,
         "title": "Not Found",
-        "instance": "kong:trace:4489583727063449570",
+        "instance": "kong:trace:13373797660720570512",
         "detail": "custom domain not found"
       },
       "content_type": "application/problem+json"
@@ -1643,7 +1539,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/email-config",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/email-config",
       "query": [],
       "body": null
     },
@@ -1652,7 +1548,7 @@
       "body": {
         "status": 404,
         "title": "Not Found",
-        "instance": "kong:trace:9905960256375932116",
+        "instance": "kong:trace:17367918716291073231",
         "detail": "Portal email config not found"
       },
       "content_type": "application/problem+json"
@@ -1662,7 +1558,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/email-templates",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/email-templates",
       "query": [],
       "body": null
     },
@@ -1678,7 +1574,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/audit-log-webhook",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/audit-log-webhook",
       "query": [],
       "body": null
     },
@@ -1696,7 +1592,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/assets/logo",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/assets/logo",
       "query": [],
       "body": null
     },
@@ -1712,7 +1608,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/assets/favicon",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/assets/favicon",
       "query": [],
       "body": null
     },
@@ -1746,7 +1642,7 @@
       "body": {
         "data": [
           {
-            "id": "00000000-0000-4000-8000-000000000002",
+            "id": "00000000-0000-4000-8000-000000000003",
             "name": "My First Portal",
             "description": "A comprehensive developer portal with guides, API documentation, and getting started content",
             "display_name": "A Getting Started Portal",
@@ -1768,10 +1664,10 @@
             },
             "auto_approve_developers": false,
             "auto_approve_applications": true,
-            "canonical_domain": "e4d8640b243d.us.kongportals.com",
-            "default_domain": "e4d8640b243d.us.kongportals.com",
-            "created_at": "2026-10-21T20:18:36.785Z",
-            "updated_at": "2026-10-21T20:19:17.100Z",
+            "canonical_domain": "cd56fe99e6dd.us.kongportals.com",
+            "default_domain": "cd56fe99e6dd.us.kongportals.com",
+            "created_at": "2026-11-04T20:12:30.157Z",
+            "updated_at": "2026-11-04T20:13:01.217Z",
             "labels": {
               "KONGCTL-namespace": "default"
             }
@@ -1792,7 +1688,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/pages",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/pages",
       "query": [],
       "body": null
     },
@@ -1808,8 +1704,8 @@
             "status": "published",
             "description": "Start building and innovating with our APIs",
             "parent_page_id": null,
-            "created_at": "2026-10-21T20:18:45.206076Z",
-            "updated_at": "2026-10-21T20:18:45.219429Z",
+            "created_at": "2026-11-04T20:12:37.352578Z",
+            "updated_at": "2026-11-04T20:12:37.363813Z",
             "children": []
           },
           {
@@ -1820,8 +1716,8 @@
             "status": "published",
             "description": "API Products available in this Developer Portal.",
             "parent_page_id": null,
-            "created_at": "2026-10-21T20:18:46.319627Z",
-            "updated_at": "2026-10-21T20:18:46.328778Z",
+            "created_at": "2026-11-04T20:12:38.266205Z",
+            "updated_at": "2026-11-04T20:12:38.27453Z",
             "children": []
           },
           {
@@ -1832,8 +1728,8 @@
             "status": "published",
             "description": "Get started with our new Developer Portal!",
             "parent_page_id": null,
-            "created_at": "2026-10-21T20:18:46.625281Z",
-            "updated_at": "2026-10-21T20:18:46.636316Z",
+            "created_at": "2026-11-04T20:12:38.527413Z",
+            "updated_at": "2026-11-04T20:12:38.535447Z",
             "children": []
           },
           {
@@ -1844,8 +1740,8 @@
             "status": "published",
             "description": "Step-by-step guides to help you build, integrate, and optimize with our platform. Start coding faster with practical examples and best practices.",
             "parent_page_id": null,
-            "created_at": "2026-10-21T20:18:46.934485Z",
-            "updated_at": "2026-10-21T20:18:46.961601Z",
+            "created_at": "2026-11-04T20:12:38.771317Z",
+            "updated_at": "2026-11-04T20:12:38.781075Z",
             "children": [
               {
                 "id": "00000000-0000-4000-8000-000000000026",
@@ -1855,8 +1751,8 @@
                 "status": "published",
                 "description": "Learn best practices for exposing, versioning, and managing your APIs to accelerate integration and developer adoption.",
                 "parent_page_id": "00000000-0000-4000-8000-000000000024",
-                "created_at": "2026-10-21T20:18:47.595653Z",
-                "updated_at": "2026-10-21T20:18:47.620146Z",
+                "created_at": "2026-11-04T20:12:39.346809Z",
+                "updated_at": "2026-11-04T20:12:39.370592Z",
                 "children": [
                   {
                     "id": "00000000-0000-4000-8000-000000000028",
@@ -1866,8 +1762,8 @@
                     "status": "published",
                     "description": "Learn best practices for API versioning to manage changes, ensure stability, and support developers over time.",
                     "parent_page_id": "00000000-0000-4000-8000-000000000026",
-                    "created_at": "2026-10-21T20:18:48.266028Z",
-                    "updated_at": "2026-10-21T20:18:48.287196Z",
+                    "created_at": "2026-11-04T20:12:39.95962Z",
+                    "updated_at": "2026-11-04T20:12:39.979393Z",
                     "children": []
                   }
                 ]
@@ -1880,8 +1776,8 @@
                 "status": "published",
                 "description": "Discover best practices, tools, and examples to help developers understand and use your APIs with confidence.",
                 "parent_page_id": "00000000-0000-4000-8000-000000000024",
-                "created_at": "2026-10-21T20:18:47.925432Z",
-                "updated_at": "2026-10-21T20:18:47.951213Z",
+                "created_at": "2026-11-04T20:12:39.701915Z",
+                "updated_at": "2026-11-04T20:12:39.71426Z",
                 "children": []
               }
             ]
@@ -1895,7 +1791,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/pages/00000000-0000-4000-8000-000000000020",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/pages/00000000-0000-4000-8000-000000000020",
       "query": [],
       "body": null
     },
@@ -1910,8 +1806,8 @@
         "description": "Start building and innovating with our APIs",
         "parent_page_id": null,
         "title": "Kong API",
-        "created_at": "2026-10-21T20:18:45.206076Z",
-        "updated_at": "2026-10-21T20:18:45.219429Z"
+        "created_at": "2026-11-04T20:12:37.352578Z",
+        "updated_at": "2026-11-04T20:12:37.363813Z"
       },
       "content_type": "application/json"
     }
@@ -1920,7 +1816,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/pages/00000000-0000-4000-8000-000000000022",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/pages/00000000-0000-4000-8000-000000000022",
       "query": [],
       "body": null
     },
@@ -1935,8 +1831,8 @@
         "description": "API Products available in this Developer Portal.",
         "parent_page_id": null,
         "title": "APIs",
-        "created_at": "2026-10-21T20:18:46.319627Z",
-        "updated_at": "2026-10-21T20:18:46.328778Z"
+        "created_at": "2026-11-04T20:12:38.266205Z",
+        "updated_at": "2026-11-04T20:12:38.27453Z"
       },
       "content_type": "application/json"
     }
@@ -1945,7 +1841,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/pages/00000000-0000-4000-8000-000000000023",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/pages/00000000-0000-4000-8000-000000000023",
       "query": [],
       "body": null
     },
@@ -1960,8 +1856,8 @@
         "description": "Get started with our new Developer Portal!",
         "parent_page_id": null,
         "title": "Getting started",
-        "created_at": "2026-10-21T20:18:46.625281Z",
-        "updated_at": "2026-10-21T20:18:46.636316Z"
+        "created_at": "2026-11-04T20:12:38.527413Z",
+        "updated_at": "2026-11-04T20:12:38.535447Z"
       },
       "content_type": "application/json"
     }
@@ -1970,7 +1866,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/pages/00000000-0000-4000-8000-000000000024",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/pages/00000000-0000-4000-8000-000000000024",
       "query": [],
       "body": null
     },
@@ -1985,8 +1881,8 @@
         "description": "Step-by-step guides to help you build, integrate, and optimize with our platform. Start coding faster with practical examples and best practices.",
         "parent_page_id": null,
         "title": "Guides",
-        "created_at": "2026-10-21T20:18:46.934485Z",
-        "updated_at": "2026-10-21T20:18:46.961601Z"
+        "created_at": "2026-11-04T20:12:38.771317Z",
+        "updated_at": "2026-11-04T20:12:38.781075Z"
       },
       "content_type": "application/json"
     }
@@ -1995,7 +1891,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/pages/00000000-0000-4000-8000-000000000026",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/pages/00000000-0000-4000-8000-000000000026",
       "query": [],
       "body": null
     },
@@ -2010,8 +1906,8 @@
         "description": "Learn best practices for exposing, versioning, and managing your APIs to accelerate integration and developer adoption.",
         "parent_page_id": "00000000-0000-4000-8000-000000000024",
         "title": "Publish APIs",
-        "created_at": "2026-10-21T20:18:47.595653Z",
-        "updated_at": "2026-10-21T20:18:47.620146Z"
+        "created_at": "2026-11-04T20:12:39.346809Z",
+        "updated_at": "2026-11-04T20:12:39.370592Z"
       },
       "content_type": "application/json"
     }
@@ -2020,7 +1916,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/pages/00000000-0000-4000-8000-000000000028",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/pages/00000000-0000-4000-8000-000000000028",
       "query": [],
       "body": null
     },
@@ -2035,8 +1931,8 @@
         "description": "Learn best practices for API versioning to manage changes, ensure stability, and support developers over time.",
         "parent_page_id": "00000000-0000-4000-8000-000000000026",
         "title": "API Versioning",
-        "created_at": "2026-10-21T20:18:48.266028Z",
-        "updated_at": "2026-10-21T20:18:48.287196Z"
+        "created_at": "2026-11-04T20:12:39.95962Z",
+        "updated_at": "2026-11-04T20:12:39.979393Z"
       },
       "content_type": "application/json"
     }
@@ -2045,7 +1941,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/pages/00000000-0000-4000-8000-000000000027",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/pages/00000000-0000-4000-8000-000000000027",
       "query": [],
       "body": null
     },
@@ -2060,8 +1956,8 @@
         "description": "Discover best practices, tools, and examples to help developers understand and use your APIs with confidence.",
         "parent_page_id": "00000000-0000-4000-8000-000000000024",
         "title": "Document APIs",
-        "created_at": "2026-10-21T20:18:47.925432Z",
-        "updated_at": "2026-10-21T20:18:47.951213Z"
+        "created_at": "2026-11-04T20:12:39.701915Z",
+        "updated_at": "2026-11-04T20:12:39.71426Z"
       },
       "content_type": "application/json"
     }
@@ -2070,7 +1966,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/snippets",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/snippets",
       "query": [
         [
           "page[number]",
@@ -2101,38 +1997,38 @@
             "visibility": "public",
             "status": "published",
             "description": "A snippet to display the page navigation starting with the /guides page. Ideally utilized in the 'page-layout.sidebar-left' page config.",
-            "created_at": "2026-10-21T20:18:37.892249Z",
-            "updated_at": "2026-10-21T20:18:37.901437Z"
+            "created_at": "2026-11-04T20:12:31.234013Z",
+            "updated_at": "2026-11-04T20:12:31.241658Z"
           },
           {
             "id": "00000000-0000-4000-8000-000000000005",
-            "name": "example-hero-image",
-            "title": "Hero Image Example",
-            "visibility": "public",
-            "status": "published",
-            "description": "An example of a hero snippet containing a reusable SVG image.",
-            "created_at": "2026-10-21T20:18:38.197697Z",
-            "updated_at": "2026-10-21T20:18:38.206195Z"
-          },
-          {
-            "id": "00000000-0000-4000-8000-000000000006",
             "name": "example-page-toc",
             "title": "On this page",
             "visibility": "public",
             "status": "published",
             "description": "Description in API. A snippet to display the table of contents for a page. Ideally utilized in the 'page-layout.sidebar-right' page config.",
-            "created_at": "2026-10-21T20:18:38.549244Z",
-            "updated_at": "2026-10-21T20:18:38.570555Z"
+            "created_at": "2026-11-04T20:12:31.508008Z",
+            "updated_at": "2026-11-04T20:12:31.533957Z"
           },
           {
-            "id": "00000000-0000-4000-8000-000000000007",
+            "id": "00000000-0000-4000-8000-000000000006",
             "name": "example-guides-page-header",
             "title": "Example Guides Page Header",
             "visibility": "public",
             "status": "published",
             "description": "An example of a page header reusable snippet with dynamic data.",
-            "created_at": "2026-10-21T20:18:38.86387Z",
-            "updated_at": "2026-10-21T20:18:38.874075Z"
+            "created_at": "2026-11-04T20:12:31.769014Z",
+            "updated_at": "2026-11-04T20:12:31.781151Z"
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000007",
+            "name": "example-hero-image",
+            "title": "Hero Image Example",
+            "visibility": "public",
+            "status": "published",
+            "description": "An example of a hero snippet containing a reusable SVG image.",
+            "created_at": "2026-11-04T20:12:32.0581Z",
+            "updated_at": "2026-11-04T20:12:32.079355Z"
           },
           {
             "id": "00000000-0000-4000-8000-000000000008",
@@ -2141,8 +2037,8 @@
             "visibility": "public",
             "status": "published",
             "description": "An example of a snippet containing a row of SVG logos.",
-            "created_at": "2026-10-21T20:18:39.281861Z",
-            "updated_at": "2026-10-21T20:18:39.296935Z"
+            "created_at": "2026-11-04T20:12:32.371281Z",
+            "updated_at": "2026-11-04T20:12:32.386694Z"
           },
           {
             "id": "00000000-0000-4000-8000-000000000025",
@@ -2151,8 +2047,8 @@
             "visibility": "public",
             "status": "published",
             "description": "An example of a page banner reusable snippet.",
-            "created_at": "2026-10-21T20:18:47.26559Z",
-            "updated_at": "2026-10-21T20:18:47.272815Z"
+            "created_at": "2026-11-04T20:12:39.0869Z",
+            "updated_at": "2026-11-04T20:12:39.091951Z"
           }
         ]
       },
@@ -2163,7 +2059,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/snippets/00000000-0000-4000-8000-000000000004",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/snippets/00000000-0000-4000-8000-000000000004",
       "query": [],
       "body": null
     },
@@ -2177,8 +2073,8 @@
         "status": "published",
         "description": "A snippet to display the page navigation starting with the /guides page. Ideally utilized in the 'page-layout.sidebar-left' page config.",
         "title": "Guides",
-        "created_at": "2026-10-21T20:18:37.892249Z",
-        "updated_at": "2026-10-21T20:18:37.901437Z"
+        "created_at": "2026-11-04T20:12:31.234013Z",
+        "updated_at": "2026-11-04T20:12:31.241658Z"
       },
       "content_type": "application/json"
     }
@@ -2187,7 +2083,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/snippets/00000000-0000-4000-8000-000000000005",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/snippets/00000000-0000-4000-8000-000000000005",
       "query": [],
       "body": null
     },
@@ -2195,14 +2091,14 @@
       "status": 200,
       "body": {
         "id": "00000000-0000-4000-8000-000000000005",
-        "content": "<svg width=\"980\" height=\"490\" viewBox=\"0 0 980 490\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n<path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M10 0C4.47715 0 0 4.47715 0 10V480C0 485.523 4.47715 490 10 490H970C975.523 490 980 485.523 980 480V10C980 4.47715 975.523 0 970 0H10Z\" fill=\"var(--kui-color-background-primary, #8250FF)\"/>\n<path opacity=\"0.7\" fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M857.5 0C789.88 -5.91153e-06 735 54.8435 735 122.419L857.5 122.419V0ZM122.459 122.458C122.459 57.4972 71.8431 4.29384 7.94942 0.210449C3.69567 1.09701 0.433482 4.68616 0.0400391 9.10072L0.040044 122.458L122.459 122.458ZM367.5 489.673L367.5 367.254H490C490 434.829 435.12 489.673 367.5 489.673ZM612.5 367.256V489.673C680.12 489.673 735 434.829 735 367.254H612.5V244.837L490 244.837C490 312.412 544.88 367.256 612.5 367.256ZM367.5 122.417C299.88 122.417 245 177.261 245 244.836L367.5 244.836V122.417ZM734.919 245C667.344 245 612.5 190.12 612.5 122.5H734.919V245ZM245 367.498C245 435.073 190.12 489.917 122.5 489.917V367.498H245ZM857.5 489.917C925.12 489.917 980 435.073 980 367.498H857.5V489.917ZM735 367.419C735 299.844 789.88 245 857.5 245V367.419L735 367.419Z\" fill=\"var(--kui-color-background-primary-strong, #5E00F5)\"/>\n<path opacity=\"0.7\" fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M612.5 0C680.075 8.05825e-07 734.918 54.88 734.918 122.5H612.5V0ZM367.5 122.419L367.5 5.35367e-06C435.12 1.12652e-05 490 54.8435 490 122.419L367.5 122.419ZM490 122.419V122.417C557.62 122.417 612.5 177.261 612.5 244.836L490 244.836L490 122.419ZM490 489.673L490 367.256H367.5C367.5 299.681 422.38 244.837 490 244.837V367.254C557.62 367.254 612.5 422.098 612.5 489.673H490ZM245 244.837L245 367.256C312.62 367.256 367.5 312.412 367.5 244.837L245 244.837ZM735 122.5C735 190.12 789.844 245 857.419 245V122.5H735ZM122.5 245V122.5L122.5 0L244.919 1.45983e-06C244.919 67.6057 190.098 122.477 122.543 122.5C190.098 122.523 244.919 177.394 244.919 245H122.5ZM857.459 122.46V0.0415307C925.079 0.0415248 979.959 54.885 979.959 122.46L857.459 122.46ZM122.459 367.459H0.0400391C0.040042 435.078 54.8836 489.958 122.459 489.958L122.459 367.459ZM857.5 367.498C857.5 435.073 802.62 489.917 735 489.917V367.498H857.5Z\" fill=\"var(--kui-color-background-primary-weak, #9878FF)\"/>\n<path opacity=\"0.7\" fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M245 122.5H367.419L367.419 0C299.844 0 245 54.88 245 122.5ZM612.5 244.837V367.256H735C735 299.681 680.12 244.837 612.5 244.837ZM367.5 244.836L367.5 122.417L490 122.417C490 189.992 435.12 244.836 367.5 244.836ZM367.5 367.254C299.88 367.254 245 422.098 245 489.673H367.5V367.254ZM612.419 122.5C544.844 122.5 490 67.62 490 0H612.419V122.5ZM0 122.5C0 190.12 54.8435 245 122.419 245V122.5H0ZM857.5 122.5C925.075 122.5 979.918 177.38 979.918 245H857.5V122.5ZM245 245C177.38 245 122.5 299.843 122.5 367.419H245L245 245ZM857.5 367.419C857.5 299.843 912.38 245 980 245V367.419H857.5Z\" fill=\"var(--kui-color-background-primary-stronger, #4900C2)\"/>\n</svg>\n\n",
-        "name": "example-hero-image",
+        "content": "::page-toc\n---\ntitle: \"Foo Sections\"\n---\n::\n\n",
+        "name": "example-page-toc",
         "visibility": "public",
         "status": "published",
-        "description": "An example of a hero snippet containing a reusable SVG image.",
-        "title": "Hero Image Example",
-        "created_at": "2026-10-21T20:18:38.197697Z",
-        "updated_at": "2026-10-21T20:18:38.206195Z"
+        "description": "Description in API. A snippet to display the table of contents for a page. Ideally utilized in the 'page-layout.sidebar-right' page config.",
+        "title": "On this page",
+        "created_at": "2026-11-04T20:12:31.508008Z",
+        "updated_at": "2026-11-04T20:12:31.533957Z"
       },
       "content_type": "application/json"
     }
@@ -2211,7 +2107,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/snippets/00000000-0000-4000-8000-000000000006",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/snippets/00000000-0000-4000-8000-000000000006",
       "query": [],
       "body": null
     },
@@ -2219,14 +2115,14 @@
       "status": 200,
       "body": {
         "id": "00000000-0000-4000-8000-000000000006",
-        "content": "::page-toc\n---\ntitle: \"Foo Sections\"\n---\n::\n\n",
-        "name": "example-page-toc",
+        "content": "<!--\nExample Usage:\n\n::snippet\n---\nname: \"example-guides-page-header\"\ndata:\n  tagline: \"Guides\" # Optional tagline\n  title: \"Document APIs\"\n  description: \"Discover best practices, tools, and examples to help developers understand and use your APIs with confidence.\"\n---\n::\n-->\n\n::page-header\n---\ntitle-tag: \"h1\"\n---\n#tagline\n{{ snippet.tagline }}\n\n#title\n{{ snippet.title }}\n\n#description\n{{ snippet.description }}\n::\n\n",
+        "name": "example-guides-page-header",
         "visibility": "public",
         "status": "published",
-        "description": "Description in API. A snippet to display the table of contents for a page. Ideally utilized in the 'page-layout.sidebar-right' page config.",
-        "title": "On this page",
-        "created_at": "2026-10-21T20:18:38.549244Z",
-        "updated_at": "2026-10-21T20:18:38.570555Z"
+        "description": "An example of a page header reusable snippet with dynamic data.",
+        "title": "Example Guides Page Header",
+        "created_at": "2026-11-04T20:12:31.769014Z",
+        "updated_at": "2026-11-04T20:12:31.781151Z"
       },
       "content_type": "application/json"
     }
@@ -2235,7 +2131,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/snippets/00000000-0000-4000-8000-000000000007",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/snippets/00000000-0000-4000-8000-000000000007",
       "query": [],
       "body": null
     },
@@ -2243,14 +2139,14 @@
       "status": 200,
       "body": {
         "id": "00000000-0000-4000-8000-000000000007",
-        "content": "<!--\nExample Usage:\n\n::snippet\n---\nname: \"example-guides-page-header\"\ndata:\n  tagline: \"Guides\" # Optional tagline\n  title: \"Document APIs\"\n  description: \"Discover best practices, tools, and examples to help developers understand and use your APIs with confidence.\"\n---\n::\n-->\n\n::page-header\n---\ntitle-tag: \"h1\"\n---\n#tagline\n{{ snippet.tagline }}\n\n#title\n{{ snippet.title }}\n\n#description\n{{ snippet.description }}\n::\n\n",
-        "name": "example-guides-page-header",
+        "content": "<svg width=\"980\" height=\"490\" viewBox=\"0 0 980 490\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n<path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M10 0C4.47715 0 0 4.47715 0 10V480C0 485.523 4.47715 490 10 490H970C975.523 490 980 485.523 980 480V10C980 4.47715 975.523 0 970 0H10Z\" fill=\"var(--kui-color-background-primary, #8250FF)\"/>\n<path opacity=\"0.7\" fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M857.5 0C789.88 -5.91153e-06 735 54.8435 735 122.419L857.5 122.419V0ZM122.459 122.458C122.459 57.4972 71.8431 4.29384 7.94942 0.210449C3.69567 1.09701 0.433482 4.68616 0.0400391 9.10072L0.040044 122.458L122.459 122.458ZM367.5 489.673L367.5 367.254H490C490 434.829 435.12 489.673 367.5 489.673ZM612.5 367.256V489.673C680.12 489.673 735 434.829 735 367.254H612.5V244.837L490 244.837C490 312.412 544.88 367.256 612.5 367.256ZM367.5 122.417C299.88 122.417 245 177.261 245 244.836L367.5 244.836V122.417ZM734.919 245C667.344 245 612.5 190.12 612.5 122.5H734.919V245ZM245 367.498C245 435.073 190.12 489.917 122.5 489.917V367.498H245ZM857.5 489.917C925.12 489.917 980 435.073 980 367.498H857.5V489.917ZM735 367.419C735 299.844 789.88 245 857.5 245V367.419L735 367.419Z\" fill=\"var(--kui-color-background-primary-strong, #5E00F5)\"/>\n<path opacity=\"0.7\" fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M612.5 0C680.075 8.05825e-07 734.918 54.88 734.918 122.5H612.5V0ZM367.5 122.419L367.5 5.35367e-06C435.12 1.12652e-05 490 54.8435 490 122.419L367.5 122.419ZM490 122.419V122.417C557.62 122.417 612.5 177.261 612.5 244.836L490 244.836L490 122.419ZM490 489.673L490 367.256H367.5C367.5 299.681 422.38 244.837 490 244.837V367.254C557.62 367.254 612.5 422.098 612.5 489.673H490ZM245 244.837L245 367.256C312.62 367.256 367.5 312.412 367.5 244.837L245 244.837ZM735 122.5C735 190.12 789.844 245 857.419 245V122.5H735ZM122.5 245V122.5L122.5 0L244.919 1.45983e-06C244.919 67.6057 190.098 122.477 122.543 122.5C190.098 122.523 244.919 177.394 244.919 245H122.5ZM857.459 122.46V0.0415307C925.079 0.0415248 979.959 54.885 979.959 122.46L857.459 122.46ZM122.459 367.459H0.0400391C0.040042 435.078 54.8836 489.958 122.459 489.958L122.459 367.459ZM857.5 367.498C857.5 435.073 802.62 489.917 735 489.917V367.498H857.5Z\" fill=\"var(--kui-color-background-primary-weak, #9878FF)\"/>\n<path opacity=\"0.7\" fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M245 122.5H367.419L367.419 0C299.844 0 245 54.88 245 122.5ZM612.5 244.837V367.256H735C735 299.681 680.12 244.837 612.5 244.837ZM367.5 244.836L367.5 122.417L490 122.417C490 189.992 435.12 244.836 367.5 244.836ZM367.5 367.254C299.88 367.254 245 422.098 245 489.673H367.5V367.254ZM612.419 122.5C544.844 122.5 490 67.62 490 0H612.419V122.5ZM0 122.5C0 190.12 54.8435 245 122.419 245V122.5H0ZM857.5 122.5C925.075 122.5 979.918 177.38 979.918 245H857.5V122.5ZM245 245C177.38 245 122.5 299.843 122.5 367.419H245L245 245ZM857.5 367.419C857.5 299.843 912.38 245 980 245V367.419H857.5Z\" fill=\"var(--kui-color-background-primary-stronger, #4900C2)\"/>\n</svg>\n\n",
+        "name": "example-hero-image",
         "visibility": "public",
         "status": "published",
-        "description": "An example of a page header reusable snippet with dynamic data.",
-        "title": "Example Guides Page Header",
-        "created_at": "2026-10-21T20:18:38.86387Z",
-        "updated_at": "2026-10-21T20:18:38.874075Z"
+        "description": "An example of a hero snippet containing a reusable SVG image.",
+        "title": "Hero Image Example",
+        "created_at": "2026-11-04T20:12:32.0581Z",
+        "updated_at": "2026-11-04T20:12:32.079355Z"
       },
       "content_type": "application/json"
     }
@@ -2259,7 +2155,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/snippets/00000000-0000-4000-8000-000000000008",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/snippets/00000000-0000-4000-8000-000000000008",
       "query": [],
       "body": null
     },
@@ -2273,8 +2169,8 @@
         "status": "published",
         "description": "An example of a snippet containing a row of SVG logos.",
         "title": "Example Logo Bar",
-        "created_at": "2026-10-21T20:18:39.281861Z",
-        "updated_at": "2026-10-21T20:18:39.296935Z"
+        "created_at": "2026-11-04T20:12:32.371281Z",
+        "updated_at": "2026-11-04T20:12:32.386694Z"
       },
       "content_type": "application/json"
     }
@@ -2283,7 +2179,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/snippets/00000000-0000-4000-8000-000000000025",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/snippets/00000000-0000-4000-8000-000000000025",
       "query": [],
       "body": null
     },
@@ -2297,8 +2193,8 @@
         "status": "published",
         "description": "An example of a page banner reusable snippet.",
         "title": "Example Page Banner",
-        "created_at": "2026-10-21T20:18:47.26559Z",
-        "updated_at": "2026-10-21T20:18:47.272815Z"
+        "created_at": "2026-11-04T20:12:39.0869Z",
+        "updated_at": "2026-11-04T20:12:39.091951Z"
       },
       "content_type": "application/json"
     }
@@ -2307,47 +2203,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/ip-allow-list",
-      "query": [
-        [
-          "page[size]",
-          "100"
-        ]
-      ],
-      "body": null
-    },
-    "response": {
-      "status": 200,
-      "body": {
-        "data": [],
-        "meta": {
-          "next": null,
-          "previous": null,
-          "size": 0
-        }
-      },
-      "content_type": "application/json"
-    }
-  },
-  {
-    "request": {
-      "endpoint": "regional",
-      "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/identity-providers",
-      "query": [],
-      "body": null
-    },
-    "response": {
-      "status": 200,
-      "body": [],
-      "content_type": "application/json"
-    }
-  },
-  {
-    "request": {
-      "endpoint": "regional",
-      "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/authentication-settings",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/authentication-settings",
       "query": [],
       "body": null
     },
@@ -2369,44 +2225,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/email-config",
-      "query": [],
-      "body": null
-    },
-    "response": {
-      "status": 404,
-      "body": {
-        "status": 404,
-        "title": "Not Found",
-        "instance": "kong:trace:12812413232983910289",
-        "detail": "Portal email config not found"
-      },
-      "content_type": "application/problem+json"
-    }
-  },
-  {
-    "request": {
-      "endpoint": "regional",
-      "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/audit-log-webhook",
-      "query": [],
-      "body": null
-    },
-    "response": {
-      "status": 200,
-      "body": {
-        "enabled": false,
-        "audit_log_destination_id": "",
-        "include_principal_name": false
-      },
-      "content_type": "application/json"
-    }
-  },
-  {
-    "request": {
-      "endpoint": "regional",
-      "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/customization",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/customization",
       "query": [],
       "body": null
     },
@@ -2533,58 +2352,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/teams",
-      "query": [
-        [
-          "page[number]",
-          "1"
-        ],
-        [
-          "page[size]",
-          "100"
-        ]
-      ],
-      "body": null
-    },
-    "response": {
-      "status": 200,
-      "body": {
-        "data": [],
-        "meta": {
-          "page": {
-            "number": 1,
-            "size": 100,
-            "total": 0
-          }
-        }
-      },
-      "content_type": "application/json"
-    }
-  },
-  {
-    "request": {
-      "endpoint": "regional",
-      "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/custom-domain",
-      "query": [],
-      "body": null
-    },
-    "response": {
-      "status": 404,
-      "body": {
-        "status": 404,
-        "title": "Not Found",
-        "instance": "kong:trace:4773646859245403846",
-        "detail": "custom domain not found"
-      },
-      "content_type": "application/problem+json"
-    }
-  },
-  {
-    "request": {
-      "endpoint": "regional",
-      "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/assets/logo",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/assets/logo",
       "query": [],
       "body": null
     },
@@ -2600,7 +2368,7 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002/assets/favicon",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003/assets/favicon",
       "query": [],
       "body": null
     },
@@ -2635,6 +2403,34 @@
         "data": [
           {
             "id": "00000000-0000-4000-8000-000000000001",
+            "name": "SMS API",
+            "version": "3.2.0",
+            "description": "With the SMS API you can send SMS from your account and lookup messages both messages that you've sent as well as messages sent to your virtual numbers. Numbers are specified in E.164 format. More SMS API documentation is at <https://developer.nexmo.com/messaging/sms/overview>",
+            "labels": {
+              "category": "messaging",
+              "protocol": "rest",
+              "KONGCTL-namespace": "default"
+            },
+            "created_at": "2026-11-04T20:12:28.945Z",
+            "updated_at": "2026-11-04T20:13:35.037Z",
+            "slug": "sms-api-3",
+            "api_spec_ids": [
+              "00000000-0000-4000-8000-000000000009"
+            ],
+            "implementation_mode": null,
+            "current_version_summary": null,
+            "portals": [
+              {
+                "id": "00000000-0000-4000-8000-000000000003",
+                "name": "My First Portal",
+                "display_name": "A Getting Started Portal"
+              }
+            ],
+            "attributes": {},
+            "images": null
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
             "name": "Voice API",
             "version": "1.3.7",
             "description": "The Voice API lets you create outbound calls, control in-progress calls and get information about historical calls. More information about the Voice API can be found at <https://developer.nexmo.com/voice/voice-api/overview>.",
@@ -2643,8 +2439,8 @@
               "protocol": "rest",
               "KONGCTL-namespace": "default"
             },
-            "created_at": "2026-10-21T20:18:36.410Z",
-            "updated_at": "2026-10-21T20:18:45.529Z",
+            "created_at": "2026-11-04T20:12:29.300Z",
+            "updated_at": "2026-11-04T20:12:37.617Z",
             "slug": "voice-api",
             "api_spec_ids": [
               "00000000-0000-4000-8000-000000000016"
@@ -2658,35 +2454,7 @@
             },
             "portals": [
               {
-                "id": "00000000-0000-4000-8000-000000000002",
-                "name": "My First Portal",
-                "display_name": "A Getting Started Portal"
-              }
-            ],
-            "attributes": {},
-            "images": null
-          },
-          {
-            "id": "00000000-0000-4000-8000-000000000003",
-            "name": "SMS API",
-            "version": "3.2.0",
-            "description": "With the SMS API you can send SMS from your account and lookup messages both messages that you've sent as well as messages sent to your virtual numbers. Numbers are specified in E.164 format. More SMS API documentation is at <https://developer.nexmo.com/messaging/sms/overview>",
-            "labels": {
-              "category": "messaging",
-              "protocol": "rest",
-              "KONGCTL-namespace": "default"
-            },
-            "created_at": "2026-10-21T20:18:37.392Z",
-            "updated_at": "2026-10-21T20:20:02.650Z",
-            "slug": "sms-api-3",
-            "api_spec_ids": [
-              "00000000-0000-4000-8000-000000000009"
-            ],
-            "implementation_mode": null,
-            "current_version_summary": null,
-            "portals": [
-              {
-                "id": "00000000-0000-4000-8000-000000000002",
+                "id": "00000000-0000-4000-8000-000000000003",
                 "name": "My First Portal",
                 "display_name": "A Getting Started Portal"
               }
@@ -2728,7 +2496,7 @@
       "body": {
         "data": [
           {
-            "id": "00000000-0000-4000-8000-000000000002",
+            "id": "00000000-0000-4000-8000-000000000003",
             "name": "My First Portal",
             "description": "A comprehensive developer portal with guides, API documentation, and getting started content",
             "display_name": "A Getting Started Portal",
@@ -2750,10 +2518,10 @@
             },
             "auto_approve_developers": false,
             "auto_approve_applications": true,
-            "canonical_domain": "e4d8640b243d.us.kongportals.com",
-            "default_domain": "e4d8640b243d.us.kongportals.com",
-            "created_at": "2026-10-21T20:18:36.785Z",
-            "updated_at": "2026-10-21T20:19:17.100Z",
+            "canonical_domain": "cd56fe99e6dd.us.kongportals.com",
+            "default_domain": "cd56fe99e6dd.us.kongportals.com",
+            "created_at": "2026-11-04T20:12:30.157Z",
+            "updated_at": "2026-11-04T20:13:01.217Z",
             "labels": {
               "KONGCTL-namespace": "default"
             }
@@ -2792,7 +2560,7 @@
       "body": {
         "data": [
           {
-            "id": "00000000-0000-4000-8000-000000000002",
+            "id": "00000000-0000-4000-8000-000000000003",
             "name": "My First Portal",
             "description": "A comprehensive developer portal with guides, API documentation, and getting started content",
             "display_name": "A Getting Started Portal",
@@ -2814,10 +2582,10 @@
             },
             "auto_approve_developers": false,
             "auto_approve_applications": true,
-            "canonical_domain": "e4d8640b243d.us.kongportals.com",
-            "default_domain": "e4d8640b243d.us.kongportals.com",
-            "created_at": "2026-10-21T20:18:36.785Z",
-            "updated_at": "2026-10-21T20:19:17.100Z",
+            "canonical_domain": "cd56fe99e6dd.us.kongportals.com",
+            "default_domain": "cd56fe99e6dd.us.kongportals.com",
+            "created_at": "2026-11-04T20:12:30.157Z",
+            "updated_at": "2026-11-04T20:13:01.217Z",
             "labels": {
               "KONGCTL-namespace": "default"
             }
@@ -2830,47 +2598,6 @@
             "number": 1
           }
         }
-      },
-      "content_type": "application/json"
-    }
-  },
-  {
-    "request": {
-      "endpoint": "regional",
-      "method": "GET",
-      "path": "/v3/apis/00000000-0000-4000-8000-000000000003",
-      "query": [],
-      "body": null
-    },
-    "response": {
-      "status": 200,
-      "body": {
-        "id": "00000000-0000-4000-8000-000000000003",
-        "name": "SMS API",
-        "version": "3.2.0",
-        "description": "With the SMS API you can send SMS from your account and lookup messages both messages that you've sent as well as messages sent to your virtual numbers. Numbers are specified in E.164 format. More SMS API documentation is at <https://developer.nexmo.com/messaging/sms/overview>",
-        "labels": {
-          "category": "messaging",
-          "protocol": "rest",
-          "KONGCTL-namespace": "default"
-        },
-        "created_at": "2026-10-21T20:18:37.392Z",
-        "updated_at": "2026-10-21T20:20:02.650Z",
-        "slug": "sms-api-3",
-        "api_spec_ids": [
-          "00000000-0000-4000-8000-000000000009"
-        ],
-        "implementation_mode": null,
-        "current_version_summary": null,
-        "portals": [
-          {
-            "id": "00000000-0000-4000-8000-000000000002",
-            "name": "My First Portal",
-            "display_name": "A Getting Started Portal"
-          }
-        ],
-        "attributes": {},
-        "images": null
       },
       "content_type": "application/json"
     }
@@ -2887,6 +2614,47 @@
       "status": 200,
       "body": {
         "id": "00000000-0000-4000-8000-000000000001",
+        "name": "SMS API",
+        "version": "3.2.0",
+        "description": "With the SMS API you can send SMS from your account and lookup messages both messages that you've sent as well as messages sent to your virtual numbers. Numbers are specified in E.164 format. More SMS API documentation is at <https://developer.nexmo.com/messaging/sms/overview>",
+        "labels": {
+          "category": "messaging",
+          "protocol": "rest",
+          "KONGCTL-namespace": "default"
+        },
+        "created_at": "2026-11-04T20:12:28.945Z",
+        "updated_at": "2026-11-04T20:13:35.037Z",
+        "slug": "sms-api-3",
+        "api_spec_ids": [
+          "00000000-0000-4000-8000-000000000009"
+        ],
+        "implementation_mode": null,
+        "current_version_summary": null,
+        "portals": [
+          {
+            "id": "00000000-0000-4000-8000-000000000003",
+            "name": "My First Portal",
+            "display_name": "A Getting Started Portal"
+          }
+        ],
+        "attributes": {},
+        "images": null
+      },
+      "content_type": "application/json"
+    }
+  },
+  {
+    "request": {
+      "endpoint": "regional",
+      "method": "GET",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000002",
+      "query": [],
+      "body": null
+    },
+    "response": {
+      "status": 200,
+      "body": {
+        "id": "00000000-0000-4000-8000-000000000002",
         "name": "Voice API",
         "version": "1.3.7",
         "description": "The Voice API lets you create outbound calls, control in-progress calls and get information about historical calls. More information about the Voice API can be found at <https://developer.nexmo.com/voice/voice-api/overview>.",
@@ -2895,8 +2663,8 @@
           "protocol": "rest",
           "KONGCTL-namespace": "default"
         },
-        "created_at": "2026-10-21T20:18:36.410Z",
-        "updated_at": "2026-10-21T20:18:45.529Z",
+        "created_at": "2026-11-04T20:12:29.300Z",
+        "updated_at": "2026-11-04T20:12:37.617Z",
         "slug": "voice-api",
         "api_spec_ids": [
           "00000000-0000-4000-8000-000000000016"
@@ -2910,7 +2678,7 @@
         },
         "portals": [
           {
-            "id": "00000000-0000-4000-8000-000000000002",
+            "id": "00000000-0000-4000-8000-000000000003",
             "name": "My First Portal",
             "display_name": "A Getting Started Portal"
           }
@@ -2943,7 +2711,7 @@
       "body": {
         "data": [
           {
-            "id": "00000000-0000-4000-8000-000000000002",
+            "id": "00000000-0000-4000-8000-000000000003",
             "name": "My First Portal",
             "description": "A comprehensive developer portal with guides, API documentation, and getting started content",
             "display_name": "A Getting Started Portal",
@@ -2965,10 +2733,10 @@
             },
             "auto_approve_developers": false,
             "auto_approve_applications": true,
-            "canonical_domain": "e4d8640b243d.us.kongportals.com",
-            "default_domain": "e4d8640b243d.us.kongportals.com",
-            "created_at": "2026-10-21T20:18:36.785Z",
-            "updated_at": "2026-10-21T20:19:17.100Z",
+            "canonical_domain": "cd56fe99e6dd.us.kongportals.com",
+            "default_domain": "cd56fe99e6dd.us.kongportals.com",
+            "created_at": "2026-11-04T20:12:30.157Z",
+            "updated_at": "2026-11-04T20:13:01.217Z",
             "labels": {
               "KONGCTL-namespace": "default"
             }
@@ -2989,20 +2757,6 @@
     "request": {
       "endpoint": "regional",
       "method": "DELETE",
-      "path": "/v3/apis/00000000-0000-4000-8000-000000000003",
-      "query": [],
-      "body": null
-    },
-    "response": {
-      "status": 204,
-      "body": null,
-      "content_type": null
-    }
-  },
-  {
-    "request": {
-      "endpoint": "regional",
-      "method": "DELETE",
       "path": "/v3/apis/00000000-0000-4000-8000-000000000001",
       "query": [],
       "body": null
@@ -3017,7 +2771,21 @@
     "request": {
       "endpoint": "regional",
       "method": "DELETE",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000002",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000002",
+      "query": [],
+      "body": null
+    },
+    "response": {
+      "status": 204,
+      "body": null,
+      "content_type": null
+    }
+  },
+  {
+    "request": {
+      "endpoint": "regional",
+      "method": "DELETE",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003",
       "query": [
         [
           "force",

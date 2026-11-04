@@ -4,8 +4,8 @@
   "inputs_sha256": "sha256:9228db6702c7be6a96f2c9698a635c1895278d6562c872c1e6e6ea379fb57b54",
   "source": {
     "kind": "recorded",
-    "commit": "3de68dfda1bb2f3fb11e5b756a78f6d881ce4851",
-    "run_url": "https://github.com/Kong/kongctl/actions/runs/35361530847"
+    "commit": "155dfd8599c2d844c707069fc1e662f2d4dc1a14",
+    "run_url": "https://github.com/Kong/kongctl/actions/runs/41902492036"
   },
   "interactions": [
     {
@@ -101,7 +101,7 @@
           "name": "pages-portal",
           "display_name": "Pages Lifecycle Portal",
           "description": "Portal for testing page create, update, and sync-delete lifecycle",
-          "default_domain": "dc20f4bfe5a2.us.kongportals.com",
+          "default_domain": "01dba10b9fb0.us.kongportals.com",
           "authentication_enabled": false,
           "rbac_enabled": false,
           "auto_approve_developers": false,
@@ -112,9 +112,9 @@
           "labels": {
             "KONGCTL-namespace": "portal-pages-lifecycle"
           },
-          "updated_at": "2026-09-18T15:25:27.055Z",
-          "created_at": "2026-09-18T15:25:27.055Z",
-          "canonical_domain": "dc20f4bfe5a2.us.kongportals.com",
+          "updated_at": "2026-11-04T20:16:40.134Z",
+          "created_at": "2026-11-04T20:16:40.134Z",
+          "canonical_domain": "01dba10b9fb0.us.kongportals.com",
           "sipr_enabled": false,
           "notifications_developer_pii_visibility_enabled": false
         },
@@ -146,8 +146,9 @@
           "title": "Guides",
           "visibility": "public",
           "id": "00000000-0000-4000-8000-000000000002",
-          "created_at": "2026-09-18T15:25:27.305041Z",
-          "updated_at": "2026-09-18T15:25:27.363012Z"
+          "created_at": "2026-11-04T20:16:40.739648Z",
+          "parent_page_id": null,
+          "updated_at": "2026-11-04T20:16:40.751146Z"
         },
         "content_type": "application/json"
       }
@@ -179,8 +180,8 @@
           "title": "Getting Started",
           "visibility": "public",
           "id": "00000000-0000-4000-8000-000000000003",
-          "created_at": "2026-09-18T15:25:27.482504Z",
-          "updated_at": "2026-09-18T15:25:27.539612Z"
+          "created_at": "2026-11-04T20:16:41.123827Z",
+          "updated_at": "2026-11-04T20:16:41.134831Z"
         },
         "content_type": "application/json"
       }
@@ -229,10 +230,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "dc20f4bfe5a2.us.kongportals.com",
-              "default_domain": "dc20f4bfe5a2.us.kongportals.com",
-              "created_at": "2026-09-18T15:25:27.055Z",
-              "updated_at": "2026-09-18T15:25:27.055Z",
+              "canonical_domain": "01dba10b9fb0.us.kongportals.com",
+              "default_domain": "01dba10b9fb0.us.kongportals.com",
+              "created_at": "2026-11-04T20:16:40.134Z",
+              "updated_at": "2026-11-04T20:16:40.134Z",
               "labels": {
                 "KONGCTL-namespace": "portal-pages-lifecycle"
               }
@@ -269,8 +270,8 @@
               "status": "published",
               "description": "Step-by-step guides for our platform",
               "parent_page_id": null,
-              "created_at": "2026-09-18T15:25:27.305041Z",
-              "updated_at": "2026-09-18T15:25:27.363012Z",
+              "created_at": "2026-11-04T20:16:40.739648Z",
+              "updated_at": "2026-11-04T20:16:40.751146Z",
               "children": [
                 {
                   "id": "00000000-0000-4000-8000-000000000003",
@@ -280,8 +281,8 @@
                   "status": "published",
                   "description": "A quick-start guide for new users",
                   "parent_page_id": "00000000-0000-4000-8000-000000000002",
-                  "created_at": "2026-09-18T15:25:27.482504Z",
-                  "updated_at": "2026-09-18T15:25:27.539612Z",
+                  "created_at": "2026-11-04T20:16:41.123827Z",
+                  "updated_at": "2026-11-04T20:16:41.134831Z",
                   "children": []
                 }
               ]
@@ -335,10 +336,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "dc20f4bfe5a2.us.kongportals.com",
-              "default_domain": "dc20f4bfe5a2.us.kongportals.com",
-              "created_at": "2026-09-18T15:25:27.055Z",
-              "updated_at": "2026-09-18T15:25:27.055Z",
+              "canonical_domain": "01dba10b9fb0.us.kongportals.com",
+              "default_domain": "01dba10b9fb0.us.kongportals.com",
+              "created_at": "2026-11-04T20:16:40.134Z",
+              "updated_at": "2026-11-04T20:16:40.134Z",
               "labels": {
                 "KONGCTL-namespace": "portal-pages-lifecycle"
               }
@@ -375,8 +376,8 @@
               "status": "published",
               "description": "Step-by-step guides for our platform",
               "parent_page_id": null,
-              "created_at": "2026-09-18T15:25:27.305041Z",
-              "updated_at": "2026-09-18T15:25:27.363012Z",
+              "created_at": "2026-11-04T20:16:40.739648Z",
+              "updated_at": "2026-11-04T20:16:40.751146Z",
               "children": [
                 {
                   "id": "00000000-0000-4000-8000-000000000003",
@@ -386,8 +387,8 @@
                   "status": "published",
                   "description": "A quick-start guide for new users",
                   "parent_page_id": "00000000-0000-4000-8000-000000000002",
-                  "created_at": "2026-09-18T15:25:27.482504Z",
-                  "updated_at": "2026-09-18T15:25:27.539612Z",
+                  "created_at": "2026-11-04T20:16:41.123827Z",
+                  "updated_at": "2026-11-04T20:16:41.134831Z",
                   "children": []
                 }
               ]
@@ -416,8 +417,8 @@
           "description": "Step-by-step guides for our platform",
           "parent_page_id": null,
           "title": "Guides",
-          "created_at": "2026-09-18T15:25:27.305041Z",
-          "updated_at": "2026-09-18T15:25:27.363012Z"
+          "created_at": "2026-11-04T20:16:40.739648Z",
+          "updated_at": "2026-11-04T20:16:40.751146Z"
         },
         "content_type": "application/json"
       }
@@ -441,170 +442,10 @@
           "description": "A quick-start guide for new users",
           "parent_page_id": "00000000-0000-4000-8000-000000000002",
           "title": "Getting Started",
-          "created_at": "2026-09-18T15:25:27.482504Z",
-          "updated_at": "2026-09-18T15:25:27.539612Z"
+          "created_at": "2026-11-04T20:16:41.123827Z",
+          "updated_at": "2026-11-04T20:16:41.134831Z"
         },
         "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/snippets",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "total": 0,
-              "size": 100,
-              "number": 1
-            }
-          },
-          "data": []
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/ip-allow-list",
-        "query": [
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "data": [],
-          "meta": {
-            "next": null,
-            "previous": null,
-            "size": 0
-          }
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/identity-providers",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": [],
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/email-config",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 404,
-        "body": {
-          "status": 404,
-          "title": "Not Found",
-          "instance": "kong:trace:14272871276822161664",
-          "detail": "Portal email config not found"
-        },
-        "content_type": "application/problem+json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/audit-log-webhook",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "enabled": false,
-          "audit_log_destination_id": "",
-          "include_principal_name": false
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "data": [],
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 100,
-              "total": 0
-            }
-          }
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/custom-domain",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 404,
-        "body": {
-          "status": 404,
-          "title": "Not Found",
-          "instance": "kong:trace:4047653452971109454",
-          "detail": "custom domain not found"
-        },
-        "content_type": "application/problem+json"
       }
     },
     {
@@ -651,10 +492,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "dc20f4bfe5a2.us.kongportals.com",
-              "default_domain": "dc20f4bfe5a2.us.kongportals.com",
-              "created_at": "2026-09-18T15:25:27.055Z",
-              "updated_at": "2026-09-18T15:25:27.055Z",
+              "canonical_domain": "01dba10b9fb0.us.kongportals.com",
+              "default_domain": "01dba10b9fb0.us.kongportals.com",
+              "created_at": "2026-11-04T20:16:40.134Z",
+              "updated_at": "2026-11-04T20:16:40.134Z",
               "labels": {
                 "KONGCTL-namespace": "portal-pages-lifecycle"
               }
@@ -715,10 +556,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "dc20f4bfe5a2.us.kongportals.com",
-              "default_domain": "dc20f4bfe5a2.us.kongportals.com",
-              "created_at": "2026-09-18T15:25:27.055Z",
-              "updated_at": "2026-09-18T15:25:27.055Z",
+              "canonical_domain": "01dba10b9fb0.us.kongportals.com",
+              "default_domain": "01dba10b9fb0.us.kongportals.com",
+              "created_at": "2026-11-04T20:16:40.134Z",
+              "updated_at": "2026-11-04T20:16:40.134Z",
               "labels": {
                 "KONGCTL-namespace": "portal-pages-lifecycle"
               }
@@ -754,8 +595,8 @@
           "description": "A quick-start guide for new users",
           "parent_page_id": "00000000-0000-4000-8000-000000000002",
           "title": "Getting Started",
-          "created_at": "2026-09-18T15:25:27.482504Z",
-          "updated_at": "2026-09-18T15:25:27.539612Z"
+          "created_at": "2026-11-04T20:16:41.123827Z",
+          "updated_at": "2026-11-04T20:16:41.134831Z"
         },
         "content_type": "application/json"
       }
@@ -786,8 +627,8 @@
           "slug": "/getting-started",
           "content": "# Getting Started\n\nThis content was updated in step 002.",
           "parent_page_id": "00000000-0000-4000-8000-000000000002",
-          "created_at": "2026-09-18T15:25:27.482504Z",
-          "updated_at": "2026-09-18T15:25:30.15835Z"
+          "created_at": "2026-11-04T20:16:41.123827Z",
+          "updated_at": "2026-11-04T20:16:44.964291Z"
         },
         "content_type": "application/json"
       }
@@ -836,10 +677,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "dc20f4bfe5a2.us.kongportals.com",
-              "default_domain": "dc20f4bfe5a2.us.kongportals.com",
-              "created_at": "2026-09-18T15:25:27.055Z",
-              "updated_at": "2026-09-18T15:25:27.055Z",
+              "canonical_domain": "01dba10b9fb0.us.kongportals.com",
+              "default_domain": "01dba10b9fb0.us.kongportals.com",
+              "created_at": "2026-11-04T20:16:40.134Z",
+              "updated_at": "2026-11-04T20:16:40.134Z",
               "labels": {
                 "KONGCTL-namespace": "portal-pages-lifecycle"
               }
@@ -876,8 +717,8 @@
               "status": "published",
               "description": "Step-by-step guides for our platform",
               "parent_page_id": null,
-              "created_at": "2026-09-18T15:25:27.305041Z",
-              "updated_at": "2026-09-18T15:25:27.363012Z",
+              "created_at": "2026-11-04T20:16:40.739648Z",
+              "updated_at": "2026-11-04T20:16:40.751146Z",
               "children": [
                 {
                   "id": "00000000-0000-4000-8000-000000000003",
@@ -887,8 +728,8 @@
                   "status": "unpublished",
                   "description": "An updated quick-start guide for new users",
                   "parent_page_id": "00000000-0000-4000-8000-000000000002",
-                  "created_at": "2026-09-18T15:25:27.482504Z",
-                  "updated_at": "2026-09-18T15:25:30.15835Z",
+                  "created_at": "2026-11-04T20:16:41.123827Z",
+                  "updated_at": "2026-11-04T20:16:44.964291Z",
                   "children": []
                 }
               ]
@@ -942,10 +783,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "dc20f4bfe5a2.us.kongportals.com",
-              "default_domain": "dc20f4bfe5a2.us.kongportals.com",
-              "created_at": "2026-09-18T15:25:27.055Z",
-              "updated_at": "2026-09-18T15:25:27.055Z",
+              "canonical_domain": "01dba10b9fb0.us.kongportals.com",
+              "default_domain": "01dba10b9fb0.us.kongportals.com",
+              "created_at": "2026-11-04T20:16:40.134Z",
+              "updated_at": "2026-11-04T20:16:40.134Z",
               "labels": {
                 "KONGCTL-namespace": "portal-pages-lifecycle"
               }
@@ -982,8 +823,8 @@
               "status": "published",
               "description": "Step-by-step guides for our platform",
               "parent_page_id": null,
-              "created_at": "2026-09-18T15:25:27.305041Z",
-              "updated_at": "2026-09-18T15:25:27.363012Z",
+              "created_at": "2026-11-04T20:16:40.739648Z",
+              "updated_at": "2026-11-04T20:16:40.751146Z",
               "children": [
                 {
                   "id": "00000000-0000-4000-8000-000000000003",
@@ -993,8 +834,8 @@
                   "status": "unpublished",
                   "description": "An updated quick-start guide for new users",
                   "parent_page_id": "00000000-0000-4000-8000-000000000002",
-                  "created_at": "2026-09-18T15:25:27.482504Z",
-                  "updated_at": "2026-09-18T15:25:30.15835Z",
+                  "created_at": "2026-11-04T20:16:41.123827Z",
+                  "updated_at": "2026-11-04T20:16:44.964291Z",
                   "children": []
                 }
               ]
@@ -1023,8 +864,8 @@
           "description": "Step-by-step guides for our platform",
           "parent_page_id": null,
           "title": "Guides",
-          "created_at": "2026-09-18T15:25:27.305041Z",
-          "updated_at": "2026-09-18T15:25:27.363012Z"
+          "created_at": "2026-11-04T20:16:40.739648Z",
+          "updated_at": "2026-11-04T20:16:40.751146Z"
         },
         "content_type": "application/json"
       }
@@ -1048,170 +889,10 @@
           "description": "An updated quick-start guide for new users",
           "parent_page_id": "00000000-0000-4000-8000-000000000002",
           "title": "Getting Started (Updated)",
-          "created_at": "2026-09-18T15:25:27.482504Z",
-          "updated_at": "2026-09-18T15:25:30.15835Z"
+          "created_at": "2026-11-04T20:16:41.123827Z",
+          "updated_at": "2026-11-04T20:16:44.964291Z"
         },
         "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/snippets",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "total": 0,
-              "size": 100,
-              "number": 1
-            }
-          },
-          "data": []
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/ip-allow-list",
-        "query": [
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "data": [],
-          "meta": {
-            "next": null,
-            "previous": null,
-            "size": 0
-          }
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/identity-providers",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": [],
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/email-config",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 404,
-        "body": {
-          "status": 404,
-          "title": "Not Found",
-          "instance": "kong:trace:804118933239570533",
-          "detail": "Portal email config not found"
-        },
-        "content_type": "application/problem+json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/audit-log-webhook",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "enabled": false,
-          "audit_log_destination_id": "",
-          "include_principal_name": false
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "data": [],
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 100,
-              "total": 0
-            }
-          }
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/custom-domain",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 404,
-        "body": {
-          "status": 404,
-          "title": "Not Found",
-          "instance": "kong:trace:4986764886010219059",
-          "detail": "custom domain not found"
-        },
-        "content_type": "application/problem+json"
       }
     },
     {
@@ -1258,10 +939,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "dc20f4bfe5a2.us.kongportals.com",
-              "default_domain": "dc20f4bfe5a2.us.kongportals.com",
-              "created_at": "2026-09-18T15:25:27.055Z",
-              "updated_at": "2026-09-18T15:25:27.055Z",
+              "canonical_domain": "01dba10b9fb0.us.kongportals.com",
+              "default_domain": "01dba10b9fb0.us.kongportals.com",
+              "created_at": "2026-11-04T20:16:40.134Z",
+              "updated_at": "2026-11-04T20:16:40.134Z",
               "labels": {
                 "KONGCTL-namespace": "portal-pages-lifecycle"
               }
@@ -1322,10 +1003,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "dc20f4bfe5a2.us.kongportals.com",
-              "default_domain": "dc20f4bfe5a2.us.kongportals.com",
-              "created_at": "2026-09-18T15:25:27.055Z",
-              "updated_at": "2026-09-18T15:25:27.055Z",
+              "canonical_domain": "01dba10b9fb0.us.kongportals.com",
+              "default_domain": "01dba10b9fb0.us.kongportals.com",
+              "created_at": "2026-11-04T20:16:40.134Z",
+              "updated_at": "2026-11-04T20:16:40.134Z",
               "labels": {
                 "KONGCTL-namespace": "portal-pages-lifecycle"
               }
@@ -1361,8 +1042,8 @@
           "description": "An updated quick-start guide for new users",
           "parent_page_id": "00000000-0000-4000-8000-000000000002",
           "title": "Getting Started (Updated)",
-          "created_at": "2026-09-18T15:25:27.482504Z",
-          "updated_at": "2026-09-18T15:25:30.15835Z"
+          "created_at": "2026-11-04T20:16:41.123827Z",
+          "updated_at": "2026-11-04T20:16:44.964291Z"
         },
         "content_type": "application/json"
       }
@@ -1389,8 +1070,8 @@
           "slug": "/getting-started",
           "content": "---\ntitle: \"Getting Started (Updated)\"\ndescription: \"An updated quick-start guide for new users\"\n---\n\n# Getting Started\n\nThis body changed without changing page metadata.\nIssue 1210 content-only update.\n",
           "parent_page_id": "00000000-0000-4000-8000-000000000002",
-          "created_at": "2026-09-18T15:25:27.482504Z",
-          "updated_at": "2026-09-18T15:25:32.618463Z"
+          "created_at": "2026-11-04T20:16:41.123827Z",
+          "updated_at": "2026-11-04T20:16:48.705824Z"
         },
         "content_type": "application/json"
       }
@@ -1439,10 +1120,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "dc20f4bfe5a2.us.kongportals.com",
-              "default_domain": "dc20f4bfe5a2.us.kongportals.com",
-              "created_at": "2026-09-18T15:25:27.055Z",
-              "updated_at": "2026-09-18T15:25:27.055Z",
+              "canonical_domain": "01dba10b9fb0.us.kongportals.com",
+              "default_domain": "01dba10b9fb0.us.kongportals.com",
+              "created_at": "2026-11-04T20:16:40.134Z",
+              "updated_at": "2026-11-04T20:16:40.134Z",
               "labels": {
                 "KONGCTL-namespace": "portal-pages-lifecycle"
               }
@@ -1479,8 +1160,8 @@
               "status": "published",
               "description": "Step-by-step guides for our platform",
               "parent_page_id": null,
-              "created_at": "2026-09-18T15:25:27.305041Z",
-              "updated_at": "2026-09-18T15:25:27.363012Z",
+              "created_at": "2026-11-04T20:16:40.739648Z",
+              "updated_at": "2026-11-04T20:16:40.751146Z",
               "children": [
                 {
                   "id": "00000000-0000-4000-8000-000000000003",
@@ -1490,8 +1171,8 @@
                   "status": "unpublished",
                   "description": "An updated quick-start guide for new users",
                   "parent_page_id": "00000000-0000-4000-8000-000000000002",
-                  "created_at": "2026-09-18T15:25:27.482504Z",
-                  "updated_at": "2026-09-18T15:25:32.618463Z",
+                  "created_at": "2026-11-04T20:16:41.123827Z",
+                  "updated_at": "2026-11-04T20:16:48.705824Z",
                   "children": []
                 }
               ]
@@ -1520,8 +1201,8 @@
           "description": "Step-by-step guides for our platform",
           "parent_page_id": null,
           "title": "Guides",
-          "created_at": "2026-09-18T15:25:27.305041Z",
-          "updated_at": "2026-09-18T15:25:27.363012Z"
+          "created_at": "2026-11-04T20:16:40.739648Z",
+          "updated_at": "2026-11-04T20:16:40.751146Z"
         },
         "content_type": "application/json"
       }
@@ -1545,170 +1226,10 @@
           "description": "An updated quick-start guide for new users",
           "parent_page_id": "00000000-0000-4000-8000-000000000002",
           "title": "Getting Started (Updated)",
-          "created_at": "2026-09-18T15:25:27.482504Z",
-          "updated_at": "2026-09-18T15:25:32.618463Z"
+          "created_at": "2026-11-04T20:16:41.123827Z",
+          "updated_at": "2026-11-04T20:16:48.705824Z"
         },
         "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/snippets",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "total": 0,
-              "size": 100,
-              "number": 1
-            }
-          },
-          "data": []
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/ip-allow-list",
-        "query": [
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "data": [],
-          "meta": {
-            "next": null,
-            "previous": null,
-            "size": 0
-          }
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/identity-providers",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": [],
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/email-config",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 404,
-        "body": {
-          "status": 404,
-          "title": "Not Found",
-          "instance": "kong:trace:13195925046842441989",
-          "detail": "Portal email config not found"
-        },
-        "content_type": "application/problem+json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/audit-log-webhook",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "enabled": false,
-          "audit_log_destination_id": "",
-          "include_principal_name": false
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "data": [],
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 100,
-              "total": 0
-            }
-          }
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/custom-domain",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 404,
-        "body": {
-          "status": 404,
-          "title": "Not Found",
-          "instance": "kong:trace:17127336889041581303",
-          "detail": "custom domain not found"
-        },
-        "content_type": "application/problem+json"
       }
     },
     {
@@ -1755,10 +1276,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "dc20f4bfe5a2.us.kongportals.com",
-              "default_domain": "dc20f4bfe5a2.us.kongportals.com",
-              "created_at": "2026-09-18T15:25:27.055Z",
-              "updated_at": "2026-09-18T15:25:27.055Z",
+              "canonical_domain": "01dba10b9fb0.us.kongportals.com",
+              "default_domain": "01dba10b9fb0.us.kongportals.com",
+              "created_at": "2026-11-04T20:16:40.134Z",
+              "updated_at": "2026-11-04T20:16:40.134Z",
               "labels": {
                 "KONGCTL-namespace": "portal-pages-lifecycle"
               }
@@ -1795,8 +1316,8 @@
               "status": "published",
               "description": "Step-by-step guides for our platform",
               "parent_page_id": null,
-              "created_at": "2026-09-18T15:25:27.305041Z",
-              "updated_at": "2026-09-18T15:25:27.363012Z",
+              "created_at": "2026-11-04T20:16:40.739648Z",
+              "updated_at": "2026-11-04T20:16:40.751146Z",
               "children": [
                 {
                   "id": "00000000-0000-4000-8000-000000000003",
@@ -1806,8 +1327,8 @@
                   "status": "unpublished",
                   "description": "An updated quick-start guide for new users",
                   "parent_page_id": "00000000-0000-4000-8000-000000000002",
-                  "created_at": "2026-09-18T15:25:27.482504Z",
-                  "updated_at": "2026-09-18T15:25:32.618463Z",
+                  "created_at": "2026-11-04T20:16:41.123827Z",
+                  "updated_at": "2026-11-04T20:16:48.705824Z",
                   "children": []
                 }
               ]
@@ -1836,8 +1357,8 @@
           "description": "Step-by-step guides for our platform",
           "parent_page_id": null,
           "title": "Guides",
-          "created_at": "2026-09-18T15:25:27.305041Z",
-          "updated_at": "2026-09-18T15:25:27.363012Z"
+          "created_at": "2026-11-04T20:16:40.739648Z",
+          "updated_at": "2026-11-04T20:16:40.751146Z"
         },
         "content_type": "application/json"
       }
@@ -1861,170 +1382,10 @@
           "description": "An updated quick-start guide for new users",
           "parent_page_id": "00000000-0000-4000-8000-000000000002",
           "title": "Getting Started (Updated)",
-          "created_at": "2026-09-18T15:25:27.482504Z",
-          "updated_at": "2026-09-18T15:25:32.618463Z"
+          "created_at": "2026-11-04T20:16:41.123827Z",
+          "updated_at": "2026-11-04T20:16:48.705824Z"
         },
         "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/snippets",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "total": 0,
-              "size": 100,
-              "number": 1
-            }
-          },
-          "data": []
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/ip-allow-list",
-        "query": [
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "data": [],
-          "meta": {
-            "next": null,
-            "previous": null,
-            "size": 0
-          }
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/identity-providers",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": [],
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/email-config",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 404,
-        "body": {
-          "status": 404,
-          "title": "Not Found",
-          "instance": "kong:trace:646740185787096740",
-          "detail": "Portal email config not found"
-        },
-        "content_type": "application/problem+json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/audit-log-webhook",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "enabled": false,
-          "audit_log_destination_id": "",
-          "include_principal_name": false
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "data": [],
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 100,
-              "total": 0
-            }
-          }
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/custom-domain",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 404,
-        "body": {
-          "status": 404,
-          "title": "Not Found",
-          "instance": "kong:trace:7004790220871416407",
-          "detail": "custom domain not found"
-        },
-        "content_type": "application/problem+json"
       }
     },
     {
@@ -2071,10 +1432,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "dc20f4bfe5a2.us.kongportals.com",
-              "default_domain": "dc20f4bfe5a2.us.kongportals.com",
-              "created_at": "2026-09-18T15:25:27.055Z",
-              "updated_at": "2026-09-18T15:25:27.055Z",
+              "canonical_domain": "01dba10b9fb0.us.kongportals.com",
+              "default_domain": "01dba10b9fb0.us.kongportals.com",
+              "created_at": "2026-11-04T20:16:40.134Z",
+              "updated_at": "2026-11-04T20:16:40.134Z",
               "labels": {
                 "KONGCTL-namespace": "portal-pages-lifecycle"
               }
@@ -2135,10 +1496,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "dc20f4bfe5a2.us.kongportals.com",
-              "default_domain": "dc20f4bfe5a2.us.kongportals.com",
-              "created_at": "2026-09-18T15:25:27.055Z",
-              "updated_at": "2026-09-18T15:25:27.055Z",
+              "canonical_domain": "01dba10b9fb0.us.kongportals.com",
+              "default_domain": "01dba10b9fb0.us.kongportals.com",
+              "created_at": "2026-11-04T20:16:40.134Z",
+              "updated_at": "2026-11-04T20:16:40.134Z",
               "labels": {
                 "KONGCTL-namespace": "portal-pages-lifecycle"
               }
@@ -2175,8 +1536,8 @@
               "status": "published",
               "description": "Step-by-step guides for our platform",
               "parent_page_id": null,
-              "created_at": "2026-09-18T15:25:27.305041Z",
-              "updated_at": "2026-09-18T15:25:27.363012Z",
+              "created_at": "2026-11-04T20:16:40.739648Z",
+              "updated_at": "2026-11-04T20:16:40.751146Z",
               "children": [
                 {
                   "id": "00000000-0000-4000-8000-000000000003",
@@ -2186,8 +1547,8 @@
                   "status": "unpublished",
                   "description": "An updated quick-start guide for new users",
                   "parent_page_id": "00000000-0000-4000-8000-000000000002",
-                  "created_at": "2026-09-18T15:25:27.482504Z",
-                  "updated_at": "2026-09-18T15:25:32.618463Z",
+                  "created_at": "2026-11-04T20:16:41.123827Z",
+                  "updated_at": "2026-11-04T20:16:48.705824Z",
                   "children": []
                 }
               ]
@@ -2216,8 +1577,8 @@
           "description": "Step-by-step guides for our platform",
           "parent_page_id": null,
           "title": "Guides",
-          "created_at": "2026-09-18T15:25:27.305041Z",
-          "updated_at": "2026-09-18T15:25:27.363012Z"
+          "created_at": "2026-11-04T20:16:40.739648Z",
+          "updated_at": "2026-11-04T20:16:40.751146Z"
         },
         "content_type": "application/json"
       }
@@ -2266,10 +1627,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "dc20f4bfe5a2.us.kongportals.com",
-              "default_domain": "dc20f4bfe5a2.us.kongportals.com",
-              "created_at": "2026-09-18T15:25:27.055Z",
-              "updated_at": "2026-09-18T15:25:27.055Z",
+              "canonical_domain": "01dba10b9fb0.us.kongportals.com",
+              "default_domain": "01dba10b9fb0.us.kongportals.com",
+              "created_at": "2026-11-04T20:16:40.134Z",
+              "updated_at": "2026-11-04T20:16:40.134Z",
               "labels": {
                 "KONGCTL-namespace": "portal-pages-lifecycle"
               }
@@ -2330,10 +1691,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "dc20f4bfe5a2.us.kongportals.com",
-              "default_domain": "dc20f4bfe5a2.us.kongportals.com",
-              "created_at": "2026-09-18T15:25:27.055Z",
-              "updated_at": "2026-09-18T15:25:27.055Z",
+              "canonical_domain": "01dba10b9fb0.us.kongportals.com",
+              "default_domain": "01dba10b9fb0.us.kongportals.com",
+              "created_at": "2026-11-04T20:16:40.134Z",
+              "updated_at": "2026-11-04T20:16:40.134Z",
               "labels": {
                 "KONGCTL-namespace": "portal-pages-lifecycle"
               }
@@ -2369,8 +1730,8 @@
           "description": "An updated quick-start guide for new users",
           "parent_page_id": "00000000-0000-4000-8000-000000000002",
           "title": "Getting Started (Updated)",
-          "created_at": "2026-09-18T15:25:27.482504Z",
-          "updated_at": "2026-09-18T15:25:32.618463Z"
+          "created_at": "2026-11-04T20:16:41.123827Z",
+          "updated_at": "2026-11-04T20:16:48.705824Z"
         },
         "content_type": "application/json"
       }
@@ -2433,10 +1794,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "dc20f4bfe5a2.us.kongportals.com",
-              "default_domain": "dc20f4bfe5a2.us.kongportals.com",
-              "created_at": "2026-09-18T15:25:27.055Z",
-              "updated_at": "2026-09-18T15:25:27.055Z",
+              "canonical_domain": "01dba10b9fb0.us.kongportals.com",
+              "default_domain": "01dba10b9fb0.us.kongportals.com",
+              "created_at": "2026-11-04T20:16:40.134Z",
+              "updated_at": "2026-11-04T20:16:40.134Z",
               "labels": {
                 "KONGCTL-namespace": "portal-pages-lifecycle"
               }
@@ -2473,8 +1834,8 @@
               "status": "published",
               "description": "Step-by-step guides for our platform",
               "parent_page_id": null,
-              "created_at": "2026-09-18T15:25:27.305041Z",
-              "updated_at": "2026-09-18T15:25:27.363012Z",
+              "created_at": "2026-11-04T20:16:40.739648Z",
+              "updated_at": "2026-11-04T20:16:40.751146Z",
               "children": []
             }
           ]
