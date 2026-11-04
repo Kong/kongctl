@@ -170,6 +170,12 @@ func TestAIGatewaySemanticDatastoreDumpRoundTrip(t *testing.T) {
 	_, current, rs := semanticDatastoreModelFixture(t)
 	exported, err := resources.AIGatewayModelResourceFromResponse("gateway", current)
 	require.NoError(t, err)
+	payload, err := exported.MutablePayloadMap()
+	require.NoError(t, err)
+	vector := payload[FieldConfig].(map[string]any)[FieldBalancer].(map[string]any)["vectordb"].(map[string]any)
+	for _, key := range []string{"host", "database", "port", "user", "timeout", FieldSSL} {
+		require.NotContains(t, vector, key, "dump must not pin inherited connection fields")
+	}
 	rs.AIGatewayModels = []resources.AIGatewayModelResource{exported}
 	rs.AIGateways = []resources.AIGatewayResource{{
 		BaseResource: resources.BaseResource{Ref: "gateway"},
@@ -194,6 +200,26 @@ func TestAIGatewaySemanticDatastoreDumpRoundTrip(t *testing.T) {
 			)
 			require.NoError(t, err)
 			require.Falsef(t, update, "dump round-trip drift: %#v", changed)
+
+			// Changing the datastore after a dump must not leave the model
+			// pinned to the old, expanded connection settings.
+			data, err := json.Marshal(current)
+			require.NoError(t, err)
+			var observed map[string]any
+			require.NoError(t, json.Unmarshal(data, &observed))
+			vector := observed[FieldConfig].(map[string]any)[FieldBalancer].(map[string]any)["vectordb"].(map[string]any)
+			vector["host"], vector["database"] = "new.example.com", "new-database"
+			reloaded.AIGatewayDatastores[0].VectorDBDatastore.Config.Host = "new.example.com"
+			reloaded.AIGatewayDatastores[0].VectorDBDatastore.Config.Database = "new-database"
+			data, err = json.Marshal(observed)
+			require.NoError(t, err)
+			var updated kkComps.AIGatewayModel
+			require.NoError(t, json.Unmarshal(data, &updated))
+			update, _, changed, err = (&Planner{resources: reloaded}).shouldUpdateAIGatewayModel(
+				state.AIGatewayModel{AIGatewayModel: updated}, reloaded.AIGatewayModels[0],
+			)
+			require.NoError(t, err)
+			require.Falsef(t, update, "dump pinned old datastore connection settings: %#v", changed)
 		})
 	}
 }
@@ -235,12 +261,12 @@ func TestAIGatewaySemanticDatastoreComparisonScope(t *testing.T) {
 		declared   bool
 		wantDrift  bool
 	}{
-		{name: "undeclared store", wantDrift: true},
-		{name: "different gateway", parent: "other", declared: true, wantDrift: true},
-		{name: "unresolved alias", parent: "other", declared: true, gatewayIDs: []string{"", ""}, wantDrift: true},
+		{name: "undeclared store"},
+		{name: "different gateway", parent: "other", declared: true},
+		{name: "unresolved alias", parent: "other", declared: true, gatewayIDs: []string{"", ""}},
 		{
 			name: "different gateway IDs", parent: "other", declared: true,
-			gatewayIDs: []string{"gateway-id", "different-id"}, wantDrift: true,
+			gatewayIDs: []string{"gateway-id", "different-id"},
 		},
 		{
 			name: "same gateway aliases", parent: "other", declared: true,
@@ -273,6 +299,53 @@ func TestAIGatewaySemanticDatastoreComparisonScope(t *testing.T) {
 	}
 }
 
+func TestAIGatewaySemanticDatastorePasswordDoesNotCauseDrift(t *testing.T) {
+	_, current, rs := semanticDatastoreModelFixture(t)
+	input := strings.Replace(semanticDatastoreModelJSON, `"threshold":0.7`,
+		`"threshold":0.7,"password":"example-write-only-password"`, 1)
+	var model resources.AIGatewayModelResource
+	require.NoError(t, json.Unmarshal([]byte(input), &model))
+	model.Ref, model.AIGateway = "semantic-model", "gateway"
+	update, _, changed, err := (&Planner{resources: rs}).shouldUpdateAIGatewayModel(
+		state.AIGatewayModel{AIGatewayModel: current}, model,
+	)
+	require.NoError(t, err)
+	require.Falsef(t, update, "write-only password caused drift: %#v", changed)
+}
+
+func TestAIGatewayInlinePgvectorDisabledSSLUsesAPIDefault(t *testing.T) {
+	for _, required := range []bool{true, false} {
+		t.Run(map[bool]string{true: "API default", false: "non-default drift"}[required], func(t *testing.T) {
+			_, current, _ := semanticDatastoreModelFixture(t)
+			data, err := json.Marshal(current)
+			require.NoError(t, err)
+			var observed map[string]any
+			require.NoError(t, json.Unmarshal(data, &observed))
+			delete(observed, FieldDatastores)
+			vector := observed[FieldConfig].(map[string]any)[FieldBalancer].(map[string]any)["vectordb"].(map[string]any)
+			vector[FieldSSL].(map[string]any)["required"] = required
+			data, err = json.Marshal(observed)
+			require.NoError(t, err)
+			require.NoError(t, json.Unmarshal(data, &current))
+			var desired map[string]any
+			require.NoError(t, json.Unmarshal([]byte(semanticDatastoreModelJSON), &desired))
+			delete(desired, FieldDatastores)
+			desiredVector := desired[FieldConfig].(map[string]any)[FieldBalancer].(map[string]any)["vectordb"].(map[string]any)
+			desiredVector["host"], desiredVector["database"] = "database.example.com", "smoke"
+			desiredVector[FieldSSL] = map[string]any{"enabled": false}
+			data, err = json.Marshal(desired)
+			require.NoError(t, err)
+			var model resources.AIGatewayModelResource
+			require.NoError(t, json.Unmarshal(data, &model))
+			update, _, changed, err := (&Planner{}).shouldUpdateAIGatewayModel(
+				state.AIGatewayModel{AIGatewayModel: current}, model,
+			)
+			require.NoError(t, err)
+			require.Equal(t, !required, update, "changed fields: %#v", changed)
+		})
+	}
+}
+
 func TestAIGatewayInlinePgvectorDefaults(t *testing.T) {
 	for _, customHost := range []bool{false, true} {
 		t.Run(map[bool]string{false: "defaults converge", true: "custom host drifts"}[customHost], func(t *testing.T) {
@@ -294,6 +367,13 @@ func TestAIGatewayInlinePgvectorDefaults(t *testing.T) {
 			require.NoError(t, err)
 			var current kkComps.AIGatewayModel
 			require.NoError(t, json.Unmarshal(data, &current))
+			exported, err := resources.AIGatewayModelResourceFromResponse("gateway", current)
+			require.NoError(t, err)
+			exportedPayload, err := exported.MutablePayloadMap()
+			require.NoError(t, err)
+			exportedConfig := exportedPayload[FieldConfig].(map[string]any)
+			exportedVector := exportedConfig[FieldBalancer].(map[string]any)["vectordb"].(map[string]any)
+			require.Equal(t, vector["host"], exportedVector["host"], "inline connections must remain in dumps")
 			data, err = json.Marshal(payload)
 			require.NoError(t, err)
 			var model resources.AIGatewayModelResource

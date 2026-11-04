@@ -1,6 +1,7 @@
 package planner
 
 import (
+	"maps"
 	"reflect"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -8,12 +9,10 @@ import (
 
 func normalizeAIGatewayModelVectorDBForComparison(
 	current, desired map[string]any,
-	rs *resources.ResourceSet,
-	gatewayRef string,
 ) {
 	vectorConfig := func(payload map[string]any) map[string]any {
 		config, _ := payload[FieldConfig].(map[string]any)
-		balancer, _ := config["balancer"].(map[string]any)
+		balancer, _ := config[FieldBalancer].(map[string]any)
 		vector, _ := balancer["vectordb"].(map[string]any)
 		return vector
 	}
@@ -21,27 +20,29 @@ func normalizeAIGatewayModelVectorDBForComparison(
 	if currentVector[FieldType] != "pgvector" || desiredVector[FieldType] != "pgvector" {
 		return
 	}
-	if aiGatewayModelUsesDeclaredVectorDatastore(desired, rs, gatewayRef) {
+	if aiGatewayModelSharesDatastore(current, desired) {
 		// A datastore supplies connection fields omitted by the model. Project
 		// only those fields; search settings and explicit overrides remain owned.
-		for _, key := range []string{"host", "database", "port", "user", "password", "timeout", "ssl"} {
-			if value, explicit := desiredVector[key]; explicit {
-				if key == "ssl" {
-					currentVector[key] = projectAIGatewayPolicyConfigValue(currentVector[key], value)
+		observedVector := maps.Clone(currentVector)
+		resources.OmitAIGatewayModelDatastoreConnections(current)
+		for key, value := range desiredVector {
+			if observed, exists := observedVector[key]; exists {
+				currentVector[key] = observed
+				if key == FieldSSL {
+					currentVector[key] = projectAIGatewayPolicyConfigValue(observed, value)
 				}
-			} else {
-				delete(currentVector, key)
 			}
 		}
 	} else {
-		// The SDK preserves omission, while the API still supplies inline
-		// pgvector defaults. Keep non-default observed values as real drift.
+		// Reviewed API defaults from AIGatewayModelVectorDBConfigPgVector.
+		// The SDK patch preserves request omission; it does not change the API
+		// defaults. Keep non-default observed values as real drift.
 		pruneAIGatewayPgvectorDefaults(currentVector, desiredVector, map[string]any{
 			"host": "127.0.0.1", "database": "kong-pgvector", "port": float64(5432),
 			"user": "postgres", "timeout": float64(5000),
 		})
-		currentSSL, _ := currentVector["ssl"].(map[string]any)
-		desiredSSL, _ := desiredVector["ssl"].(map[string]any)
+		currentSSL, _ := currentVector[FieldSSL].(map[string]any)
+		desiredSSL, _ := desiredVector[FieldSSL].(map[string]any)
 		pruneAIGatewayPgvectorDefaults(currentSSL, desiredSSL, map[string]any{
 			"enabled": true, "required": true, "verify": true, "version": "tlsv1_2",
 		})
@@ -57,23 +58,22 @@ func pruneAIGatewayPgvectorDefaults(current, desired, defaults map[string]any) {
 	}
 }
 
-func aiGatewayModelUsesDeclaredVectorDatastore(
-	payload map[string]any,
-	rs *resources.ResourceSet,
-	gatewayRef string,
-) bool {
-	if rs == nil {
-		return false
-	}
-	ids := aiGateway23GatewayIDs(rs)
-	stores, _ := payload[FieldDatastores].([]any)
-	for _, raw := range stores {
+func aiGatewayModelSharesDatastore(current, desired map[string]any) bool {
+	currentStores, _ := current[FieldDatastores].([]any)
+	desiredStores, _ := desired[FieldDatastores].([]any)
+	currentNames := make(map[string]bool, len(currentStores))
+	for _, raw := range currentStores {
 		store, _ := raw.(map[string]any)
-		for _, declared := range rs.AIGatewayDatastores {
-			if declared.DatastoreType() == "vectordb" && store[FieldName] == declared.Name() &&
-				aiGateway23SameGateway(ids, declared.AIGateway, gatewayRef) {
-				return true
-			}
+		name, _ := store[FieldName].(string)
+		if name != "" {
+			currentNames[name] = true
+		}
+	}
+	for _, raw := range desiredStores {
+		store, _ := raw.(map[string]any)
+		name, _ := store[FieldName].(string)
+		if currentNames[name] {
+			return true
 		}
 	}
 	return false

@@ -200,9 +200,12 @@ func (p *Planner) shouldUpdateAIGatewayModel(
 		return false, nil, nil, fmt.Errorf("failed to normalize desired AI Gateway model %q: %w", desired.Ref, err)
 	}
 
-	currentCompare, desiredCompare := normalizeAIGatewayPayloadsForComparison(currentPayload, desiredPayload)
+	currentCompare, desiredCompare := comparableAIGatewayWriteOnlyPayloads(
+		currentPayload, desiredPayload, normalizeAIGatewayPayloadsForComparison,
+		func(key string) bool { return key == "password" },
+	)
 	normalizeAIGateway23References(desiredCompare, p.resources, desired.AIGateway)
-	normalizeAIGatewayModelVectorDBForComparison(currentCompare, desiredCompare, p.resources, desired.AIGateway)
+	normalizeAIGatewayModelVectorDBForComparison(currentCompare, desiredCompare)
 	currentCompare, desiredCompare = normalizeAIGatewayModelSelectorForComparison(currentCompare, desiredCompare)
 	currentCompare, desiredCompare = normalizeAIGatewayPolicyReferencesForComparison(
 		currentCompare,
