@@ -100,6 +100,16 @@ test_quick_uses_explain_and_scaffold() {
     "generated OpenAPI version matches the scaffolded API version"
   assert_contains "$RUN_DIR/fixtures/control_plane/initial.yaml" "CLUSTER_TYPE_CONTROL_PLANE" \
     "control-plane fixture is enriched"
+  local key namespace_var
+  for key in api portal control_plane ai_gateway event_gateway; do
+    namespace_var="KONGCTL_SMOKE_NAMESPACE_${key^^}"
+    assert_contains "$RUN_DIR/fixtures/$key/initial.yaml" "    namespace: !env $namespace_var" \
+      "$key create fixture inherits an environment namespace"
+    assert_contains "$RUN_DIR/fixtures/$key/updated.yaml" "      namespace: !env {var: $namespace_var}" \
+      "$key update fixture has an explicit environment namespace"
+    assert_not_contains "$RUN_DIR/fixtures/$key/updated.yaml" "_defaults:" \
+      "$key update namespace cannot fall back to a file default"
+  done
   assert_not_contains "$FAKE_LOG" "apply --plan" "quick does not apply"
   assert_not_contains "$FAKE_LOG" "delete " "quick does not delete"
   assert_json "$RUN_DIR/report.json" "value['status'] == 'passed' and value['mode'] == 'quick'" \
@@ -109,7 +119,7 @@ test_quick_uses_explain_and_scaffold() {
 
 test_full_lifecycle() {
   new_case full
-  run_smoke --yes
+  KONGCTL_SMOKE_NAMESPACE_API=unrelated-operator-namespace run_smoke --yes
   [[ "$STATUS" -eq 0 ]] || fail "full smoke succeeds" "$OUTPUT"
   assert_json "$FAKE_STATE" "value == {}" "full run cleans every resource"
   assert_contains "$FAKE_LOG" "delete --plan" "full run executes delete plans"
@@ -120,6 +130,21 @@ test_full_lifecycle() {
   report_condition+="and len(value['resources']) == 5 and value['known_issues'] == [] "
   report_condition+="and value['known_issue_checks'] == []"
   assert_json "$RUN_DIR/report.json" "$report_condition" "full report records lifecycle and cleanup"
+  python3 - "$RUN_DIR" <<'PYTEST'
+import json
+import pathlib
+import sys
+
+directory = pathlib.Path(sys.argv[1])
+report = json.loads((directory / "report.json").read_text())
+for resource in report["resources"]:
+    key, namespace = resource["key"], resource["namespace"]
+    for stage in ("create", "updated-apply", "updated-sync", "delete"):
+        suffix = "" if stage in ("create", "delete") else "-zero"
+        plan = json.loads((directory / "plans" / f"{key}-{stage}{suffix}.json").read_text())
+        assert plan["_desired"]["_namespace"] == namespace, (key, stage)
+        assert all(change["namespace"] == namespace for change in plan["changes"])
+PYTEST
   pass "full lifecycle covers resources and per-resource delete"
 }
 

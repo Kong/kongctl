@@ -54,12 +54,23 @@ def parse_fixture(path):
             return raw.strip('"')
     ref_match = re.search(r"^  - ref: (.+)$", text, re.MULTILINE)
     ref = json.loads(ref_match.group(1))
+    namespace_match = re.search(r'^\s+namespace: (.+)$', text, re.MULTILINE)
+    namespace = namespace_match.group(1)
+    if namespace.startswith("!env "):
+        source = namespace.removeprefix("!env ")
+        if source.startswith("{var: "):
+            source = source.removeprefix("{var: ").removesuffix("}")
+        namespace = os.environ[source]
+    else:
+        namespace = json.loads(namespace)
+    if option("--require-namespace", namespace) != namespace:
+        raise SystemExit("fixture namespace does not match --require-namespace")
     item = {
         "ref": ref, "name": scalar("name") or ref,
         "display_name": scalar("display_name"), "description": scalar("description"),
         "root": root, "labels": {"smoke-phase": re.search(r'smoke-phase: "([^"]+)"', text).group(1)},
         "_fixture": text,
-        "_namespace": re.search(r'namespace: "([^"]+)"', text).group(1),
+        "_namespace": namespace,
     }
     for field in ("snippets", "backend_clusters", "virtual_clusters",
                   "model_providers", "models", "policies", "mcp_servers", "datastores"):

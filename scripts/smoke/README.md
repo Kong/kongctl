@@ -26,6 +26,13 @@ exercises:
 - API versions and documents, a Portal snippet, an AI provider/model/attached
   policy, and an Event Gateway backend/virtual cluster.
 - Apply- and sync-mode no-change plans after updates and from exported files.
+- Namespace `!env` resolution: create fixtures inherit a scalar-tagged
+  `_defaults.kongctl.namespace`; update fixtures use a mapping-tagged
+  resource-level `kongctl.namespace` without a file default. Both resolve to
+  the same isolated namespace, checked by `--require-namespace` and plan
+  assertions throughout the lifecycle. Saved create and delete plans execute
+  with a different environment value to verify namespace ownership stays fixed
+  at planning time.
 - Provider replacement and attached-policy renaming, including execution-order
   and concurrency-group assertions before applying the saved sync plan.
 - Exact child readbacks and name matching with a UUID-shaped model ref.
@@ -51,6 +58,13 @@ Quick mode generates the same 2.3 fixtures; full mode verifies their lifecycle
 and remote values. These are control-plane checks; no inference calls, live
 vector database, or running Kafka brokers are required. Token Vault enrollment
 and outbound TLS are outside this suite's current coverage.
+
+Namespace coverage requires a binary supporting `!env` on both namespace
+locations. The runner exports `KONGCTL_SMOKE_NAMESPACE_<RESOURCE>` (uppercase,
+such as `KONGCTL_SMOKE_NAMESPACE_AI_GATEWAY`) with each generated namespace,
+overriding any inherited value for selected resources. To reuse an artifact
+fixture manually, set its variable to the namespace recorded in `report.json`.
+Quick mode generates these fixtures; full mode checks namespace resolution.
 
 Plans are checked for unexpected actions and changes outside the run's
 namespace. Create plans must contain exactly the expected root and child

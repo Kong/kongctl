@@ -231,6 +231,15 @@ run_kongctl() {
   current_duration=$(($(date +%s) - current_started))
 }
 
+run_saved_plan_with_changed_namespace() {
+  local namespace_var="KONGCTL_SMOKE_NAMESPACE_${resource_key^^}"
+  local "$namespace_var"
+  printf -v "$namespace_var" '%s' "kctl-smoke-${run_suffix}-changed"
+  export "${namespace_var?}"
+  run_kongctl "$@"
+  current_command="$(shell_join env "$namespace_var=${!namespace_var}") $current_command"
+}
+
 record_current() {
   local status="$1"
   local message="${2:-}"
@@ -461,10 +470,14 @@ rendered.extend([
     f"      smoke-run: {quoted(run_id)}",
     '      smoke-phase: "initial"',
 ])
-header = ["_defaults:", "  kongctl:", f"    namespace: {quoted(namespace)}"]
+namespace_var = f"KONGCTL_SMOKE_NAMESPACE_{resource_type.upper()}"
+header = ["_defaults:", "  kongctl:", f"    namespace: !env {namespace_var}"]
 initial = "\n".join(header + rendered) + "\n"
 updated = initial.replace(quoted(description), quoted(description + " updated"), 1)
 updated = updated.replace('smoke-phase: "initial"', 'smoke-phase: "updated"', 1)
+# Updates exercise explicit metadata without a file default masking resolution.
+updated = "\n".join(updated.splitlines()[len(header):]) + "\n"
+updated += f"    kongctl:\n      namespace: !env {{var: {namespace_var}}}\n"
 pathlib.Path(initial_path).parent.mkdir(parents=True, exist_ok=True)
 pathlib.Path(initial_path).write_text(initial, encoding="utf-8")
 pathlib.Path(updated_path).write_text(updated, encoding="utf-8")
@@ -642,6 +655,9 @@ prepare_resource() {
   local description="$7"
   shift 7
   local namespace="kctl-smoke-${run_suffix}-${key//_/-}"
+  local namespace_var="KONGCTL_SMOKE_NAMESPACE_${key^^}"
+  printf -v "$namespace_var" '%s' "$namespace"
+  export "${namespace_var?}"
   local ref="$name"
   local raw_file="$scaffold_dir/${key}.raw.yaml"
   local schema_file="$explain_dir/${key}.json"
@@ -902,7 +918,7 @@ smoke_resource() {
 
   touched_resources+=("$key")
   start_check "apply-create-${key}" "$key" "create"
-  run_kongctl apply --plan "$create_plan" --auto-approve -o json
+  run_saved_plan_with_changed_namespace apply --plan "$create_plan" --auto-approve -o json
   require_success
   assert_execution 1
   pass_current
@@ -1137,7 +1153,7 @@ cleanup_resource() {
   pass_current
 
   start_check "delete-${key}" "$key" "cleanup"
-  run_kongctl delete --plan "$delete_plan" --auto-approve -o json
+  run_saved_plan_with_changed_namespace delete --plan "$delete_plan" --auto-approve -o json
   require_success
   assert_execution 1
   pass_current
