@@ -22,6 +22,13 @@ Portal and organization team patches preserve omitted membership management.
 A PATCH changing a team's name must not reset `konnect_managed` to `false`.
 Explicit `false` and `true` remain supported.
 
+AI Gateway pgvector model patches preserve omitted connection settings,
+including SSL fields. A referenced datastore supplies these settings; inline
+SDK defaults must not turn omitted fields into explicit model overrides.
+Explicit values, including values equal to API defaults, remain supported.
+The planner separately accounts for datastore-expanded response fields and
+inline API defaults.
+
 The internal-only `CreatePortal.create_default_content` field also stays
 omitted when unset. Its tag replacement skips public SDKs where the field is
 absent, but fails on unexpected tags or types when the field is present.
