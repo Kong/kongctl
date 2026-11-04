@@ -429,15 +429,48 @@ jobs:
       - name: Validate source before building
         if: env.RELEASE_BUILD_MODE == 'full' || env.RELEASE_BUILD_MODE == 'smoke'
         run: python3 -c 'import runpy; runpy.run_path("scripts/release-handoff.py")["source"]()'
-      - name: Configure private module reads
+      - name: Detect private SDK dependency
+        id: sdk-auth
         if: env.RELEASE_BUILD_MODE == 'full' || env.RELEASE_BUILD_MODE == 'smoke'
+        shell: bash
+        run: |
+          if grep -q 'sdk-konnect-go-internal' go.mod; then
+            echo "required=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create private SDK read token
+        id: sdk-token
+        if: steps.sdk-auth.outputs.required == 'true'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.API_OPS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.API_OPS_APP_SECRET }}
+          owner: Kong
+          repositories: sdk-konnect-go-internal
+          permission-contents: read
+
+      - name: Configure private module reads
+        if: steps.sdk-auth.outputs.required == 'true'
+        shell: bash
         env:
-          GH_PRIVATE_READ_TOKEN: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
+          SDK_TOKEN: ${{ steps.sdk-token.outputs.token }}
         run: |
           set -euo pipefail
-          if [[ -n "${GH_PRIVATE_READ_TOKEN:-}" ]]; then
-            git config --global url."https://${GH_PRIVATE_READ_TOKEN}@github.com/".insteadOf https://github.com/
-          fi
+          : "${SDK_TOKEN:?SDK App token is required for sdk-konnect-go-internal}"
+          auth="$(printf 'x-access-token:%s' "$SDK_TOKEN" | base64 | tr -d '\n')"
+          echo "::add-mask::$auth"
+          for sdk_url in \
+            https://github.com/Kong/sdk-konnect-go-internal \
+            https://github.com/Kong/sdk-konnect-go-internal.git; do
+            git config --global "http.$sdk_url.extraheader" "AUTHORIZATION: basic $auth"
+          done
+          private_modules="${GOPRIVATE:-$(GOTOOLCHAIN=local go env GOPRIVATE)}"
+          case ",$private_modules," in
+            *,github.com/Kong/sdk-konnect-go-internal,*) ;;
+            *) private_modules="${private_modules:+$private_modules,}github.com/Kong/sdk-konnect-go-internal" ;;
+          esac
+          echo "GOPRIVATE=$private_modules" >> "$GITHUB_ENV"
+
       - name: Setup Go
         if: env.RELEASE_BUILD_MODE == 'full' || env.RELEASE_BUILD_MODE == 'smoke'
         uses: actions/setup-go@v6
@@ -808,10 +841,21 @@ jobs:
           kongctl version --full
           brew uninstall --cask kong/kongctl/kongctl
           cp "$tap_dir/Casks/kongctl.rb" dist/homebrew/Casks/kongctl.rb
+      - name: Create Homebrew publication token
+        id: tap-token
+        if: needs.config.outputs.build_mode == 'full' || needs.config.outputs.build_mode == 'draft-recovery'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.KONGCTL_RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.KONGCTL_RELEASE_APP_PRIVATE_KEY }}
+          owner: Kong
+          repositories: homebrew-kongctl
+          permission-contents: write
+
       - name: Preserve independent direct-main cask publication
         if: needs.config.outputs.build_mode == 'full' || needs.config.outputs.build_mode == 'draft-recovery'
         env:
-          GH_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.tap-token.outputs.token }}
           RELEASE_VERSION: ${{ needs.config.outputs.release_version }}
         run: bash scripts/homebrew/publish-tap.sh cask dist/homebrew/Casks/kongctl.rb "$RELEASE_VERSION"
 
@@ -959,10 +1003,25 @@ jobs:
         with:
           name: upstream-formula-${{ needs.config.outputs.release_tag }}
           path: dist/formula
+      - name: Create Homebrew publication token
+        id: tap-token
+        if: needs.config.outputs.build_mode == 'full' || needs.config.outputs.build_mode == 'draft-recovery'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.KONGCTL_RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.KONGCTL_RELEASE_APP_PRIVATE_KEY }}
+          owner: Kong
+          repositories: homebrew-kongctl
+          permission-contents: write
+          permission-pull-requests: write
+          permission-actions: write
+          permission-checks: read
+          permission-statuses: read
+
       - name: Publish formula metadata through the tap's guarded PR merger
         if: needs.config.outputs.build_mode == 'full' || needs.config.outputs.build_mode == 'draft-recovery'
         env:
-          GH_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.tap-token.outputs.token }}
           RELEASE_VERSION: ${{ needs.config.outputs.release_version }}
         run: bash scripts/homebrew/publish-tap.sh formula dist/formula/kongctl.rb "$RELEASE_VERSION"
 

@@ -1,5 +1,5 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"8f9c5cd82bbd46572612b0c1da78bac5b02f681fd7dba39906e1a94a7d7bed1e","body_hash":"c0578c3ae0b22094e7b7f924eb94445b80120ef5bd4991df69173c4de3b9c95d","compiler_version":"v0.86.2","strict":true,"agent_id":"claude","agent_model":"claude-opus-4-6","engine_versions":{"claude":"2.1.227"}}
-# gh-aw-manifest: {"version":1,"secrets":["ANTHROPIC_API_KEY","APPLE_NOTARY_API_ISSUER_ID","APPLE_NOTARY_API_KEY_ID","APPLE_NOTARY_API_PRIVATE_KEY","APPLE_SIGNING_CERTIFICATE_P12_BASE64","APPLE_SIGNING_CERTIFICATE_PASSWORD","COPILOT_GITHUB_TOKEN","DOCKER_TOKEN","DOCKER_USERNAME","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_TOKEN_PRIVATE_READ","GITHUB_TOKEN","TAP_GITHUB_TOKEN"],"actions":[{"repo":"Homebrew/actions/setup-homebrew","sha":"3cdb78d0f62ad29dd32de765782654f4eedea607","version":"3cdb78d0f62ad29dd32de765782654f4eedea607"},{"repo":"actions/attest","sha":"1e69f48acb82d1966a394da916b4c1698aa569d6","version":"1e69f48acb82d1966a394da916b4c1698aa569d6"},{"repo":"actions/cache/restore","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/save","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/checkout","sha":"d23441a48e516b6c34aea4fa41551a30e30af803","version":"v6"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/github-script","sha":"ed597411d8f924073f98dfc5c65a23a2325f34cd","version":"v8"},{"repo":"actions/setup-go","sha":"924ae3a1cded613372ab5595356fb5720e22ba16","version":"v6"},{"repo":"actions/setup-node","sha":"820762786026740c76f36085b0efc47a31fe5020","version":"v7.0.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"docker/login-action","sha":"c94ce9fb468520275223c153574b00df6fe4bcc9","version":"c94ce9fb468520275223c153574b00df6fe4bcc9"},{"repo":"docker/setup-buildx-action","sha":"8d2750c68a42422c14e847fe6c8ac0403b4cbd6f","version":"8d2750c68a42422c14e847fe6c8ac0403b4cbd6f"},{"repo":"docker/setup-qemu-action","sha":"c7c53464625b32c7a7e944ae62b3e17d2b600130","version":"c7c53464625b32c7a7e944ae62b3e17d2b600130"},{"repo":"github/gh-aw-actions/setup","sha":"6aab9e5b5c91c615506061f09bedd81a23babe3c","version":"v0.86.2"},{"repo":"goreleaser/goreleaser-action","sha":"e435ccd777264be153ace6237001ef4d979d3a7a","version":"e435ccd777264be153ace6237001ef4d979d3a7a"},{"repo":"step-security/harden-runner","sha":"6c3c2f2c1c457b00c10c4848d6f5491db3b629df","version":"6c3c2f2c1c457b00c10c4848d6f5491db3b629df"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.27.44","digest":"sha256:0d727725c737b58c7bdf51f640cffb928385ec46517e0917c7f1a02f1bada8b4","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.27.44@sha256:0d727725c737b58c7bdf51f640cffb928385ec46517e0917c7f1a02f1bada8b4"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.44","digest":"sha256:b50fbadba138f6e9aba94aca09711335c489bb3b15861220cb66f6092e042dc7","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.44@sha256:b50fbadba138f6e9aba94aca09711335c489bb3b15861220cb66f6092e042dc7"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.27.44","digest":"sha256:83e48bbe12c634be8c228a576832fe45f66c529ac3659db92bddbcf2eeb6d627","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.27.44@sha256:83e48bbe12c634be8c228a576832fe45f66c529ac3659db92bddbcf2eeb6d627"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.9","digest":"sha256:e5a1569aeaf41820fa7bdee3e94468cae448133cdbf00119ad24f5b74db1ab9f","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.9@sha256:e5a1569aeaf41820fa7bdee3e94468cae448133cdbf00119ad24f5b74db1ab9f"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:bac2192f6374d6262116399b34fc5e143d576f82719e90a18261cae7480f4d4e","pinned_image":"ghcr.io/github/gh-aw-node@sha256:bac2192f6374d6262116399b34fc5e143d576f82719e90a18261cae7480f4d4e"},{"image":"ghcr.io/github/github-mcp-server:v1.9.0","digest":"sha256:881b53d6f75f69bdbc1b5b10fc2f1361717c19054143b3a8529fb5c32061a50e","pinned_image":"ghcr.io/github/github-mcp-server:v1.9.0@sha256:881b53d6f75f69bdbc1b5b10fc2f1361717c19054143b3a8529fb5c32061a50e"}]}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"f4be93134422b905feea1b813653f707a5fab07c5c7cf879259600497e4bb650","body_hash":"c0578c3ae0b22094e7b7f924eb94445b80120ef5bd4991df69173c4de3b9c95d","compiler_version":"v0.86.2","strict":true,"agent_id":"claude","agent_model":"claude-opus-4-6","engine_versions":{"claude":"2.1.227"}}
+# gh-aw-manifest: {"version":1,"secrets":["ANTHROPIC_API_KEY","API_OPS_APP_SECRET","APPLE_NOTARY_API_ISSUER_ID","APPLE_NOTARY_API_KEY_ID","APPLE_NOTARY_API_PRIVATE_KEY","APPLE_SIGNING_CERTIFICATE_P12_BASE64","APPLE_SIGNING_CERTIFICATE_PASSWORD","COPILOT_GITHUB_TOKEN","DOCKER_TOKEN","DOCKER_USERNAME","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN","KONGCTL_RELEASE_APP_PRIVATE_KEY"],"actions":[{"repo":"Homebrew/actions/setup-homebrew","sha":"3cdb78d0f62ad29dd32de765782654f4eedea607","version":"3cdb78d0f62ad29dd32de765782654f4eedea607"},{"repo":"actions/attest","sha":"1e69f48acb82d1966a394da916b4c1698aa569d6","version":"1e69f48acb82d1966a394da916b4c1698aa569d6"},{"repo":"actions/cache/restore","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/save","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/checkout","sha":"d23441a48e516b6c34aea4fa41551a30e30af803","version":"v6"},{"repo":"actions/create-github-app-token","sha":"64ab729a6294000f5aa4a4bc0b73d1f32bc45510","version":"64ab729a6294000f5aa4a4bc0b73d1f32bc45510"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/github-script","sha":"ed597411d8f924073f98dfc5c65a23a2325f34cd","version":"v8"},{"repo":"actions/setup-go","sha":"924ae3a1cded613372ab5595356fb5720e22ba16","version":"v6"},{"repo":"actions/setup-node","sha":"820762786026740c76f36085b0efc47a31fe5020","version":"v7.0.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"docker/login-action","sha":"c94ce9fb468520275223c153574b00df6fe4bcc9","version":"c94ce9fb468520275223c153574b00df6fe4bcc9"},{"repo":"docker/setup-buildx-action","sha":"8d2750c68a42422c14e847fe6c8ac0403b4cbd6f","version":"8d2750c68a42422c14e847fe6c8ac0403b4cbd6f"},{"repo":"docker/setup-qemu-action","sha":"c7c53464625b32c7a7e944ae62b3e17d2b600130","version":"c7c53464625b32c7a7e944ae62b3e17d2b600130"},{"repo":"github/gh-aw-actions/setup","sha":"6aab9e5b5c91c615506061f09bedd81a23babe3c","version":"v0.86.2"},{"repo":"goreleaser/goreleaser-action","sha":"e435ccd777264be153ace6237001ef4d979d3a7a","version":"e435ccd777264be153ace6237001ef4d979d3a7a"},{"repo":"step-security/harden-runner","sha":"6c3c2f2c1c457b00c10c4848d6f5491db3b629df","version":"6c3c2f2c1c457b00c10c4848d6f5491db3b629df"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.27.44","digest":"sha256:0d727725c737b58c7bdf51f640cffb928385ec46517e0917c7f1a02f1bada8b4","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.27.44@sha256:0d727725c737b58c7bdf51f640cffb928385ec46517e0917c7f1a02f1bada8b4"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.44","digest":"sha256:b50fbadba138f6e9aba94aca09711335c489bb3b15861220cb66f6092e042dc7","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.44@sha256:b50fbadba138f6e9aba94aca09711335c489bb3b15861220cb66f6092e042dc7"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.27.44","digest":"sha256:83e48bbe12c634be8c228a576832fe45f66c529ac3659db92bddbcf2eeb6d627","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.27.44@sha256:83e48bbe12c634be8c228a576832fe45f66c529ac3659db92bddbcf2eeb6d627"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.9","digest":"sha256:e5a1569aeaf41820fa7bdee3e94468cae448133cdbf00119ad24f5b74db1ab9f","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.9@sha256:e5a1569aeaf41820fa7bdee3e94468cae448133cdbf00119ad24f5b74db1ab9f"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:bac2192f6374d6262116399b34fc5e143d576f82719e90a18261cae7480f4d4e","pinned_image":"ghcr.io/github/gh-aw-node@sha256:bac2192f6374d6262116399b34fc5e143d576f82719e90a18261cae7480f4d4e"},{"image":"ghcr.io/github/github-mcp-server:v1.9.0","digest":"sha256:881b53d6f75f69bdbc1b5b10fc2f1361717c19054143b3a8529fb5c32061a50e","pinned_image":"ghcr.io/github/github-mcp-server:v1.9.0@sha256:881b53d6f75f69bdbc1b5b10fc2f1361717c19054143b3a8529fb5c32061a50e"}]}
 # This file was automatically generated by gh-aw (v0.86.2). DO NOT EDIT. To debug this workflow, load the skill at https://github.com/github/gh-aw/blob/main/debug.md
 #
 #    ___                   _   _
@@ -27,6 +27,7 @@
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY
+#   - API_OPS_APP_SECRET
 #   - APPLE_NOTARY_API_ISSUER_ID
 #   - APPLE_NOTARY_API_KEY_ID
 #   - APPLE_NOTARY_API_PRIVATE_KEY
@@ -37,9 +38,8 @@
 #   - DOCKER_USERNAME
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN
 #   - GH_AW_GITHUB_TOKEN
-#   - GH_TOKEN_PRIVATE_READ
 #   - GITHUB_TOKEN
-#   - TAP_GITHUB_TOKEN
+#   - KONGCTL_RELEASE_APP_PRIVATE_KEY
 #
 # Custom actions used:
 #   - Homebrew/actions/setup-homebrew@3cdb78d0f62ad29dd32de765782654f4eedea607 # 3cdb78d0f62ad29dd32de765782654f4eedea607
@@ -48,6 +48,7 @@
 #   - actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
 #   - actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 #   - actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+#   - actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # 64ab729a6294000f5aa4a4bc0b73d1f32bc45510
 #   - actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
 #   - actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
 #   - actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0 (source v9)
@@ -1138,15 +1139,45 @@ jobs:
       - name: Validate source before building
         if: env.RELEASE_BUILD_MODE == 'full' || env.RELEASE_BUILD_MODE == 'smoke'
         run: python3 -c 'import runpy; runpy.run_path("scripts/release-handoff.py")["source"]()'
-      - name: Configure private module reads
+      - name: Detect private SDK dependency
+        id: sdk-auth
         if: env.RELEASE_BUILD_MODE == 'full' || env.RELEASE_BUILD_MODE == 'smoke'
         run: |
-          set -euo pipefail
-          if [[ -n "${GH_PRIVATE_READ_TOKEN:-}" ]]; then
-            git config --global url."https://${GH_PRIVATE_READ_TOKEN}@github.com/".insteadOf https://github.com/
+          if grep -q 'sdk-konnect-go-internal' go.mod; then
+            echo "required=true" >> "$GITHUB_OUTPUT"
           fi
+        shell: bash
+      - name: Create private SDK read token
+        id: sdk-token
+        if: steps.sdk-auth.outputs.required == 'true'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # 64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+        with:
+          client-id: ${{ vars.API_OPS_APP_CLIENT_ID }}
+          owner: Kong
+          permission-contents: read
+          private-key: ${{ secrets.API_OPS_APP_SECRET }}
+          repositories: sdk-konnect-go-internal
+      - name: Configure private module reads
+        if: steps.sdk-auth.outputs.required == 'true'
+        run: |
+          set -euo pipefail
+          : "${SDK_TOKEN:?SDK App token is required for sdk-konnect-go-internal}"
+          auth="$(printf 'x-access-token:%s' "$SDK_TOKEN" | base64 | tr -d '\n')"
+          echo "::add-mask::$auth"
+          for sdk_url in \
+            https://github.com/Kong/sdk-konnect-go-internal \
+            https://github.com/Kong/sdk-konnect-go-internal.git; do
+            git config --global "http.$sdk_url.extraheader" "AUTHORIZATION: basic $auth"
+          done
+          private_modules="${GOPRIVATE:-$(GOTOOLCHAIN=local go env GOPRIVATE)}"
+          case ",$private_modules," in
+            *,github.com/Kong/sdk-konnect-go-internal,*) ;;
+            *) private_modules="${private_modules:+$private_modules,}github.com/Kong/sdk-konnect-go-internal" ;;
+          esac
+          echo "GOPRIVATE=$private_modules" >> "$GITHUB_ENV"
         env:
-          GH_PRIVATE_READ_TOKEN: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
+          SDK_TOKEN: ${{ steps.sdk-token.outputs.token }}
+        shell: bash
       - name: Setup Go
         if: env.RELEASE_BUILD_MODE == 'full' || env.RELEASE_BUILD_MODE == 'smoke'
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
@@ -2309,11 +2340,21 @@ jobs:
           kongctl version --full
           brew uninstall --cask kong/kongctl/kongctl
           cp "$tap_dir/Casks/kongctl.rb" dist/homebrew/Casks/kongctl.rb
+      - name: Create Homebrew publication token
+        id: tap-token
+        if: needs.config.outputs.build_mode == 'full' || needs.config.outputs.build_mode == 'draft-recovery'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # 64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+        with:
+          client-id: ${{ vars.KONGCTL_RELEASE_APP_CLIENT_ID }}
+          owner: Kong
+          permission-contents: write
+          private-key: ${{ secrets.KONGCTL_RELEASE_APP_PRIVATE_KEY }}
+          repositories: homebrew-kongctl
       - name: Preserve independent direct-main cask publication
         if: needs.config.outputs.build_mode == 'full' || needs.config.outputs.build_mode == 'draft-recovery'
         run: bash scripts/homebrew/publish-tap.sh cask dist/homebrew/Casks/kongctl.rb "$RELEASE_VERSION"
         env:
-          GH_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.tap-token.outputs.token }}
           RELEASE_VERSION: ${{ needs.config.outputs.release_version }}
 
   publish_homebrew:
@@ -2343,11 +2384,25 @@ jobs:
         with:
           name: upstream-formula-${{ needs.config.outputs.release_tag }}
           path: dist/formula
+      - name: Create Homebrew publication token
+        id: tap-token
+        if: needs.config.outputs.build_mode == 'full' || needs.config.outputs.build_mode == 'draft-recovery'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # 64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+        with:
+          client-id: ${{ vars.KONGCTL_RELEASE_APP_CLIENT_ID }}
+          owner: Kong
+          permission-actions: write
+          permission-checks: read
+          permission-contents: write
+          permission-pull-requests: write
+          permission-statuses: read
+          private-key: ${{ secrets.KONGCTL_RELEASE_APP_PRIVATE_KEY }}
+          repositories: homebrew-kongctl
       - name: Publish formula metadata through the tap's guarded PR merger
         if: needs.config.outputs.build_mode == 'full' || needs.config.outputs.build_mode == 'draft-recovery'
         run: bash scripts/homebrew/publish-tap.sh formula dist/formula/kongctl.rb "$RELEASE_VERSION"
         env:
-          GH_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.tap-token.outputs.token }}
           RELEASE_VERSION: ${{ needs.config.outputs.release_version }}
 
   publish_release:

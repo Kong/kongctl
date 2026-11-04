@@ -321,6 +321,25 @@ jobs:
           cache: false
           go-version-file: go.mod
 
+      - name: Detect private SDK dependency
+        id: sdk-auth
+        shell: bash
+        run: |
+          if grep -q 'sdk-konnect-go-internal' go.mod; then
+            echo "required=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create private SDK read token
+        id: sdk-token
+        if: steps.sdk-auth.outputs.required == 'true'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.API_OPS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.API_OPS_APP_SECRET }}
+          owner: Kong
+          repositories: sdk-konnect-go-internal
+          permission-contents: read
+
       - name: Set up private SDK if needed
         id: private_sdk
         shell: bash
@@ -328,7 +347,7 @@ jobs:
           set -euo pipefail
           "${PRIVATE_SDK_HELPER}"
         env:
-          GH_TOKEN_PRIVATE_READ: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
+          GH_TOKEN_PRIVATE_READ: ${{ steps.sdk-token.outputs.token }}
 
       - name: Validate build
         shell: bash

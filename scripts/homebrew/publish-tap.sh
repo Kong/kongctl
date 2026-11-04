@@ -11,7 +11,7 @@ case "$kind" in
   formula) target=Formula/kongctl.rb ;;
   *) exit 2 ;;
 esac
-: "${GH_TOKEN:?TAP_GITHUB_TOKEN must be supplied as GH_TOKEN}"
+: "${GH_TOKEN:?A Homebrew publication token must be supplied as GH_TOKEN}"
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 gh auth setup-git --hostname github.com

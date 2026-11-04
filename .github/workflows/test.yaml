@@ -31,26 +31,46 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Detect private SDK dependency
+        id: sdk-auth
+        shell: bash
+        run: |
+          if grep -q 'sdk-konnect-go-internal' go.mod; then
+            echo "required=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create private SDK read token
+        id: sdk-token
+        if: steps.sdk-auth.outputs.required == 'true'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.API_OPS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.API_OPS_APP_SECRET }}
+          owner: Kong
+          repositories: sdk-konnect-go-internal
+          permission-contents: read
+
       - name: Configure private module access
+        if: steps.sdk-auth.outputs.required == 'true'
         shell: bash
         env:
-          GH_TOKEN_PRIVATE_READ: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
+          SDK_TOKEN: ${{ steps.sdk-token.outputs.token }}
         run: |
           set -euo pipefail
-
-          if ! grep -q 'sdk-konnect-go-internal' go.mod; then
-            exit 0
-          fi
-
-          if [ -z "${GH_TOKEN_PRIVATE_READ:-}" ]; then
-            echo "::error::GH_TOKEN_PRIVATE_READ is required for sdk-konnect-go-internal"
-            exit 1
-          fi
-
-          git config --global \
-            url."https://x-access-token:${GH_TOKEN_PRIVATE_READ}@github.com/".insteadOf \
-            "https://github.com/"
-          echo "GOPRIVATE=github.com/Kong/sdk-konnect-go-internal" >> "${GITHUB_ENV}"
+          : "${SDK_TOKEN:?SDK App token is required for sdk-konnect-go-internal}"
+          auth="$(printf 'x-access-token:%s' "$SDK_TOKEN" | base64 | tr -d '\n')"
+          echo "::add-mask::$auth"
+          for sdk_url in \
+            https://github.com/Kong/sdk-konnect-go-internal \
+            https://github.com/Kong/sdk-konnect-go-internal.git; do
+            git config --global "http.$sdk_url.extraheader" "AUTHORIZATION: basic $auth"
+          done
+          private_modules="${GOPRIVATE:-$(GOTOOLCHAIN=local go env GOPRIVATE)}"
+          case ",$private_modules," in
+            *,github.com/Kong/sdk-konnect-go-internal,*) ;;
+            *) private_modules="${private_modules:+$private_modules,}github.com/Kong/sdk-konnect-go-internal" ;;
+          esac
+          echo "GOPRIVATE=$private_modules" >> "$GITHUB_ENV"
 
       - name: Setup go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -106,6 +126,7 @@ jobs:
           bash scripts/tests/test-verify-apple-binary.sh
           bash scripts/tests/test-apple-release-gates.sh
           node --test scripts/tests/test-release-recovery.mjs
+          node --test scripts/tests/test-github-app-auth.mjs
           node --test scripts/tests/test-apple-notary-diagnostics.mjs
       - name: test
         run: |

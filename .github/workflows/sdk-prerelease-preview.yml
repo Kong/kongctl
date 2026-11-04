@@ -14,8 +14,8 @@ on:
         default: 'false'
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
+  pull-requests: read
 
 jobs:
   stage:
@@ -130,6 +130,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Go
         if: steps.decision.outputs.run == 'true'
@@ -187,6 +188,18 @@ jobs:
 
           echo "body_path=${PR_BODY_PATH}" >> "$GITHUB_OUTPUT"
 
+      - name: Create dependency PR token
+        id: pr-token
+        if: steps.diff.outputs.changed == 'true'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.API_OPS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.API_OPS_APP_SECRET }}
+          owner: Kong
+          repositories: kongctl
+          permission-contents: write
+          permission-pull-requests: write
+
       - name: Create or update PR
         if: steps.diff.outputs.changed == 'true'
         id: cpr
@@ -197,7 +210,7 @@ jobs:
           title: 'task(sdk): update sdk-konnect-go prerelease to ${{ steps.release.outputs.tag }}'
           body-path: ${{ steps.summary.outputs.body_path }}
           delete-branch: false
-          token: ${{ secrets.PAT }}
+          token: ${{ steps.pr-token.outputs.token }}
 
       - name: Apply default prerelease label
         if: steps.diff.outputs.changed == 'true'
@@ -205,7 +218,7 @@ jobs:
         env:
           PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
         with:
-          github-token: ${{ secrets.PAT }}
+          github-token: ${{ steps.pr-token.outputs.token }}
           script: |
             const prNumber = parseInt(process.env.PR_NUMBER || '0', 10);
             if (!prNumber) {

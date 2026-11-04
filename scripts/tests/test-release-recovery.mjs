@@ -215,19 +215,21 @@ test("release build, signing, and publication have separate credential scopes", 
   for (const stage of [build, sign]) {
     assert.match(stage, /permissions:\n      contents: read\n/);
     assert.doesNotMatch(stage, /persist-credentials: true/);
-    assert.doesNotMatch(stage, /contents: write|packages: write|TAP_GITHUB_TOKEN|DOCKER_TOKEN/);
+    assert.doesNotMatch(stage, /contents: write|packages: write|KONGCTL_RELEASE_APP_PRIVATE_KEY|DOCKER_TOKEN/);
     assert.match(stage, /ref: \$\{\{ needs.config.outputs.release_commit \}\}/);
   }
   assert.deepEqual([...build.matchAll(/secrets\.([A-Z_]+)/g)].map(match => match[1]),
-    ["GH_TOKEN_PRIVATE_READ"]);
+    ["API_OPS_APP_SECRET"]);
+  assert.match(build, /repositories: sdk-konnect-go-internal\n          permission-contents: read/);
+  assert.match(build, /if: steps.sdk-auth.outputs.required == 'true'/);
   assert.match(build, /args: build --clean/);
   assert.match(build, /KONGCTL_SKIP_NOTARIZATION: "true"/);
   assert.match(sign, /KONGCTL_SKIP_NOTARIZATION: "false"/);
-  assert.doesNotMatch(sign, /GH_TOKEN_PRIVATE_READ|secrets.GITHUB_TOKEN|actions\/setup-go|docker\/login-action/);
+  assert.doesNotMatch(sign, /API_OPS_APP_SECRET|secrets.GITHUB_TOKEN|actions\/setup-go|docker\/login-action/);
   assert.match(sign, /args: release --clean --skip=before,publish,docker /);
   assert.match(sign, /PATH=\$GITHUB_WORKSPACE\/scripts\/release-tools:\$PATH/);
   assert.ok(sign.indexOf("release-handoff.py verify") < sign.indexOf("secrets.APPLE_"));
-  assert.doesNotMatch(publish, /secrets.APPLE_|GH_TOKEN_PRIVATE_READ|actions\/setup-go|goreleaser\/goreleaser-action/);
+  assert.doesNotMatch(publish, /secrets.APPLE_|API_OPS_APP_SECRET|actions\/setup-go|goreleaser\/goreleaser-action/);
   assert.match(publish, /needs: \["config", "build_release", "sign_release"\]/);
   assert.ok(publish.indexOf("release-handoff.py verify signed") < publish.indexOf("gh release create"));
   assert.match(publish, /cmp handoff\/handoff.json signed\/unsigned-handoff.json/);
