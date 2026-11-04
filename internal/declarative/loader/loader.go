@@ -301,10 +301,10 @@ func (l *Loader) parsePreparedYAML(prepared *preparedYAML) (*resources.ResourceS
 	prepared.hasEnvTags = prepared.hasEnvTags || strings.Contains(string(placeholderContent), tags.TagEnv)
 	if prepared.hasEnvTags {
 		var err error
-		placeholderContent, err = resolveStoredEnvContent(placeholderContent)
+		placeholderContent, err = resolveLoadTimeEnvContent(placeholderContent)
 		if err != nil {
 			return nil, withTemplateDefinitionContext(
-				fmt.Errorf("failed to load stored environment values in %s: %w", sourcePath, err),
+				fmt.Errorf("failed to load environment values in %s: %w", sourcePath, err),
 				prepared.templateDefinitions,
 			)
 		}

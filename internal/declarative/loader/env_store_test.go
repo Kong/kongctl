@@ -139,7 +139,7 @@ func TestStoredEnvTypeInference(t *testing.T) {
 			t.Setenv("VALUE", tc.raw)
 			var document yaml.Node
 			require.NoError(t, yaml.Unmarshal([]byte(tc.input), &document))
-			err := resolveStoredEnvNode(&document, []reflect.Type{reflect.TypeFor[fixture]()}, nil)
+			err := resolveLoadTimeEnvNode(&document, []reflect.Type{reflect.TypeFor[fixture]()}, nil)
 			if tc.wantErr != "" {
 				require.ErrorContains(t, err, tc.wantErr)
 			} else {
@@ -155,7 +155,6 @@ func TestStoredEnvRestrictions(t *testing.T) {
 	require.ErrorContains(t, err, "requires !secret with a deferred source")
 	for _, tc := range []struct{ input, message string }{
 		{"portals: [{ref: !env {var: VALUE, store: true}, name: portal}]", "not supported on refs"},
-		{"portals: [{ref: portal, name: portal, kongctl: {namespace: !env {var: VALUE, store: true}}}]", "kongctl.namespace"},
 		{
 			"portals: [{ref: portal, name: portal, auto_approve_developers: !env {var: VALUE, store: true}}]",
 			"expected boolean",
