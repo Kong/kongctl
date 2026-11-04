@@ -22,10 +22,7 @@ func normalizeAIGateway23References(
 	if rs == nil {
 		return
 	}
-	gatewayIDs := make(map[string]string)
-	for _, gateway := range rs.AIGateways {
-		gatewayIDs[resources.NormalizeResourceRef(gateway.Ref)] = gateway.GetKonnectID()
-	}
+	gatewayIDs := aiGateway23GatewayIDs(rs)
 	gatewayRef = resources.NormalizeResourceRef(gatewayRef)
 	resolve := func(value string) string {
 		ref, _, ok := tags.ParseRefPlaceholder(value)
@@ -41,8 +38,7 @@ func normalizeAIGateway23References(
 			return value
 		}
 		parentRef := resources.NormalizeResourceRef(child.GetParentRef().Ref)
-		if parentRef != gatewayRef &&
-			(gatewayIDs[parentRef] == "" || gatewayIDs[parentRef] != gatewayIDs[gatewayRef]) {
+		if !aiGateway23SameGateway(gatewayIDs, parentRef, gatewayRef) {
 			return value
 		}
 		return resource.GetMoniker()
@@ -65,4 +61,19 @@ func normalizeAIGateway23References(
 			}
 		}
 	}
+}
+
+func aiGateway23GatewayIDs(rs *resources.ResourceSet) map[string]string {
+	ids := make(map[string]string)
+	if rs != nil {
+		for _, gateway := range rs.AIGateways {
+			ids[resources.NormalizeResourceRef(gateway.Ref)] = gateway.GetKonnectID()
+		}
+	}
+	return ids
+}
+
+func aiGateway23SameGateway(ids map[string]string, first, second string) bool {
+	first, second = resources.NormalizeResourceRef(first), resources.NormalizeResourceRef(second)
+	return first == second || (ids[first] != "" && ids[first] == ids[second])
 }

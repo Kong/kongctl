@@ -592,6 +592,7 @@ func AIGatewayModelResourceFromResponse(
 		kongctl = &KongctlMeta{Namespace: new(namespace), Protected: new(metadata[ModelProtectedKey] == "true")}
 	}
 	delete(payload, "managed_by")
+	OmitAIGatewayModelDatastoreConnections(payload)
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return AIGatewayModelResource{}, err
@@ -610,6 +611,25 @@ func AIGatewayModelResourceFromResponse(
 		AIGateway:                   gatewayRef,
 		CreateAIGatewayModelRequest: req,
 	}, nil
+}
+
+// OmitAIGatewayModelDatastoreConnections removes connection settings resolved
+// from a pgvector datastore. The API expands these fields and overrides inline
+// connection values; exporting them would pin inherited settings in manifests.
+func OmitAIGatewayModelDatastoreConnections(payload map[string]any) {
+	stores, _ := payload["datastores"].([]any)
+	if len(stores) == 0 {
+		return
+	}
+	config, _ := payload["config"].(map[string]any)
+	balancer, _ := config["balancer"].(map[string]any)
+	vector, _ := balancer["vectordb"].(map[string]any)
+	if vector["type"] != "pgvector" {
+		return
+	}
+	for _, key := range []string{"host", "database", "port", "user", "password", "timeout", "ssl"} {
+		delete(vector, key)
+	}
 }
 
 func marshalObjectToMap(value any, label string) (map[string]any, error) {

@@ -1,0 +1,23 @@
+overlay: 1.0.0
+info:
+  title: Preserve omitted AI Gateway pgvector connection settings
+  version: 0.0.1
+actions:
+  - target: $.components.schemas.AIGatewayModelVectorDBConfigPgVector.properties.database.default
+    remove: true
+  - target: $.components.schemas.AIGatewayModelVectorDBConfigPgVector.properties.host.default
+    remove: true
+  - target: $.components.schemas.AIGatewayModelVectorDBConfigPgVector.properties.port.default
+    remove: true
+  - target: $.components.schemas.AIGatewayModelVectorDBConfigPgVector.properties.timeout.default
+    remove: true
+  - target: $.components.schemas.AIGatewayModelVectorDBConfigPgVector.properties.user.default
+    remove: true
+  - target: $.components.schemas.AIGatewayModelVectorDBConfigPgVector.properties.ssl.properties.enabled.default
+    remove: true
+  - target: $.components.schemas.AIGatewayModelVectorDBConfigPgVector.properties.ssl.properties.required.default
+    remove: true
+  - target: $.components.schemas.AIGatewayModelVectorDBConfigPgVector.properties.ssl.properties.verify.default
+    remove: true
+  - target: $.components.schemas.AIGatewayModelVectorDBConfigPgVector.properties.ssl.properties.version.default
+    remove: true
