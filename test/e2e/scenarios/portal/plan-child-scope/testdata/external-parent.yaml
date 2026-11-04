@@ -1,0 +1,6 @@
+portals:
+  - ref: external-scope-portal
+    _external:
+      selector:
+        matchFields:
+          name: scope-portal

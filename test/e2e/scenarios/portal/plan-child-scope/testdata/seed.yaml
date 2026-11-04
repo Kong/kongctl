@@ -1,0 +1,33 @@
+_defaults:
+  kongctl:
+    namespace: portal-child-scope
+
+portals:
+  - ref: scope-portal
+    name: scope-portal
+    display_name: Before child omission
+    authentication_enabled: false
+    rbac_enabled: false
+    auto_approve_developers: false
+    auto_approve_applications: false
+    default_page_visibility: public
+    pages:
+      - ref: scope-guide
+        slug: scope-guide
+        title: Scope guide
+        visibility: public
+        status: published
+        content: "# Scope guide"
+    snippets:
+      - ref: scope-banner
+        name: scope-banner
+        visibility: public
+        status: published
+        content: Keep this banner
+    teams:
+      - ref: scope-team
+        name: Scope team
+        description: Keep this team
+    ip_allow_list:
+      ref: scope-allow-list
+      allowed_ips: [198.51.100.10]
