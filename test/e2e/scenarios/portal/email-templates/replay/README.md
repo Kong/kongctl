@@ -1,5 +1,38 @@
 # Portal email templates replay
 
+## Apply child-scope refresh
+
+The [fresh live recording][refresh-record] passed all scenario assertions
+and before/after resets under the existing acceptance-3 organization lock.
+It was captured from commit `155dfd85` for issue #2706.
+[Three network-isolated replays][refresh-replay] each consumed all 65
+recorded exchanges and passed every assertion.
+
+Scenario inputs, overlays, assertions, and replay eligibility are unchanged.
+Apply planning now skips children absent from the manifest, so the recording
+omits their former comparison reads. Declared-child reads and mutations
+retain their assertions, and command/reset boundaries stay intact.
+
+The annotations were reviewed against the new recording and rebound to its
+exact raw-candidate SHA-256. These ranges retain the previous command scopes;
+all other exchanges remain strictly ordered. Mandatory creation, repeated
+request, and read-before-write dependencies remain enforced.
+
+| Previous range | Refreshed range |
+| --- | --- |
+| 4-5 | 4-5 |
+| 14-15 | 8-9 |
+| 19-24 | 11-16 |
+| 51-52 | 37-38 |
+| 88-93 | 56-61 |
+
+The committed cassette preserves the fresh recording's requests, responses,
+media types, provenance, and input fingerprint. Large recordings are packed
+losslessly into hash-addressed chunks. Matcher and sanitizer rules are
+unchanged. The current validation above covers the committed representation.
+
+## Previous recording (superseded)
+
 The [live recording][record] captured 97 HTTP exchanges under the existing
 acceptance-3 organization lock, with successful before/after resets. The
 scenario, inputs, overlays, commands, and assertions are unchanged.
@@ -7,7 +40,7 @@ Three [network-isolated replays][replay] passed with the reviewed
 annotations. The validated cassette is losslessly packed into two
 hash-addressed chunks to keep each file below the repository size limit.
 
-## Coverage and ordering
+### Coverage and ordering
 
 Coverage includes initial template creation, content updates and null field
 handling, disabling a template, dump round-trip planning, content-only
@@ -46,7 +79,7 @@ queries, bodies, response media types, and required exchanges remain
 checked. Default logo/favicon responses are identical to the previously
 approved Portal teams cassette; no credentials are recorded.
 
-## Measurements
+### Measurements
 
 The three loopback-only runs passed all assertions and matched all 97
 exchanges. Scenario durations were 2.118, 2.109, and 2.101 seconds; wrapper
@@ -72,3 +105,6 @@ PR; follow the repository replay refresh procedure.
 
 [record]: https://github.com/Kong/kongctl/actions/runs/35446057376
 [replay]: https://github.com/Kong/kongctl/actions/runs/35446555297
+
+[refresh-record]: https://github.com/Kong/kongctl/actions/runs/41902479438
+[refresh-replay]: https://github.com/Kong/kongctl/actions/runs/41906254635

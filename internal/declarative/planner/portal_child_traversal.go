@@ -7,9 +7,9 @@ import (
 	"github.com/kong/kongctl/internal/declarative/resources"
 )
 
-// planPortalChildren shares traversal while keeping parent-specific scope and
-// error policies. createOnly also applies to unresolved external parents; an
-// existing parent uses reconciliation policy even when its ID is empty.
+// planPortalChildren shares traversal while retaining create-only scope and
+// error policies for new managed and unresolved external parents. Existing
+// parents use reconciliation policy even when their ID is empty.
 func (p *portalPlannerImpl) planPortalChildren(
 	ctx context.Context, plannerCtx *Config, desired resources.PortalResource,
 	portalID string, createOnly bool, plan *Plan,
@@ -311,7 +311,11 @@ func (p *portalPlannerImpl) shouldPlanPortalChild(
 	rt resources.ResourceType,
 	hasDesired bool,
 ) bool {
-	if desired.IsExternal() && plan != nil && plan.Metadata.Mode != PlanModeSync {
+	// Apply only compares declared children. Sync uses key-presence scope so
+	// explicitly empty collections can still prune existing children.
+	// Preserve the external-parent policy for other non-sync modes.
+	if plan != nil && (plan.Metadata.Mode == PlanModeApply ||
+		(desired.IsExternal() && plan.Metadata.Mode != PlanModeSync)) {
 		return hasDesired
 	}
 	return p.planner.shouldPlanChild(plan, resources.ResourceTypePortal, desired.Ref, rt)

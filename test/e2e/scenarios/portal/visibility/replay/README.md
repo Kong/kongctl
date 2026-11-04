@@ -1,5 +1,47 @@
 # Portal visibility replay
 
+## Apply child-scope refresh
+
+The [fresh live recording][refresh-record] passed all scenario assertions
+and before/after resets under the existing acceptance-3 organization lock.
+It was captured from commit `155dfd85` for issue #2706.
+[Three network-isolated replays][refresh-replay] each consumed all 348
+recorded exchanges and passed every assertion.
+
+Scenario inputs, overlays, assertions, and replay eligibility are unchanged.
+Apply planning now skips children absent from the manifest, so the recording
+omits their former comparison reads. Declared-child reads and mutations
+retain their assertions, and command/reset boundaries stay intact.
+
+The annotations were reviewed against the new recording and rebound to its
+exact raw-candidate SHA-256. These ranges retain the previous command scopes;
+all other exchanges remain strictly ordered. Mandatory creation, repeated
+request, and read-before-write dependencies remain enforced.
+
+| Previous range | Refreshed range |
+| --- | --- |
+| 1-7 | 1-7 |
+| 8-40 | 8-40 |
+| 43-83 | 43-77 |
+| 84-124 | 78-112 |
+| 128-168 | 116-150 |
+| 169-209 | 151-185 |
+| 216-256 | 192-226 |
+| 263-303 | 233-267 |
+| 304-314 | 268-278 |
+| 315-327 | 279-291 |
+| 328-355 | 292-319 |
+| 356-381 | 320-339 |
+| 382-384 | 340-342 |
+| 385-390 | 343-348 |
+
+The committed cassette preserves the fresh recording's requests, responses,
+media types, provenance, and input fingerprint. Large recordings are packed
+losslessly into hash-addressed chunks. Matcher and sanitizer rules are
+unchanged. The current validation above covers the committed representation.
+
+## Previous recording (superseded)
+
 The expanded scenario was recorded against live Konnect in
 [run 39667015919][record] from commit `71fd9e5a`. It passed all assertions and
 both recording resets, capturing 390 exchanges. Coverage includes explicit
@@ -52,3 +94,6 @@ identical requests and all mutating phases retain their stream dependencies.
 
 [record]: https://github.com/Kong/kongctl/actions/runs/39667015919
 [replay]: https://github.com/Kong/kongctl/actions/runs/39669883194
+
+[refresh-record]: https://github.com/Kong/kongctl/actions/runs/41902506032
+[refresh-replay]: https://github.com/Kong/kongctl/actions/runs/41906275369

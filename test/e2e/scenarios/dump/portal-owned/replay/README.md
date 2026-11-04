@@ -1,5 +1,46 @@
 # Portal-owned dump replay
 
+## Apply child-scope refresh
+
+The [fresh live recording][refresh-record] passed all scenario assertions
+and before/after resets under the existing acceptance-2 organization lock.
+It was captured from commit `155dfd85` for issue #2706.
+[Three network-isolated replays][refresh-replay] each consumed all 438
+recorded exchanges and passed every assertion.
+
+Scenario inputs, overlays, assertions, and replay eligibility are unchanged.
+Apply planning now skips children absent from the manifest, so the recording
+omits their former comparison reads. Declared-child reads and mutations
+retain their assertions, and command/reset boundaries stay intact.
+
+The annotations were reviewed against the new recording and rebound to its
+exact raw-candidate SHA-256. These ranges retain the previous command scopes;
+all other exchanges remain strictly ordered. Mandatory creation, repeated
+request, and read-before-write dependencies remain enforced.
+
+| Previous range | Refreshed range |
+| --- | --- |
+| 1-13 | 1-13 |
+| 14-21 | 14-21 |
+| 22-64 | 22-64 |
+| 65-118 | 65-118 |
+| 119-166 | 119-161 |
+| 167-220 | 162-215 |
+| 221-268 | 216-258 |
+| 269-281 | 259-271 |
+| 287-294 | 277-284 |
+| 295-339 | 285-329 |
+| 340-393 | 330-383 |
+| 394-441 | 384-426 |
+| 442-451 | 427-436 |
+
+The committed cassette preserves the fresh recording's requests, responses,
+media types, provenance, and input fingerprint. Large recordings are packed
+losslessly into hash-addressed chunks. Matcher and sanitizer rules are
+unchanged. The current validation above covers the committed representation.
+
+## Previous recording (superseded)
+
 The [live recording][record] captured 453 exchanges on acceptance-2 under
 its existing organization lock, including successful before/after cleanup.
 All portal pages, snippets, teams/roles, customization, PNG assets, API
@@ -8,7 +49,7 @@ intact. Normal and skip-defaults dumps both produce no-op plans. The scenario
 then resets the organization, recreates resources from its dump, verifies
 that dump, checks another no-op plan, and deletes the recreated resources.
 
-## Reset and command boundaries
+### Reset and command boundaries
 
 Both in-scenario resets run through the proxy; neither is skipped. Their
 HTTP exchanges must be consumed before the following commands can run.
@@ -61,7 +102,7 @@ early authentication-strategy cleanup, and duplicate consumption. All 453
 original request/response exchanges, chunk hashes, and input fingerprints
 are unchanged; only the reviewed cleanup phase is corrected.
 
-## Environment and measurement limitations
+### Environment and measurement limitations
 
 Both attempts of the [initial acceptance-3 recording][initial] failed to
 recreate a portal whose dumped default auth-strategy ID no longer existed
@@ -86,3 +127,6 @@ not as a causal estimate of parallel workflow wall-clock savings.
 [replay]: https://github.com/Kong/kongctl/actions/runs/35471335714
 [initial]: https://github.com/Kong/kongctl/actions/runs/35469445499
 [live]: https://github.com/Kong/kongctl/actions/runs/35469673919
+
+[refresh-record]: https://github.com/Kong/kongctl/actions/runs/41902154025
+[refresh-replay]: https://github.com/Kong/kongctl/actions/runs/41906245119

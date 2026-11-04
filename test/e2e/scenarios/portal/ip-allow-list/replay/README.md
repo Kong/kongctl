@@ -1,5 +1,41 @@
 # Portal IP allow-list replay
 
+## Apply child-scope refresh
+
+The [fresh live recording][refresh-record] passed all scenario assertions
+and before/after resets under the existing acceptance-3 organization lock.
+It was captured from commit `155dfd85` for issue #2706.
+[Three network-isolated replays][refresh-replay] each consumed all 94
+recorded exchanges and passed every assertion.
+
+Scenario inputs, overlays, assertions, and replay eligibility are unchanged.
+Apply planning now skips children absent from the manifest, so the recording
+omits their former comparison reads. Declared-child reads and mutations
+retain their assertions, and command/reset boundaries stay intact.
+
+The annotations were reviewed against the new recording and rebound to its
+exact raw-candidate SHA-256. These ranges retain the previous command scopes;
+all other exchanges remain strictly ordered. Mandatory creation, repeated
+request, and read-before-write dependencies remain enforced.
+
+| Previous range | Refreshed range |
+| --- | --- |
+| 4-7 | 4-7 |
+| 8-39 | 8-39 |
+| 40-56 | 40-42 |
+| 57-73 | 43-45 |
+| 74-81 | 46-53 |
+| 82-98 | 54-56 |
+| 99-130 | 57-88 |
+| 131-136 | 89-94 |
+
+The committed cassette preserves the fresh recording's requests, responses,
+media types, provenance, and input fingerprint. Large recordings are packed
+losslessly into hash-addressed chunks. Matcher and sanitizer rules are
+unchanged. The current validation above covers the committed representation.
+
+## Previous recording (superseded)
+
 The unchanged scenario passed [live recording][record] with 136 exchanges,
 under the existing acceptance-3 lock and with both before/after resets.
 Scenario inputs and assertions are unchanged. Coverage includes nested and
@@ -50,3 +86,6 @@ recording or removal from replay policy.
 [record]: https://github.com/Kong/kongctl/actions/runs/35165520273
 [replay]: https://github.com/Kong/kongctl/actions/runs/35166388118
 [live]: https://github.com/Kong/kongctl/actions/runs/35165525053
+
+[refresh-record]: https://github.com/Kong/kongctl/actions/runs/41902484095
+[refresh-replay]: https://github.com/Kong/kongctl/actions/runs/41906260296

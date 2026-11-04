@@ -4,9 +4,3216 @@
   "inputs_sha256": "sha256:c46834b8c6563670d635d29969cb483e18e3a85b4501f2da8a8c58e0d90ff07e",
   "source": {
     "kind": "recorded",
-    "commit": "5c23f18406326d822ca75585fe532f8ca9d45f58",
-    "run_url": "https://github.com/Kong/kongctl/actions/runs/35165520273"
+    "commit": "155dfd8599c2d844c707069fc1e662f2d4dc1a14",
+    "run_url": "https://github.com/Kong/kongctl/actions/runs/41902484095"
   },
+  "interactions": [
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "POST",
+        "path": "/v3/portals",
+        "query": [],
+        "body": {
+          "authentication_enabled": false,
+          "auto_approve_applications": false,
+          "auto_approve_developers": false,
+          "description": "Portal with a top-level declarative IP allow list",
+          "display_name": "E2E Portal IP Allow List Root",
+          "labels": {
+            "KONGCTL-namespace": "portal-ip-allow-list"
+          },
+          "name": "e2e-portal-ip-allow-list-root",
+          "notifications_developer_pii_visibility_enabled": false,
+          "rbac_enabled": false,
+          "sipr_enabled": false
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "name": "e2e-portal-ip-allow-list-root",
+          "display_name": "E2E Portal IP Allow List Root",
+          "description": "Portal with a top-level declarative IP allow list",
+          "default_domain": "ea5f448b1cff.us.kongportals.com",
+          "authentication_enabled": false,
+          "rbac_enabled": false,
+          "auto_approve_developers": false,
+          "auto_approve_applications": false,
+          "default_api_visibility": "public",
+          "default_page_visibility": "public",
+          "default_application_auth_strategy_id": null,
+          "labels": {
+            "KONGCTL-namespace": "portal-ip-allow-list"
+          },
+          "updated_at": "2026-11-04T20:17:20.864Z",
+          "created_at": "2026-11-04T20:17:20.864Z",
+          "canonical_domain": "ea5f448b1cff.us.kongportals.com",
+          "sipr_enabled": false,
+          "notifications_developer_pii_visibility_enabled": false
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "POST",
+        "path": "/v3/portals",
+        "query": [],
+        "body": {
+          "authentication_enabled": false,
+          "auto_approve_applications": false,
+          "auto_approve_developers": false,
+          "description": "Portal with a nested declarative IP allow list",
+          "display_name": "E2E Portal IP Allow List Nested",
+          "labels": {
+            "KONGCTL-namespace": "portal-ip-allow-list"
+          },
+          "name": "e2e-portal-ip-allow-list-nested",
+          "notifications_developer_pii_visibility_enabled": false,
+          "rbac_enabled": false,
+          "sipr_enabled": false
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000002",
+          "name": "e2e-portal-ip-allow-list-nested",
+          "display_name": "E2E Portal IP Allow List Nested",
+          "description": "Portal with a nested declarative IP allow list",
+          "default_domain": "bc1fc271da20.us.kongportals.com",
+          "authentication_enabled": false,
+          "rbac_enabled": false,
+          "auto_approve_developers": false,
+          "auto_approve_applications": false,
+          "default_api_visibility": "public",
+          "default_page_visibility": "public",
+          "default_application_auth_strategy_id": null,
+          "labels": {
+            "KONGCTL-namespace": "portal-ip-allow-list"
+          },
+          "updated_at": "2026-11-04T20:17:21.429Z",
+          "created_at": "2026-11-04T20:17:21.429Z",
+          "canonical_domain": "bc1fc271da20.us.kongportals.com",
+          "sipr_enabled": false,
+          "notifications_developer_pii_visibility_enabled": false
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "POST",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002/ip-allow-list",
+        "query": [],
+        "body": {
+          "allowed_ips": [
+            "198.51.100.10",
+            "203.0.113.0/24"
+          ]
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "allowed_ips": [
+            "198.51.100.10",
+            "203.0.113.0/24"
+          ],
+          "id": "00000000-0000-4000-8000-000000000003"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "POST",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/ip-allow-list",
+        "query": [],
+        "body": {
+          "allowed_ips": [
+            "192.0.2.25",
+            "198.51.100.0/24"
+          ]
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "allowed_ips": [
+            "192.0.2.25",
+            "198.51.100.0/24"
+          ],
+          "id": "00000000-0000-4000-8000-000000000004"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "e2e-portal-ip-allow-list-root",
+              "description": "Portal with a top-level declarative IP allow list",
+              "display_name": "E2E Portal IP Allow List Root",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "ea5f448b1cff.us.kongportals.com",
+              "default_domain": "ea5f448b1cff.us.kongportals.com",
+              "created_at": "2026-11-04T20:17:20.864Z",
+              "updated_at": "2026-11-04T20:17:20.864Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-ip-allow-list"
+              }
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "name": "e2e-portal-ip-allow-list-nested",
+              "description": "Portal with a nested declarative IP allow list",
+              "display_name": "E2E Portal IP Allow List Nested",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "bc1fc271da20.us.kongportals.com",
+              "default_domain": "bc1fc271da20.us.kongportals.com",
+              "created_at": "2026-11-04T20:17:21.429Z",
+              "updated_at": "2026-11-04T20:17:21.429Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-ip-allow-list"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 2,
+              "size": 10,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "name": "e2e-portal-ip-allow-list-root",
+          "description": "Portal with a top-level declarative IP allow list",
+          "display_name": "E2E Portal IP Allow List Root",
+          "authentication_enabled": false,
+          "rbac_enabled": false,
+          "sipr_enabled": false,
+          "default_api_visibility": "public",
+          "default_page_visibility": "public",
+          "default_application_auth_strategy_id": null,
+          "notifications_developer_pii_visibility_enabled": false,
+          "ai": {
+            "enabled": false,
+            "features": {
+              "mcp_server": {
+                "enabled": false,
+                "write_operations_enabled": false
+              }
+            }
+          },
+          "auto_approve_developers": false,
+          "auto_approve_applications": false,
+          "canonical_domain": "ea5f448b1cff.us.kongportals.com",
+          "default_domain": "ea5f448b1cff.us.kongportals.com",
+          "created_at": "2026-11-04T20:17:20.864Z",
+          "updated_at": "2026-11-04T20:17:20.864Z",
+          "labels": {
+            "KONGCTL-namespace": "portal-ip-allow-list"
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000002",
+          "name": "e2e-portal-ip-allow-list-nested",
+          "description": "Portal with a nested declarative IP allow list",
+          "display_name": "E2E Portal IP Allow List Nested",
+          "authentication_enabled": false,
+          "rbac_enabled": false,
+          "sipr_enabled": false,
+          "default_api_visibility": "public",
+          "default_page_visibility": "public",
+          "default_application_auth_strategy_id": null,
+          "notifications_developer_pii_visibility_enabled": false,
+          "ai": {
+            "enabled": false,
+            "features": {
+              "mcp_server": {
+                "enabled": false,
+                "write_operations_enabled": false
+              }
+            }
+          },
+          "auto_approve_developers": false,
+          "auto_approve_applications": false,
+          "canonical_domain": "bc1fc271da20.us.kongportals.com",
+          "default_domain": "bc1fc271da20.us.kongportals.com",
+          "created_at": "2026-11-04T20:17:21.429Z",
+          "updated_at": "2026-11-04T20:17:21.429Z",
+          "labels": {
+            "KONGCTL-namespace": "portal-ip-allow-list"
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "2"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "total": 2,
+              "size": 10,
+              "number": 2
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002/pages",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002/snippets",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 0
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002/identity-providers",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": [],
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002/authentication-settings",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "basic_auth_enabled": true,
+          "oidc_auth_enabled": false,
+          "saml_auth_enabled": false,
+          "konnect_mapping_enabled": true,
+          "oidc_team_mapping_enabled": false,
+          "idp_mapping_enabled": false,
+          "oidc_config": null
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002/ip-allow-list",
+        "query": [
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "allowed_ips": [
+                "198.51.100.10",
+                "203.0.113.0/24"
+              ],
+              "id": "00000000-0000-4000-8000-000000000003"
+            }
+          ],
+          "meta": {
+            "next": null,
+            "previous": null,
+            "size": 1
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002/integrations",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {},
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002/customization",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {},
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002/custom-domain",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "status": 404,
+          "title": "Not Found",
+          "instance": "kong:trace:11547491138949124169",
+          "detail": "custom domain not found"
+        },
+        "content_type": "application/problem+json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002/email-config",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "status": 404,
+          "title": "Not Found",
+          "instance": "kong:trace:13278416170325194471",
+          "detail": "Portal email config not found"
+        },
+        "content_type": "application/problem+json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002/email-templates",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002/audit-log-webhook",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "enabled": false,
+          "audit_log_destination_id": "",
+          "include_principal_name": false
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002/assets/logo",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjQuMTMiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMS4yNSAxMDIuNTggMzcuNSIgZmlsbD0ibm9uZSI+CiAgPHRpdGxlPkFjbWU8L3RpdGxlPgogIDxnIGZpbGw9IiM3NjdBODUiIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0yIDgpIj48cmVjdCB4PSIyIiB5PSIyIiB3aWR0aD0iOSIgaGVpZ2h0PSI5IiByeD0iMiIvPjxwYXRoIGQ9Ik0xMyAyQTkgOSAwIDAgMSAyMiAxMUgxM1oiLz48cGF0aCBkPSJNMiAxM0gxMVYyMkE5IDkgMCAwIDEgMiAxM1oiLz48Y2lyY2xlIGN4PSIxNy41IiBjeT0iMTcuNSIgcj0iNC41Ii8+PC9nPgogIDxwYXRoIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0yIDApIiBkPSJNNDYuMSAyMEE2LjEgNi4xIDAgMSAwIDMzLjkgMjBBNi4xIDYuMSAwIDEgMCA0Ni4xIDIwTTQ2LjEgMTMuOVYyNi4xTTYyLjY4IDE1LjQ3QTYuMSA2LjEgMCAxIDAgNjIuNjggMjQuNTNNNjguODggMjYuMVYxMy45TTY4Ljg4IDE3LjdBMy44IDMuOCAwIDAgMSA3Ni40OCAxNy43VjI2LjFNNzYuNDggMTcuN0EzLjggMy44IDAgMCAxIDg0LjA4IDE3LjdWMjYuMU05MC40OCAyMEgxMDIuNjhBNi4xIDYuMSAwIDEgMCAxMDEuMjUgMjMuOTIiIHN0cm9rZT0iIzc2N0E4NSIgc3Ryb2tlLXdpZHRoPSIzLjgiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4K"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002/assets/favicon",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": "data:image/ico;base64,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"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/pages",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/snippets",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 0
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/identity-providers",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": [],
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/authentication-settings",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "basic_auth_enabled": true,
+          "oidc_auth_enabled": false,
+          "saml_auth_enabled": false,
+          "konnect_mapping_enabled": true,
+          "oidc_team_mapping_enabled": false,
+          "idp_mapping_enabled": false,
+          "oidc_config": null
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/ip-allow-list",
+        "query": [
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "allowed_ips": [
+                "192.0.2.25",
+                "198.51.100.0/24"
+              ],
+              "id": "00000000-0000-4000-8000-000000000004"
+            }
+          ],
+          "meta": {
+            "next": null,
+            "previous": null,
+            "size": 1
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/integrations",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {},
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/customization",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {},
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/custom-domain",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "status": 404,
+          "title": "Not Found",
+          "instance": "kong:trace:4071557289155886923",
+          "detail": "custom domain not found"
+        },
+        "content_type": "application/problem+json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/email-config",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "status": 404,
+          "title": "Not Found",
+          "instance": "kong:trace:7534767182773359875",
+          "detail": "Portal email config not found"
+        },
+        "content_type": "application/problem+json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/email-templates",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/audit-log-webhook",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "enabled": false,
+          "audit_log_destination_id": "",
+          "include_principal_name": false
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/assets/logo",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjQuMTMiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMS4yNSAxMDIuNTggMzcuNSIgZmlsbD0ibm9uZSI+CiAgPHRpdGxlPkFjbWU8L3RpdGxlPgogIDxnIGZpbGw9IiM3NjdBODUiIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0yIDgpIj48cmVjdCB4PSIyIiB5PSIyIiB3aWR0aD0iOSIgaGVpZ2h0PSI5IiByeD0iMiIvPjxwYXRoIGQ9Ik0xMyAyQTkgOSAwIDAgMSAyMiAxMUgxM1oiLz48cGF0aCBkPSJNMiAxM0gxMVYyMkE5IDkgMCAwIDEgMiAxM1oiLz48Y2lyY2xlIGN4PSIxNy41IiBjeT0iMTcuNSIgcj0iNC41Ii8+PC9nPgogIDxwYXRoIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0yIDApIiBkPSJNNDYuMSAyMEE2LjEgNi4xIDAgMSAwIDMzLjkgMjBBNi4xIDYuMSAwIDEgMCA0Ni4xIDIwTTQ2LjEgMTMuOVYyNi4xTTYyLjY4IDE1LjQ3QTYuMSA2LjEgMCAxIDAgNjIuNjggMjQuNTNNNjguODggMjYuMVYxMy45TTY4Ljg4IDE3LjdBMy44IDMuOCAwIDAgMSA3Ni40OCAxNy43VjI2LjFNNzYuNDggMTcuN0EzLjggMy44IDAgMCAxIDg0LjA4IDE3LjdWMjYuMU05MC40OCAyMEgxMDIuNjhBNi4xIDYuMSAwIDEgMCAxMDEuMjUgMjMuOTIiIHN0cm9rZT0iIzc2N0E4NSIgc3Ryb2tlLXdpZHRoPSIzLjgiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4K"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/assets/favicon",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": "data:image/ico;base64,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"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "e2e-portal-ip-allow-list-root",
+              "description": "Portal with a top-level declarative IP allow list",
+              "display_name": "E2E Portal IP Allow List Root",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "ea5f448b1cff.us.kongportals.com",
+              "default_domain": "ea5f448b1cff.us.kongportals.com",
+              "created_at": "2026-11-04T20:17:20.864Z",
+              "updated_at": "2026-11-04T20:17:20.864Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-ip-allow-list"
+              }
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "name": "e2e-portal-ip-allow-list-nested",
+              "description": "Portal with a nested declarative IP allow list",
+              "display_name": "E2E Portal IP Allow List Nested",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "bc1fc271da20.us.kongportals.com",
+              "default_domain": "bc1fc271da20.us.kongportals.com",
+              "created_at": "2026-11-04T20:17:21.429Z",
+              "updated_at": "2026-11-04T20:17:21.429Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-ip-allow-list"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 2,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002/ip-allow-list",
+        "query": [
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "allowed_ips": [
+                "198.51.100.10",
+                "203.0.113.0/24"
+              ],
+              "id": "00000000-0000-4000-8000-000000000003"
+            }
+          ],
+          "meta": {
+            "next": null,
+            "previous": null,
+            "size": 1
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/ip-allow-list",
+        "query": [
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "allowed_ips": [
+                "192.0.2.25",
+                "198.51.100.0/24"
+              ],
+              "id": "00000000-0000-4000-8000-000000000004"
+            }
+          ],
+          "meta": {
+            "next": null,
+            "previous": null,
+            "size": 1
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "e2e-portal-ip-allow-list-root",
+              "description": "Portal with a top-level declarative IP allow list",
+              "display_name": "E2E Portal IP Allow List Root",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "ea5f448b1cff.us.kongportals.com",
+              "default_domain": "ea5f448b1cff.us.kongportals.com",
+              "created_at": "2026-11-04T20:17:20.864Z",
+              "updated_at": "2026-11-04T20:17:20.864Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-ip-allow-list"
+              }
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "name": "e2e-portal-ip-allow-list-nested",
+              "description": "Portal with a nested declarative IP allow list",
+              "display_name": "E2E Portal IP Allow List Nested",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "bc1fc271da20.us.kongportals.com",
+              "default_domain": "bc1fc271da20.us.kongportals.com",
+              "created_at": "2026-11-04T20:17:21.429Z",
+              "updated_at": "2026-11-04T20:17:21.429Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-ip-allow-list"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 2,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002/ip-allow-list",
+        "query": [
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "allowed_ips": [
+                "198.51.100.10",
+                "203.0.113.0/24"
+              ],
+              "id": "00000000-0000-4000-8000-000000000003"
+            }
+          ],
+          "meta": {
+            "next": null,
+            "previous": null,
+            "size": 1
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/ip-allow-list",
+        "query": [
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "allowed_ips": [
+                "192.0.2.25",
+                "198.51.100.0/24"
+              ],
+              "id": "00000000-0000-4000-8000-000000000004"
+            }
+          ],
+          "meta": {
+            "next": null,
+            "previous": null,
+            "size": 1
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "e2e-portal-ip-allow-list-root",
+              "description": "Portal with a top-level declarative IP allow list",
+              "display_name": "E2E Portal IP Allow List Root",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "ea5f448b1cff.us.kongportals.com",
+              "default_domain": "ea5f448b1cff.us.kongportals.com",
+              "created_at": "2026-11-04T20:17:20.864Z",
+              "updated_at": "2026-11-04T20:17:20.864Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-ip-allow-list"
+              }
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "name": "e2e-portal-ip-allow-list-nested",
+              "description": "Portal with a nested declarative IP allow list",
+              "display_name": "E2E Portal IP Allow List Nested",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "bc1fc271da20.us.kongportals.com",
+              "default_domain": "bc1fc271da20.us.kongportals.com",
+              "created_at": "2026-11-04T20:17:21.429Z",
+              "updated_at": "2026-11-04T20:17:21.429Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-ip-allow-list"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 2,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "e2e-portal-ip-allow-list-root",
+              "description": "Portal with a top-level declarative IP allow list",
+              "display_name": "E2E Portal IP Allow List Root",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "ea5f448b1cff.us.kongportals.com",
+              "default_domain": "ea5f448b1cff.us.kongportals.com",
+              "created_at": "2026-11-04T20:17:20.864Z",
+              "updated_at": "2026-11-04T20:17:20.864Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-ip-allow-list"
+              }
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "name": "e2e-portal-ip-allow-list-nested",
+              "description": "Portal with a nested declarative IP allow list",
+              "display_name": "E2E Portal IP Allow List Nested",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "bc1fc271da20.us.kongportals.com",
+              "default_domain": "bc1fc271da20.us.kongportals.com",
+              "created_at": "2026-11-04T20:17:21.429Z",
+              "updated_at": "2026-11-04T20:17:21.429Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-ip-allow-list"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 2,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "e2e-portal-ip-allow-list-root",
+              "description": "Portal with a top-level declarative IP allow list",
+              "display_name": "E2E Portal IP Allow List Root",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "ea5f448b1cff.us.kongportals.com",
+              "default_domain": "ea5f448b1cff.us.kongportals.com",
+              "created_at": "2026-11-04T20:17:20.864Z",
+              "updated_at": "2026-11-04T20:17:20.864Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-ip-allow-list"
+              }
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "name": "e2e-portal-ip-allow-list-nested",
+              "description": "Portal with a nested declarative IP allow list",
+              "display_name": "E2E Portal IP Allow List Nested",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "bc1fc271da20.us.kongportals.com",
+              "default_domain": "bc1fc271da20.us.kongportals.com",
+              "created_at": "2026-11-04T20:17:21.429Z",
+              "updated_at": "2026-11-04T20:17:21.429Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-ip-allow-list"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 2,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "e2e-portal-ip-allow-list-root",
+              "description": "Portal with a top-level declarative IP allow list",
+              "display_name": "E2E Portal IP Allow List Root",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "ea5f448b1cff.us.kongportals.com",
+              "default_domain": "ea5f448b1cff.us.kongportals.com",
+              "created_at": "2026-11-04T20:17:20.864Z",
+              "updated_at": "2026-11-04T20:17:20.864Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-ip-allow-list"
+              }
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "name": "e2e-portal-ip-allow-list-nested",
+              "description": "Portal with a nested declarative IP allow list",
+              "display_name": "E2E Portal IP Allow List Nested",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "bc1fc271da20.us.kongportals.com",
+              "default_domain": "bc1fc271da20.us.kongportals.com",
+              "created_at": "2026-11-04T20:17:21.429Z",
+              "updated_at": "2026-11-04T20:17:21.429Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-ip-allow-list"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 2,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002/ip-allow-list",
+        "query": [
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "allowed_ips": [
+                "198.51.100.10",
+                "203.0.113.0/24"
+              ],
+              "id": "00000000-0000-4000-8000-000000000003"
+            }
+          ],
+          "meta": {
+            "next": null,
+            "previous": null,
+            "size": 1
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/ip-allow-list",
+        "query": [
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "allowed_ips": [
+                "192.0.2.25",
+                "198.51.100.0/24"
+              ],
+              "id": "00000000-0000-4000-8000-000000000004"
+            }
+          ],
+          "meta": {
+            "next": null,
+            "previous": null,
+            "size": 1
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "PATCH",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002/ip-allow-list/00000000-0000-4000-8000-000000000003",
+        "query": [],
+        "body": {
+          "allowed_ips": [
+            "198.51.100.20",
+            "203.0.113.128/25"
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "allowed_ips": [
+            "198.51.100.20",
+            "203.0.113.128/25"
+          ],
+          "id": "00000000-0000-4000-8000-000000000003"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "PATCH",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/ip-allow-list/00000000-0000-4000-8000-000000000004",
+        "query": [],
+        "body": {
+          "allowed_ips": [
+            "192.0.2.50",
+            "198.51.100.128/25"
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "allowed_ips": [
+            "192.0.2.50",
+            "198.51.100.128/25"
+          ],
+          "id": "00000000-0000-4000-8000-000000000004"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "e2e-portal-ip-allow-list-root",
+              "description": "Portal with a top-level declarative IP allow list",
+              "display_name": "E2E Portal IP Allow List Root",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "ea5f448b1cff.us.kongportals.com",
+              "default_domain": "ea5f448b1cff.us.kongportals.com",
+              "created_at": "2026-11-04T20:17:20.864Z",
+              "updated_at": "2026-11-04T20:17:20.864Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-ip-allow-list"
+              }
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "name": "e2e-portal-ip-allow-list-nested",
+              "description": "Portal with a nested declarative IP allow list",
+              "display_name": "E2E Portal IP Allow List Nested",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "bc1fc271da20.us.kongportals.com",
+              "default_domain": "bc1fc271da20.us.kongportals.com",
+              "created_at": "2026-11-04T20:17:21.429Z",
+              "updated_at": "2026-11-04T20:17:21.429Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-ip-allow-list"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 2,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002/ip-allow-list",
+        "query": [
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "allowed_ips": [
+                "198.51.100.20",
+                "203.0.113.128/25"
+              ],
+              "id": "00000000-0000-4000-8000-000000000003"
+            }
+          ],
+          "meta": {
+            "next": null,
+            "previous": null,
+            "size": 1
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/ip-allow-list",
+        "query": [
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "allowed_ips": [
+                "192.0.2.50",
+                "198.51.100.128/25"
+              ],
+              "id": "00000000-0000-4000-8000-000000000004"
+            }
+          ],
+          "meta": {
+            "next": null,
+            "previous": null,
+            "size": 1
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "e2e-portal-ip-allow-list-root",
+              "description": "Portal with a top-level declarative IP allow list",
+              "display_name": "E2E Portal IP Allow List Root",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "ea5f448b1cff.us.kongportals.com",
+              "default_domain": "ea5f448b1cff.us.kongportals.com",
+              "created_at": "2026-11-04T20:17:20.864Z",
+              "updated_at": "2026-11-04T20:17:20.864Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-ip-allow-list"
+              }
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "name": "e2e-portal-ip-allow-list-nested",
+              "description": "Portal with a nested declarative IP allow list",
+              "display_name": "E2E Portal IP Allow List Nested",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "bc1fc271da20.us.kongportals.com",
+              "default_domain": "bc1fc271da20.us.kongportals.com",
+              "created_at": "2026-11-04T20:17:21.429Z",
+              "updated_at": "2026-11-04T20:17:21.429Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-ip-allow-list"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 2,
+              "size": 10,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "name": "e2e-portal-ip-allow-list-root",
+          "description": "Portal with a top-level declarative IP allow list",
+          "display_name": "E2E Portal IP Allow List Root",
+          "authentication_enabled": false,
+          "rbac_enabled": false,
+          "sipr_enabled": false,
+          "default_api_visibility": "public",
+          "default_page_visibility": "public",
+          "default_application_auth_strategy_id": null,
+          "notifications_developer_pii_visibility_enabled": false,
+          "ai": {
+            "enabled": false,
+            "features": {
+              "mcp_server": {
+                "enabled": false,
+                "write_operations_enabled": false
+              }
+            }
+          },
+          "auto_approve_developers": false,
+          "auto_approve_applications": false,
+          "canonical_domain": "ea5f448b1cff.us.kongportals.com",
+          "default_domain": "ea5f448b1cff.us.kongportals.com",
+          "created_at": "2026-11-04T20:17:20.864Z",
+          "updated_at": "2026-11-04T20:17:20.864Z",
+          "labels": {
+            "KONGCTL-namespace": "portal-ip-allow-list"
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000002",
+          "name": "e2e-portal-ip-allow-list-nested",
+          "description": "Portal with a nested declarative IP allow list",
+          "display_name": "E2E Portal IP Allow List Nested",
+          "authentication_enabled": false,
+          "rbac_enabled": false,
+          "sipr_enabled": false,
+          "default_api_visibility": "public",
+          "default_page_visibility": "public",
+          "default_application_auth_strategy_id": null,
+          "notifications_developer_pii_visibility_enabled": false,
+          "ai": {
+            "enabled": false,
+            "features": {
+              "mcp_server": {
+                "enabled": false,
+                "write_operations_enabled": false
+              }
+            }
+          },
+          "auto_approve_developers": false,
+          "auto_approve_applications": false,
+          "canonical_domain": "bc1fc271da20.us.kongportals.com",
+          "default_domain": "bc1fc271da20.us.kongportals.com",
+          "created_at": "2026-11-04T20:17:21.429Z",
+          "updated_at": "2026-11-04T20:17:21.429Z",
+          "labels": {
+            "KONGCTL-namespace": "portal-ip-allow-list"
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "2"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "total": 2,
+              "size": 10,
+              "number": 2
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002/pages",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002/snippets",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 0
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002/identity-providers",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": [],
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002/authentication-settings",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "basic_auth_enabled": true,
+          "oidc_auth_enabled": false,
+          "saml_auth_enabled": false,
+          "konnect_mapping_enabled": true,
+          "oidc_team_mapping_enabled": false,
+          "idp_mapping_enabled": false,
+          "oidc_config": null
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002/ip-allow-list",
+        "query": [
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "allowed_ips": [
+                "198.51.100.20",
+                "203.0.113.128/25"
+              ],
+              "id": "00000000-0000-4000-8000-000000000003"
+            }
+          ],
+          "meta": {
+            "next": null,
+            "previous": null,
+            "size": 1
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002/integrations",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {},
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002/customization",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {},
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002/custom-domain",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "status": 404,
+          "title": "Not Found",
+          "instance": "kong:trace:17753940953984543482",
+          "detail": "custom domain not found"
+        },
+        "content_type": "application/problem+json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002/email-config",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "status": 404,
+          "title": "Not Found",
+          "instance": "kong:trace:13218869754360706201",
+          "detail": "Portal email config not found"
+        },
+        "content_type": "application/problem+json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002/email-templates",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002/audit-log-webhook",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "enabled": false,
+          "audit_log_destination_id": "",
+          "include_principal_name": false
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002/assets/logo",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjQuMTMiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMS4yNSAxMDIuNTggMzcuNSIgZmlsbD0ibm9uZSI+CiAgPHRpdGxlPkFjbWU8L3RpdGxlPgogIDxnIGZpbGw9IiM3NjdBODUiIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0yIDgpIj48cmVjdCB4PSIyIiB5PSIyIiB3aWR0aD0iOSIgaGVpZ2h0PSI5IiByeD0iMiIvPjxwYXRoIGQ9Ik0xMyAyQTkgOSAwIDAgMSAyMiAxMUgxM1oiLz48cGF0aCBkPSJNMiAxM0gxMVYyMkE5IDkgMCAwIDEgMiAxM1oiLz48Y2lyY2xlIGN4PSIxNy41IiBjeT0iMTcuNSIgcj0iNC41Ii8+PC9nPgogIDxwYXRoIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0yIDApIiBkPSJNNDYuMSAyMEE2LjEgNi4xIDAgMSAwIDMzLjkgMjBBNi4xIDYuMSAwIDEgMCA0Ni4xIDIwTTQ2LjEgMTMuOVYyNi4xTTYyLjY4IDE1LjQ3QTYuMSA2LjEgMCAxIDAgNjIuNjggMjQuNTNNNjguODggMjYuMVYxMy45TTY4Ljg4IDE3LjdBMy44IDMuOCAwIDAgMSA3Ni40OCAxNy43VjI2LjFNNzYuNDggMTcuN0EzLjggMy44IDAgMCAxIDg0LjA4IDE3LjdWMjYuMU05MC40OCAyMEgxMDIuNjhBNi4xIDYuMSAwIDEgMCAxMDEuMjUgMjMuOTIiIHN0cm9rZT0iIzc2N0E4NSIgc3Ryb2tlLXdpZHRoPSIzLjgiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4K"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002/assets/favicon",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": "data:image/ico;base64,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"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/pages",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/snippets",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 0
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/identity-providers",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": [],
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/authentication-settings",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "basic_auth_enabled": true,
+          "oidc_auth_enabled": false,
+          "saml_auth_enabled": false,
+          "konnect_mapping_enabled": true,
+          "oidc_team_mapping_enabled": false,
+          "idp_mapping_enabled": false,
+          "oidc_config": null
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/ip-allow-list",
+        "query": [
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "allowed_ips": [
+                "192.0.2.50",
+                "198.51.100.128/25"
+              ],
+              "id": "00000000-0000-4000-8000-000000000004"
+            }
+          ],
+          "meta": {
+            "next": null,
+            "previous": null,
+            "size": 1
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/integrations",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {},
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/customization",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {},
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/custom-domain",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "status": 404,
+          "title": "Not Found",
+          "instance": "kong:trace:7769845371954905460",
+          "detail": "custom domain not found"
+        },
+        "content_type": "application/problem+json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/email-config",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "status": 404,
+          "title": "Not Found",
+          "instance": "kong:trace:12223823493855112439",
+          "detail": "Portal email config not found"
+        },
+        "content_type": "application/problem+json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/email-templates",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/audit-log-webhook",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "enabled": false,
+          "audit_log_destination_id": "",
+          "include_principal_name": false
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/assets/logo",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjQuMTMiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMS4yNSAxMDIuNTggMzcuNSIgZmlsbD0ibm9uZSI+CiAgPHRpdGxlPkFjbWU8L3RpdGxlPgogIDxnIGZpbGw9IiM3NjdBODUiIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0yIDgpIj48cmVjdCB4PSIyIiB5PSIyIiB3aWR0aD0iOSIgaGVpZ2h0PSI5IiByeD0iMiIvPjxwYXRoIGQ9Ik0xMyAyQTkgOSAwIDAgMSAyMiAxMUgxM1oiLz48cGF0aCBkPSJNMiAxM0gxMVYyMkE5IDkgMCAwIDEgMiAxM1oiLz48Y2lyY2xlIGN4PSIxNy41IiBjeT0iMTcuNSIgcj0iNC41Ii8+PC9nPgogIDxwYXRoIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0yIDApIiBkPSJNNDYuMSAyMEE2LjEgNi4xIDAgMSAwIDMzLjkgMjBBNi4xIDYuMSAwIDEgMCA0Ni4xIDIwTTQ2LjEgMTMuOVYyNi4xTTYyLjY4IDE1LjQ3QTYuMSA2LjEgMCAxIDAgNjIuNjggMjQuNTNNNjguODggMjYuMVYxMy45TTY4Ljg4IDE3LjdBMy44IDMuOCAwIDAgMSA3Ni40OCAxNy43VjI2LjFNNzYuNDggMTcuN0EzLjggMy44IDAgMCAxIDg0LjA4IDE3LjdWMjYuMU05MC40OCAyMEgxMDIuNjhBNi4xIDYuMSAwIDEgMCAxMDEuMjUgMjMuOTIiIHN0cm9rZT0iIzc2N0E4NSIgc3Ryb2tlLXdpZHRoPSIzLjgiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4K"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/assets/favicon",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": "data:image/ico;base64,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"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "e2e-portal-ip-allow-list-root",
+              "description": "Portal with a top-level declarative IP allow list",
+              "display_name": "E2E Portal IP Allow List Root",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "ea5f448b1cff.us.kongportals.com",
+              "default_domain": "ea5f448b1cff.us.kongportals.com",
+              "created_at": "2026-11-04T20:17:20.864Z",
+              "updated_at": "2026-11-04T20:17:20.864Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-ip-allow-list"
+              }
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "name": "e2e-portal-ip-allow-list-nested",
+              "description": "Portal with a nested declarative IP allow list",
+              "display_name": "E2E Portal IP Allow List Nested",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "bc1fc271da20.us.kongportals.com",
+              "default_domain": "bc1fc271da20.us.kongportals.com",
+              "created_at": "2026-11-04T20:17:21.429Z",
+              "updated_at": "2026-11-04T20:17:21.429Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-ip-allow-list"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 2,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "e2e-portal-ip-allow-list-root",
+              "description": "Portal with a top-level declarative IP allow list",
+              "display_name": "E2E Portal IP Allow List Root",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "ea5f448b1cff.us.kongportals.com",
+              "default_domain": "ea5f448b1cff.us.kongportals.com",
+              "created_at": "2026-11-04T20:17:20.864Z",
+              "updated_at": "2026-11-04T20:17:20.864Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-ip-allow-list"
+              }
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "name": "e2e-portal-ip-allow-list-nested",
+              "description": "Portal with a nested declarative IP allow list",
+              "display_name": "E2E Portal IP Allow List Nested",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "bc1fc271da20.us.kongportals.com",
+              "default_domain": "bc1fc271da20.us.kongportals.com",
+              "created_at": "2026-11-04T20:17:21.429Z",
+              "updated_at": "2026-11-04T20:17:21.429Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-ip-allow-list"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 2,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "e2e-portal-ip-allow-list-root",
+              "description": "Portal with a top-level declarative IP allow list",
+              "display_name": "E2E Portal IP Allow List Root",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "ea5f448b1cff.us.kongportals.com",
+              "default_domain": "ea5f448b1cff.us.kongportals.com",
+              "created_at": "2026-11-04T20:17:20.864Z",
+              "updated_at": "2026-11-04T20:17:20.864Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-ip-allow-list"
+              }
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "name": "e2e-portal-ip-allow-list-nested",
+              "description": "Portal with a nested declarative IP allow list",
+              "display_name": "E2E Portal IP Allow List Nested",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "bc1fc271da20.us.kongportals.com",
+              "default_domain": "bc1fc271da20.us.kongportals.com",
+              "created_at": "2026-11-04T20:17:21.429Z",
+              "updated_at": "2026-11-04T20:17:21.429Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-ip-allow-list"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 2,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "e2e-portal-ip-allow-list-root",
+              "description": "Portal with a top-level declarative IP allow list",
+              "display_name": "E2E Portal IP Allow List Root",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "ea5f448b1cff.us.kongportals.com",
+              "default_domain": "ea5f448b1cff.us.kongportals.com",
+              "created_at": "2026-11-04T20:17:20.864Z",
+              "updated_at": "2026-11-04T20:17:20.864Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-ip-allow-list"
+              }
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "name": "e2e-portal-ip-allow-list-nested",
+              "description": "Portal with a nested declarative IP allow list",
+              "display_name": "E2E Portal IP Allow List Nested",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "bc1fc271da20.us.kongportals.com",
+              "default_domain": "bc1fc271da20.us.kongportals.com",
+              "created_at": "2026-11-04T20:17:21.429Z",
+              "updated_at": "2026-11-04T20:17:21.429Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-ip-allow-list"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 2,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "DELETE",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000002",
+        "query": [
+          [
+            "force",
+            "true"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 204,
+        "body": null,
+        "content_type": null
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "DELETE",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001",
+        "query": [
+          [
+            "force",
+            "true"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 204,
+        "body": null,
+        "content_type": null
+      }
+    }
+  ],
   "parallel_phases": [
     {
       "start": 4,
@@ -20,39 +3227,33 @@
     },
     {
       "start": 40,
+      "end": 42,
+      "after": {}
+    },
+    {
+      "start": 43,
+      "end": 45,
+      "after": {}
+    },
+    {
+      "start": 46,
+      "end": 53,
+      "after": {}
+    },
+    {
+      "start": 54,
       "end": 56,
       "after": {}
     },
     {
       "start": 57,
-      "end": 73,
+      "end": 88,
       "after": {}
     },
     {
-      "start": 74,
-      "end": 81,
-      "after": {}
-    },
-    {
-      "start": 82,
-      "end": 98,
-      "after": {}
-    },
-    {
-      "start": 99,
-      "end": 130,
-      "after": {}
-    },
-    {
-      "start": 131,
-      "end": 136,
+      "start": 89,
+      "end": 94,
       "after": {}
     }
-  ],
-  "interaction_chunks": [
-    "63e615790e91da6708be0e8e063a49143023f0e8ec300bef0021eed1ff51293c",
-    "a44a5398ba2de9f7dc5a1e628e3c08022851512057946c3796018f7de9235bfc",
-    "914064359d3757b223338fbcef46c3a3bb4af25b6e44e969c262004c5af35d45",
-    "3c54b9edac3d455b98522e0382d92940daa43aaa3f88132f0c73803e2aef0f06"
   ]
 }

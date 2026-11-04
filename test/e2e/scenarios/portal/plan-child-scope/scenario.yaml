@@ -1,0 +1,242 @@
+baseInputsPath: testdata
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-seed-existing-portal-and-children
+    commands:
+      - name: 000-apply-seed
+        run: [apply, -f, "{{ .workdir }}/seed.yaml", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 5
+                failed: 0
+
+  - name: 002-plan-and-apply-parent-only
+    commands:
+      - name: 000-plan-parent-only
+        env:
+          KONNECT_SDK_HTTP_DUMP_REQUEST: "true"
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/parent-only-plan.json"
+        run: [plan, -f, "{{ .workdir }}/parent-only.yaml", --mode, apply]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: changes[0]
+            expect:
+              fields:
+                resource_type: portal
+                resource_ref: scope-portal
+                fields.display_name: After child omission
+          # Counting every request catches any undeclared child endpoint,
+          # including future child types. The path check proves capture worked.
+          - source:
+              artifact:
+                glob: http-dumps/request-*.txt
+            expect:
+              fields:
+                count: 1
+          - source:
+              artifact:
+                path: http-dumps/request-001.txt
+                parseAs: text
+            expect:
+              fields:
+                "starts_with(text, 'GET /v3/portals?')": true
+
+      - name: 001-apply-parent-only
+        replanOnRetry: ["{{ .workdir }}/parent-only.yaml"]
+        run: [apply, --plan, "{{ .workdir }}/parent-only-plan.json", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+      - name: 002-verify-omitted-children-retained
+        run:
+          - dump
+          - declarative
+          - --resources=portals
+          - --include-child-resources
+          - --default-namespace=portal-child-scope
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          - select: portals[?name=='scope-portal'] | [0]
+            expect:
+              fields:
+                display_name: After child omission
+                "length(pages)": 1
+                pages[0].slug: scope-guide
+                pages[0].content: "# Scope guide"
+                "length(snippets)": 1
+                snippets[0].name: scope-banner
+                snippets[0].content: Keep this banner
+                "length(teams)": 1
+                teams[0].name: Scope team
+                teams[0].description: Keep this team
+                ip_allow_list.allowed_ips: [198.51.100.10]
+
+      - name: 003-plan-parent-only-idempotency
+        env:
+          KONNECT_SDK_HTTP_DUMP_REQUEST: "true"
+        outputFormat: disable
+        run: [plan, -f, "{{ .workdir }}/parent-only.yaml", --mode, apply]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+          - source:
+              artifact:
+                glob: http-dumps/request-*.txt
+            expect:
+              fields:
+                count: 1
+          - source:
+              artifact:
+                path: http-dumps/request-001.txt
+                parseAs: text
+            expect:
+              fields:
+                "starts_with(text, 'GET /v3/portals?')": true
+
+  - name: 003-plan-external-parent-only
+    commands:
+      - name: 000-plan-external-parent-only
+        env:
+          KONNECT_SDK_HTTP_DUMP_REQUEST: "true"
+        outputFormat: disable
+        run: [plan, -f, "{{ .workdir }}/external-parent.yaml", --mode, apply]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+          - source:
+              artifact:
+                glob: http-dumps/request-*.txt
+            expect:
+              fields:
+                count: 1
+          - source:
+              artifact:
+                path: http-dumps/request-001.txt
+                parseAs: text
+            expect:
+              fields:
+                "starts_with(text, 'GET /v3/portals?')": true
+
+  - name: 004-plan-declared-children
+    commands:
+      - name: 000-plan-nested-team
+        env:
+          KONNECT_SDK_HTTP_DUMP_REQUEST: "true"
+        outputFormat: disable
+        run: [plan, -f, "{{ .workdir }}/nested-team.yaml", --mode, apply]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+          - source:
+              artifact:
+                glob: http-dumps/request-*.txt
+            expect:
+              fields:
+                count: 2
+          - source:
+              artifact:
+                path: http-dumps/request-002.txt
+                parseAs: text
+            expect:
+              fields:
+                "starts_with(text, 'GET /v3/portals/')": true
+                "contains(text, '/teams')": true
+
+      - name: 001-plan-root-allow-list
+        env:
+          KONNECT_SDK_HTTP_DUMP_REQUEST: "true"
+        outputFormat: disable
+        run: [plan, -f, "{{ .workdir }}/root-allow-list.yaml", --mode, apply]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+          - source:
+              artifact:
+                glob: http-dumps/request-*.txt
+            expect:
+              fields:
+                count: 2
+          - source:
+              artifact:
+                path: http-dumps/request-002.txt
+                parseAs: text
+            expect:
+              fields:
+                "starts_with(text, 'GET /v3/portals/')": true
+                "contains(text, '/ip-allow-list')": true
+
+  - name: 005-plan-explicit-empty-sync-scope
+    commands:
+      - name: 000-plan-empty-teams
+        env:
+          KONNECT_SDK_HTTP_DUMP_REQUEST: "true"
+        outputFormat: disable
+        run: [plan, -f, "{{ .workdir }}/empty-teams.yaml", --mode, sync]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: changes[0]
+            expect:
+              fields:
+                resource_type: portal_team
+                action: DELETE
+          - source:
+              artifact:
+                glob: http-dumps/request-*.txt
+            expect:
+              fields:
+                # Planning a delete also resolves the protecting parent.
+                count: 3
+          - source:
+              artifact:
+                path: http-dumps/request-002.txt
+                parseAs: text
+            expect:
+              fields:
+                "contains(text, '/teams')": true
+          - source:
+              artifact:
+                path: http-dumps/request-003.txt
+                parseAs: text
+            expect:
+              fields:
+                "starts_with(text, 'GET /v3/portals?')": true
+
+  - name: 006-delete-cleanup
+    commands:
+      - name: 000-delete-portal
+        run: [delete, -f, "{{ .workdir }}/parent-only.yaml", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success

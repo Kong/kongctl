@@ -1,12 +1,48 @@
 # Portal teams replay
 
+## Apply child-scope refresh
+
+The [fresh live recording][refresh-record] passed all scenario assertions
+and before/after resets under the existing acceptance-3 organization lock.
+It was captured from commit `155dfd85` for issue #2706.
+[Three network-isolated replays][refresh-replay] each consumed all 107
+recorded exchanges and passed every assertion.
+
+Scenario inputs, overlays, assertions, and replay eligibility are unchanged.
+Apply planning now skips children absent from the manifest, so the recording
+omits their former comparison reads. Declared-child reads and mutations
+retain their assertions, and command/reset boundaries stay intact.
+
+The annotations were reviewed against the new recording and rebound to its
+exact raw-candidate SHA-256. These ranges retain the previous command scopes;
+all other exchanges remain strictly ordered. Mandatory creation, repeated
+request, and read-before-write dependencies remain enforced.
+
+| Previous range | Refreshed range |
+| --- | --- |
+| 3-5 | 3-5 |
+| 73-75 | 39-41 |
+| 78-80 | 43-45 |
+| 93-95 | 52-54 |
+| 103-105 | 61-63 |
+| 133-135 | 85-87 |
+| 142-144 | 93-95 |
+| 161-162 | 106-107 |
+
+The committed cassette preserves the fresh recording's requests, responses,
+media types, provenance, and input fingerprint. Large recordings are packed
+losslessly into hash-addressed chunks. Matcher and sanitizer rules are
+unchanged. The current validation above covers the committed representation.
+
+## Previous recording (superseded)
+
 The [live recording][record] captured 163 HTTP exchanges under the existing
 acceptance-3 organization lock, with successful before/after resets. Three
 [network-isolated replays][replay] passed using the reviewed annotations.
 The only scenario edits remove ten command-local HTTP debug-dump environment
 blocks. Inputs, overlays, commands, and assertions are otherwise unchanged.
 
-## Coverage and ordering
+### Coverage and ordering
 
 Coverage includes nested and root-level teams, lookup by name, description
 updates, sync deletion, API role assignment and removal, no-op plans, and
@@ -44,7 +80,7 @@ The validated cassette is losslessly packed into hash-addressed chunks to
 keep every file below the repository's size limit. Packing does not change
 interactions or their order.
 
-## Measurements
+### Measurements
 
 The three loopback-only runs passed all scenario assertions and consumed
 all 163 exchanges. Scenario durations were 3.405, 3.530, and 3.321 seconds;
@@ -70,3 +106,6 @@ PR; follow the repository replay refresh procedure.
 
 [record]: https://github.com/Kong/kongctl/actions/runs/35419035814
 [replay]: https://github.com/Kong/kongctl/actions/runs/35419655877
+
+[refresh-record]: https://github.com/Kong/kongctl/actions/runs/41902501492
+[refresh-replay]: https://github.com/Kong/kongctl/actions/runs/41906270080

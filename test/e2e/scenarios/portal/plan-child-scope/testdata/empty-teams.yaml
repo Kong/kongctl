@@ -1,0 +1,14 @@
+_defaults:
+  kongctl:
+    namespace: portal-child-scope
+
+portals:
+  - ref: scope-portal
+    name: scope-portal
+    display_name: After child omission
+    authentication_enabled: false
+    rbac_enabled: false
+    auto_approve_developers: false
+    auto_approve_applications: false
+    default_page_visibility: public
+    teams: []

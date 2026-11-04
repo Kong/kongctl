@@ -3,6 +3,7 @@ package planner
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"log/slog"
 	"testing"
 
@@ -103,35 +104,39 @@ func (a *portalTraversalSnippetAPI) ListPortalSnippets(
 	return a.mockPortalSnippetAPI.ListPortalSnippets(ctx, req, opts...)
 }
 
-func TestPortalChildTraversalExternalScope(t *testing.T) {
-	for _, tt := range []struct {
-		name             string
-		mode             PlanMode
-		declared, scoped bool
-		wantCalls        int
-	}{
-		{"apply skips empty collection despite scope", PlanModeApply, false, true, 0},
-		{"apply visits declared collection", PlanModeApply, true, false, 1},
-		{"sync visits scoped empty collection", PlanModeSync, false, true, 1},
-		{"sync skips unscoped collection", PlanModeSync, false, false, 0},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			var logs bytes.Buffer
-			api := &portalTraversalSnippetAPI{}
-			root, p, desired, cfg := portalTraversalFixture(t, true, true, "portal-id",
-				state.ClientConfig{PortalSnippetAPI: api}, &logs)
-			if tt.declared {
-				p.desiredPortalSnippets = []resources.PortalSnippetResource{
-					{Ref: "snippet", Portal: desired.Ref, Name: "snippet", Content: "content"},
-				}
+func TestPortalChildTraversalScope(t *testing.T) {
+	for _, external := range []bool{false, true} {
+		t.Run(fmt.Sprintf("external=%v", external), func(t *testing.T) {
+			for _, tt := range []struct {
+				name             string
+				mode             PlanMode
+				declared, scoped bool
+				wantCalls        int
+			}{
+				{"apply skips empty collection despite scope", PlanModeApply, false, true, 0},
+				{"apply visits declared collection", PlanModeApply, true, false, 1},
+				{"sync visits scoped empty collection", PlanModeSync, false, true, 1},
+				{"sync skips unscoped collection", PlanModeSync, false, false, 0},
+			} {
+				t.Run(tt.name, func(t *testing.T) {
+					var logs bytes.Buffer
+					api := &portalTraversalSnippetAPI{}
+					root, p, desired, cfg := portalTraversalFixture(t, true, external, "portal-id",
+						state.ClientConfig{PortalSnippetAPI: api}, &logs)
+					if tt.declared {
+						p.desiredPortalSnippets = []resources.PortalSnippetResource{
+							{Ref: "snippet", Portal: desired.Ref, Name: "snippet", Content: "content"},
+						}
+					}
+					if tt.scoped {
+						p.resources.SyncScope.AddChild(resources.ResourceTypePortal, desired.Ref, resources.ResourceTypePortalSnippet)
+					}
+					plan := NewPlan("1", "test", tt.mode)
+					require.NoError(t, root.PlanChanges(t.Context(), cfg, plan))
+					require.Equal(t, tt.wantCalls, api.calls)
+					require.Equal(t, tt.declared, plan.HasChange(ResourceTypePortalSnippet, "snippet"))
+				})
 			}
-			if tt.scoped {
-				p.resources.SyncScope.AddChild(resources.ResourceTypePortal, desired.Ref, resources.ResourceTypePortalSnippet)
-			}
-			plan := NewPlan("1", "test", tt.mode)
-			require.NoError(t, root.PlanChanges(t.Context(), cfg, plan))
-			require.Equal(t, tt.wantCalls, api.calls)
-			require.Equal(t, tt.declared, plan.HasChange(ResourceTypePortalSnippet, "snippet"))
 		})
 	}
 }

@@ -140,7 +140,25 @@ class ReplayTest(unittest.TestCase):
         annotations = MODULE.parse_json((directory / "parallel-phases.json").read_bytes())
         self.assertEqual(annotations["parallel_phases"], cassette["parallel_phases"])
         hosts = {endpoint: host for host, endpoint in MODULE.HOSTS.items()}
-        for early_deletes in ((449, 450), (450, 449)):
+        items = cassette["interactions"]
+        cleanup = cassette["parallel_phases"][-1]
+        cleanup_numbers = range(cleanup["start"], cleanup["end"] + 1)
+        deletes = [number for number in cleanup_numbers if items[number - 1]["request"]["method"] == "DELETE"]
+        self.assertEqual(3, len(deletes))
+        api_deletes = [number for number in deletes if items[number - 1]["request"]["path"].startswith("/v3/apis/")]
+        self.assertEqual(2, len(api_deletes))
+        delayed_delete = api_deletes[-1]
+        delayed_path = items[delayed_delete - 1]["request"]["path"]
+        delayed_lookup = max(number for number in cleanup_numbers
+                             if items[number - 1]["request"]["method"] == "GET"
+                             and items[number - 1]["request"]["path"] == delayed_path)
+        independent_deletes = [number for number in deletes if number != delayed_delete]
+        final_cleanup = range(cleanup["end"] + 1, len(items) + 1)
+        self.assertEqual(["GET", "DELETE"], [items[number - 1]["request"]["method"] for number in final_cleanup])
+        reset_deletes = [number for number in range(1, cleanup["start"])
+                         if items[number - 1]["request"]["method"] == "DELETE"]
+        self.assertEqual(5, len(reset_deletes))
+        for early_deletes in (independent_deletes, list(reversed(independent_deletes))):
             with self.subTest(early_deletes=early_deletes):
                 engine = MODULE.Replay(cassette)
 
@@ -153,24 +171,27 @@ class ReplayTest(unittest.TestCase):
                     self.assertEqual(item["response"], engine.exchange(
                         hosts[request["endpoint"]], request["method"], target, body))
 
-                for number in range(1, 448):
+                for number in range(1, cleanup["start"]):
                     send(number)
-                # Hold the second API's protection lookup (448) until the
-                # independent first-API and portal deletes have completed.
+                # Hold one API's protection lookup while the other API and
+                # portal deletions complete, independent of cassette offsets.
+                for number in cleanup_numbers:
+                    if items[number - 1]["request"]["method"] == "GET" and number != delayed_lookup:
+                        send(number)
                 for number in early_deletes:
                     send(number)
-                self.assertNotIn(447, engine.completed)
+                self.assertNotIn(delayed_lookup - 1, engine.completed)
                 with patch.object(MODULE, "DEPENDENCY_WAIT_SECONDS", 0):
                     with self.assertRaisesRegex(ValueError, "dependency wait timed out"):
-                        send(451)  # This API still requires its own lookup.
+                        send(delayed_delete)  # This API still requires its own lookup.
                 with self.assertRaisesRegex(ValueError, "request mismatch"):
-                    send(452)  # Auth-strategy cleanup remains a later barrier.
+                    send(final_cleanup.start)  # Auth-strategy cleanup remains a later barrier.
                 with self.assertRaisesRegex(ValueError, "request mismatch"):
                     send(early_deletes[0])  # No exchange can be consumed twice.
-                for number in (448, 451, 452, 453):
+                for number in (delayed_lookup, delayed_delete, *final_cleanup):
                     send(number)
                 engine.verify()
-                for number in (*range(282, 287), 452, 453):
+                for number in (*range(min(reset_deletes), max(reset_deletes) + 1), *final_cleanup):
                     self.assertNotIn(number - 1, engine.phases)
 
     def test_round_trip_cassette_phases_preserve_dependencies_and_exact_matching(self):
@@ -317,8 +338,9 @@ class ReplayTest(unittest.TestCase):
             for index in range(position, start):
                 send(index)
             # No phase may consume the request from the following strict segment.
-            with self.assertRaisesRegex(ValueError, "mismatch"):
-                send(end)
+            if end < len(cassette["interactions"]):
+                with self.assertRaisesRegex(ValueError, "mismatch"):
+                    send(end)
             self.assertEqual(start, engine.position)
             self.assertLessEqual(end - start, 3)
             methods = {item["request"]["method"] for item in cassette["interactions"][start:end]}
@@ -329,6 +351,9 @@ class ReplayTest(unittest.TestCase):
         for index in range(position, len(cassette["interactions"])):
             send(index)
         engine.verify()
+
+        with self.assertRaisesRegex(ValueError, "unexpected extra request"):
+            send(len(cassette["interactions"]) - 1)
 
     def test_portal_document_patch_waits_for_delayed_api_inventory(self):
         cassette = MODULE.load_cassette(MODULE.ROOT /
@@ -343,9 +368,24 @@ class ReplayTest(unittest.TestCase):
             body = json.dumps(request["body"]).encode() if request["body"] is not None else b""
             return engine.exchange(host, request["method"], target, body)
 
-        # Reproduce #2229: PATCH 132 arrives while GET 127 is still in flight.
-        # The request matches exactly; only its ancestor-read dependency lags.
-        for index in [*range(124), 124, 125, 127, 129]:
+        items = cassette["interactions"]
+        phase = next(phase for phase in cassette["parallel_phases"]
+                     if any(item["request"]["method"] == "PATCH"
+                            and "/documents/" in item["request"]["path"]
+                            for item in items[phase["start"] - 1:phase["end"]]))
+        indices = range(phase["start"] - 1, phase["end"])
+        delayed_inventory = max(index for index in indices
+                                if items[index]["request"]["method"] == "GET"
+                                and items[index]["request"]["path"] == "/v3/apis")
+        delayed_patch = max(index for index in indices if items[index]["request"]["method"] == "PATCH")
+        self.assertIn(delayed_inventory, engine.phases[phase["start"] - 1][delayed_patch])
+        # Reproduce #2229 without depending on recording-specific offsets:
+        # an exact PATCH arrives while its ancestor inventory is still in flight.
+        for index in range(phase["start"] - 1):
+            send(index)
+        completed_reads = [index for index in indices
+                           if items[index]["request"]["method"] == "GET" and index != delayed_inventory]
+        for index in completed_reads:
             send(index)
         waiting = threading.Event()
         original_wait = engine.changed.wait
@@ -355,15 +395,17 @@ class ReplayTest(unittest.TestCase):
             return original_wait(timeout)
 
         with patch.object(engine.changed, "wait", side_effect=observed_wait), ThreadPoolExecutor(max_workers=1) as pool:
-            pending = pool.submit(send, 131)
+            pending = pool.submit(send, delayed_patch)
             try:
                 self.assertTrue(waiting.wait(2))
                 self.assertFalse(pending.done())
-                self.assertEqual(engine.position, 128)
+                self.assertEqual(engine.position, phase["start"] - 1 + len(completed_reads))
             finally:
-                send(126)
-            self.assertEqual(pending.result(timeout=1), cassette["interactions"][131]["response"])
-        for index in [128, 130, *range(132, len(cassette["interactions"]))]:
+                send(delayed_inventory)
+            self.assertEqual(pending.result(timeout=1), items[delayed_patch]["response"])
+        for index in [index for index in indices if index not in engine.completed]:
+            send(index)
+        for index in range(phase["end"], len(items)):
             send(index)
         engine.verify()
 
