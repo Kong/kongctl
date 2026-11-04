@@ -13,9 +13,12 @@ on `main`, the `Sync get.konghq.com installer` workflow opens or updates a pull
 request in `Kong/get.konghq.com` that copies the script to the root-level
 `kongctl` path.
 
-The sync workflow requires a `GET_KONGHQ_COM_TOKEN` secret with permission to
-push branches and open pull requests in `Kong/get.konghq.com`. It must not
-auto-merge the hosted-script pull request.
+The sync workflow uses the Kong-owned publisher App, installed on
+`Kong/get.konghq.com`. Configure `KONGCTL_RELEASE_APP_CLIENT_ID` as an Actions
+variable and `KONGCTL_RELEASE_APP_PRIVATE_KEY` as an Actions secret in
+`Kong/kongctl`. It mints a token restricted to the destination repository with
+Contents write and Pull requests write. It must not auto-merge the
+hosted-script pull request.
 
 Before merging installer changes, run:
 

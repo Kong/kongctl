@@ -75,17 +75,11 @@ Keep the previous PAT secrets until the migrated workflows have succeeded.
 Once both App credentials are available, manually dispatch
 `github-app-auth-check.yml` to validate token issuance for all four repository
 scopes and private SDK reads without publishing or modifying repositories.
-The check also runs for same-repository PRs that change its definition;
-fork PRs skip it.
-For an approved write rehearsal, dispatch it with `rehearse_homebrew=true`, or
-label a same-repository PR `homebrew-app-rehearsal` before pushing a change
-to the authentication-check workflow. The opt-in job uses production tap
-publication scripts to prepend a run-specific comment to the existing cask
-and formula, run the formula's checks and guarded publisher, then remove
-only that run's comments from the latest recipes. A Git commit hook rejects
-any recipe or unrelated file changes. This makes real, reversible tap commits
-and a formula PR, but creates no kongctl release or new binaries. Inspect a
-failed run for an unmerged rehearsal PR and cleanup failures before retrying.
+The check runs only from trusted `Kong/kongctl` main. It requests the actual
+production token scopes to verify installation grants but performs only reads;
+no App keys or tokens are passed to PR-head scripts. The one-off comment-only
+publication rehearsal completed successfully before merge; its production-write
+job and helper scripts were removed after validation.
 Then validate SDK preview PR checks, run installer sync, and
 verify cask and formula publication during the next approved release. Then
 remove `PAT`, `GH_TOKEN_PRIVATE_READ`, `GET_KONGHQ_COM_TOKEN`, and

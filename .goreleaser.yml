@@ -74,7 +74,6 @@ homebrew_casks:
   - repository:
       owner: kong
       name: homebrew-kongctl
-      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
       branch: main 
       pull_request:
         enabled: false

@@ -90,3 +90,66 @@ for (const filename of ["test.yaml", "e2e.yaml", "adhoc-prerelease.yml", "declar
     });
   }
 }
+
+test("App authentication checks cannot run PR-head scripts or use a label write gate", () => {
+  assert.match(workflow, /on:\n  workflow_dispatch: \{\}/);
+  assert.match(workflow, /if: github.repository == 'Kong\/kongctl' && github.ref == 'refs\/heads\/main'/);
+  assert.doesNotMatch(workflow, /pull_request:|rehearse-homebrew|actions\/checkout|homebrew-app-rehearsal/);
+});
+
+for (const filename of ["test.yaml", "e2e.yaml", "declarative-benchmark.yaml", "release.md"]) {
+  const source = readFileSync(new URL(`../../.github/workflows/${filename}`, import.meta.url), "utf8");
+  const configurations = source.split(/      - name: Configure private module (?:access|reads)\n/).slice(1);
+  assert.equal(configurations.length, filename === "e2e.yaml" ? 2 : 1, filename);
+  for (const [index, configuration] of configurations.entries()) {
+    const script = configuration.split("\n      - ")[0].split("        run: |\n")[1]
+      .trimEnd().split("\n").map((line) => line.slice(10)).join("\n");
+    test(`${filename} SDK configuration ${index + 1} rejects missing tokens before configuring Git`, (t) => {
+      const directory = mkdtempSync(join(tmpdir(), "kongctl-sdk-config-"));
+      t.after(() => rmSync(directory, { recursive: true, force: true }));
+      const result = spawnSync("bash", ["-euo", "pipefail", "-c", script], {
+        cwd: directory, encoding: "utf8", env: { ...process.env, SDK_TOKEN: "" },
+      });
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, /SDK App token is required/);
+    });
+    test(`${filename} SDK configuration ${index + 1} scopes headers and preserves GOPRIVATE`, (t) => {
+      const directory = mkdtempSync(join(tmpdir(), "kongctl-sdk-config-"));
+      t.after(() => rmSync(directory, { recursive: true, force: true }));
+      writeFileSync(join(directory, "go"), '#!/bin/sh\n[ "$GOTOOLCHAIN" = local ] || exit 1\necho persisted.example/*\n', { mode: 0o755 });
+      const env = {
+        ...process.env, SDK_TOKEN: "test-sdk-token", PATH: `${directory}:${process.env.PATH}`,
+        GIT_CONFIG_GLOBAL: join(directory, "gitconfig"), GIT_CONFIG_NOSYSTEM: "1",
+        GITHUB_ENV: join(directory, "env"),
+      };
+      const module = "github.com/Kong/sdk-konnect-go-internal";
+      for (const prior of ["example.com/*", `example.com/*,${module}`, ""]) {
+        writeFileSync(env.GITHUB_ENV, "");
+        const result = spawnSync("bash", ["-euo", "pipefail", "-c", script], {
+          cwd: directory, encoding: "utf8", env: { ...env, GOPRIVATE: prior },
+        });
+        assert.equal(result.status, 0, result.stderr);
+        const expected = prior.includes(module) ? prior : `${prior || "persisted.example/*"},${module}`;
+        assert.equal(readFileSync(env.GITHUB_ENV, "utf8"), `GOPRIVATE=${expected}\n`);
+      }
+      for (const suffix of ["", ".git", "/info/refs", ".git/info/refs", "-other", ".git-other"]) {
+        const result = spawnSync("git", ["config", "--get-urlmatch", "http.extraheader", `https://${module}${suffix}`], {
+          cwd: directory, encoding: "utf8", env,
+        });
+        assert.equal(result.status === 0, !suffix.endsWith("-other"), suffix);
+      }
+      const hostHeader = "AUTHORIZATION: basic checkout-token";
+      const configured = spawnSync("git", ["config", "--global", "http.https://github.com/.extraheader", hostHeader], {
+        cwd: directory, encoding: "utf8", env,
+      });
+      assert.equal(configured.status, 0, configured.stderr);
+      const scopedHeader = `AUTHORIZATION: basic ${Buffer.from("x-access-token:test-sdk-token").toString("base64")}`;
+      for (const suffix of ["", ".git", "-other"]) {
+        const result = spawnSync("git", ["config", "--get-urlmatch", "http.extraheader", `https://${module}${suffix}`], {
+          cwd: directory, encoding: "utf8", env,
+        });
+        assert.equal(result.stdout.trim(), suffix === "-other" ? hostHeader : scopedHeader);
+      }
+    });
+  }
+}

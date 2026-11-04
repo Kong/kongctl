@@ -126,7 +126,7 @@ class HandoffTests(unittest.TestCase):
         go.chmod(0o755)
         self.env.update({"PATH": f"{self.root / 'scripts/release-tools'}:{sentinel}:{self.env['PATH']}",
                          "RELEASE_INPUT": str(self.input), "GITHUB_TOKEN": "",
-                         "TAP_GITHUB_TOKEN": ""})
+                         "API_OPS_APP_SECRET": "", "KONGCTL_RELEASE_APP_PRIVATE_KEY": ""})
         (self.root / ".git/info/exclude").write_text("/handoff/\n/deny-go/\n")
         self.handoff("verify")
         result = self.run_command("goreleaser", "release", "--clean",

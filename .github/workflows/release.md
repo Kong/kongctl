@@ -451,15 +451,26 @@ jobs:
 
       - name: Configure private module reads
         if: steps.sdk-auth.outputs.required == 'true'
+        shell: bash
         env:
-          GH_PRIVATE_READ_TOKEN: ${{ steps.sdk-token.outputs.token }}
+          SDK_TOKEN: ${{ steps.sdk-token.outputs.token }}
         run: |
           set -euo pipefail
-          if [[ -n "${GH_PRIVATE_READ_TOKEN:-}" ]]; then
-            git config --global \
-              url."https://x-access-token:${GH_PRIVATE_READ_TOKEN}@github.com/Kong/sdk-konnect-go-internal".insteadOf \
-              "https://github.com/Kong/sdk-konnect-go-internal"
-          fi
+          : "${SDK_TOKEN:?SDK App token is required for sdk-konnect-go-internal}"
+          auth="$(printf 'x-access-token:%s' "$SDK_TOKEN" | base64 | tr -d '\n')"
+          echo "::add-mask::$auth"
+          for sdk_url in \
+            https://github.com/Kong/sdk-konnect-go-internal \
+            https://github.com/Kong/sdk-konnect-go-internal.git; do
+            git config --global "http.$sdk_url.extraheader" "AUTHORIZATION: basic $auth"
+          done
+          private_modules="${GOPRIVATE:-$(GOTOOLCHAIN=local go env GOPRIVATE)}"
+          case ",$private_modules," in
+            *,github.com/Kong/sdk-konnect-go-internal,*) ;;
+            *) private_modules="${private_modules:+$private_modules,}github.com/Kong/sdk-konnect-go-internal" ;;
+          esac
+          echo "GOPRIVATE=$private_modules" >> "$GITHUB_ENV"
+
       - name: Setup Go
         if: env.RELEASE_BUILD_MODE == 'full' || env.RELEASE_BUILD_MODE == 'smoke'
         uses: actions/setup-go@v6
