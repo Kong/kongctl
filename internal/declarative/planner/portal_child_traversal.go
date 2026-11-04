@@ -16,9 +16,6 @@ func (p *portalPlannerImpl) planPortalChildren(
 ) error {
 	planner := p.planner
 	childInScope := func(rt resources.ResourceType, hasDesired bool) bool {
-		if createOnly {
-			return planner.shouldPlanChild(plan, resources.ResourceTypePortal, desired.Ref, rt)
-		}
 		return p.shouldPlanPortalChild(plan, desired, rt, hasDesired)
 	}
 
@@ -311,7 +308,9 @@ func (p *portalPlannerImpl) shouldPlanPortalChild(
 	rt resources.ResourceType,
 	hasDesired bool,
 ) bool {
-	if desired.IsExternal() && plan != nil && plan.Metadata.Mode != PlanModeSync {
+	// Apply only compares declared children. Sync uses key-presence scope so
+	// explicitly empty collections can still prune existing children.
+	if plan != nil && plan.Metadata.Mode != PlanModeSync {
 		return hasDesired
 	}
 	return p.planner.shouldPlanChild(plan, resources.ResourceTypePortal, desired.Ref, rt)
