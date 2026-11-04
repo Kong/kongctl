@@ -30,9 +30,9 @@ exercises:
   `_defaults.kongctl.namespace`; update fixtures use a mapping-tagged
   resource-level `kongctl.namespace` without a file default. Both resolve to
   the same isolated namespace, checked by `--require-namespace` and plan
-  assertions throughout the lifecycle. Saved create and delete plans execute
-  with a different environment value to verify namespace ownership stays fixed
-  at planning time.
+  assertions throughout the lifecycle. Saved create, sync, and delete plans
+  execute with a different environment value to verify namespace ownership
+  stays fixed at planning time.
 - Provider replacement and attached-policy renaming, including execution-order
   and concurrency-group assertions before applying the saved sync plan.
 - Exact child readbacks and name matching with a UUID-shaped model ref.
@@ -59,9 +59,10 @@ and remote values. These are control-plane checks; no inference calls, live
 vector database, or running Kafka brokers are required. Token Vault enrollment
 and outbound TLS are outside this suite's current coverage.
 
-Namespace coverage requires a binary supporting `!env` on both namespace
-locations. The runner exports `KONGCTL_SMOKE_NAMESPACE_<RESOURCE>` (uppercase,
-such as `KONGCTL_SMOKE_NAMESPACE_AI_GATEWAY`) with each generated namespace,
+Namespace coverage requires the support from
+[PR #2705](https://github.com/Kong/kongctl/pull/2705) (`bcd17a79`) on both
+namespace locations. The runner exports `KONGCTL_SMOKE_NAMESPACE_<RESOURCE>`
+(uppercase, such as `KONGCTL_SMOKE_NAMESPACE_AI_GATEWAY`) with each namespace,
 overriding any inherited value for selected resources. To reuse an artifact
 fixture manually, set its variable to the namespace recorded in `report.json`.
 Quick mode generates these fixtures; full mode checks namespace resolution.

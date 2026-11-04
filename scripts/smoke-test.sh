@@ -573,7 +573,14 @@ with open(sys.argv[1], encoding="utf-8") as handle:
     value = json.load(handle)
 current = value
 for part in sys.argv[2].split("."):
-    current = current[int(part)] if isinstance(current, list) else current[part]
+    if isinstance(current, list) and "=" in part:
+        key, expected_value = part.split("=", 1)
+        matches = [item for item in current if item.get(key) == expected_value]
+        if len(matches) != 1:
+            raise SystemExit(f"expected exactly one array entry with {part}")
+        current = matches[0]
+    else:
+        current = current[int(part)] if isinstance(current, list) else current[part]
 expected, comparison = sys.argv[3:]
 if comparison == "text":
     matches = str(current) == expected
@@ -816,6 +823,7 @@ check_detail_present() {
   run_kongctl "${detail_args[@]}"
   require_success
   assert_object_field "$match_field" "$resource_name"
+  assert_object_field "labels.KONGCTL-namespace" "$resource_namespace"
   pass_current
 }
 
@@ -1068,15 +1076,13 @@ check_updated_children() {
     start_check "get-updated-mcp" "$resource_key" "read"
     run_kongctl get ai-gateway mcp-servers --gateway-name "$resource_name" smoke-mcp -o json
     require_success
-    assert_object_field "rate_limiting.limits.0.method" "tools/list"
-    assert_object_field "rate_limiting.limits.0.limit" "20"
-    assert_object_field "rate_limiting.limits.0.window_size" "60"
-    assert_object_field "rate_limiting.limits.1.tool" "lookup"
-    assert_object_field "rate_limiting.limits.1.limit" "10"
-    assert_object_field "rate_limiting.limits.1.window_size" "1"
+    assert_object_field "rate_limiting.limits.method=tools/list.limit" "20"
+    assert_object_field "rate_limiting.limits.method=tools/list.window_size" "60"
+    assert_object_field "rate_limiting.limits.tool=lookup.limit" "10"
+    assert_object_field "rate_limiting.limits.tool=lookup.window_size" "1"
     assert_object_field "access.acls.allow_when.0" "http.headers.x_smoke_user == 'allowed'"
     assert_object_field "access.default_tool_acls.deny_when.0" "http.headers.x_smoke_blocked == 'true'"
-    assert_object_field "tools.0.access.acls.allow_when.0" "http.headers.x_smoke_tool == 'allowed'"
+    assert_object_field "tools.name=lookup.access.acls.allow_when.0" "http.headers.x_smoke_tool == 'allowed'"
     assert_object_field "config.allowed_versions.0" "2025-11-25"
     assert_object_field "config.cache.tools_list.ttl_ms" "0"
     assert_object_field "config.cache.discover.ttl_ms" "120000"
@@ -1102,7 +1108,7 @@ check_child_transition() {
   fi
   pass_current
   start_check "sync-${stage}-${resource_key}" "$resource_key" "update"
-  run_kongctl sync --plan "$plan_file" --auto-approve -o json
+  run_saved_plan_with_changed_namespace sync --plan "$plan_file" --auto-approve -o json
   require_success
   assert_execution 1
   pass_current

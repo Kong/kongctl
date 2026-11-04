@@ -144,6 +144,20 @@ for resource in report["resources"]:
         plan = json.loads((directory / "plans" / f"{key}-{stage}{suffix}.json").read_text())
         assert plan["_desired"]["_namespace"] == namespace, (key, stage)
         assert all(change["namespace"] == namespace for change in plan["changes"])
+    dumped = (directory / "dumps" / f"{key}.yaml").read_text()
+    assert "!env" not in dumped, key
+    assert f'namespace: "{namespace}"' in dumped, key
+PYTEST
+  python3 - "$FAKE_LOG" <<'PYTEST'
+import json
+import pathlib
+import sys
+
+records = [json.loads(line) for line in
+           pathlib.Path(sys.argv[1]).with_suffix(".namespaces.jsonl").read_text().splitlines()]
+assert {record["verb"] for record in records} == {"apply", "sync", "delete"}
+for record in records:
+    assert record["environment"] and record["environment"] != record["planned"], record
 PYTEST
   pass "full lifecycle covers resources and per-resource delete"
 }
@@ -339,6 +353,16 @@ test_numeric_readback_format() {
   pass "equivalent numeric readback formats"
 }
 
+test_reordered_mcp_readback() {
+  new_case reordered-mcp
+  export FAKE_FAULT=reordered-mcp
+  run_smoke --yes --resources ai_gateway
+  unset FAKE_FAULT
+  [[ "$STATUS" -eq 0 ]] || fail "MCP readback matches limits and tools by identity" "$OUTPUT"
+  assert_json "$FAKE_STATE" "value == {}" "reordered MCP case cleans up"
+  pass "MCP readback is independent of array order"
+}
+
 test_quick_uses_explain_and_scaffold
 test_full_lifecycle
 test_apply_failure_stops_lifecycle
@@ -359,7 +383,13 @@ test_fault_is_rejected bad-dump plan-zero-portal-dump-sync
 test_fault_is_rejected stale-mcp-limit get-updated-mcp --yes ai_gateway
 test_fault_is_rejected missing-dump-datastore dump-ai_gateway --yes ai_gateway
 test_fault_is_rejected wrong-threshold get-updated-model --yes ai_gateway
+test_fault_is_rejected rebind-apply-namespace get-api --yes api
+test_fault_is_rejected rebind-sync-namespace get-portal --yes portal
+test_fault_is_rejected rebind-delete-namespace delete-api --yes api
+test_fault_is_rejected wrong-dump-namespace plan-zero-api-dump-apply --yes api
 test_fake_datastore_lookup
 test_numeric_readback_format
+test_reordered_mcp_readback
 test_resource_selection
 python3 "$ROOT/test/smoke/plan_test.py" --temp-root "$TMP_ROOT"
+python3 "$ROOT/test/smoke/namespace_test.py" --temp-root "$TMP_ROOT"
