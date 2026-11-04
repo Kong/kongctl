@@ -231,6 +231,15 @@ run_kongctl() {
   current_duration=$(($(date +%s) - current_started))
 }
 
+run_saved_plan_with_changed_namespace() {
+  local namespace_var="KONGCTL_SMOKE_NAMESPACE_${resource_key^^}"
+  local "$namespace_var"
+  printf -v "$namespace_var" '%s' "kctl-smoke-${run_suffix}-changed"
+  export "${namespace_var?}"
+  run_kongctl "$@"
+  current_command="$(shell_join env "$namespace_var=${!namespace_var}") $current_command"
+}
+
 record_current() {
   local status="$1"
   local message="${2:-}"
@@ -461,10 +470,14 @@ rendered.extend([
     f"      smoke-run: {quoted(run_id)}",
     '      smoke-phase: "initial"',
 ])
-header = ["_defaults:", "  kongctl:", f"    namespace: {quoted(namespace)}"]
+namespace_var = f"KONGCTL_SMOKE_NAMESPACE_{resource_type.upper()}"
+header = ["_defaults:", "  kongctl:", f"    namespace: !env {namespace_var}"]
 initial = "\n".join(header + rendered) + "\n"
 updated = initial.replace(quoted(description), quoted(description + " updated"), 1)
 updated = updated.replace('smoke-phase: "initial"', 'smoke-phase: "updated"', 1)
+# Updates exercise explicit metadata without a file default masking resolution.
+updated = "\n".join(updated.splitlines()[len(header):]) + "\n"
+updated += f"    kongctl:\n      namespace: !env {{var: {namespace_var}}}\n"
 pathlib.Path(initial_path).parent.mkdir(parents=True, exist_ok=True)
 pathlib.Path(initial_path).write_text(initial, encoding="utf-8")
 pathlib.Path(updated_path).write_text(updated, encoding="utf-8")
@@ -560,7 +573,14 @@ with open(sys.argv[1], encoding="utf-8") as handle:
     value = json.load(handle)
 current = value
 for part in sys.argv[2].split("."):
-    current = current[int(part)] if isinstance(current, list) else current[part]
+    if isinstance(current, list) and "=" in part:
+        key, expected_value = part.split("=", 1)
+        matches = [item for item in current if item.get(key) == expected_value]
+        if len(matches) != 1:
+            raise SystemExit(f"expected exactly one array entry with {part}")
+        current = matches[0]
+    else:
+        current = current[int(part)] if isinstance(current, list) else current[part]
 expected, comparison = sys.argv[3:]
 if comparison == "text":
     matches = str(current) == expected
@@ -642,6 +662,9 @@ prepare_resource() {
   local description="$7"
   shift 7
   local namespace="kctl-smoke-${run_suffix}-${key//_/-}"
+  local namespace_var="KONGCTL_SMOKE_NAMESPACE_${key^^}"
+  printf -v "$namespace_var" '%s' "$namespace"
+  export "${namespace_var?}"
   local ref="$name"
   local raw_file="$scaffold_dir/${key}.raw.yaml"
   local schema_file="$explain_dir/${key}.json"
@@ -800,6 +823,7 @@ check_detail_present() {
   run_kongctl "${detail_args[@]}"
   require_success
   assert_object_field "$match_field" "$resource_name"
+  assert_object_field "labels.KONGCTL-namespace" "$resource_namespace"
   pass_current
 }
 
@@ -902,7 +926,7 @@ smoke_resource() {
 
   touched_resources+=("$key")
   start_check "apply-create-${key}" "$key" "create"
-  run_kongctl apply --plan "$create_plan" --auto-approve -o json
+  run_saved_plan_with_changed_namespace apply --plan "$create_plan" --auto-approve -o json
   require_success
   assert_execution 1
   pass_current
@@ -1052,15 +1076,13 @@ check_updated_children() {
     start_check "get-updated-mcp" "$resource_key" "read"
     run_kongctl get ai-gateway mcp-servers --gateway-name "$resource_name" smoke-mcp -o json
     require_success
-    assert_object_field "rate_limiting.limits.0.method" "tools/list"
-    assert_object_field "rate_limiting.limits.0.limit" "20"
-    assert_object_field "rate_limiting.limits.0.window_size" "60"
-    assert_object_field "rate_limiting.limits.1.tool" "lookup"
-    assert_object_field "rate_limiting.limits.1.limit" "10"
-    assert_object_field "rate_limiting.limits.1.window_size" "1"
+    assert_object_field "rate_limiting.limits.method=tools/list.limit" "20"
+    assert_object_field "rate_limiting.limits.method=tools/list.window_size" "60"
+    assert_object_field "rate_limiting.limits.tool=lookup.limit" "10"
+    assert_object_field "rate_limiting.limits.tool=lookup.window_size" "1"
     assert_object_field "access.acls.allow_when.0" "http.headers.x_smoke_user == 'allowed'"
     assert_object_field "access.default_tool_acls.deny_when.0" "http.headers.x_smoke_blocked == 'true'"
-    assert_object_field "tools.0.access.acls.allow_when.0" "http.headers.x_smoke_tool == 'allowed'"
+    assert_object_field "tools.name=lookup.access.acls.allow_when.0" "http.headers.x_smoke_tool == 'allowed'"
     assert_object_field "config.allowed_versions.0" "2025-11-25"
     assert_object_field "config.cache.tools_list.ttl_ms" "0"
     assert_object_field "config.cache.discover.ttl_ms" "120000"
@@ -1086,7 +1108,7 @@ check_child_transition() {
   fi
   pass_current
   start_check "sync-${stage}-${resource_key}" "$resource_key" "update"
-  run_kongctl sync --plan "$plan_file" --auto-approve -o json
+  run_saved_plan_with_changed_namespace sync --plan "$plan_file" --auto-approve -o json
   require_success
   assert_execution 1
   pass_current
@@ -1137,7 +1159,7 @@ cleanup_resource() {
   pass_current
 
   start_check "delete-${key}" "$key" "cleanup"
-  run_kongctl delete --plan "$delete_plan" --auto-approve -o json
+  run_saved_plan_with_changed_namespace delete --plan "$delete_plan" --auto-approve -o json
   require_success
   assert_execution 1
   pass_current

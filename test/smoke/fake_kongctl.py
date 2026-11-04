@@ -39,6 +39,18 @@ def resource_from_path(path):
             return key
     raise RuntimeError(f"unknown fixture path: {value}")
 
+def namespace_field(text):
+    # Only the generated root metadata and file-default blocks carry ownership.
+    for indent in (4, 2):
+        match = re.search(
+            rf"^{' ' * indent}kongctl:\n"
+            rf"(?:{' ' * (indent + 2)}(?!namespace:)\S[^\n]*\n)*"
+            rf"{' ' * (indent + 2)}namespace: ([^\n]+)$", text, re.MULTILINE,
+        )
+        if match:
+            return match
+    raise SystemExit("fixture is missing kongctl namespace metadata")
+
 def parse_fixture(path):
     text = pathlib.Path(path).read_text(encoding="utf-8")
     key = resource_from_path(path)
@@ -54,13 +66,27 @@ def parse_fixture(path):
             return raw.strip('"')
     ref_match = re.search(r"^  - ref: (.+)$", text, re.MULTILINE)
     ref = json.loads(ref_match.group(1))
+    namespace_match = namespace_field(text)
+    namespace = namespace_match.group(1)
+    if namespace.startswith("!env "):
+        source = namespace.removeprefix("!env ")
+        if source.startswith("{var: "):
+            source = source.removeprefix("{var: ").removesuffix("}")
+        namespace = os.environ.get(source)
+        if not namespace:
+            raise SystemExit(f"namespace environment variable {source} is unset or empty")
+    else:
+        namespace = json.loads(namespace)
+    if option("--require-namespace", namespace) != namespace:
+        raise SystemExit("fixture namespace does not match --require-namespace")
     item = {
         "ref": ref, "name": scalar("name") or ref,
         "display_name": scalar("display_name"), "description": scalar("description"),
         "root": root, "labels": {"smoke-phase": re.search(r'smoke-phase: "([^"]+)"', text).group(1)},
         "_fixture": text,
-        "_namespace": re.search(r'namespace: "([^"]+)"', text).group(1),
+        "_namespace": namespace,
     }
+    item["labels"]["KONGCTL-namespace"] = namespace
     for field in ("snippets", "backend_clusters", "virtual_clusters",
                   "model_providers", "models", "policies", "mcp_servers", "datastores"):
         raw = scalar(field)
@@ -148,6 +174,18 @@ def resource_from_command():
 
 def print_execution(changes=1):
     print(json.dumps({"summary": {"status": "success", "failed": 0, "applied": changes, "total_changes": changes}}))
+
+def saved_plan():
+    plan = json.loads(pathlib.Path(option("--plan")).read_text(encoding="utf-8"))
+    key, desired = plan["_key"], plan["_desired"]
+    environment = os.environ.get(f"KONGCTL_SMOKE_NAMESPACE_{key.upper()}")
+    with log_path.with_suffix(".namespaces.jsonl").open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps({"verb": args[0], "key": key, "planned": desired["_namespace"],
+                                 "environment": environment}) + "\n")
+    if os.environ.get("FAKE_FAULT") == f"rebind-{args[0]}-namespace":
+        desired["_namespace"] = environment
+        desired["labels"]["KONGCTL-namespace"] = environment
+    return plan, key, desired
 
 if args == ["--help"]:
     print("kongctl fake help")
@@ -254,8 +292,7 @@ elif args[:1] == ["diff"]:
     print("\n".join(change["resource_ref"] for change in plan["changes"]) or "No changes")
 elif args[:1] in (["apply"], ["sync"]):
     if "--plan" in args:
-        plan = json.loads(pathlib.Path(option("--plan")).read_text(encoding="utf-8"))
-        key, desired = plan["_key"], plan["_desired"]
+        plan, key, desired = saved_plan()
     else:
         key, desired = parse_fixture(option("-f"))
         plan = make_plan(key, desired, "sync")
@@ -267,6 +304,11 @@ elif args[:2] == ["dump", "declarative"]:
             "ai_gateways": "ai_gateway", "event_gateways": "event_gateway"}
     key = keys[option("--resources")]
     text = state[key]["_fixture"]
+    namespace = option("--default-namespace", state[key]["_namespace"])
+    if os.environ.get("FAKE_FAULT") == "wrong-dump-namespace":
+        namespace = "another-project"
+    match = namespace_field(text)
+    text = text[:match.start(1)] + json.dumps(namespace) + text[match.end(1):]
     if os.environ.get("FAKE_FAULT") == "bad-dump" and key == "portal":
         text = re.sub(r"^    snippets:.*$", "    snippets: []", text, flags=re.MULTILINE)
     if "--include-child-resources" not in args:
@@ -281,8 +323,10 @@ elif args[:2] == ["dump", "declarative"]:
 elif args[:1] == ["delete"]:
     dry_run = "--dry-run" in args
     if "--plan" in args:
-        plan = json.loads(pathlib.Path(option("--plan")).read_text(encoding="utf-8"))
-        key = plan["_key"]
+        plan, key, desired = saved_plan()
+        if key in state and desired["_namespace"] != state[key]["_namespace"]:
+            print_execution(0)
+            raise SystemExit(0)
     else:
         key = resource_from_path(option("-f"))
     changes = 1 if key in state else 0
@@ -327,6 +371,9 @@ elif args[:1] in (["get"], ["list"]):
                     vector["threshold"] = 0.7000000000000001 if fault == "numeric-format" else 0.71
                 if fault == "stale-mcp-limit" and field == "mcp_servers":
                     output["rate_limiting"]["limits"][0]["limit"] = 10
+                if fault == "reordered-mcp" and field == "mcp_servers":
+                    output["rate_limiting"]["limits"].reverse()
+                    output["tools"].insert(0, {"name": "another-tool"})
                 print(json.dumps(output))
                 raise SystemExit(0)
     if args[0] == "list":
