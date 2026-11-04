@@ -73,6 +73,8 @@ ai_gateways:
               acls:
                 allow:
                   - support-subject
+                deny:
+                  - blocked-subject
         access:
           acl_attribute_type: oauth_access_token
           access_token_claim_field: sub

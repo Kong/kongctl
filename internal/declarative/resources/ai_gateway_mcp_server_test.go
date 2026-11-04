@@ -11,22 +11,31 @@ import (
 
 func TestAIGatewayMCPServerACLRules(t *testing.T) {
 	for _, location := range []string{"server", "tool"} {
-		for _, rule := range []struct {
+		type aclRule struct {
 			name  string
 			acls  string
 			valid bool
-		}{
+		}
+		tool := location == "tool"
+		rules := []aclRule{
 			{"allow", `{"allow":["support"]}`, true},
 			{"deny", `{"deny":["blocked"]}`, true},
 			{"allow_when", `{"allow_when":["true"]}`, true},
 			{"deny_when", `{"deny_when":["false"]}`, true},
-			{"empty_allow", `{"allow":[]}`, true},
-			{"combined", `{"allow":["support"],"deny":["blocked"]}`, false},
-			{"combined_expressions", `{"allow_when":["true"],"deny_when":["false"]}`, false},
-			{"mixed", `{"allow":["support"],"deny_when":["false"]}`, false},
-			{"empty", `{}`, false},
-			{"unknown", `{"unknown":[]}`, false},
-		} {
+			{"combined", `{"allow":["support"],"deny":["blocked"]}`, tool},
+			{"combined_expressions", `{"allow_when":["true"],"deny_when":["false"]}`, tool},
+			{"mixed", `{"allow":["support"],"deny_when":["false"]}`, tool},
+			{"all", `{"allow":["support"],"deny":["blocked"],"allow_when":["true"],"deny_when":["false"]}`, tool},
+			{"empty", `{}`, tool},
+		}
+		if !tool {
+			rules = append(
+				rules,
+				aclRule{"empty_allow", `{"allow":[]}`, true},
+				aclRule{"unknown", `{"unknown":[]}`, false},
+			)
+		}
+		for _, rule := range rules {
 			t.Run(location+"/"+rule.name, func(t *testing.T) {
 				access := fmt.Sprintf(`"access":{"acl_attribute_type":"consumer","acls":%s}`, rule.acls)
 				if location == "tool" {

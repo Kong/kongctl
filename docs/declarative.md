@@ -985,10 +985,10 @@ listener-style MCP servers, not upstream-only server definitions.
 MCP server and tool ACLs also accept `allow_when` and `deny_when` arrays of
 CEL boolean expressions with runtime 2.3. These fields can be used under
 `access.acls`, `access.default_tool_acls`, and tool-level `access.acls`.
-Server and tool `access.acls` must specify exactly one of `allow`, `deny`,
+Server `access.acls` must specify exactly one of `allow`, `deny`,
 `allow_when`, or `deny_when`. Existing manifests combining these fields must
-choose one rule before applying. `access.default_tool_acls` continues to allow
-combined fields.
+choose one rule before applying. Tool-level `access.acls` and server
+`access.default_tool_acls` allow combined fields.
 
 Auth strategy configs use the SDK-generated plugin schemas, including OIDC
 `credential_claims` and upstream header mappings. `explain` lists the supported
