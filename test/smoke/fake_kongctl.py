@@ -272,6 +272,8 @@ elif args[:2] == ["dump", "declarative"]:
     if "--include-child-resources" not in args:
         text = "\n".join(line for line in text.splitlines()
                          if not any(line.startswith(f"    {field}:") for field in CHILD_TYPES)) + "\n"
+    if os.environ.get("FAKE_FAULT") == "missing-dump-datastore" and key == "ai_gateway":
+        text = re.sub(r"^    datastores:.*\n", "", text, flags=re.MULTILINE)
     if option("--output-file"):
         pathlib.Path(option("--output-file")).write_text(text, encoding="utf-8")
     else:
@@ -294,7 +296,23 @@ elif args[:1] in (["get"], ["list"]):
     if item and args[0] == "get":
         if "datastores" in args:
             stores = item.get("datastores", [])
-            print(json.dumps(stores[0] if "smoke-store" in args else stores))
+            names = []
+            index = args.index("datastores") + 1
+            while index < len(args):
+                if args[index].startswith("-"):
+                    index += 2
+                else:
+                    names.append(args[index])
+                    index += 1
+            name = option("--datastore-name") or (names[0] if names else "")
+            if name:
+                matches = [store for store in stores if store["name"] == name]
+                if not matches:
+                    print("datastore not found", file=sys.stderr)
+                    raise SystemExit(1)
+                print(json.dumps(matches[0]))
+            else:
+                print(json.dumps(stores))
             raise SystemExit(0)
         for command, field in (("models", "models"), ("policies", "policies"),
                                ("mcp-servers", "mcp_servers"), ("snippets", "snippets")):
@@ -303,6 +321,10 @@ elif args[:1] in (["get"], ["list"]):
                 kind = CHILD_TYPES[field]
                 output = flatten(key, item)[(kind, child["name"])]
                 fault = os.environ.get("FAKE_FAULT", "")
+                if field == "models" and fault in ("numeric-format", "wrong-threshold"):
+                    vector = output["config"]["balancer"]["vectordb"]
+                    vector["dimensions"] = 1536.0
+                    vector["threshold"] = 0.7000000000000001 if fault == "numeric-format" else 0.71
                 if fault == "stale-mcp-limit" and field == "mcp_servers":
                     output["rate_limiting"]["limits"][0]["limit"] = 10
                 print(json.dumps(output))

@@ -279,6 +279,41 @@ test_resource_selection() {
   pass "resource selection and validation"
 }
 
+test_fake_datastore_lookup() {
+  new_case datastore-lookup
+  python3 - "$FAKE_STATE" <<'PYTEST'
+import json
+import pathlib
+import sys
+pathlib.Path(sys.argv[1]).write_text(json.dumps({"ai_gateway": {"datastores": [
+    {"name": "another-store"}, {"name": "smoke-store"},
+]}}))
+PYTEST
+  FAKE_KONGCTL_LOG="$FAKE_LOG" FAKE_KONGCTL_STATE="$FAKE_STATE" \
+    "$FAKE_BIN" get ai-gateway datastores --gateway-name gateway -o json >"$CASE_DIR/list.json"
+  assert_json "$CASE_DIR/list.json" "len(value) == 2" "fake lists all datastores"
+  FAKE_KONGCTL_LOG="$FAKE_LOG" FAKE_KONGCTL_STATE="$FAKE_STATE" \
+    "$FAKE_BIN" get ai-gateway datastores --gateway-name gateway smoke-store -o json >"$CASE_DIR/detail.json"
+  assert_json "$CASE_DIR/detail.json" "value['name'] == 'smoke-store'" "fake matches the requested datastore"
+  if FAKE_KONGCTL_LOG="$FAKE_LOG" FAKE_KONGCTL_STATE="$FAKE_STATE" \
+    "$FAKE_BIN" get ai-gateway datastores --gateway-name gateway missing-store -o json \
+      >"$CASE_DIR/missing.json" 2>"$CASE_DIR/missing.stderr"; then
+    fail "unknown datastore must fail"
+  fi
+  assert_contains "$CASE_DIR/missing.stderr" "datastore not found" "unknown datastore reports not found"
+  pass "fake datastore list and exact name lookup"
+}
+
+test_numeric_readback_format() {
+  new_case numeric-format
+  export FAKE_FAULT=numeric-format
+  run_smoke --yes --resources ai_gateway
+  unset FAKE_FAULT
+  [[ "$STATUS" -eq 0 ]] || fail "equivalent numeric readback formats succeed" "$OUTPUT"
+  assert_json "$FAKE_STATE" "value == {}" "numeric format case cleans up"
+  pass "equivalent numeric readback formats"
+}
+
 test_quick_uses_explain_and_scaffold
 test_full_lifecycle
 test_apply_failure_stops_lifecycle
@@ -297,5 +332,9 @@ test_fault_is_rejected missing-child plan-create-api
 test_fault_is_rejected bad-namespace plan-create-api
 test_fault_is_rejected bad-dump plan-zero-portal-dump-sync
 test_fault_is_rejected stale-mcp-limit get-updated-mcp --yes ai_gateway
+test_fault_is_rejected missing-dump-datastore dump-ai_gateway --yes ai_gateway
+test_fault_is_rejected wrong-threshold get-updated-model --yes ai_gateway
+test_fake_datastore_lookup
+test_numeric_readback_format
 test_resource_selection
 python3 "$ROOT/test/smoke/plan_test.py" --temp-root "$TMP_ROOT"

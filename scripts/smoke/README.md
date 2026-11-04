@@ -63,16 +63,18 @@ resource family or an environment with limited product access. Selection is
 explicit and recorded through the report's resource list; unavailable services
 are not silently skipped.
 
-## Observed AI Gateway datastore drift on `7971eda1`
+## AI Gateway live validation status
 
-Live Konnect testing reaches the updated model readbacks, then fails at
-`plan-zero-ai_gateway-updated-apply`. The API expands the referenced
-datastore's connection settings into the semantic model response, while the
-desired model carries inline SDK connection defaults. The planner proposes
-another model update instead of a zero-change plan. See
-[issue #2711](https://github.com/Kong/kongctl/issues/2711) for reproduction
-details. Cleanup succeeds; the smoke test retains its zero-change assertion.
-Later AI Gateway lifecycle checks remain unverified against the live API.
+The original live run against `7971eda1` passed creation, sync updates, and
+child readbacks, then stopped at `plan-zero-ai_gateway-updated-apply` because
+of [datastore drift #2711](https://github.com/Kong/kongctl/issues/2711).
+The fix landed in [PR #2713](https://github.com/Kong/kongctl/pull/2713) and is
+included in this branch. The zero-change assertion remains a hard failure.
+
+A live rerun with the fixed binary is still required. AI Gateway dump round
+trips, provider replacement, pruning, restoration, and planned root deletion
+were not reached in the original run; only the offline suite has verified
+those later checks so far. Failure cleanup passed in the original live run.
 
 ## Observed regression on `4f1e759a`
 
