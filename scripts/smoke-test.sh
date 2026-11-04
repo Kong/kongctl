@@ -479,7 +479,6 @@ assert_plan() {
   local resource_ref="$5"
   if ! python3 - "$plan_file" "$mode_name" "$action" "$resource_type" "$resource_ref" \
     "$resource_namespace" <<'PY'
-import collections
 import json
 import sys
 
@@ -503,21 +502,16 @@ if any(change.get("action") != action for change in changes):
     raise SystemExit("plan contains unexpected actions")
 if any(change.get("namespace") != namespace for change in changes):
     raise SystemExit("plan contains a change outside the smoke namespace")
-if action == "CREATE":
-    children = {
-        "api": ["api_version", "api_document"],
-        "portal": ["portal_snippet"],
-        "control_plane": [],
-        "event_gateway": ["event_gateway_backend_cluster", "event_gateway_virtual_cluster"],
-        "ai_gateway": ["ai_gateway_model_provider", "ai_gateway_model", "ai_gateway_policy"],
-    }[resource_type]
-    if resource_type == "ai_gateway":
-        children.append("ai_gateway_mcp_server")
-    if collections.Counter(c["resource_type"] for c in changes) != collections.Counter([resource_type] + children):
-        raise SystemExit("create plan does not contain exactly the expected root and children")
+
 PY
   then
     fail_current "plan did not contain the expected $action for $resource_ref"
+  fi
+  if [[ "$action" == "CREATE" ]]; then
+    if ! python3 "$script_dir/smoke/assert-plan.py" "$plan_file" "$resource_type" create \
+      "$resource_namespace" 2>>"$current_stderr"; then
+      fail_current "unexpected create resources or dependency order"
+    fi
   fi
 }
 
@@ -557,16 +551,29 @@ PY
 assert_object_field() {
   local field="$1"
   local expected="$2"
-  if ! python3 - "$current_stdout" "$field" "$expected" <<'PY'
+  local comparison="${3:-text}"
+  if ! python3 - "$current_stdout" "$field" "$expected" "$comparison" <<'PY'
 import json
+import math
 import sys
 with open(sys.argv[1], encoding="utf-8") as handle:
     value = json.load(handle)
 current = value
 for part in sys.argv[2].split("."):
     current = current[int(part)] if isinstance(current, list) else current[part]
-if str(current) != sys.argv[3]:
-    raise SystemExit(f"{current!r} != {sys.argv[3]!r}")
+expected, comparison = sys.argv[3:]
+if comparison == "text":
+    matches = str(current) == expected
+else:
+    numeric = isinstance(current, (int, float)) and not isinstance(current, bool)
+    if comparison == "integer":
+        matches = numeric and current == int(expected)
+    elif comparison == "number":
+        matches = numeric and math.isclose(current, float(expected), rel_tol=1e-12, abs_tol=1e-12)
+    else:
+        raise SystemExit(f"unknown comparison: {comparison}")
+if not matches:
+    raise SystemExit(f"{current!r} != {expected!r}")
 PY
   then
     fail_current "response field $field did not equal $expected"
@@ -940,6 +947,14 @@ smoke_resource() {
     assert_text_contains "$dump_file" "versions:"
     assert_text_contains "$dump_file" "documents:"
   fi
+  if [[ "$key" == "ai_gateway" ]]; then
+    assert_text_contains "$dump_file" "datastores:"
+    assert_text_contains "$dump_file" "smoke-store"
+    # The model also names the datastore; require the datastore definition's type.
+    if ! grep -Eq 'type"?:[[:space:]]*"?vectordb' "$dump_file"; then
+      fail_current "dump did not include the vector datastore definition"
+    fi
+  fi
   pass_current
   check_zero_plans "$dump_file" "dump"
 
@@ -985,6 +1000,22 @@ check_zero_plans() {
 
 check_updated_children() {
   if [[ "$resource_key" == "ai_gateway" ]]; then
+    start_check "list-datastores" "$resource_key" "read"
+    run_kongctl get ai-gateway datastores --gateway-name "$resource_name" -o json
+    require_success
+    assert_collection "name" "smoke-store" "present"
+    pass_current
+
+    start_check "get-updated-datastore" "$resource_key" "read"
+    run_kongctl get ai-gateway datastores --gateway-name "$resource_name" smoke-store -o json
+    require_success
+    assert_object_field "name" "smoke-store"
+    assert_object_field "display_name" "Smoke store updated"
+    assert_object_field "type" "vectordb"
+    assert_object_field "config.host" "database.example.com"
+    assert_object_field "config.database" "smoke"
+    pass_current
+
     start_check "get-updated-model" "$resource_key" "read"
     run_kongctl get ai-gateway models --gateway-name "$resource_name" --model-name smoke-model -o json
     require_success
@@ -992,6 +1023,19 @@ check_updated_children() {
     assert_object_field "display_name" "Smoke model updated"
     assert_object_field "targets.0.provider" "smoke-provider"
     assert_object_field "policies.0" "smoke-policy"
+    assert_object_field "datastores.0.name" "smoke-store"
+    assert_object_field "config.balancer.algorithm" "semantic"
+    assert_object_field "config.balancer.embeddings.provider" "smoke-provider"
+    assert_object_field "config.balancer.embeddings.name" "text-embedding-3-small"
+    assert_object_field "config.balancer.embeddings.config.type" "openai"
+    assert_object_field "config.balancer.vectordb.type" "pgvector"
+    assert_object_field "config.balancer.vectordb.dimensions" "1536" integer
+    assert_object_field "config.balancer.vectordb.distance_metric" "cosine"
+    assert_object_field "config.balancer.vectordb.threshold" "0.7" number
+    assert_object_field "targets.0.semantic_description" "General business questions and detailed explanations."
+    assert_object_field "targets.1.name" "gpt-4o-mini"
+    assert_object_field "targets.1.provider" "smoke-provider"
+    assert_object_field "targets.1.semantic_description" "CATCHALL"
     assert_object_field "targets.0.config.input_cost_list.0.cost" "3.5"
     assert_object_field "targets.0.config.output_cost_list.0.cost" "10"
     assert_object_field "targets.0.config.cache_read_cost_list.0.cost" "0.5"
@@ -1008,6 +1052,15 @@ check_updated_children() {
     start_check "get-updated-mcp" "$resource_key" "read"
     run_kongctl get ai-gateway mcp-servers --gateway-name "$resource_name" smoke-mcp -o json
     require_success
+    assert_object_field "rate_limiting.limits.0.method" "tools/list"
+    assert_object_field "rate_limiting.limits.0.limit" "20"
+    assert_object_field "rate_limiting.limits.0.window_size" "60"
+    assert_object_field "rate_limiting.limits.1.tool" "lookup"
+    assert_object_field "rate_limiting.limits.1.limit" "10"
+    assert_object_field "rate_limiting.limits.1.window_size" "1"
+    assert_object_field "access.acls.allow_when.0" "http.headers.x_smoke_user == 'allowed'"
+    assert_object_field "access.default_tool_acls.deny_when.0" "http.headers.x_smoke_blocked == 'true'"
+    assert_object_field "tools.0.access.acls.allow_when.0" "http.headers.x_smoke_tool == 'allowed'"
     assert_object_field "config.allowed_versions.0" "2025-11-25"
     assert_object_field "config.cache.tools_list.ttl_ms" "0"
     assert_object_field "config.cache.discover.ttl_ms" "120000"

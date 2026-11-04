@@ -210,23 +210,50 @@ test_scaffold_contract_failure_is_safe() {
   pass "explain and scaffold disagreement fails safely"
 }
 
-test_default_ai_gateway_21_lifecycle() {
-  new_case runtime21
+test_default_ai_gateway_23_lifecycle() {
+  new_case runtime23
   run_smoke --yes --resources ai_gateway
-  [[ "$STATUS" -eq 0 ]] || fail "runtime 2.1 smoke succeeds" "$OUTPUT"
+  [[ "$STATUS" -eq 0 ]] || fail "runtime 2.3 smoke succeeds" "$OUTPUT"
   assert_contains "$RUN_DIR/fixtures/ai_gateway/updated.yaml" '"cost": 3.5' "runtime costs are updated"
   assert_contains "$RUN_DIR/fixtures/ai_gateway/updated.yaml" '"ttl_ms": 0' "zero cache TTL is covered"
+  assert_contains "$RUN_DIR/fixtures/ai_gateway/initial.yaml" 'min_runtime_version: "2.3"' \
+    "AI Gateway requires runtime 2.3"
+  assert_not_contains "$RUN_DIR/fixtures/ai_gateway/initial.yaml" '"expressions"' \
+    "rate-limiting policy does not declare unsupported expressions"
+  assert_not_contains "$RUN_DIR/fixtures/ai_gateway/updated.yaml" '"expressions"' \
+    "rate-limiting policy update does not declare unsupported expressions"
+  assert_contains "$RUN_DIR/fixtures/ai_gateway/updated.yaml" '"tool": "lookup", "limit": 10' \
+    "tool rate limits are updated"
+  assert_contains "$RUN_DIR/fixtures/ai_gateway/updated.yaml" '!ref smoke-store-ref#name' \
+    "model references its datastore by name"
+  assert_json "$RUN_DIR/plans/ai_gateway-replacement.json" \
+    "any(c['resource_type'] == 'ai_gateway_model' and c['action'] == 'UPDATE' for c in value['changes'])" \
+    "provider replacement updates the semantic model"
+  python3 - "$RUN_DIR/fixtures/ai_gateway/replacement.yaml" <<'PYTEST' || fail "semantic provider references are replaced"
+import json
+import pathlib
+import sys
+text = pathlib.Path(sys.argv[1]).read_text()
+model = json.loads(next(line.removeprefix("    models: ") for line in text.splitlines()
+                        if line.startswith("    models: ")).replace("!ref smoke-policy-ref#name", '"policy"')
+                   .replace("!ref smoke-store-ref#name", '"store"'))[0]
+assert model["config"]["balancer"]["embeddings"]["provider"] == "smoke-provider-replacement"
+assert len(model["targets"]) == 2
+assert all(t["provider"] == "smoke-provider-replacement" for t in model["targets"])
+PYTEST
+  assert_contains "$FAKE_LOG" "get ai-gateway datastores" "lifecycle verifies datastore reads"
   assert_contains "$FAKE_LOG" "ai_gateway-replacement.json" "replacement uses a saved plan"
   assert_json "$FAKE_STATE" "value == {}" "runtime suite cleans up"
   assert_contains "$FAKE_LOG" "get ai-gateway mcp-servers" "default lifecycle verifies MCP fields"
-  pass "default AI Gateway lifecycle includes runtime 2.1"
+  pass "default AI Gateway lifecycle includes runtime 2.3"
 }
 
 test_fault_is_rejected() {
   local fault="$1" check="$2" mode="${3:---yes}"
+  local resources="${4:-api,portal,control_plane,ai_gateway,event_gateway}"
   new_case "$fault"
   export FAKE_FAULT="$fault"
-  run_smoke "$mode"
+  run_smoke "$mode" --resources "$resources"
   unset FAKE_FAULT
   [[ "$STATUS" -eq 1 ]] || fail "$fault must fail" "$OUTPUT"
   assert_json "$RUN_DIR/report.json" \
@@ -252,6 +279,41 @@ test_resource_selection() {
   pass "resource selection and validation"
 }
 
+test_fake_datastore_lookup() {
+  new_case datastore-lookup
+  python3 - "$FAKE_STATE" <<'PYTEST'
+import json
+import pathlib
+import sys
+pathlib.Path(sys.argv[1]).write_text(json.dumps({"ai_gateway": {"datastores": [
+    {"name": "another-store"}, {"name": "smoke-store"},
+]}}))
+PYTEST
+  FAKE_KONGCTL_LOG="$FAKE_LOG" FAKE_KONGCTL_STATE="$FAKE_STATE" \
+    "$FAKE_BIN" get ai-gateway datastores --gateway-name gateway -o json >"$CASE_DIR/list.json"
+  assert_json "$CASE_DIR/list.json" "len(value) == 2" "fake lists all datastores"
+  FAKE_KONGCTL_LOG="$FAKE_LOG" FAKE_KONGCTL_STATE="$FAKE_STATE" \
+    "$FAKE_BIN" get ai-gateway datastores --gateway-name gateway smoke-store -o json >"$CASE_DIR/detail.json"
+  assert_json "$CASE_DIR/detail.json" "value['name'] == 'smoke-store'" "fake matches the requested datastore"
+  if FAKE_KONGCTL_LOG="$FAKE_LOG" FAKE_KONGCTL_STATE="$FAKE_STATE" \
+    "$FAKE_BIN" get ai-gateway datastores --gateway-name gateway missing-store -o json \
+      >"$CASE_DIR/missing.json" 2>"$CASE_DIR/missing.stderr"; then
+    fail "unknown datastore must fail"
+  fi
+  assert_contains "$CASE_DIR/missing.stderr" "datastore not found" "unknown datastore reports not found"
+  pass "fake datastore list and exact name lookup"
+}
+
+test_numeric_readback_format() {
+  new_case numeric-format
+  export FAKE_FAULT=numeric-format
+  run_smoke --yes --resources ai_gateway
+  unset FAKE_FAULT
+  [[ "$STATUS" -eq 0 ]] || fail "equivalent numeric readback formats succeed" "$OUTPUT"
+  assert_json "$FAKE_STATE" "value == {}" "numeric format case cleans up"
+  pass "equivalent numeric readback formats"
+}
+
 test_quick_uses_explain_and_scaffold
 test_full_lifecycle
 test_apply_failure_stops_lifecycle
@@ -260,7 +322,7 @@ test_keep_on_failure
 test_cleanup_failure_is_reported
 test_prompt_refusal_is_non_mutating
 test_scaffold_contract_failure_is_safe
-test_default_ai_gateway_21_lifecycle
+test_default_ai_gateway_23_lifecycle
 test_fault_is_rejected bad-list list-api-quick --quick
 test_fault_is_rejected lost-tags patch-preserves-tags --quick
 test_fault_is_rejected false-zero plan-zero-api-updated-apply
@@ -269,5 +331,10 @@ test_fault_is_rejected wrong-not-found get-absent-event_gateway
 test_fault_is_rejected missing-child plan-create-api
 test_fault_is_rejected bad-namespace plan-create-api
 test_fault_is_rejected bad-dump plan-zero-portal-dump-sync
+test_fault_is_rejected stale-mcp-limit get-updated-mcp --yes ai_gateway
+test_fault_is_rejected missing-dump-datastore dump-ai_gateway --yes ai_gateway
+test_fault_is_rejected wrong-threshold get-updated-model --yes ai_gateway
+test_fake_datastore_lookup
+test_numeric_readback_format
 test_resource_selection
 python3 "$ROOT/test/smoke/plan_test.py" --temp-root "$TMP_ROOT"

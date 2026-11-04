@@ -9,11 +9,12 @@ path, resource, stage, namespace = sys.argv[1:]
 with open(path, encoding="utf-8") as handle:
     plan = json.load(handle)
 changes = plan.get("changes", [])
-if plan.get("metadata", {}).get("mode") != "sync":
-    raise SystemExit("expected a sync plan")
+expected_mode = "apply" if stage == "create" else "sync"
+if plan.get("metadata", {}).get("mode") != expected_mode:
+    raise SystemExit(f"expected a {expected_mode} plan")
 if not changes or plan.get("summary", {}).get("total_changes") != len(changes):
     raise SystemExit("empty or inconsistent transition plan")
-if any(change["resource_type"] == resource for change in changes):
+if stage != "create" and any(change["resource_type"] == resource for change in changes):
     raise SystemExit("child transition unexpectedly changes the root")
 if any(change.get("namespace") != namespace for change in changes):
     raise SystemExit("child transition escapes the smoke namespace")
@@ -22,20 +23,27 @@ actual = collections.Counter((c["action"], c["resource_type"]) for c in changes)
 provider = "ai_gateway_model_provider"
 model = "ai_gateway_model"
 policy = "ai_gateway_policy"
-if stage == "replacement":
+datastore = "ai_gateway_datastore"
+children = {
+    "api": ["api_version", "api_document"],
+    "portal": ["portal_snippet"],
+    "control_plane": [],
+    "event_gateway": ["event_gateway_backend_cluster", "event_gateway_virtual_cluster"],
+    "ai_gateway": [provider, model, policy, "ai_gateway_mcp_server", datastore],
+}
+create_dependencies = {
+    "event_gateway": [("event_gateway_backend_cluster", "event_gateway_virtual_cluster")],
+    "ai_gateway": [(kind, model) for kind in (provider, policy, datastore)],
+}
+if stage == "create":
+    expected = collections.Counter(("CREATE", kind) for kind in [resource] + children[resource])
+elif stage == "replacement":
     expected = collections.Counter({
         ("CREATE", provider): 1, ("DELETE", provider): 1,
         ("CREATE", policy): 1, ("DELETE", policy): 1, ("UPDATE", model): 1,
     })
 else:
-    types = {
-        "portal": ["portal_snippet"],
-        "event_gateway": ["event_gateway_backend_cluster", "event_gateway_virtual_cluster"],
-        "ai_gateway": [provider, model, policy],
-    }[resource]
-    if resource == "ai_gateway":
-        types.append("ai_gateway_mcp_server")
-    expected = collections.Counter(("DELETE", kind) for kind in types)
+    expected = collections.Counter(("DELETE", kind) for kind in children[resource])
 if actual != expected:
     raise SystemExit(f"unexpected actions: {actual}; wanted {expected}")
 
@@ -60,12 +68,17 @@ def before(first, second):
             raise SystemExit(f"unsafe concurrent execution: {first} must finish before {second}")
 
 
-if stage == "replacement":
+if stage == "create":
+    for kind in children[resource]:
+        before(("CREATE", resource), ("CREATE", kind))
+    for first, second in create_dependencies.get(resource, []):
+        before(("CREATE", first), ("CREATE", second))
+elif stage == "replacement":
     for kind in (provider, policy):
         before(("CREATE", kind), ("UPDATE", model))
         before(("UPDATE", model), ("DELETE", kind))
 elif resource == "ai_gateway":
-    for kind in (provider, policy):
+    for kind in (provider, policy, datastore):
         before(("DELETE", model), ("DELETE", kind))
 elif resource == "event_gateway":
     # Backend deletion cascades to its virtual clusters; avoid a second delete

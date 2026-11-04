@@ -33,11 +33,24 @@ exercises:
   cleanup. Event Gateway exports also check that children are excluded by
   default.
 
-AI Gateway 2.1 coverage is mandatory whenever AI Gateway is selected. It tests
-model costs and selector aliases, a policy condition, and MCP version/cache
-settings, including a zero TTL. Quick mode generates the same 2.1 fixtures;
-full mode verifies their lifecycle and remote values. These are control-plane
-checks; no inference calls or running Kafka brokers are required.
+AI Gateway coverage requires runtime 2.3 whenever AI Gateway is selected.
+It retains model costs and selector aliases, a policy condition, and MCP
+version/cache settings, including a zero TTL. Runtime 2.3 coverage adds:
+
+- MCP method and tool rate limits, server conditional ACLs, default tool ACLs,
+  and individual tool ACLs, with updates and exact remote readbacks.
+- A vector datastore referenced by the model using `!ref`, with list/detail
+  reads, a display-name update, and dump round trips. The model uses a semantic
+  balancer with OpenAI embeddings, pgvector search settings, and two targets
+  with semantic descriptions, including a catch-all. Provider replacement
+  updates both targets and the embeddings provider. Plan assertions require
+  datastore creation before the model and deletion after the model, including
+  separate execution groups when groups are present.
+
+Quick mode generates the same 2.3 fixtures; full mode verifies their lifecycle
+and remote values. These are control-plane checks; no inference calls, live
+vector database, or running Kafka brokers are required. Token Vault enrollment
+and outbound TLS are outside this suite's current coverage.
 
 Plans are checked for unexpected actions and changes outside the run's
 namespace. Create plans must contain exactly the expected root and child
@@ -49,6 +62,19 @@ Use `--resources` to select a comma-separated subset when testing a particular
 resource family or an environment with limited product access. Selection is
 explicit and recorded through the report's resource list; unavailable services
 are not silently skipped.
+
+## AI Gateway live validation status
+
+The original live run against `7971eda1` passed creation, sync updates, and
+child readbacks, then stopped at `plan-zero-ai_gateway-updated-apply` because
+of [datastore drift #2711](https://github.com/Kong/kongctl/issues/2711).
+The fix landed in [PR #2713](https://github.com/Kong/kongctl/pull/2713) and is
+included in this branch. The zero-change assertion remains a hard failure.
+
+A live rerun with the fixed binary is still required. AI Gateway dump round
+trips, provider replacement, pruning, restoration, and planned root deletion
+were not reached in the original run; only the offline suite has verified
+those later checks so far. Failure cleanup passed in the original live run.
 
 ## Observed regression on `4f1e759a`
 

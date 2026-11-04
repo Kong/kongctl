@@ -75,6 +75,86 @@ class PlanChecks(unittest.TestCase):
         self.plan["summary"]["total_changes"] = 4
         self.check_plan(self.plan, "unexpected actions")
 
+    def datastore_plan(self, action):
+        kinds = ["ai_gateway", "ai_gateway_model_provider", "ai_gateway_policy",
+                 "ai_gateway_mcp_server", "ai_gateway_datastore", "ai_gateway_model"]
+        if action == "DELETE":
+            kinds = list(reversed(kinds[1:]))
+        ids = [str(i) for i in range(len(kinds))]
+        return {
+            "metadata": {"mode": "apply" if action == "CREATE" else "sync"},
+            "summary": {"total_changes": len(kinds)},
+            "changes": [{"id": identity, "action": action, "resource_type": kind,
+                         "namespace": "smoke"} for identity, kind in zip(ids, kinds)],
+            "execution_order": ids, "execution_groups": [[identity] for identity in ids],
+        }
+
+    def test_datastore_dependency_order_and_concurrency(self):
+        for action, stage in (("CREATE", "create"), ("DELETE", "prune")):
+            with self.subTest(action=action):
+                plan = self.datastore_plan(action)
+                self.check_plan(plan, stage=stage)
+                model = next(c["id"] for c in plan["changes"] if c["resource_type"] == "ai_gateway_model")
+                store = next(c["id"] for c in plan["changes"] if c["resource_type"] == "ai_gateway_datastore")
+                plan["execution_groups"] = [
+                    [i] for i in plan["execution_order"] if i not in (model, store)
+                ]
+                if action == "CREATE":
+                    plan["execution_groups"].append([store, model])
+                else:
+                    plan["execution_groups"].insert(0, [model, store])
+                self.check_plan(plan, "unsafe concurrent execution", stage=stage)
+                first, second = (store, model) if action == "CREATE" else (model, store)
+                order = plan["execution_order"]
+                a, b = order.index(first), order.index(second)
+                order[a], order[b] = order[b], order[a]
+                del plan["execution_groups"]
+                self.check_plan(plan, "unsafe dependency order", stage=stage)
+
+    def test_create_resources_and_parent_dependencies(self):
+        families = {
+            "api": ["api_version", "api_document"],
+            "portal": ["portal_snippet"],
+            "control_plane": [],
+            "event_gateway": ["event_gateway_backend_cluster", "event_gateway_virtual_cluster"],
+        }
+        for resource, children in families.items():
+            with self.subTest(resource=resource):
+                kinds = [resource] + children
+                ids = [str(i) for i in range(len(kinds))]
+                plan = {
+                    "metadata": {"mode": "apply"}, "summary": {"total_changes": len(kinds)},
+                    "changes": [{"id": identity, "action": "CREATE", "resource_type": kind,
+                                 "namespace": "smoke"} for identity, kind in zip(ids, kinds)],
+                    "execution_order": ids,
+                    "execution_groups": [[identity] for identity in ids],
+                }
+                self.check_plan(plan, resource=resource, stage="create")
+                if not children:
+                    continue
+                wrong_order = copy.deepcopy(plan)
+                wrong_order["execution_order"].reverse()
+                self.check_plan(wrong_order, "unsafe dependency order", resource=resource, stage="create")
+                plan["execution_groups"] = [ids]
+                self.check_plan(plan, "unsafe concurrent execution", resource=resource, stage="create")
+                plan["changes"].pop()
+                plan["summary"]["total_changes"] -= 1
+                self.check_plan(plan, "unexpected actions", resource=resource, stage="create")
+
+    def test_event_gateway_create_backend_before_virtual_cluster(self):
+        plan = {
+            "metadata": {"mode": "apply"}, "summary": {"total_changes": 3},
+            "changes": [{"id": kind, "action": "CREATE", "resource_type": kind, "namespace": "smoke"}
+                        for kind in ("event_gateway", "event_gateway_backend_cluster",
+                                     "event_gateway_virtual_cluster")],
+            "execution_order": ["event_gateway", "event_gateway_virtual_cluster", "event_gateway_backend_cluster"],
+        }
+        self.check_plan(plan, "unsafe dependency order", resource="event_gateway", stage="create")
+        plan["execution_order"] = ["event_gateway", "event_gateway_backend_cluster", "event_gateway_virtual_cluster"]
+        plan["execution_groups"] = [["event_gateway"],
+                                    ["event_gateway_backend_cluster", "event_gateway_virtual_cluster"]]
+        self.check_plan(plan, "unsafe concurrent execution", resource="event_gateway", stage="create")
+
     def test_event_gateway_cascade_requires_separate_groups(self):
         plan = {
             "metadata": {"mode": "sync"}, "summary": {"total_changes": 2},
