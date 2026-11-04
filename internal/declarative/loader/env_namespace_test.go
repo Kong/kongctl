@@ -71,7 +71,7 @@ func TestEnvNamespacesRejectInvalidValues(t *testing.T) {
 			t.Setenv("ENV_NAMESPACE", "unused")
 			require.NoError(t, os.Unsetenv("ENV_NAMESPACE"))
 			_, err := New().LoadFile(writeLoaderTestFile(t, target))
-			require.ErrorContains(t, err, "environment variable not set")
+			require.ErrorContains(t, err, "environment variable not set: ENV_NAMESPACE")
 		})
 	}
 }
@@ -142,4 +142,70 @@ func TestEnvNamespaceNestedModelsAndTemplates(t *testing.T) {
 	require.Equal(t, "team-prod", resources.GetNamespace(rs.Portals[0].Kongctl))
 	require.Equal(t, resources.NamespaceOriginExplicit, rs.Portals[0].Kongctl.NamespaceOrigin)
 	require.Empty(t, rs.EnvSources)
+}
+
+func TestEnvNamespaceAliasesAndMerges(t *testing.T) {
+	t.Setenv("ALIASED_NS", "team-prod")
+	for _, input := range []string{
+		`portals:
+  - ref: portal
+    name: &namespace !env ALIASED_NS
+    kongctl: {namespace: *namespace}
+`,
+		`portals:
+  - ref: portal
+    kongctl: {namespace: &namespace !env {var: ALIASED_NS, store: false}}
+    name: *namespace
+`,
+		`_defaults:
+  kongctl: &metadata
+    namespace: !env ALIASED_NS
+portals:
+  - ref: portal
+    name: !env ALIASED_NS
+    kongctl: *metadata
+`,
+		`_defaults:
+  kongctl: &metadata
+    namespace: !env {var: ALIASED_NS, store: false}
+portals:
+  - ref: portal
+    name: !env ALIASED_NS
+    kongctl: {<<: *metadata}
+`,
+	} {
+		t.Run(input, func(t *testing.T) {
+			rs, err := New().LoadFile(writeLoaderTestFile(t, input))
+			require.NoError(t, err)
+			require.Equal(t, "team-prod", resources.GetNamespace(rs.Portals[0].Kongctl))
+			require.Equal(t, resources.NamespaceOriginExplicit, rs.Portals[0].Kongctl.NamespaceOrigin)
+			require.Equal(t, "team-prod", rs.Portals[0].Name)
+			require.Equal(t, map[string]string{"/name": "__ENV__:ALIASED_NS"}, rs.EnvSources["portal"])
+		})
+	}
+}
+
+func TestEnvNamespacesRetainStringTypes(t *testing.T) {
+	for _, value := range []string{"123", "true", "null"} {
+		t.Run(value, func(t *testing.T) {
+			t.Setenv("SCALAR_NS", value)
+			rs, err := New().LoadFile(writeLoaderTestFile(t, `_defaults:
+  kongctl: {namespace: !env SCALAR_NS}
+portals:
+  - ref: portal
+    name: portal
+    kongctl: {namespace: !env {var: SCALAR_NS, store: false}}
+`))
+			require.NoError(t, err)
+			require.Equal(t, value, resources.GetNamespace(rs.Portals[0].Kongctl))
+			require.Empty(t, rs.EnvSources)
+		})
+	}
+}
+
+func TestEnvNamespaceExtractionRequiresString(t *testing.T) {
+	t.Setenv("NAMESPACE_SETTINGS", `{"namespace":123}`)
+	_, err := New().LoadFile(writeLoaderTestFile(t,
+		"_defaults: {kongctl: {namespace: !env {var: NAMESPACE_SETTINGS, extract: namespace}}}"))
+	require.ErrorContains(t, err, "!env value must resolve to a string")
 }

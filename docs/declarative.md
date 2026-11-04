@@ -2078,8 +2078,10 @@ groups, CA certificates, and SNIs. Their namespaces are independent of the
 parent gateway and inherit file defaults rather than its explicit namespace.
 Consumer credentials inherit consumer ownership. Runtime certificate
 federation remains deferred; config stores, their secrets, and data plane
-certificates remain excluded. See [AI Gateway ownership tracking][ai-ownership]
-for the current support and limitations.
+certificates remain excluded. See the
+[AI Gateway federation guide](ai-gateway-federation.md)
+for the support matrix and ownership setup, and
+[AI Gateway ownership tracking][ai-ownership] for remaining work.
 
 [ai-ownership]: https://github.com/Kong/kongctl/issues/2485
 

@@ -14,18 +14,18 @@ import (
 	"gopkg.in/yaml.v3" //nolint:gomodguard_v2 // yaml.v3 required for custom tag processing
 )
 
-func resolveLoadTimeEnvContent(content []byte) ([]byte, error) {
+func resolveStoredEnvContent(content []byte) ([]byte, error) {
 	var document yaml.Node
 	if err := yaml.Unmarshal(content, &document); err != nil {
 		return nil, err
 	}
-	if err := resolveLoadTimeEnvNode(&document, []reflect.Type{reflect.TypeFor[temporaryParseResult]()}, nil); err != nil {
+	if err := resolveStoredEnvNode(&document, []reflect.Type{reflect.TypeFor[temporaryParseResult]()}, nil); err != nil {
 		return nil, err
 	}
 	return yaml.Marshal(&document)
 }
 
-func resolveLoadTimeEnvNode(node *yaml.Node, destinations []reflect.Type, path []string) error {
+func resolveStoredEnvNode(node *yaml.Node, destinations []reflect.Type, path []string) error {
 	if tags.IsStoredEnvNode(node) {
 		if err := resolveStoredEnvValue(node, destinations); err != nil {
 			return fmt.Errorf("line %d, column %d, field %s: %w", node.Line, node.Column, strings.Join(path, "."), err)
@@ -39,7 +39,7 @@ func resolveLoadTimeEnvNode(node *yaml.Node, destinations []reflect.Type, path [
 	switch node.Kind {
 	case yaml.DocumentNode:
 		for _, child := range node.Content {
-			if err := resolveLoadTimeEnvNode(child, destinations, path); err != nil {
+			if err := resolveStoredEnvNode(child, destinations, path); err != nil {
 				return err
 			}
 		}
@@ -47,27 +47,16 @@ func resolveLoadTimeEnvNode(node *yaml.Node, destinations []reflect.Type, path [
 		for i := 0; i+1 < len(node.Content); i += 2 {
 			key := node.Content[i].Value
 			value := node.Content[i+1]
-			// Ownership metadata must be concrete before defaults and sync scope
-			// capture, in both the actual and placeholder representations.
-			namespaceEnv := namespaceField(destinations, key) &&
-				(tags.IsStoredEnvNode(value) || (value.Kind == yaml.ScalarNode && tags.IsEnvPlaceholder(value.Value)))
-			if namespaceEnv && value.Kind == yaml.ScalarNode &&
-				tags.IsEnvPlaceholder(value.Value) {
-				resolved, err := tags.ResolveEnvPlaceholder(value.Value)
-				if err != nil {
-					return fmt.Errorf("field %s: %w", strings.Join(append(path, key), "."), err)
-				}
-				value.Value = resolved
-			}
-			if tags.IsStoredEnvNode(node.Content[i+1]) && storedIdentityField(destinations, key) {
+			stored := tags.IsStoredEnvNode(value)
+			if stored && storedResourceRefField(destinations, key) {
 				return fmt.Errorf("stored environment tags are not supported on refs (field %s)",
 					strings.Join(append(path, key), "."))
 			}
 			childTypes := storedChildTypes(destinations, key, false)
-			if err := resolveLoadTimeEnvNode(value, childTypes, append(path, key)); err != nil {
+			if err := resolveStoredEnvNode(value, childTypes, append(path, key)); err != nil {
 				return err
 			}
-			if namespaceEnv {
+			if stored && namespaceField(destinations, key) {
 				if err := validator.NewNamespaceValidator().ValidateNamespace(value.Value); err != nil {
 					return fmt.Errorf("field %s: %w", strings.Join(append(path, key), "."), err)
 				}
@@ -76,7 +65,7 @@ func resolveLoadTimeEnvNode(node *yaml.Node, destinations []reflect.Type, path [
 	case yaml.SequenceNode:
 		childTypes := storedChildTypes(destinations, "", true)
 		for i, child := range node.Content {
-			if err := resolveLoadTimeEnvNode(child, childTypes, append(path, strconv.Itoa(i))); err != nil {
+			if err := resolveStoredEnvNode(child, childTypes, append(path, strconv.Itoa(i))); err != nil {
 				return err
 			}
 		}
@@ -123,7 +112,7 @@ func resolveStoredEnvValue(node *yaml.Node, destinations []reflect.Type) error {
 	return nil
 }
 
-func storedIdentityField(parents []reflect.Type, key string) bool {
+func storedResourceRefField(parents []reflect.Type, key string) bool {
 	for _, parent := range parents {
 		parent = derefType(parent)
 		if parent == nil {

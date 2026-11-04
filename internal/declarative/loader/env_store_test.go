@@ -139,7 +139,7 @@ func TestStoredEnvTypeInference(t *testing.T) {
 			t.Setenv("VALUE", tc.raw)
 			var document yaml.Node
 			require.NoError(t, yaml.Unmarshal([]byte(tc.input), &document))
-			err := resolveLoadTimeEnvNode(&document, []reflect.Type{reflect.TypeFor[fixture]()}, nil)
+			err := resolveStoredEnvNode(&document, []reflect.Type{reflect.TypeFor[fixture]()}, nil)
 			if tc.wantErr != "" {
 				require.ErrorContains(t, err, tc.wantErr)
 			} else {
