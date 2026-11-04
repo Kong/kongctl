@@ -202,6 +202,7 @@ func (p *Planner) shouldUpdateAIGatewayModel(
 
 	currentCompare, desiredCompare := normalizeAIGatewayPayloadsForComparison(currentPayload, desiredPayload)
 	normalizeAIGateway23References(desiredCompare, p.resources, desired.AIGateway)
+	normalizeAIGatewayModelVectorDBForComparison(currentCompare, desiredCompare, p.resources, desired.AIGateway)
 	currentCompare, desiredCompare = normalizeAIGatewayModelSelectorForComparison(currentCompare, desiredCompare)
 	currentCompare, desiredCompare = normalizeAIGatewayPolicyReferencesForComparison(
 		currentCompare,

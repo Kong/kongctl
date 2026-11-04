@@ -932,6 +932,14 @@ Datastores support nested `ai_gateways[].datastores` and root-level
 types are `redis-ce`, `redis-ee`, `vectordb`, and `token-vault`. Each datastore
 requires explicit `name`, `display_name`, `type`, and `config` fields.
 
+Semantic models can reference a declared `vectordb` datastore in the same
+gateway using `datastores: [{name: !ref vector-store#name}]`. Declare connection
+settings on the datastore and vector search settings (`dimensions`,
+`distance_metric`, and `threshold`) under `config.balancer.vectordb`. Planning
+accounts for connection settings expanded by the API without requiring them
+in the model manifest. Explicit model connection settings, embeddings, search
+settings, targets, and datastore references still participate in comparison.
+
 ```yaml
 ai_gateways:
   - ref: support
