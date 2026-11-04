@@ -489,6 +489,10 @@ portals:
 `kongctl` provides some default behavior depending on how metadata fields
 are specified or omitted. The following tables summarize the behavior.
 
+Namespace values can use `!env` in file defaults or resource metadata. They
+resolve before validation and sync scoping, and remain fixed in saved plans.
+See [Environment Management](#environment-management) for a reusable example.
+
 #### `namespace` Field Behavior
 
 | File Default | Resource Value | Final Result | Notes                        |
@@ -1404,12 +1408,14 @@ A runnable example is available in
 
 - Deferred `!env` supports string-typed fields only.
 - Unset environment variables are treated as errors.
-- Empty-but-set environment variables are allowed.
+- Empty-but-set environment variables are allowed except for namespaces.
 - During planning, `kongctl` resolves the current environment value to
   calculate changes.
 - Saved plan files preserve the deferred `!env` reference instead of the
   resolved plaintext value.
-- The exception is `!env` nested inside `!lookup` or `!external`: it is a
+- Namespace `!env` values resolve during loading and remain fixed in saved
+  plans as ownership metadata, including when `store: false` is used.
+- Another exception is `!env` nested inside `!lookup` or `!external`: it is a
   planner-only selector input, so the saved plan retains the resolved resource
   ID and does not defer that environment value to execution.
 - During execution, `kongctl` performs a fresh environment lookup for each
@@ -1554,10 +1560,10 @@ Existing saved plans and deferred-value redaction are unchanged.
 
 Stored tags cannot be nested inside `!secret`, `!lookup`, or `!external`,
 and cannot contain other custom tags. Existing deferred nesting remains
-supported. Stored tags cannot supply resource `ref` or
-`kongctl.namespace`. Write-only fields continue to require their existing
-deferred secret sources or supported vault references; `!secret` is
-unchanged.
+supported. Stored tags cannot supply resource `ref`. Namespace values
+resolve during loading with either stored or deferred syntax. Write-only
+fields continue to require their existing deferred secret sources or
+supported vault references; `!secret` is unchanged.
 
 For a manifest containing the stored description declaration above:
 
@@ -2004,15 +2010,85 @@ apis:
 
 ### Environment Management
 
-Use configuration profiles for different environments:
+Use distinct namespaces for environments that are synchronized independently,
+optionally scoped by both team and environment, such as `payments-dev` and
+`payments-prod`. Namespaces define kongctl ownership and reconciliation
+boundaries. A profile selects credentials and configuration; it does not by
+itself isolate ownership or sync deletion scope.
+
+Reuse one manifest to target separate control planes and AI Gateways:
+
+```yaml
+# environments.yaml
+_defaults:
+  kongctl:
+    namespace: !env ENV_NS
+control_planes:
+  - ref: gateway
+    name: !env CONTROL_PLANE_NAME
+ai_gateways:
+  - ref: ai-gateway
+    name: !env AI_GATEWAY_NAME
+    display_name: !env AI_GATEWAY_NAME
+```
 
 ```shell
-# Development environment
-kongctl apply -f config.yaml --profile dev
+export ENV_NS=payments-dev
+export CONTROL_PLANE_NAME=payments-dev
+export AI_GATEWAY_NAME=payments-ai-dev
+kongctl plan -f environments.yaml --profile dev --mode sync \
+  --require-namespace="$ENV_NS" --output-file dev-plan.json
+kongctl apply --plan dev-plan.json --profile dev
 
-# Production environment
-kongctl apply -f config.yaml --profile prod
+export ENV_NS=payments-prod
+export CONTROL_PLANE_NAME=payments-prod
+export AI_GATEWAY_NAME=payments-ai-prod
+kongctl plan -f environments.yaml --profile prod --mode sync \
+  --require-namespace="$ENV_NS" --output-file prod-plan.json
+kongctl apply --plan prod-plan.json --profile prod
 ```
+
+`--require-namespace` checks the resolved namespace against the expected
+value. Use an independently configured expected value in CI to catch an
+incorrect `ENV_NS`. `--require-any-namespace` requires an explicit resource
+namespace or file default. Defaults-only files also select sync namespaces;
+external-only file defaults satisfy guardrails without adding deletion scope.
+
+Use `--mode apply` to create and update without pruning when the supplied
+resources are only part of the environment's desired state. Use `--mode sync`
+when the input represents the complete desired set for the selected
+collections and namespaces. Do not share a team namespace across independent
+environment sync runs: omitted sibling resources can become deletion
+candidates. A namespace does not provide API authorization or protect against
+a parent gateway's cascade deletion.
+
+Both `_defaults.kongctl.namespace` and explicit `kongctl.namespace` accept
+`!env ENV_NS` and mapping forms such as `!env {var: ENV_NS}` or
+`!env {var: ENV_SETTINGS, extract: namespace}`. Explicit resource namespaces
+override file defaults. Unset, empty, or invalid namespaces fail before
+planning API operations; existing namespace naming rules still apply.
+
+Namespace values are ownership metadata, not secrets. They resolve during
+loading and remain fixed as plaintext in saved plans, even if `ENV_NS`
+changes before `apply --plan`. Ordinary deferred `!env` fields, including
+resource names, are read again during execution and can differ from the
+reviewed values. Keep those variables consistent between planning and
+execution, or use `store: true` for supported fields when the approved value
+must be fixed. A namespace using `store: false` still resolves at load time.
+
+AI Gateway children have resource-specific ownership rules. The twelve
+independently owned families include models, providers, auth strategies,
+policies, custom policies, agents, MCP servers, vaults, consumers, consumer
+groups, CA certificates, and SNIs. Their namespaces are independent of the
+parent gateway and inherit file defaults rather than its explicit namespace.
+Consumer credentials inherit consumer ownership. Runtime certificate
+federation remains deferred; config stores, their secrets, and data plane
+certificates remain excluded. See the
+[AI Gateway federation guide](ai-gateway-federation.md)
+for the support matrix and ownership setup, and
+[AI Gateway ownership tracking][ai-ownership] for remaining work.
+
+[ai-ownership]: https://github.com/Kong/kongctl/issues/2485
 
 ### Security Best Practices
 
