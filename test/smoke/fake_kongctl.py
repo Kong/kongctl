@@ -62,7 +62,7 @@ def parse_fixture(path):
         "_namespace": re.search(r'namespace: "([^"]+)"', text).group(1),
     }
     for field in ("snippets", "backend_clusters", "virtual_clusters",
-                  "model_providers", "models", "policies", "mcp_servers"):
+                  "model_providers", "models", "policies", "mcp_servers", "datastores"):
         raw = scalar(field)
         if raw != "":
             if isinstance(raw, str):
@@ -74,6 +74,7 @@ def parse_fixture(path):
 CHILD_TYPES = {
     "snippets": "portal_snippet", "backend_clusters": "event_gateway_backend_cluster",
     "virtual_clusters": "event_gateway_virtual_cluster", "model_providers": "ai_gateway_model_provider",
+    "datastores": "ai_gateway_datastore",
     "models": "ai_gateway_model", "policies": "ai_gateway_policy", "mcp_servers": "ai_gateway_mcp_server",
 }
 
@@ -83,11 +84,14 @@ def flatten(key, item):
     root = {k: v for k, v in item.items() if k not in CHILD_TYPES and k != "_fixture"}
     result = {(key, root["name"]): root}
     policy_names = {p["ref"]: p["name"] for p in item.get("policies", [])}
+    datastore_names = {d["ref"]: d["name"] for d in item.get("datastores", [])}
     for field, kind in CHILD_TYPES.items():
         for child in item.get(field, []):
             child = json.loads(json.dumps(child))
             if field == "models":
                 child["policies"] = [policy_names.get(p.split("#")[0], p) for p in child.get("policies", [])]
+                for store in child.get("datastores", []):
+                    store["name"] = datastore_names.get(store["name"].split("#")[0], store["name"])
             result[(kind, child["name"])] = child
     if key == "api":
         for field, kind in (("versions", "api_version"), ("documents", "api_document")):
@@ -108,7 +112,8 @@ def make_plan(key, desired, mode):
             if identity not in new:
                 changes.append({"action": "DELETE", "resource_type": identity[0], "resource_ref": value["ref"]})
     # The fake orders the dependency graph independently from the script's checker.
-    ranks = {"ai_gateway_model_provider": 1, "ai_gateway_policy": 1, "ai_gateway_model": 2,
+    ranks = {"ai_gateway_datastore": 1, "ai_gateway_model_provider": 1,
+             "ai_gateway_policy": 1, "ai_gateway_model": 2,
              "event_gateway_backend_cluster": 1, "event_gateway_virtual_cluster": 2}
     changes.sort(key=lambda c: (c["action"] == "DELETE",
                                -ranks.get(c["resource_type"], 0) if c["action"] == "DELETE"
@@ -287,12 +292,20 @@ elif args[:1] in (["get"], ["list"]):
     key = resource_from_command()
     item = state.get(key)
     if item and args[0] == "get":
+        if "datastores" in args:
+            stores = item.get("datastores", [])
+            print(json.dumps(stores[0] if "smoke-store" in args else stores))
+            raise SystemExit(0)
         for command, field in (("models", "models"), ("policies", "policies"),
                                ("mcp-servers", "mcp_servers"), ("snippets", "snippets")):
             if command in args:
                 child = item[field][0]
                 kind = CHILD_TYPES[field]
-                print(json.dumps(flatten(key, item)[(kind, child["name"])]))
+                output = flatten(key, item)[(kind, child["name"])]
+                fault = os.environ.get("FAKE_FAULT", "")
+                if fault == "stale-mcp-limit" and field == "mcp_servers":
+                    output["rate_limiting"]["limits"][0]["limit"] = 10
+                print(json.dumps(output))
                 raise SystemExit(0)
     if args[0] == "list":
         value = {} if os.environ.get("FAKE_FAULT") == "bad-list" else ([item] if item else [])

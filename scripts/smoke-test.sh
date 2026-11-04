@@ -512,12 +512,18 @@ if action == "CREATE":
         "ai_gateway": ["ai_gateway_model_provider", "ai_gateway_model", "ai_gateway_policy"],
     }[resource_type]
     if resource_type == "ai_gateway":
-        children.append("ai_gateway_mcp_server")
+        children.extend(["ai_gateway_mcp_server", "ai_gateway_datastore"])
     if collections.Counter(c["resource_type"] for c in changes) != collections.Counter([resource_type] + children):
         raise SystemExit("create plan does not contain exactly the expected root and children")
 PY
   then
     fail_current "plan did not contain the expected $action for $resource_ref"
+  fi
+  if [[ "$resource_type" == "ai_gateway" && "$action" == "CREATE" ]]; then
+    if ! python3 "$script_dir/smoke/assert-plan.py" "$plan_file" "$resource_type" create \
+      "$resource_namespace" 2>>"$current_stderr"; then
+      fail_current "unexpected AI Gateway create dependency order"
+    fi
   fi
 }
 
@@ -985,6 +991,22 @@ check_zero_plans() {
 
 check_updated_children() {
   if [[ "$resource_key" == "ai_gateway" ]]; then
+    start_check "list-datastores" "$resource_key" "read"
+    run_kongctl get ai-gateway datastores --gateway-name "$resource_name" -o json
+    require_success
+    assert_collection "name" "smoke-store" "present"
+    pass_current
+
+    start_check "get-updated-datastore" "$resource_key" "read"
+    run_kongctl get ai-gateway datastores --gateway-name "$resource_name" smoke-store -o json
+    require_success
+    assert_object_field "name" "smoke-store"
+    assert_object_field "display_name" "Smoke store updated"
+    assert_object_field "type" "vectordb"
+    assert_object_field "config.host" "database.example.com"
+    assert_object_field "config.database" "smoke"
+    pass_current
+
     start_check "get-updated-model" "$resource_key" "read"
     run_kongctl get ai-gateway models --gateway-name "$resource_name" --model-name smoke-model -o json
     require_success
@@ -992,6 +1014,19 @@ check_updated_children() {
     assert_object_field "display_name" "Smoke model updated"
     assert_object_field "targets.0.provider" "smoke-provider"
     assert_object_field "policies.0" "smoke-policy"
+    assert_object_field "datastores.0.name" "smoke-store"
+    assert_object_field "config.balancer.algorithm" "semantic"
+    assert_object_field "config.balancer.embeddings.provider" "smoke-provider"
+    assert_object_field "config.balancer.embeddings.name" "text-embedding-3-small"
+    assert_object_field "config.balancer.embeddings.config.type" "openai"
+    assert_object_field "config.balancer.vectordb.type" "pgvector"
+    assert_object_field "config.balancer.vectordb.dimensions" "1536"
+    assert_object_field "config.balancer.vectordb.distance_metric" "cosine"
+    assert_object_field "config.balancer.vectordb.threshold" "0.7"
+    assert_object_field "targets.0.semantic_description" "General business questions and detailed explanations."
+    assert_object_field "targets.1.name" "gpt-4o-mini"
+    assert_object_field "targets.1.provider" "smoke-provider"
+    assert_object_field "targets.1.semantic_description" "CATCHALL"
     assert_object_field "targets.0.config.input_cost_list.0.cost" "3.5"
     assert_object_field "targets.0.config.output_cost_list.0.cost" "10"
     assert_object_field "targets.0.config.cache_read_cost_list.0.cost" "0.5"
@@ -1008,6 +1043,15 @@ check_updated_children() {
     start_check "get-updated-mcp" "$resource_key" "read"
     run_kongctl get ai-gateway mcp-servers --gateway-name "$resource_name" smoke-mcp -o json
     require_success
+    assert_object_field "rate_limiting.limits.0.method" "tools/list"
+    assert_object_field "rate_limiting.limits.0.limit" "20"
+    assert_object_field "rate_limiting.limits.0.window_size" "60"
+    assert_object_field "rate_limiting.limits.1.tool" "lookup"
+    assert_object_field "rate_limiting.limits.1.limit" "10"
+    assert_object_field "rate_limiting.limits.1.window_size" "1"
+    assert_object_field "access.acls.allow_when.0" "http.headers.x_smoke_user == 'allowed'"
+    assert_object_field "access.default_tool_acls.deny_when.0" "http.headers.x_smoke_blocked == 'true'"
+    assert_object_field "tools.0.access.acls.allow_when.0" "http.headers.x_smoke_tool == 'allowed'"
     assert_object_field "config.allowed_versions.0" "2025-11-25"
     assert_object_field "config.cache.tools_list.ttl_ms" "0"
     assert_object_field "config.cache.discover.ttl_ms" "120000"

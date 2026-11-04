@@ -75,6 +75,42 @@ class PlanChecks(unittest.TestCase):
         self.plan["summary"]["total_changes"] = 4
         self.check_plan(self.plan, "unexpected actions")
 
+    def datastore_plan(self, action):
+        kinds = ["ai_gateway", "ai_gateway_model_provider", "ai_gateway_policy",
+                 "ai_gateway_mcp_server", "ai_gateway_datastore", "ai_gateway_model"]
+        if action == "DELETE":
+            kinds = list(reversed(kinds[1:]))
+        ids = [str(i) for i in range(len(kinds))]
+        return {
+            "metadata": {"mode": "apply" if action == "CREATE" else "sync"},
+            "summary": {"total_changes": len(kinds)},
+            "changes": [{"id": identity, "action": action, "resource_type": kind,
+                         "namespace": "smoke"} for identity, kind in zip(ids, kinds)],
+            "execution_order": ids, "execution_groups": [[identity] for identity in ids],
+        }
+
+    def test_datastore_dependency_order_and_concurrency(self):
+        for action, stage in (("CREATE", "create"), ("DELETE", "prune")):
+            with self.subTest(action=action):
+                plan = self.datastore_plan(action)
+                self.check_plan(plan, stage=stage)
+                model = next(c["id"] for c in plan["changes"] if c["resource_type"] == "ai_gateway_model")
+                store = next(c["id"] for c in plan["changes"] if c["resource_type"] == "ai_gateway_datastore")
+                plan["execution_groups"] = [
+                    [i] for i in plan["execution_order"] if i not in (model, store)
+                ]
+                if action == "CREATE":
+                    plan["execution_groups"].append([store, model])
+                else:
+                    plan["execution_groups"].insert(0, [model, store])
+                self.check_plan(plan, "unsafe concurrent execution", stage=stage)
+                first, second = (store, model) if action == "CREATE" else (model, store)
+                order = plan["execution_order"]
+                a, b = order.index(first), order.index(second)
+                order[a], order[b] = order[b], order[a]
+                del plan["execution_groups"]
+                self.check_plan(plan, "unsafe dependency order", stage=stage)
+
     def test_event_gateway_cascade_requires_separate_groups(self):
         plan = {
             "metadata": {"mode": "sync"}, "summary": {"total_changes": 2},
