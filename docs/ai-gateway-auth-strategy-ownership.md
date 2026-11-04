@@ -87,4 +87,4 @@ warning, without adopting the strategy. Write-only credentials are not
 reconstructed from responses.
 
 See [the shared contract](ai-gateway-child-ownership.md) and
-[runnable manifests](examples/declarative/ai-gateway-federated-auth-strategies).
+[runnable manifests](examples/declarative/ai-gateway/federated/auth-strategies).

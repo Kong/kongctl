@@ -75,4 +75,4 @@ without inferring adoption. Dump/reload converges without credential rotation.
 API checks remain cooperative: they cannot close the non-atomic check/write race
 or turn paginated lists into a snapshot.
 
-[example]: examples/declarative/ai-gateway-federated-agents
+[example]: examples/declarative/ai-gateway/federated/agents

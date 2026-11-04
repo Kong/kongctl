@@ -92,4 +92,4 @@ the same namespace contract. API checks remain cooperative: fresh reads cannot
 close the non-atomic check/write race or make paginated observations a snapshot.
 
 See [the shared contract](ai-gateway-child-ownership.md) and
-[runnable manifests](examples/declarative/ai-gateway-federated-custom-policies).
+[runnable manifests](examples/declarative/ai-gateway/federated/custom-policies).

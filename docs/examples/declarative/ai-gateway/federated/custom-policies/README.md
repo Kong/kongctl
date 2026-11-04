@@ -12,4 +12,6 @@ the instance before the definition, retaining team B's streaming definition.
 `omitted-a.yaml` leaves definitions untouched. Sync `cleanup.yaml` to delete
 the disposable gateway using its platform owner's cascade authority.
 
-See [definition ownership](../../../ai-gateway-custom-policy-ownership.md).
+See [definition ownership][ownership].
+
+[ownership]: ../../../../../ai-gateway-custom-policy-ownership.md
