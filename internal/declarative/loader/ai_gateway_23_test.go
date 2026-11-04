@@ -73,12 +73,15 @@ func TestAIGateway23ManifestFields(t *testing.T) {
     - name: search
       access:
         acls:
+          allow: [support]
+          deny: [blocked]
           allow_when: ["http.headers.x_end_user_id != null"]
     access:
       acl_attribute_type: consumer
       acls:
         allow_when: ["http.headers.x_end_user_id != null"]
       default_tool_acls:
+        allow_when: ["http.headers.x_end_user_id != null"]
         deny_when: ["http.headers.x_end_user_id == null"]
     config:
       url: https://mcp.test
@@ -133,6 +136,8 @@ func TestAIGateway23ManifestFields(t *testing.T) {
 	require.NotEmpty(t, mcp["rate_limiting"])
 	access := mcp["access"].(map[string]any)
 	require.Equal(t, []any{"http.headers.x_end_user_id != null"}, access["acls"].(map[string]any)["allow_when"])
+	require.Equal(t, []any{"http.headers.x_end_user_id != null"},
+		access["default_tool_acls"].(map[string]any)["allow_when"])
 	require.Equal(
 		t,
 		[]any{"http.headers.x_end_user_id == null"},
@@ -140,7 +145,13 @@ func TestAIGateway23ManifestFields(t *testing.T) {
 	)
 	tool := mcp["tools"].([]any)[0].(map[string]any)
 	toolAccess := tool["access"].(map[string]any)
+	require.Equal(t, []any{"support"}, toolAccess["acls"].(map[string]any)["allow"])
+	require.Equal(t, []any{"blocked"}, toolAccess["acls"].(map[string]any)["deny"])
 	require.Equal(t, []any{"http.headers.x_end_user_id != null"}, toolAccess["acls"].(map[string]any)["allow_when"])
+	invalidServerACLs := strings.Replace(manifest, "      acls:\n        allow_when:",
+		"      acls:\n        allow: [support]\n        allow_when:", 1)
+	_, err = New().LoadFile(writeLoaderTestFile(t, invalidServerACLs))
+	require.ErrorContains(t, err, "acls must specify exactly one")
 }
 
 func TestAIGatewayDatastoreLoadAndDump(t *testing.T) {

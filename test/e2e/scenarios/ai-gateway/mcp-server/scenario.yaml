@@ -248,6 +248,7 @@ steps:
                 fields.access.access_token_claim_field: sub
                 fields.tools[0].name: resolve-library-id
                 fields.tools[0].access.acls.allow[0]: support-subject
+                fields.tools[0].access.acls.deny[0]: blocked-subject
           - select: >-
               changes[?resource_type=='ai_gateway_mcp_server' && resource_ref=='{{ .vars.conversion_listener_server_ref }}'] | [0]
             expect:
@@ -422,6 +423,7 @@ steps:
                   access_token_claim_field: sub
                 tools[0].name: resolve-library-id
                 tools[0].access.acls.allow[0]: support-subject
+                tools[0].access.acls.deny[0]: blocked-subject
           - select: "[?name=='{{ .vars.conversion_listener_server_name }}'] | [0]"
             expect:
               fields:
@@ -511,6 +513,7 @@ steps:
                   access_token_claim_field: sub
                 tools[0].name: resolve-library-id
                 tools[0].access.acls.allow[0]: support-subject
+                tools[0].access.acls.deny[0]: blocked-subject
       - name: 008-get-conversion-listener-mcp-server-by-name
         run:
           - get
@@ -610,8 +613,8 @@ steps:
           - select: summary
             expect:
               fields:
-                total_changes: 2
-                by_action.UPDATE: 2
+                total_changes: 3
+                by_action.UPDATE: 3
           - select: >-
               changes[?resource_type=='ai_gateway_mcp_server' && resource_ref=='{{ .vars.server_ref }}'] | [0]
             expect:
@@ -621,6 +624,13 @@ steps:
                 fields.enabled: false
                 fields.labels.phase: update
                 fields.tools[0].query.key: __ENV__:KONGCTL_E2E_WEATHERAPI_API_KEY
+          - select: >-
+              changes[?resource_type=='ai_gateway_mcp_server' && resource_ref=='{{ .vars.passthrough_server_ref }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                fields.tools[0].access.acls.allow[0]: support-subject
+                fields.tools[0].access.acls.deny[0]: blocked-subject-updated
           - select: >-
               changes[?resource_type=='ai_gateway_mcp_server' && resource_ref=='{{ .vars.listener_server_ref }}'] | [0]
             expect:
@@ -682,7 +692,23 @@ steps:
                 labels.phase: update
                 "contains(keys(labels), 'team')": false
                 sources[0]: support-upstream
-      - name: 004-diff-no-changes
+      - name: 004-verify-tool-acl-update
+        run:
+          - get
+          - ai-gateway
+          - mcp-servers
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - "{{ .vars.passthrough_server_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                tools[0].access.acls.allow[0]: support-subject
+                tools[0].access.acls.deny[0]: blocked-subject-updated
+      - name: 005-diff-no-changes
         outputFormat: text
         parseAs: raw
         run:
@@ -731,6 +757,7 @@ steps:
                   access_token_claim_field: sub
                 tools[0].name: resolve-library-id
                 tools[0].access.acls.allow[0]: support-subject
+                tools[0].access.acls.deny[0]: blocked-subject-updated
           - select: >-
               ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].mcp_servers[?name=='{{ .vars.conversion_listener_server_name }}'] | [0]
             expect:

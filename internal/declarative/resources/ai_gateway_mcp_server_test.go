@@ -2,10 +2,106 @@ package resources
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/stretchr/testify/require"
 )
+
+func TestAIGatewayMCPServerACLRules(t *testing.T) {
+	for _, location := range []string{"server", "tool"} {
+		type aclRule struct {
+			name  string
+			acls  string
+			valid bool
+		}
+		tool := location == "tool"
+		rules := []aclRule{
+			{"allow", `{"allow":["support"]}`, true},
+			{"deny", `{"deny":["blocked"]}`, true},
+			{"allow_when", `{"allow_when":["true"]}`, true},
+			{"deny_when", `{"deny_when":["false"]}`, true},
+			{"combined", `{"allow":["support"],"deny":["blocked"]}`, tool},
+			{"combined_expressions", `{"allow_when":["true"],"deny_when":["false"]}`, tool},
+			{"mixed", `{"allow":["support"],"deny_when":["false"]}`, tool},
+			{"all", `{"allow":["support"],"deny":["blocked"],"allow_when":["true"],"deny_when":["false"]}`, tool},
+			{"empty", `{}`, tool},
+		}
+		if !tool {
+			rules = append(
+				rules,
+				aclRule{"empty_allow", `{"allow":[]}`, true},
+				aclRule{"unknown", `{"unknown":[]}`, false},
+			)
+		}
+		for _, rule := range rules {
+			t.Run(location+"/"+rule.name, func(t *testing.T) {
+				access := fmt.Sprintf(`"access":{"acl_attribute_type":"consumer","acls":%s}`, rule.acls)
+				if location == "tool" {
+					access = fmt.Sprintf(`"tools":[{"name":"lookup","access":{"acls":%s}}]`, rule.acls)
+				}
+				input := fmt.Sprintf(`{
+					"ref":"listener","ai_gateway":"gateway","type":"passthrough-listener",
+					"name":"listener","display_name":"Listener",
+					"config":{"url":"https://example.com","route":{"paths":["/mcp"]}},%s
+				}`, access)
+				var resource AIGatewayMCPServerResource
+				err := json.Unmarshal([]byte(input), &resource)
+				if !rule.valid {
+					require.ErrorContains(t, err, "acls must specify exactly one")
+					return
+				}
+				require.NoError(t, err)
+				resource.SetDefaults()
+				payload, err := resource.MutablePayloadMap()
+				require.NoError(t, err)
+				update, err := marshalObjectToMap(resource.UpdateRequest(), "update")
+				require.NoError(t, err)
+				response, err := resource.PayloadMap()
+				require.NoError(t, err)
+				response["id"] = "server-id"
+				response["created_at"] = "2026-11-03T00:00:00Z"
+				response["updated_at"] = "2026-11-03T00:00:00Z"
+				data, err := json.Marshal(response)
+				require.NoError(t, err)
+				var server kkComps.AIGatewayMCPServer
+				require.NoError(t, json.Unmarshal(data, &server))
+				observed, err := AIGatewayMCPServerMutablePayloadMap(server)
+				require.NoError(t, err)
+				dumped, err := AIGatewayMCPServerResourceFromResponse("gateway", server)
+				require.NoError(t, err)
+				dumpPayload, err := dumped.MutablePayloadMap()
+				require.NoError(t, err)
+				for _, result := range []map[string]any{payload, update, observed, dumpPayload} {
+					if location == "tool" {
+						result = result["tools"].([]any)[0].(map[string]any)
+					}
+					got, err := json.Marshal(result["access"].(map[string]any)["acls"])
+					require.NoError(t, err)
+					require.JSONEq(t, rule.acls, string(got))
+				}
+			})
+		}
+	}
+}
+
+func TestAIGatewayMCPServerDefaultToolACLsAllowCombinedRules(t *testing.T) {
+	input := []byte(`{
+		"type":"listener","name":"listener","display_name":"Listener",
+		"sources":["tools"],
+		"access":{"acl_attribute_type":"consumer","default_tool_acls":{
+			"allow":["support"],"deny":["blocked"],"allow_when":["true"],"deny_when":["false"]
+		}},
+		"config":{"route":{"paths":["/mcp"]}}
+	}`)
+	var resource AIGatewayMCPServerResource
+	require.NoError(t, json.Unmarshal(input, &resource))
+	payload, err := resource.PayloadMap()
+	require.NoError(t, err)
+	acls := payload["access"].(map[string]any)["default_tool_acls"].(map[string]any)
+	require.Len(t, acls, 4)
+}
 
 func TestAIGatewayMCPServerRejectsLegacyTopLevelAccessFields(t *testing.T) {
 	input := []byte(`{

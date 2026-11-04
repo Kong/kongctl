@@ -6,9 +6,16 @@ import urllib.error
 import urllib.request
 
 
-base = os.environ.get(
-    "KONGCTL_E2E_KONNECT_BASE_URL", "https://us.api.konghq.com"
-).rstrip("/") + "/v1/ai-gateways"
+environment = os.environ.get("KONGCTL_E2E_KONNECT_ENV", "").strip().lower()
+if environment in ("", "com", "production", "prod"):
+    default_base = "https://us.api.konghq.com"
+elif environment == "tech":
+    default_base = "https://us.api.konghq.tech"
+else:
+    raise SystemExit(f"Unsupported Konnect environment: {environment!r}")
+
+base = (os.environ.get("KONGCTL_E2E_KONNECT_BASE_URL", "").strip() or default_base)
+base = base.rstrip("/") + "/v1/ai-gateways"
 token = os.environ["KONGCTL_E2E_KONNECT_PAT"]
 
 

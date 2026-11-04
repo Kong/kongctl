@@ -954,7 +954,8 @@ ai_gateways:
 Providers and MCP servers using `token_vault` require exactly one datastore
 reference, such as `datastores: [{name: !ref credential-store#name}]`, to a
 `token-vault` datastore under the same gateway. Auth strategies require it
-when `token_vault.enable_credential_manager` is true. Configure the upstream
+whenever `token_vault` is present, which enables enrollment protection even
+when `token_vault.enable_credential_manager` is false. Configure the upstream
 credential provider using `token_vault.provider` on providers and MCP servers.
 The API's resolved `token_vault.storage` is read-only and is not exported as
 writable configuration.
@@ -984,6 +985,10 @@ listener-style MCP servers, not upstream-only server definitions.
 MCP server and tool ACLs also accept `allow_when` and `deny_when` arrays of
 CEL boolean expressions with runtime 2.3. These fields can be used under
 `access.acls`, `access.default_tool_acls`, and tool-level `access.acls`.
+Server `access.acls` must specify exactly one of `allow`, `deny`,
+`allow_when`, or `deny_when`. Existing manifests combining these fields must
+choose one rule before applying. Tool-level `access.acls` and server
+`access.default_tool_acls` allow combined fields.
 
 Auth strategy configs use the SDK-generated plugin schemas, including OIDC
 `credential_claims` and upstream header mappings. `explain` lists the supported
