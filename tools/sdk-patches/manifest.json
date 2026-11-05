@@ -1,10 +1,11 @@
 {
-  "speakeasy_version": "1.805.0",
+  "speakeasy_version": "1.806.0",
   "overlays": [
     "ai-gateway-pgvector-connection-defaults.yaml",
     "backend-cluster-tls-defaults.yaml",
     "organization-team-konnect-managed-defaults.yaml",
     "patch-custom-portal-email-template-defaults.yaml",
+    "portal-ai-settings-patch-defaults.yaml",
     "portal-customization-spec-renderer-defaults.yaml",
     "portal-customization-theme-defaults.yaml",
     "portal-team-konnect-managed-defaults.yaml",
@@ -49,6 +50,7 @@
     "tests/ai_gateway_pgvector_defaults_test.go.txt": "models/components/ai_gateway_pgvector_defaults_test.go",
     "tests/kongctl_boolean_defaults_test.go.txt": "models/components/kongctl_boolean_defaults_test.go",
     "tests/portal_customization_defaults_test.go.txt": "models/components/portal_customization_defaults_test.go",
+    "tests/portal_ai_settings_defaults_test.go.txt": "models/components/portal_ai_settings_defaults_test.go",
     "tests/portalteam_defaults_test.go.txt": "models/components/portalteam_defaults_test.go",
     "tests/identity_realms_test.go.txt": "identity_realms_kongctl_test.go",
     "tests/internal_spec_format_test.go.txt": "models/operations/internal_spec_format_test.go"
