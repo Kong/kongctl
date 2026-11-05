@@ -1,4 +1,4 @@
-sdk_version: v0.82.2
+sdk_version: v0.83.0
 schema_version: 1
 resources:
   - resource_type: ai_gateway
@@ -2039,6 +2039,22 @@ resources:
     exclusions: []
   - resource_type: portal
     defaults:
+      - path: ai.enabled
+        type: boolean
+        value: false
+        source: sdk
+      - path: ai.features.ai_search.enabled
+        type: boolean
+        value: false
+        source: sdk
+      - path: ai.features.mcp_server.enabled
+        type: boolean
+        value: false
+        source: sdk
+      - path: ai.features.mcp_server.write_operations_enabled
+        type: boolean
+        value: false
+        source: sdk
       - path: auth_settings.oidc_claim_mappings.email
         type: string
         value: email

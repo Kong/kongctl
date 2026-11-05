@@ -7,7 +7,7 @@ require (
 	charm.land/bubbletea/v2 v2.1.0
 	charm.land/glamour/v2 v2.0.1
 	charm.land/lipgloss/v2 v2.0.6
-	github.com/Kong/sdk-konnect-go v0.82.2
+	github.com/Kong/sdk-konnect-go v0.83.0
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/ajg/form v1.9.0
@@ -127,4 +127,4 @@ require (
 	modernc.org/sqlite v1.52.0 // indirect
 )
 
-replace github.com/Kong/sdk-konnect-go => github.com/Kong/sdk-konnect-go v0.82.3-0.20261104194649-b6f6a783ccbe
+replace github.com/Kong/sdk-konnect-go => github.com/Kong/sdk-konnect-go v0.83.1-0.20261105153347-18b075cc1edd
