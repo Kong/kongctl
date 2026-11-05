@@ -12,8 +12,8 @@ import (
 
 func TestAdoptIdentityClientPreservesAuthenticationAndPublicFields(t *testing.T) {
 	parent := "12345678-1234-4123-8123-123456789012"
-	method := kkComps.AuthServerTokenEndpointAuthMethod("client_secret_basic")
-	api := &fixture.AuthServerChildrenAPI{Clients: map[string][]kkComps.AuthServerClient{parent: {{
+	method := kkComps.TokenEndpointAuthMethod("client_secret_basic")
+	api := &fixture.AuthServerChildrenAPI{Clients: map[string][]kkComps.Client{parent: {{
 		ID: "opaque-client", Name: "worker", TokenEndpointAuthMethod: &method,
 		Labels: map[string]string{"team": "platform", labels.ProtectedKey: "true"}, AllowScopes: []string{"keep"},
 	}}}}

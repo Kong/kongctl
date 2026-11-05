@@ -115,9 +115,6 @@ func (c *Client) GetIdentityAPIKey(
 func (c *Client) CreateIdentityAPIKey(ctx context.Context, kind resources.ResourceType, directory, parent string,
 	request kkComps.CreatePrincipalKeyBodyv1, capture *secretoutput.File, local secretoutput.Metadata,
 ) (*IdentityAPIKey, error) {
-	if request.Type != kkComps.CreatePrincipalKeyBodyv1TypeV1 {
-		return nil, fmt.Errorf("declarative API keys require type v1")
-	}
 	if err := stampManagedByRequest(ctx, kind, &request); err != nil {
 		return nil, err
 	}

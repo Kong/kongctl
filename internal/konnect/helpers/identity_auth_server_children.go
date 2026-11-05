@@ -32,13 +32,13 @@ type IdentityAuthServerClientsReader interface {
 
 func ListIdentityAuthServerClients(ctx context.Context, api IdentityAuthServerClientsReader,
 	serverID string, pageSize int64,
-) ([]kkComps.AuthServerClient, error) {
+) ([]kkComps.Client, error) {
 	if api == nil {
 		return nil, fmt.Errorf("identity auth-server clients API is not configured")
 	}
 	// Q18: deployed totals exceed client counts when clients have scope links.
 	return listAuthServerChildren(ctx, "clients", pageSize, false,
-		func(ctx context.Context, number, size int64) ([]kkComps.AuthServerClient, *kkComps.PageMeta, error) {
+		func(ctx context.Context, number, size int64) ([]kkComps.Client, *kkComps.PageMeta, error) {
 			response, err := api.ListAuthServerClients(ctx, kkOps.ListAuthServerClientsRequest{
 				AuthServerID: serverID, PageNumber: &number, PageSize: &size,
 			})
@@ -46,7 +46,7 @@ func ListIdentityAuthServerClients(ctx context.Context, api IdentityAuthServerCl
 				return nil, nil, err
 			}
 			return response.ClientList.Data, &response.ClientList.Meta.Page, nil
-		}, func(value kkComps.AuthServerClient) string { return value.ID })
+		}, func(value kkComps.Client) string { return value.ID })
 }
 
 type IdentityAuthServerClaimsAPI interface {
@@ -110,12 +110,12 @@ func listAuthServerChildren[T any](ctx context.Context, kind string, pageSize in
 
 func ListIdentityAuthServerScopes(ctx context.Context, api IdentityAuthServerScopesAPI,
 	serverID string, pageSize int64,
-) ([]kkComps.AuthServerScope, error) {
+) ([]kkComps.Scope, error) {
 	if api == nil {
 		return nil, fmt.Errorf("identity auth-server scopes API is not configured")
 	}
 	return listAuthServerChildren(ctx, "scopes", pageSize, true,
-		func(ctx context.Context, number, size int64) ([]kkComps.AuthServerScope, *kkComps.PageMeta, error) {
+		func(ctx context.Context, number, size int64) ([]kkComps.Scope, *kkComps.PageMeta, error) {
 			response, err := api.ListAuthServerScopes(ctx, kkOps.ListAuthServerScopesRequest{
 				AuthServerID: serverID, PageNumber: &number, PageSize: &size,
 			})
@@ -123,7 +123,7 @@ func ListIdentityAuthServerScopes(ctx context.Context, api IdentityAuthServerSco
 				return nil, nil, err
 			}
 			return response.ScopeList.Data, &response.ScopeList.Meta.Page, nil
-		}, func(value kkComps.AuthServerScope) string { return value.ID })
+		}, func(value kkComps.Scope) string { return value.ID })
 }
 
 func ListIdentityAuthServerClaims(ctx context.Context, api IdentityAuthServerClaimsAPI,
@@ -165,7 +165,7 @@ func authServerChildID[T any](identifier, kind string, values []T, id, name func
 
 func ResolveIdentityAuthServerScope(ctx context.Context, api IdentityAuthServerScopesAPI,
 	serverID, identifier string, pageSize int64,
-) (*kkComps.AuthServerScope, error) {
+) (*kkComps.Scope, error) {
 	if api == nil {
 		return nil, fmt.Errorf("identity auth-server scopes API is not configured")
 	}
@@ -176,8 +176,8 @@ func ResolveIdentityAuthServerScope(ctx context.Context, api IdentityAuthServerS
 			return nil, err
 		}
 		id, err = authServerChildID(identifier, "scopes", values,
-			func(v kkComps.AuthServerScope) string { return v.ID },
-			func(v kkComps.AuthServerScope) string { return v.Name })
+			func(v kkComps.Scope) string { return v.ID },
+			func(v kkComps.Scope) string { return v.Name })
 		if err != nil {
 			return nil, err
 		}
@@ -186,11 +186,11 @@ func ResolveIdentityAuthServerScope(ctx context.Context, api IdentityAuthServerS
 	if err != nil {
 		return nil, fmt.Errorf("failed to get auth-server scope: %w", err)
 	}
-	if response == nil || response.AuthServerScope == nil || response.AuthServerScope.ID != id ||
-		(!util.IsValidUUID(identifier) && response.AuthServerScope.Name != identifier) {
+	if response == nil || response.Scope == nil || response.Scope.ID != id ||
+		(!util.IsValidUUID(identifier) && response.Scope.Name != identifier) {
 		return nil, fmt.Errorf("missing or inconsistent auth-server scope response")
 	}
-	return response.AuthServerScope, nil
+	return response.Scope, nil
 }
 
 func ResolveIdentityAuthServerClaim(ctx context.Context, api IdentityAuthServerClaimsAPI,

@@ -14,7 +14,7 @@ test("presents the home curriculum as a chapter list", async ({ page }) => {
   await expect(
     curriculum.getByRole("heading", { name: "Curriculum" }),
   ).toBeVisible();
-  await expect(curriculum.locator(".curriculum-chapters > li")).toHaveCount(7);
+  await expect(curriculum.locator(".curriculum-chapters > li")).toHaveCount(8);
   await expect(curriculum.getByRole("link", { name: /Setup/ })).toHaveAttribute(
     "href",
     "/kongctl/installation/",
@@ -53,6 +53,37 @@ test("presents the home curriculum as a chapter list", async ({ page }) => {
   await expect(
     curriculum.getByRole("link", { name: /Extensions/ }),
   ).toHaveAttribute("href", "/kongctl/extensions/");
+});
+
+test("walks through Identity before Extensions", async ({ page }) => {
+  const chapters = page.locator(".curriculum-chapters > li");
+  await expect(chapters.nth(6).getByRole("link")).toHaveAttribute(
+    "href",
+    "/kongctl/kong-identity/",
+  );
+  await expect(chapters.nth(7).getByRole("link")).toHaveAttribute(
+    "href",
+    "/kongctl/extensions/",
+  );
+  await chapters.nth(6).getByRole("link").click();
+  const lessons = page.locator(".chapter-lessons");
+  await expect(lessons.locator(":scope > li")).toHaveCount(4);
+  await lessons
+    .getByRole("link", { name: /Use the Default Directory/ })
+    .click();
+  for (const [slug, command] of [
+    ["use-the-default-directory", "kongctl get id directory default -o json"],
+    ["principals-and-identities", "kongctl apply -f principals.yaml"],
+    ["enable-token-vault", "kongctl adopt id directory default"],
+    ["vault-providers-and-credentials", "support-ticketing-token#secret"],
+  ]) {
+    await expect(page).toHaveURL(new RegExp(`kong-identity/${slug}/$`));
+    await expect(page.locator(".lesson-body")).toContainText(command);
+    await page
+      .getByRole("link", { name: /Mark complete and continue/ })
+      .click();
+  }
+  await expect(page).toHaveURL(/extensions\//);
 });
 
 test("routes OpenAI requests through a local AI Gateway", async ({ page }) => {
@@ -751,10 +782,10 @@ test("persists explicit completion and continues to the next lesson", async ({
   await page.getByRole("link", { name: "Mark complete and continue" }).click();
 
   await expect(page).toHaveURL(/\/kongctl\/installation\/authenticate\/$/);
-  await expect(page.getByText("1 of 36", { exact: true })).toBeVisible();
+  await expect(page.getByText("1 of 40", { exact: true })).toBeVisible();
 
   await page.reload();
-  await expect(page.getByText("1 of 36", { exact: true })).toBeVisible();
+  await expect(page.getByText("1 of 40", { exact: true })).toBeVisible();
 });
 
 test("persists a chosen color theme", async ({ page }) => {

@@ -20,7 +20,7 @@ type IdentityDirectoriesAPI interface {
 	GetDirectory(context.Context, string, ...kkOps.Option) (*kkOps.GetDirectoryResponse, error)
 	ReplaceDirectory(context.Context, string, kkComps.ReplaceDirectoryBody,
 		...kkOps.Option) (*kkOps.ReplaceDirectoryResponse, error)
-	DeleteDirectory(context.Context, string, *kkOps.DeleteDirectoryForce,
+	DeleteDirectory(context.Context, string, *kkOps.DeleteDirectoryQueryParamForce,
 		...kkOps.Option) (*kkOps.DeleteDirectoryResponse, error)
 }
 

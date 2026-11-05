@@ -59,7 +59,7 @@ func identityClientSecret(value kkComps.ClientSecretItem) IdentityClientSecret {
 
 func ResolveIdentityAuthServerClient(ctx context.Context, api IdentityAuthServerClientsAPI,
 	serverID, identifier string, byName bool, pageSize int64,
-) (*kkComps.AuthServerClient, error) {
+) (*kkComps.Client, error) {
 	if api == nil {
 		return nil, fmt.Errorf("identity auth-server clients API is not configured")
 	}
@@ -70,8 +70,8 @@ func ResolveIdentityAuthServerClient(ctx context.Context, api IdentityAuthServer
 			return nil, err
 		}
 		id, err = authServerChildID(identifier, "clients", values,
-			func(value kkComps.AuthServerClient) string { return value.ID },
-			func(value kkComps.AuthServerClient) string { return value.Name })
+			func(value kkComps.Client) string { return value.ID },
+			func(value kkComps.Client) string { return value.Name })
 		if err != nil {
 			return nil, err
 		}
@@ -83,11 +83,11 @@ func ResolveIdentityAuthServerClient(ctx context.Context, api IdentityAuthServer
 	if err != nil {
 		return nil, fmt.Errorf("failed to get auth-server client: %w", err)
 	}
-	if response == nil || response.AuthServerClient == nil || response.AuthServerClient.ID != id ||
-		(byName && response.AuthServerClient.Name != identifier) {
+	if response == nil || response.Client == nil || response.Client.ID != id ||
+		(byName && response.Client.Name != identifier) {
 		return nil, fmt.Errorf("missing or inconsistent auth-server client response")
 	}
-	return response.AuthServerClient, nil
+	return response.Client, nil
 }
 
 func ListIdentityClientSecrets(ctx context.Context, api IdentityAuthServerClientsAPI,

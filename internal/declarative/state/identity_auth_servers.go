@@ -111,7 +111,7 @@ func (c *Client) DeleteIdentityAuthServer(ctx context.Context, id string) error 
 	if err := ValidateAPIClient(c.identityAuthServersAPI, "Kong Identity auth-server API"); err != nil {
 		return err
 	}
-	_, err := c.identityAuthServersAPI.DeleteAuthServer(ctx, id, kkOps.DeleteAuthServerForceFalse.ToPointer())
+	_, err := c.identityAuthServersAPI.DeleteAuthServer(ctx, id, kkOps.ForceFalse.ToPointer())
 	if err != nil && declerrors.ExtractStatusCodeFromError(err) != http.StatusNotFound {
 		return fmt.Errorf("failed to delete auth server without cascading: %w", err)
 	}

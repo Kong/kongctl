@@ -130,10 +130,6 @@ A missing `default` directory causes a lookup error and is not created or
 adopted automatically. Auth-server commands have separate parent selectors.
 Declarative manifests still select or declare their directories explicitly.
 
-[Registry reference guards](registry-references.md) explain why an independent
-Agent association blocks principal/directory retirement, how saved deletion
-checks fresh links, and how to inspect and explicitly unlink an association.
-
 [Principal group inspection](principal-groups.md) explains direct versus
 inherited memberships, group versus relationship-entry IDs, imported teams
 and manager/provisioning fields. It complements ordinary membership

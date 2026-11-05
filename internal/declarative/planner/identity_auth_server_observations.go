@@ -39,7 +39,7 @@ func (p *Planner) listIdentityAuthServerClaims(
 
 func (p *Planner) listIdentityAuthServerClients(
 	ctx context.Context, parent string,
-) ([]kkComps.AuthServerClient, error) {
+) ([]kkComps.Client, error) {
 	if p.resourceCache != nil {
 		if values, ok := p.resourceCache.identityAuthClients[parent]; ok {
 			return values, nil

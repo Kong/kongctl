@@ -379,9 +379,6 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	if err := p.validateIdentityDirectoryDeletes(ctx, basePlan); err != nil {
 		return nil, err
 	}
-	if err := p.validateIdentityRegistryReferences(ctx, basePlan); err != nil {
-		return nil, err
-	}
 	adjustIdentityAuthServerDependencies(basePlan.Changes)
 	if err := p.resolveIdentityAuthServerDeletes(ctx, basePlan); err != nil {
 		return nil, err

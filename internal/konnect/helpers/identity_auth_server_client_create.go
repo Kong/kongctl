@@ -18,7 +18,7 @@ import (
 // credential to a preflight-reserved file and returns a public projection.
 func CreateAndCaptureIdentityAuthServerClient(ctx context.Context, api IdentityAuthServerClientsAPI,
 	serverID string, request kkComps.CreateClient, output *secretoutput.File, metadata secretoutput.Metadata,
-) (*kkComps.AuthServerClient, error) {
+) (*kkComps.Client, error) {
 	if api == nil || output == nil {
 		return nil, fmt.Errorf("auth-server client API and reserved initial-secret output are required")
 	}
@@ -57,7 +57,7 @@ func CreateAndCaptureIdentityAuthServerClient(ctx context.Context, api IdentityA
 			"client creation response has inconsistent identity; initial secret was captured; inspect metadata",
 		)
 	}
-	return &kkComps.AuthServerClient{
+	return &kkComps.Client{
 		ID: value.ID, Name: value.Name, GrantTypes: slices.Clone(value.GrantTypes),
 		ResponseTypes: slices.Clone(value.ResponseTypes), RedirectUris: slices.Clone(value.RedirectUris),
 		LoginURI: value.LoginURI, AccessTokenDuration: value.AccessTokenDuration, IDTokenDuration: value.IDTokenDuration,

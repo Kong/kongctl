@@ -20,8 +20,7 @@ func TestDirectoryDeleteAndSyncRequireObservableEmptyVaultDependencies(t *testin
 				api.Directories = []kkComps.KongDirectory{api.Current}
 				dependencies := &fixture.DirectoryDependenciesAPI{Attached: attached}
 				client := state.NewClient(state.ClientConfig{
-					RegistryAgentReferencesReader: &fixture.RegistryReferencesAPI{},
-					IdentityDirectoriesAPI:        api, IdentityDirectoryDependenciesAPI: dependencies,
+					IdentityDirectoriesAPI: api, IdentityDirectoryDependenciesAPI: dependencies,
 				})
 				rs := &resources.ResourceSet{DefaultNamespace: "identity-team"}
 				if mode == PlanModeSync {
@@ -55,8 +54,7 @@ func TestDirectoryObservationGuardDoesNotAffectNonDeletingPlans(t *testing.T) {
 		Directories: []resources.IdentityDirectoryResource{directoryResource()},
 	}}
 	client := state.NewClient(state.ClientConfig{
-		RegistryAgentReferencesReader: &fixture.RegistryReferencesAPI{},
-		IdentityDirectoriesAPI:        api, IdentityDirectoryDependenciesAPI: dependencies,
+		IdentityDirectoriesAPI: api, IdentityDirectoryDependenciesAPI: dependencies,
 	})
 	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeApply})
 	require.NoError(t, err)

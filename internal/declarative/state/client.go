@@ -29,23 +29,21 @@ type ClientConfig struct {
 	IdentityGroupKeysAPI              helpers.IdentityGroupKeysAPI
 	IdentityStaticVaultCredentialsAPI helpers.IdentityStaticVaultCredentialsAPI
 
-	IdentityTrustedIDPsAPI           helpers.IdentityTrustedIDPsAPI
-	IdentityVaultKeysAPI             helpers.IdentityVaultKeysAPI
-	IdentityVaultProvidersAPI        helpers.IdentityVaultProvidersAPI
-	IdentityAuthServerClientAPI      helpers.IdentityAuthServerClientsAPI
-	IdentityAuthServersAPI           helpers.IdentityAuthServersAPI
-	IdentityAuthServerScopesAPI      helpers.IdentityAuthServerScopesAPI
-	IdentityAuthServerClaimsAPI      helpers.IdentityAuthServerClaimsAPI
-	IdentityAuthServerClientsAPI     helpers.IdentityAuthServerClientsReader
-	IdentityBasicAuthAPI             helpers.IdentityBasicAuthAPI
-	IdentityPrincipalKeysReader      helpers.IdentityPrincipalKeysReader
-	IdentityGroupsAPI                helpers.IdentityGroupsAPI
-	IdentityPrincipalsAPI            helpers.IdentityPrincipalsAPI
-	IdentityPrincipalIdentitiesAPI   helpers.IdentityPrincipalIdentitiesAPI
-	IdentityDirectoriesAPI           helpers.IdentityDirectoriesAPI
-	IdentityDirectoryDependenciesAPI helpers.IdentityDirectoryDependenciesAPI
-	RegistryAgentReferencesReader    helpers.RegistryAgentReferencesReader
-	// Core APIs
+	IdentityTrustedIDPsAPI            helpers.IdentityTrustedIDPsAPI
+	IdentityVaultKeysAPI              helpers.IdentityVaultKeysAPI
+	IdentityVaultProvidersAPI         helpers.IdentityVaultProvidersAPI
+	IdentityAuthServerClientAPI       helpers.IdentityAuthServerClientsAPI
+	IdentityAuthServersAPI            helpers.IdentityAuthServersAPI
+	IdentityAuthServerScopesAPI       helpers.IdentityAuthServerScopesAPI
+	IdentityAuthServerClaimsAPI       helpers.IdentityAuthServerClaimsAPI
+	IdentityAuthServerClientsAPI      helpers.IdentityAuthServerClientsReader
+	IdentityBasicAuthAPI              helpers.IdentityBasicAuthAPI
+	IdentityPrincipalKeysReader       helpers.IdentityPrincipalKeysReader
+	IdentityGroupsAPI                 helpers.IdentityGroupsAPI
+	IdentityPrincipalsAPI             helpers.IdentityPrincipalsAPI
+	IdentityPrincipalIdentitiesAPI    helpers.IdentityPrincipalIdentitiesAPI
+	IdentityDirectoriesAPI            helpers.IdentityDirectoriesAPI
+	IdentityDirectoryDependenciesAPI  helpers.IdentityDirectoryDependenciesAPI
 	PortalAPI                         helpers.PortalAPI
 	APIAPI                            helpers.APIAPI
 	AppAuthAPI                        helpers.AppAuthStrategiesAPI
@@ -128,23 +126,21 @@ type Client struct {
 	identityGroupKeysAPI              helpers.IdentityGroupKeysAPI
 	identityStaticVaultCredentialsAPI helpers.IdentityStaticVaultCredentialsAPI
 
-	identityVaultKeysAPI             helpers.IdentityVaultKeysAPI
-	identityVaultProvidersAPI        helpers.IdentityVaultProvidersAPI
-	identityTrustedIDPsAPI           helpers.IdentityTrustedIDPsAPI
-	identityAuthServersAPI           helpers.IdentityAuthServersAPI
-	identityAuthServerScopesAPI      helpers.IdentityAuthServerScopesAPI
-	identityAuthServerClaimsAPI      helpers.IdentityAuthServerClaimsAPI
-	identityAuthServerClientsAPI     helpers.IdentityAuthServerClientsReader
-	identityAuthServerClientAPI      helpers.IdentityAuthServerClientsAPI
-	identityBasicAuthAPI             helpers.IdentityBasicAuthAPI
-	identityPrincipalKeysReader      helpers.IdentityPrincipalKeysReader
-	identityGroupsAPI                helpers.IdentityGroupsAPI
-	identityPrincipalsAPI            helpers.IdentityPrincipalsAPI
-	identityPrincipalIdentitiesAPI   helpers.IdentityPrincipalIdentitiesAPI
-	identityDirectoriesAPI           helpers.IdentityDirectoriesAPI
-	identityDirectoryDependenciesAPI helpers.IdentityDirectoryDependenciesAPI
-	registryAgentReferencesReader    helpers.RegistryAgentReferencesReader
-	// Core APIs
+	identityVaultKeysAPI              helpers.IdentityVaultKeysAPI
+	identityVaultProvidersAPI         helpers.IdentityVaultProvidersAPI
+	identityTrustedIDPsAPI            helpers.IdentityTrustedIDPsAPI
+	identityAuthServersAPI            helpers.IdentityAuthServersAPI
+	identityAuthServerScopesAPI       helpers.IdentityAuthServerScopesAPI
+	identityAuthServerClaimsAPI       helpers.IdentityAuthServerClaimsAPI
+	identityAuthServerClientsAPI      helpers.IdentityAuthServerClientsReader
+	identityAuthServerClientAPI       helpers.IdentityAuthServerClientsAPI
+	identityBasicAuthAPI              helpers.IdentityBasicAuthAPI
+	identityPrincipalKeysReader       helpers.IdentityPrincipalKeysReader
+	identityGroupsAPI                 helpers.IdentityGroupsAPI
+	identityPrincipalsAPI             helpers.IdentityPrincipalsAPI
+	identityPrincipalIdentitiesAPI    helpers.IdentityPrincipalIdentitiesAPI
+	identityDirectoriesAPI            helpers.IdentityDirectoriesAPI
+	identityDirectoryDependenciesAPI  helpers.IdentityDirectoryDependenciesAPI
 	portalAPI                         helpers.PortalAPI
 	apiAPI                            helpers.APIAPI
 	appAuthAPI                        helpers.AppAuthStrategiesAPI
@@ -236,7 +232,6 @@ func NewClient(config ClientConfig) *Client {
 		identityAuthServerClientsAPI:     config.IdentityAuthServerClientsAPI,
 		identityDirectoriesAPI:           config.IdentityDirectoriesAPI,
 		identityDirectoryDependenciesAPI: config.IdentityDirectoryDependenciesAPI,
-		registryAgentReferencesReader:    config.RegistryAgentReferencesReader,
 		identityVaultKeysAPI:             config.IdentityVaultKeysAPI,
 		identityVaultProvidersAPI:        config.IdentityVaultProvidersAPI,
 		identityTrustedIDPsAPI:           config.IdentityTrustedIDPsAPI,

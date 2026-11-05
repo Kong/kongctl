@@ -14,7 +14,7 @@ import (
 )
 
 type IdentityAuthServerClient struct {
-	kkComps.AuthServerClient
+	kkComps.Client
 	NormalizedLabels map[string]string
 }
 
@@ -23,8 +23,8 @@ func (c IdentityAuthServerClient) GetName() string                        { retu
 func (c IdentityAuthServerClient) GetLabels() map[string]string           { return c.Labels }
 func (c IdentityAuthServerClient) GetNormalizedLabels() map[string]string { return c.NormalizedLabels }
 
-func normalizeIdentityClient(value kkComps.AuthServerClient) IdentityAuthServerClient {
-	return IdentityAuthServerClient{AuthServerClient: value, NormalizedLabels: maps.Clone(value.Labels)}
+func normalizeIdentityClient(value kkComps.Client) IdentityAuthServerClient {
+	return IdentityAuthServerClient{Client: value, NormalizedLabels: maps.Clone(value.Labels)}
 }
 
 func (c *Client) CreateIdentityAuthServerClient(ctx context.Context, parent string, request kkComps.CreateClient,
@@ -53,10 +53,10 @@ func (c *Client) GetIdentityAuthServerClient(
 		}
 		return nil, fmt.Errorf("failed to get auth-server client: %w", err)
 	}
-	if response == nil || response.AuthServerClient == nil || response.AuthServerClient.ID != id {
+	if response == nil || response.Client == nil || response.Client.ID != id {
 		return nil, fmt.Errorf("missing or inconsistent auth-server client response")
 	}
-	value := normalizeIdentityClient(*response.AuthServerClient)
+	value := normalizeIdentityClient(*response.Client)
 	return &value, nil
 }
 
@@ -75,10 +75,10 @@ func (c *Client) UpdateIdentityAuthServerClient(ctx context.Context, parent, id 
 	if err != nil {
 		return nil, fmt.Errorf("failed to update auth-server client: %w", err)
 	}
-	if response == nil || response.AuthServerClient == nil || response.AuthServerClient.ID != id {
+	if response == nil || response.Client == nil || response.Client.ID != id {
 		return nil, fmt.Errorf("missing or inconsistent auth-server client update response")
 	}
-	value := normalizeIdentityClient(*response.AuthServerClient)
+	value := normalizeIdentityClient(*response.Client)
 	return &value, nil
 }
 

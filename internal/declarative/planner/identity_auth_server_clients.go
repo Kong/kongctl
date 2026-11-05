@@ -70,7 +70,7 @@ func (p *identityAuthServerPlanner) planClients(ctx context.Context, config *Con
 		if len(entry.desired) == 0 && (plan.Metadata.Mode != PlanModeSync || !entry.scoped) {
 			continue
 		}
-		var observed []kkComps.AuthServerClient
+		var observed []kkComps.Client
 		if entry.id != "" {
 			var err error
 			observed, err = p.planner.listIdentityAuthServerClients(ctx, entry.id)
@@ -78,7 +78,7 @@ func (p *identityAuthServerPlanner) planClients(ctx context.Context, config *Con
 				return err
 			}
 		}
-		byName := make(map[string]kkComps.AuthServerClient)
+		byName := make(map[string]kkComps.Client)
 		for _, current := range observed {
 			if _, exists := byName[current.Name]; exists {
 				return fmt.Errorf("multiple clients have name %q under auth server %q", current.Name, entry.name)
@@ -164,13 +164,13 @@ func (p *identityAuthServerPlanner) planClients(ctx context.Context, config *Con
 				name:     client.Name, protected: client.Protected(),
 			})
 		}
-		var current []managedRoot[kkComps.AuthServerClient]
+		var current []managedRoot[kkComps.Client]
 		for _, client := range observed {
 			if client.Labels[labels.NamespaceKey] == config.Namespace {
 				if err := validateClientLabelOwner(client, config.Namespace); err != nil {
 					return err
 				}
-				current = append(current, managedRoot[kkComps.AuthServerClient]{
+				current = append(current, managedRoot[kkComps.Client]{
 					resource: client, name: client.Name,
 					protected: labels.IsProtectedResource(client.Labels),
 				})
@@ -204,18 +204,18 @@ func (p *identityAuthServerPlanner) planClients(ctx context.Context, config *Con
 		// Collection authority is scoped to the selected child namespace, not all
 		// namespaces visible through the auth-server parent.
 		if err := reconcileManagedRoots(p.BasePlanner, ResourceTypeIdentityAuthServerClient, desired, current,
-			managedRootOperations[resources.IdentityAuthServerClientResource, kkComps.AuthServerClient]{
+			managedRootOperations[resources.IdentityAuthServerClientResource, kkComps.Client]{
 				diff: diffIdentityClient,
 				create: func(d resources.IdentityAuthServerClientResource, _ *Plan) string {
 					return add(ActionCreate, d.Ref, "", identityClientFields(d), nil, d.Protected())
 				},
-				update: func(c kkComps.AuthServerClient, d resources.IdentityAuthServerClientResource,
+				update: func(c kkComps.Client, d resources.IdentityAuthServerClientResource,
 					fields map[string]any, changed map[string]FieldChange, _ *Plan,
 				) {
 					fields[FieldName] = c.Name
 					add(ActionUpdate, d.Ref, c.ID, fields, changed, d.Protected())
 				},
-				changeProtection: func(c kkComps.AuthServerClient, d resources.IdentityAuthServerClientResource,
+				changeProtection: func(c kkComps.Client, d resources.IdentityAuthServerClientResource,
 					old, next bool, fields map[string]any, changed map[string]FieldChange, _ *Plan,
 				) {
 					fields, changed = maps.Clone(fields), maps.Clone(changed)
@@ -223,7 +223,7 @@ func (p *identityAuthServerPlanner) planClients(ctx context.Context, config *Con
 					changed[FieldProtected] = FieldChange{Old: old, New: next}
 					add(ActionUpdate, d.Ref, c.ID, fields, changed, ProtectionChange{Old: old, New: next})
 				},
-				remove: func(c kkComps.AuthServerClient, _ *Plan) {
+				remove: func(c kkComps.Client, _ *Plan) {
 					add(ActionDelete, c.Name, c.ID,
 						map[string]any{FieldName: c.Name}, nil, false)
 				},
@@ -245,7 +245,7 @@ func (p *identityAuthServerPlanner) planClients(ctx context.Context, config *Con
 	return nil
 }
 
-func validateClientLabelOwner(client kkComps.AuthServerClient, namespace string) error {
+func validateClientLabelOwner(client kkComps.Client, namespace string) error {
 	owner := client.Labels[labels.NamespaceKey]
 	if owner == "" {
 		return fmt.Errorf("client %q is unowned; explicitly adopt it before managing it", client.Name)
@@ -299,7 +299,7 @@ func identityClientFields(c resources.IdentityAuthServerClientResource) map[stri
 	return fields
 }
 
-func observedIdentityClientFields(c kkComps.AuthServerClient) map[string]any {
+func observedIdentityClientFields(c kkComps.Client) map[string]any {
 	fields := map[string]any{
 		FieldName: c.Name, FieldGrantTypes: identityClientEnumValues(c.GrantTypes),
 		FieldResponseTypes: identityClientEnumValues(c.ResponseTypes), FieldRedirectURIs: authScopeIDs(c.RedirectUris),
@@ -323,7 +323,7 @@ func observedIdentityClientFields(c kkComps.AuthServerClient) map[string]any {
 	return fields
 }
 
-func diffIdentityClient(current kkComps.AuthServerClient, desired resources.IdentityAuthServerClientResource) (
+func diffIdentityClient(current kkComps.Client, desired resources.IdentityAuthServerClientResource) (
 	bool, map[string]any, map[string]FieldChange,
 ) {
 	fields, changes := make(map[string]any), make(map[string]FieldChange)

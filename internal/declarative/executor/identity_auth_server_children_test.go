@@ -92,7 +92,7 @@ identity:
 	require.Positive(t, result.FailureCount)
 	require.Equal(t, oldWrites, children.Writes, "saved writes must recheck parent ownership")
 	roots.Servers[0].Labels["KONGCTL-namespace"] = "auth-team"
-	children.Clients = map[string][]kkComps.AuthServerClient{parentID: {{
+	children.Clients = map[string][]kkComps.Client{parentID: {{
 		ID: "opaque-client", Name: "late-client",
 		AllowScopes: []string{children.Scopes[parentID][0].ID},
 	}}}

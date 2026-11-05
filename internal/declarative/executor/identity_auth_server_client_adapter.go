@@ -247,7 +247,7 @@ func (a *identityAuthServerClientAdapter) Update(ctx context.Context, id string,
 		return "", fmt.Errorf("client protection changed after planning; regenerate the plan")
 	}
 	if protected {
-		payload, err := json.Marshal(current.AuthServerClient)
+		payload, err := json.Marshal(current.Client)
 		if err != nil {
 			return "", fmt.Errorf("invalid observed client")
 		}

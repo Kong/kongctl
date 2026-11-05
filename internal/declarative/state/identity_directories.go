@@ -140,9 +140,6 @@ func (c *Client) DeleteIdentityDirectory(ctx context.Context, id string) error {
 	if err := c.CheckIdentityDirectoryVaultDependencies(ctx, *current); err != nil {
 		return err
 	}
-	if err := c.VerifyIdentityRegistryReferencesEmpty(ctx, id, ""); err != nil {
-		return err
-	}
 	// force=false does not protect Vault children; the fresh observations above do.
 	_, err = c.identityDirectoriesAPI.DeleteDirectory(ctx, id, nil)
 	if err != nil && declerrors.ExtractStatusCodeFromError(err) != http.StatusNotFound {

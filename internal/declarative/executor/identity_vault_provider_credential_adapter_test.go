@@ -27,8 +27,7 @@ func TestVaultCredentialSavedLifecycleExplicitSecretsAndAuthority(t *testing.T) 
 	providers := &fixture.VaultProvidersAPI{}
 	keys := &fixture.VaultKeysAPI{}
 	client := state.NewClient(state.ClientConfig{
-		RegistryAgentReferencesReader: &fixture.RegistryReferencesAPI{},
-		IdentityDirectoriesAPI:        roots, IdentityVaultProvidersAPI: providers,
+		IdentityDirectoriesAPI: roots, IdentityVaultProvidersAPI: providers,
 		IdentityStaticVaultCredentialsAPI: providers, IdentityVaultKeysAPI: keys, IdentityDirectoryDependenciesAPI: providers,
 	})
 	public := vaultKeyPublicFixtures(t)[0]

@@ -54,12 +54,12 @@ func TestClientLookupKeepsOpaqueIDsDistinctFromNames(t *testing.T) {
 					listCalls++
 					require.Equal(t, "server", request.AuthServerID)
 					require.Nil(t, request.Filter)
-					data := []kkComps.AuthServerClient{{ID: "opaque-id", Name: "machine"}}
+					data := []kkComps.Client{{ID: "opaque-id", Name: "machine"}}
 					if fault == "duplicate-name" {
-						data = append(data, kkComps.AuthServerClient{ID: "other-id", Name: "machine"})
+						data = append(data, kkComps.Client{ID: "other-id", Name: "machine"})
 					}
 					if *request.PageNumber > 1 {
-						data = []kkComps.AuthServerClient{}
+						data = []kkComps.Client{}
 					}
 					return &kkOps.ListAuthServerClientsResponse{ClientList: &kkComps.ClientList{
 						Data: data, Meta: kkComps.PaginatedMeta{Page: kkComps.PageMeta{
@@ -70,14 +70,14 @@ func TestClientLookupKeepsOpaqueIDsDistinctFromNames(t *testing.T) {
 				get: func(server, id string) (*kkOps.GetAuthServerClientResponse, error) {
 					getCalls++
 					require.Equal(t, "server", server)
-					value := &kkComps.AuthServerClient{ID: id, Name: "machine"}
+					value := &kkComps.Client{ID: id, Name: "machine"}
 					if fault == "changed-name" {
 						value.Name = "renamed"
 					}
 					if fault == "wrong-id" {
 						value.ID = "wrong"
 					}
-					return &kkOps.GetAuthServerClientResponse{AuthServerClient: value}, nil
+					return &kkOps.GetAuthServerClientResponse{Client: value}, nil
 				},
 			}
 			value, err := helpers.ResolveIdentityAuthServerClient(t.Context(), api, "server", "machine", true, 100)
@@ -175,13 +175,13 @@ func TestClientPaginationIgnoresAssociationTotalsAndRejectsPartialResults(t *tes
 				if fault == "missing" {
 					return nil, nil
 				}
-				data := []kkComps.AuthServerClient{}
+				data := []kkComps.Client{}
 				if number <= 2 {
 					id := fmt.Sprint(number)
 					if fault == "repeat" {
 						id = "same"
 					}
-					data = append(data, kkComps.AuthServerClient{ID: id, AllowScopes: []string{"a", "b"}})
+					data = append(data, kkComps.Client{ID: id, AllowScopes: []string{"a", "b"}})
 				}
 				meta := kkComps.PageMeta{Number: float64(number), Size: 1, Total: 4}
 				if fault == "under-count" {

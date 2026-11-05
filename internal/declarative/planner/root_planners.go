@@ -27,3 +27,102 @@ func (p *Planner) rootPlanners() []rootPlanner {
 			planner: &identityAuthServerPlanner{BasePlanner: base},
 		},
 		{
+			resourceType: resources.ResourceTypeDCRProvider,
+			displayName:  "DCR provider",
+			planner:      NewDCRProviderPlanner(base),
+		},
+		{
+			resourceType: resources.ResourceTypeApplicationAuthStrategy,
+			displayName:  "auth strategy",
+			planner:      NewAuthStrategyPlanner(base),
+		},
+		{
+			resourceType: resources.ResourceTypeControlPlane,
+			displayName:  "control plane",
+			planner:      NewControlPlanePlanner(base),
+		},
+		{
+			resourceType: resources.ResourceTypePortal,
+			displayName:  ResourceTypePortal,
+			planner:      NewPortalPlanner(base),
+		},
+		{
+			resourceType: resources.ResourceTypeCatalogService,
+			displayName:  "catalog service",
+			planner:      NewCatalogServicePlanner(base),
+		},
+		{
+			resourceType: resources.ResourceTypeAIGateway,
+			displayName:  "AI Gateway",
+			planner:      NewAIGatewayPlanner(base),
+		},
+		{
+			resourceType: resources.ResourceTypeDashboard,
+			displayName:  "dashboard",
+			planner:      NewDashboardPlanner(base),
+		},
+		{
+			resourceType: resources.ResourceTypeAPI,
+			displayName:  "API",
+			planner:      NewAPIPlanner(base),
+		},
+		{
+			resourceType: resources.ResourceTypeEventGatewayControlPlane,
+			displayName:  "Event Gateway Control Plane",
+			planner:      NewEGWControlPlanePlanner(base, p.resources),
+		},
+		{
+			resourceType: resources.ResourceTypeOrganizationTeam,
+			displayName:  "Team",
+			planner:      NewOrganizationTeamPlanner(base),
+			// Organization assignments can be in scope without a team root.
+			inScope: p.shouldPlanOrganization,
+		},
+		{
+			resourceType: resources.ResourceTypeIdentityDirectory,
+			displayName:  "Kong Identity directory",
+			planner:      &identityDirectoryPlanner{BasePlanner: base},
+		},
+	}
+	kinds := make([]resources.ResourceType, 0, len(roots))
+	for _, root := range roots {
+		kinds = append(kinds, root.resourceType)
+	}
+	if err := resources.ValidateManagedRootCoverage("root planners", kinds); err != nil {
+		panic(err)
+	}
+	return roots
+}
+
+func (p *Planner) planRootChanges(
+	ctx context.Context,
+	opts Options,
+	plannerCtx *Config,
+	plan *Plan,
+) error {
+	for _, root := range p.rootPlanners() {
+		var inScope bool
+		if root.inScope != nil {
+			inScope = root.inScope(plan)
+		} else {
+			inScope = p.shouldPlanRoot(plan, root.resourceType)
+		}
+		if !inScope {
+			continue
+		}
+
+		if err := root.planner.PlanChanges(
+			withPlannerHTTPLogContext(ctx, opts, plannerComponent(root.planner), ""),
+			plannerCtx,
+			plan,
+		); err != nil {
+			return fmt.Errorf(
+				"failed to plan %s changes for namespace %s: %w",
+				root.displayName,
+				plannerCtx.Namespace,
+				err,
+			)
+		}
+	}
+	return nil
+}
