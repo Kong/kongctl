@@ -22,6 +22,7 @@ engine:
     workspace-id: wrkspc_01G7dX83HGYMZDwLuJNPnA5T
 model: claude-opus-4-6
 checkout:
+  github-token: ${{ secrets.GITHUB_TOKEN }}
   fetch-depth: 0
 timeout-minutes: 30
 network: defaults
@@ -30,9 +31,11 @@ tools:
     key: e2e-coverage-${{ github.repository_owner }}-${{ github.event.repository.name }}-${{ github.workflow }}
     allowed-extensions: [".json"]
   github:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
     toolsets: [issues]
     lockdown: false
 safe-outputs:
+  github-token: ${{ secrets.GITHUB_TOKEN }}
   noop:
     report-as-issue: false
   create-issue:

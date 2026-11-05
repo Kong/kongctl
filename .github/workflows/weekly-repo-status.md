@@ -14,7 +14,10 @@ permissions:
   id-token: write
   issues: read
   pull-requests: read
+  discussions: read
 
+checkout:
+  github-token: ${{ secrets.GITHUB_TOKEN }}
 engine:
   id: claude
   auth:
@@ -30,12 +33,15 @@ network: defaults
 
 tools:
   github:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    toolsets: [default, discussions]
     # If in a public repo, setting `lockdown: false` allows
     # reading issues, pull requests and comments from 3rd-parties
     # If in a private repo this has no particular effect.
     lockdown: false
 
 safe-outputs:
+  github-token: ${{ secrets.GITHUB_TOKEN }}
   noop:
     report-as-issue: true
   create-discussion:

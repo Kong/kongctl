@@ -23,6 +23,22 @@ permissions:
   contents: read
 
 jobs:
+  github-token-policy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        with:
+          egress-policy: audit
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check generated workflow credentials and permissions
+        run: make test-gh-aw
+
   up-to-date:
     runs-on: ubuntu-latest
     outputs:
@@ -72,6 +88,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - up-to-date
+      - github-token-policy
     if: always()
     steps:
       - name: Harden Runner

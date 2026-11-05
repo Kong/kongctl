@@ -47,6 +47,15 @@ fmt: format
 patch-gh-aw-maintenance: patch-gh-aw-workflows
 patch-gh-aw-workflows:
 	bash scripts/patch-gh-aw-maintenance.sh
+	python3 scripts/patch-gh-aw-tokens.py
+
+.PHONY: compile-gh-aw test-gh-aw
+compile-gh-aw:
+	bash scripts/compile-gh-aw.sh
+
+test-gh-aw:
+	python3 scripts/tests/test-gh-aw-tokens.py
+	python3 scripts/patch-gh-aw-tokens.py --check
 
 .PHONY: milestone-pulse
 milestone-pulse:

@@ -26,6 +26,11 @@ def replace_required(text, old, new, label):
         return text.replace(old, new), True
     if new in text:
         return text, False
+    # Current gh-aw releases use prefixed environment variables for these
+    # outputs, so the upstream-generated block is already safe.
+    upstream = new.replace("OPERATION", "GH_AW_OPERATION").replace("RUN_URL", "GH_AW_RUN_URL")
+    if upstream in text:
+        return text, False
     raise SystemExit(f"expected generated block not found for {label}")
 
 
@@ -192,6 +197,12 @@ def patch_benchmark_handler_config(text):
 
 
 def patch_benchmark(text):
+    # The source now uses a literal target and sets the issue number in its
+    # post-step. There is no untrusted input interpolation to patch.
+    if '"target":"*"' in text and '${{ inputs.issue_number }}' not in text.split(
+        "      - name: Generate Safe Outputs Config\n", 1
+    )[-1].split("      - name: Generate Safe Outputs Tools\n", 1)[0]:
+        return text, False
     changed = False
     for patcher in (
         patch_benchmark_safe_outputs_config,

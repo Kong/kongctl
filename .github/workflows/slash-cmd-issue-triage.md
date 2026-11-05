@@ -26,6 +26,8 @@ permissions:
   issues: read
   pull-requests: read
 
+checkout:
+  github-token: ${{ secrets.GITHUB_TOKEN }}
 engine:
   id: claude
   auth:
@@ -40,6 +42,7 @@ model: claude-opus-4-6
 network: defaults
 
 safe-outputs:
+  github-token: ${{ secrets.GITHUB_TOKEN }}
   add-labels:
     max: 5
   add-comment:
@@ -48,6 +51,7 @@ tools:
   bash: []
   web-fetch:
   github:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
     toolsets: [default]
     min-integrity: none
 ---

@@ -74,6 +74,7 @@ permissions:
   id-token: write
   issues: read
 checkout:
+  github-token: ${{ secrets.GITHUB_TOKEN }}
   fetch-depth: 0
 engine:
   id: claude
@@ -93,9 +94,11 @@ network:
     - github
 tools:
   github:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
     toolsets: [issues]
     lockdown: false
 safe-outputs:
+  github-token: ${{ secrets.GITHUB_TOKEN }}
   mentions: false
   allowed-github-references: []
   noop:

@@ -40,6 +40,8 @@ permissions:
   pull-requests: read
   actions: read
   issues: read
+checkout:
+  github-token: ${{ secrets.GITHUB_TOKEN }}
 engine:
   id: claude
   auth:
@@ -58,10 +60,13 @@ network:
 sandbox:
   agent: awf
 tools:
+  github:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
   bash:
     - "*"
   edit:
 safe-outputs:
+  github-token: ${{ secrets.GITHUB_TOKEN }}
   update-release:
 jobs:
   config:
