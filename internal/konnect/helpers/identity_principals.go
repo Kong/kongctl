@@ -85,13 +85,13 @@ func ListIdentityPrincipalsByDisplayName(ctx context.Context, api IdentityPrinci
 	if displayName == "" {
 		return nil, fmt.Errorf("display-name must not be empty")
 	}
-	return listIdentityPrincipals(ctx, api, directoryID, pageSize, &kkOps.ListPrincipalsFilter{
+	return listIdentityPrincipals(ctx, api, directoryID, pageSize, &kkOps.ListPrincipalsQueryParamFilter{
 		DisplayName: &kkComps.LegacyStringFieldFilter{Eq: &displayName},
 	})
 }
 
 func listIdentityPrincipals(ctx context.Context, api IdentityPrincipalsAPI, directoryID string,
-	pageSize int64, filter *kkOps.ListPrincipalsFilter,
+	pageSize int64, filter *kkOps.ListPrincipalsQueryParamFilter,
 ) ([]IdentityPrincipal, error) {
 	if api == nil {
 		return nil, fmt.Errorf("identity principals API is not configured")

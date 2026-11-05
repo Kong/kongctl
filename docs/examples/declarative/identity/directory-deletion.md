@@ -11,13 +11,6 @@ deletion is blocked because the API hides those collections. A 403, missing
 API or incomplete response also blocks deletion. KongCTL does not enable
 Vault as a side effect of planning or deleting.
 
-Directory retirement also requires a complete Registry Agent reference
-inventory. A stored association targeting this directory blocks deletion,
-including when its principal has already been deleted. Registry read errors
-or unavailable endpoints block retirement. See
-[Registry references](registry-references.md) for inspection and explicit
-unlinking. Directory ownership grants no authority over Registry links.
-
 ## Enable inspection explicitly
 
 First unprotect the directory in a separate metadata-only update if needed,
@@ -90,9 +83,6 @@ fresh directory settings and all three collections again. Disabling Vault
 or attaching a dependency after planning blocks the saved deletion. Keeping
 `vault_enabled: true` in a saved plan does not authorize enabling it during
 deletion; an explicit update must happen first.
-
-Saved execution also observes Registry references again. A link added after
-planning blocks deletion until it is explicitly removed.
 
 These client observations cannot make the backend operation atomic. A new
 dependency attached between the final observation and DELETE can still be

@@ -40,8 +40,15 @@ identity:
 		require.Equal(t, "group-team", resources.GetNamespace(group.Kongctl))
 	}
 	require.Contains(t, rs.SyncScope.ChildNamespaces[resources.ResourceTypeIdentityGroup]["people"], "group-team")
+	for _, name := range []string{"A", "Support-Operations", "Support--Operations", "1-2"} {
+		_, err := New().LoadFile(writeLoaderTestFile(t, strings.Replace(input, "name: Fulfillment", "name: "+name, 1)))
+		require.NoError(t, err, "SDK 0.83 permits internal hyphens")
+	}
 	for _, replacement := range []struct{ old, next, message string }{
-		{"name: Fulfillment", "name: has-hyphens", "ASCII"},
+		{"name: Fulfillment", "name: -leading-hyphen", "ASCII"},
+		{"name: Fulfillment", "name: trailing-hyphen-", "ASCII"},
+		{"name: Fulfillment", "name: has_underscore", "ASCII"},
+		{"name: Fulfillment", "name: has space", "ASCII"},
 		{"name: Fulfillment", "name: ''", "name is required"},
 		{"type: group", "type: team", "Q32"},
 		{"type: group", "managed_by: {tool: other}", "managed_by"},

@@ -15,14 +15,14 @@ type AuthServerAPI struct {
 	Servers          []kkComps.AuthServer
 	Writes           []kkComps.UpdateAuthServer
 	Creates, Deletes int
-	Force            *kkOps.DeleteAuthServerForce
+	Force            *kkOps.Force
 	List             func(kkOps.ListAuthServersRequest) (*kkOps.ListAuthServersResponse, error)
 }
 
 func AuthServer(name, namespace string, protected bool) kkComps.AuthServer {
 	value := kkComps.AuthServer{
 		ID: "a362d8c9-2f26-4893-95a9-d8c279df31c2", Name: name, Audience: "https://api.example.test",
-		Description: "Retained description", SigningAlgorithm: new(kkComps.AuthServerSigningAlgorithmRs256),
+		Description: "Retained description", SigningAlgorithm: new(kkComps.AlgorithmRs256),
 		TrustedOrigins: []string{"https://client.example.test"},
 		Dcr:            &kkComps.DcrSettings{DefaultAccessTokenDuration: new(int64(600))},
 		Labels:         map[string]string{"owner": "test"},
@@ -107,7 +107,7 @@ func (a *AuthServerAPI) UpdateAuthServer(
 			value.Audience = *request.Audience
 		}
 		if request.SigningAlgorithm != nil {
-			value.SigningAlgorithm = new(kkComps.AuthServerSigningAlgorithm(*request.SigningAlgorithm))
+			value.SigningAlgorithm = new(kkComps.Algorithm(*request.SigningAlgorithm))
 		}
 		if request.TrustedOrigins != nil {
 			value.TrustedOrigins = slices.Clone(request.TrustedOrigins)
@@ -128,7 +128,7 @@ func (a *AuthServerAPI) UpdateAuthServer(
 }
 
 func (a *AuthServerAPI) DeleteAuthServer(
-	_ context.Context, id string, force *kkOps.DeleteAuthServerForce, _ ...kkOps.Option,
+	_ context.Context, id string, force *kkOps.Force, _ ...kkOps.Option,
 ) (*kkOps.DeleteAuthServerResponse, error) {
 	a.Deletes++
 	a.Force = force

@@ -130,10 +130,10 @@ func adoptIdentityAuthServerClient(ctx context.Context, api helpers.IdentityAuth
 	if err != nil {
 		return nil, fmt.Errorf("failed to adopt auth-server client: %w", err)
 	}
-	if response == nil || response.AuthServerClient == nil || response.AuthServerClient.ID != current.ID ||
-		response.AuthServerClient.Labels[labels.NamespaceKey] != namespace ||
-		response.AuthServerClient.TokenEndpointAuthMethod == nil ||
-		*response.AuthServerClient.TokenEndpointAuthMethod != *current.TokenEndpointAuthMethod {
+	if response == nil || response.Client == nil || response.Client.ID != current.ID ||
+		response.Client.Labels[labels.NamespaceKey] != namespace ||
+		response.Client.TokenEndpointAuthMethod == nil ||
+		*response.Client.TokenEndpointAuthMethod != *current.TokenEndpointAuthMethod {
 		return nil, fmt.Errorf("client API did not retain adoption labels or authentication method")
 	}
 	return &adoptCommon.AdoptResult{

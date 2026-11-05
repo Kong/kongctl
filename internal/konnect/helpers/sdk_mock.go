@@ -4,7 +4,6 @@ import "testing"
 
 // This is a mock implementation of the SDKAPI interface
 type MockKonnectSDK struct {
-	RegistryAgentReferencesFactory  func() RegistryAgentReferencesReader
 	IdentityPrincipalKeysAPIFactory func() IdentityPrincipalKeysAPI
 	IdentityGroupKeysAPIFactory     func() IdentityGroupKeysAPI
 	IdentityOrgChartImportFactory   func() IdentityOrgChartImportAPI
@@ -228,13 +227,6 @@ func (m *MockKonnectSDK) GetIdentityDirectoryDependenciesAPI() IdentityDirectory
 		return nil
 	}
 	return m.IdentityDirectoryDependenciesAPIFactory()
-}
-
-func (m *MockKonnectSDK) GetRegistryAgentReferencesReader() RegistryAgentReferencesReader {
-	if m.RegistryAgentReferencesFactory == nil {
-		return nil
-	}
-	return m.RegistryAgentReferencesFactory()
 }
 
 func (m *MockKonnectSDK) GetIdentityDirectoriesAPI() IdentityDirectoriesAPI {
@@ -882,7 +874,6 @@ func (m *MockKonnectSDK) GetAIGatewayCustomPoliciesAPI() AIGatewayCustomPolicies
 	}
 	return nil
 }
-
 
 func (m *MockKonnectSDK) GetIdentityAuthServersAPI() IdentityAuthServersAPI {
 	if m.IdentityAuthServersFactory != nil {

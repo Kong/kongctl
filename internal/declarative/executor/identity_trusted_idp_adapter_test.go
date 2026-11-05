@@ -27,9 +27,8 @@ func TestTrustedIDPSavedLifecycleHydrationClearsAndDirectoryAuthority(t *testing
 	roots := &fixture.DirectoryAPI{Current: root, Directories: []kkComps.KongDirectory{root}, Lifecycle: true}
 	trusts := &fixture.TrustedIDPsAPI{}
 	client := state.NewClient(state.ClientConfig{
-		RegistryAgentReferencesReader: &fixture.RegistryReferencesAPI{},
-		IdentityDirectoriesAPI:        roots,
-		IdentityTrustedIDPsAPI:        trusts, IdentityDirectoryDependenciesAPI: trusts,
+		IdentityDirectoriesAPI: roots,
+		IdentityTrustedIDPsAPI: trusts, IdentityDirectoryDependenciesAPI: trusts,
 	})
 	file := filepath.Join(t.TempDir(), "manifest.yaml")
 	generate := func(values []map[string]any, present bool, mode planner.PlanMode) (*planner.Plan, error) {

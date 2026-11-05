@@ -66,7 +66,6 @@ func TestPrincipalIdentitySavedPlanLifecycleAcrossNamespaces(t *testing.T) {
 	principals := &fixture.PrincipalAPI{Directories: make(map[string][]kkComps.KongPrincipal)}
 	identities := &fixture.PrincipalIdentitiesAPI{Parents: make(map[string][]kkComps.KongPrincipalIdentity)}
 	client := state.NewClient(state.ClientConfig{
-		RegistryAgentReferencesReader:    &fixture.RegistryReferencesAPI{},
 		IdentityDirectoryDependenciesAPI: &fixture.DirectoryDependenciesAPI{},
 		IdentityBasicAuthAPI:             &fixture.BasicAuthAPI{},
 		IdentityPrincipalKeysReader:      &fixture.BasicAuthAPI{},
@@ -190,11 +189,10 @@ func TestProtectedIdentityPayloadReferencesAreNoOpsBeforeNamespacePlanning(t *te
 		}, ManagedBy: resources.BuildPrincipalManagedBy("association-team", "employee", true, "old"),
 	})
 	client := state.NewClient(state.ClientConfig{
-		RegistryAgentReferencesReader: &fixture.RegistryReferencesAPI{},
-		IdentityBasicAuthAPI:          &fixture.BasicAuthAPI{},
-		IdentityPrincipalKeysReader:   &fixture.BasicAuthAPI{},
-		IdentityGroupsAPI:             &fixture.GroupAPI{},
-		IdentityDirectoriesAPI:        &fixture.DirectoryAPI{Directories: []kkComps.KongDirectory{directory}},
+		IdentityBasicAuthAPI:        &fixture.BasicAuthAPI{},
+		IdentityPrincipalKeysReader: &fixture.BasicAuthAPI{},
+		IdentityGroupsAPI:           &fixture.GroupAPI{},
+		IdentityDirectoriesAPI:      &fixture.DirectoryAPI{Directories: []kkComps.KongDirectory{directory}},
 		IdentityPrincipalsAPI: &fixture.PrincipalAPI{
 			Directories: map[string][]kkComps.KongPrincipal{directory.ID: {principal}},
 		},
@@ -269,7 +267,6 @@ func TestIdentitySavedMutationRejectsLateOwnershipProtectionAndDuplicates(t *tes
 					metadata[mode] = "other"
 				}
 				client := state.NewClient(state.ClientConfig{
-					RegistryAgentReferencesReader:  &fixture.RegistryReferencesAPI{},
 					IdentityBasicAuthAPI:           &fixture.BasicAuthAPI{},
 					IdentityPrincipalKeysReader:    &fixture.BasicAuthAPI{},
 					IdentityGroupsAPI:              &fixture.GroupAPI{},

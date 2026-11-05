@@ -15,9 +15,9 @@ import (
 
 type AuthServerChildrenAPI struct {
 	helpers.IdentityAuthServerClientsAPI
-	Scopes          map[string][]kkComps.AuthServerScope
+	Scopes          map[string][]kkComps.Scope
 	Claims          map[string][]kkComps.Claim
-	Clients         map[string][]kkComps.AuthServerClient
+	Clients         map[string][]kkComps.Client
 	ScopeUpdates    []kkOps.UpdateAuthServerScopeRequest
 	ClaimUpdates    []kkOps.UpdateAuthServerClaimRequest
 	ClientUpdates   []kkOps.UpdateAuthServerClientRequest
@@ -32,7 +32,7 @@ func (a *AuthServerChildrenAPI) GetAuthServerClient(
 ) (*kkOps.GetAuthServerClientResponse, error) {
 	for _, value := range a.Clients[parent] {
 		if value.ID == id {
-			return &kkOps.GetAuthServerClientResponse{AuthServerClient: &value}, nil
+			return &kkOps.GetAuthServerClientResponse{Client: &value}, nil
 		}
 	}
 	return nil, &kkErrors.NotFoundError{Status: 404}
@@ -47,19 +47,19 @@ func (a *AuthServerChildrenAPI) CreateAuthServerClient(
 	a.created++
 	a.Writes++
 	if a.Clients == nil {
-		a.Clients = make(map[string][]kkComps.AuthServerClient)
+		a.Clients = make(map[string][]kkComps.Client)
 	}
 	data, _ := json.Marshal(request)
 	var value kkComps.CreatedClient
 	_ = json.Unmarshal(data, &value)
 	value.ID = fmt.Sprintf("opaque-client-%d", a.created)
 	if value.TokenEndpointAuthMethod == nil {
-		method := kkComps.AuthServerTokenEndpointAuthMethod("client_secret_post")
+		method := kkComps.TokenEndpointAuthMethod("client_secret_post")
 		value.TokenEndpointAuthMethod = &method
 	}
 	value.ClientSecret = "fixture-initial-secret"
 	data, _ = json.Marshal(value)
-	var public kkComps.AuthServerClient
+	var public kkComps.Client
 	_ = json.Unmarshal(data, &public)
 	a.Clients[parent] = append(a.Clients[parent], public)
 	return &kkOps.CreateAuthServerClientResponse{CreatedClient: &value}, nil
@@ -77,7 +77,7 @@ func (a *AuthServerChildrenAPI) UpdateAuthServerClient(
 		}
 		next := patchAuthChild(value, request.UpdateClient)
 		if request.UpdateClient.TokenEndpointAuthMethod == nil {
-			method := kkComps.AuthServerTokenEndpointAuthMethod("client_secret_post")
+			method := kkComps.TokenEndpointAuthMethod("client_secret_post")
 			next.TokenEndpointAuthMethod = &method
 		}
 		next.Labels = maps.Clone(value.Labels)
@@ -93,7 +93,7 @@ func (a *AuthServerChildrenAPI) UpdateAuthServerClient(
 		}
 		a.Clients[request.AuthServerID][i] = next
 		a.Writes++
-		return &kkOps.UpdateAuthServerClientResponse{AuthServerClient: &next}, nil
+		return &kkOps.UpdateAuthServerClientResponse{Client: &next}, nil
 	}
 	return nil, &kkErrors.NotFoundError{Status: 404}
 }
@@ -105,7 +105,7 @@ func (a *AuthServerChildrenAPI) DeleteAuthServerClient(
 ) (*kkOps.DeleteAuthServerClientResponse, error) {
 	a.Clients[parent] = slices.DeleteFunc(
 		a.Clients[parent],
-		func(v kkComps.AuthServerClient) bool { return v.ID == id },
+		func(v kkComps.Client) bool { return v.ID == id },
 	)
 	a.Deleted = append(a.Deleted, id)
 	a.Writes++
@@ -153,7 +153,7 @@ func (a *AuthServerChildrenAPI) GetAuthServerScope(_ context.Context, parent, id
 ) {
 	for _, value := range a.Scopes[parent] {
 		if value.ID == id {
-			return &kkOps.GetAuthServerScopeResponse{AuthServerScope: &value}, nil
+			return &kkOps.GetAuthServerScopeResponse{Scope: &value}, nil
 		}
 	}
 	return nil, &kkErrors.NotFoundError{Status: 404}
@@ -165,14 +165,14 @@ func (a *AuthServerChildrenAPI) CreateAuthServerScope(_ context.Context, parent 
 	a.created++
 	a.Writes++
 	if a.Scopes == nil {
-		a.Scopes = make(map[string][]kkComps.AuthServerScope)
+		a.Scopes = make(map[string][]kkComps.Scope)
 	}
 	data, _ := json.Marshal(request)
-	var value kkComps.AuthServerScope
+	var value kkComps.Scope
 	_ = json.Unmarshal(data, &value)
 	value.ID = fmt.Sprintf("10000000-0000-4000-8000-%012d", a.created)
 	a.Scopes[parent] = append(a.Scopes[parent], value)
-	return &kkOps.CreateAuthServerScopeResponse{AuthServerScope: &value}, nil
+	return &kkOps.CreateAuthServerScopeResponse{Scope: &value}, nil
 }
 
 func (a *AuthServerChildrenAPI) UpdateAuthServerScope(_ context.Context,
@@ -184,7 +184,7 @@ func (a *AuthServerChildrenAPI) UpdateAuthServerScope(_ context.Context,
 			next := patchAuthChild(value, request.UpdateScope)
 			a.Scopes[request.AuthServerID][i] = next
 			a.Writes++
-			return &kkOps.UpdateAuthServerScopeResponse{AuthServerScope: &next}, nil
+			return &kkOps.UpdateAuthServerScopeResponse{Scope: &next}, nil
 		}
 	}
 	return nil, &kkErrors.NotFoundError{Status: 404}
@@ -195,7 +195,7 @@ func (a *AuthServerChildrenAPI) DeleteAuthServerScope(_ context.Context, parent,
 ) {
 	a.Deleted = append(a.Deleted, id)
 	a.Writes++
-	a.Scopes[parent] = slices.DeleteFunc(a.Scopes[parent], func(v kkComps.AuthServerScope) bool { return v.ID == id })
+	a.Scopes[parent] = slices.DeleteFunc(a.Scopes[parent], func(v kkComps.Scope) bool { return v.ID == id })
 	return &kkOps.DeleteAuthServerScopeResponse{}, nil
 }
 

@@ -18,7 +18,7 @@ type DirectoryAPI struct {
 	Created                                 kkComps.CreateDirectoryBody
 	Replaced                                kkComps.ReplaceDirectoryBody
 	Creates, Replaces, Deletes, Gets, Lists int
-	Force                                   *kkOps.DeleteDirectoryForce
+	Force                                   *kkOps.DeleteDirectoryQueryParamForce
 	List                                    func(*kkComps.CursorPageParameters) (*kkOps.ListKongDirectoriesResponse, error)
 }
 
@@ -79,7 +79,7 @@ func (a *DirectoryAPI) ReplaceDirectory(_ context.Context, _ string, request kkC
 	return &kkOps.ReplaceDirectoryResponse{KongDirectory: &a.Current}, nil
 }
 
-func (a *DirectoryAPI) DeleteDirectory(_ context.Context, _ string, force *kkOps.DeleteDirectoryForce,
+func (a *DirectoryAPI) DeleteDirectory(_ context.Context, _ string, force *kkOps.DeleteDirectoryQueryParamForce,
 	_ ...kkOps.Option,
 ) (*kkOps.DeleteDirectoryResponse, error) {
 	a.Deletes++

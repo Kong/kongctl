@@ -43,8 +43,7 @@ func TestVaultKeySavedLifecycleFingerprintMatchingAndParentAuthority(t *testing.
 	roots := &fixture.DirectoryAPI{Current: root, Lifecycle: true}
 	keys := &fixture.VaultKeysAPI{}
 	client := state.NewClient(state.ClientConfig{
-		RegistryAgentReferencesReader: &fixture.RegistryReferencesAPI{},
-		IdentityDirectoriesAPI:        roots, IdentityVaultKeysAPI: keys, IdentityDirectoryDependenciesAPI: keys,
+		IdentityDirectoriesAPI: roots, IdentityVaultKeysAPI: keys, IdentityDirectoryDependenciesAPI: keys,
 	})
 	file := filepath.Join(t.TempDir(), "manifest.yaml")
 	plan := func(names, materials []string, mode planner.PlanMode, present bool) (*planner.Plan, error) {
@@ -215,8 +214,7 @@ func TestVaultKeySavedCreationAndDeletionRecheckCollectionIdentity(t *testing.T)
 	root.VaultEnabled = new(true)
 	keys := &fixture.VaultKeysAPI{}
 	client := state.NewClient(state.ClientConfig{
-		RegistryAgentReferencesReader: &fixture.RegistryReferencesAPI{},
-		IdentityDirectoriesAPI:        &fixture.DirectoryAPI{Current: root}, IdentityVaultKeysAPI: keys,
+		IdentityDirectoriesAPI: &fixture.DirectoryAPI{Current: root}, IdentityVaultKeysAPI: keys,
 	})
 	for _, material := range public[:5] {
 		_, err := client.CreateIdentityVaultKey(t.Context(), root.ID,

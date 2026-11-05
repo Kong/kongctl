@@ -13,7 +13,7 @@ import (
 	"github.com/kong/kongctl/internal/konnect/httpclient"
 )
 
-type IdentityAuthServerScope struct{ kkComps.AuthServerScope }
+type IdentityAuthServerScope struct{ kkComps.Scope }
 
 func (s IdentityAuthServerScope) GetID() string                          { return s.ID }
 func (s IdentityAuthServerScope) GetName() string                        { return s.Name }
@@ -51,7 +51,7 @@ func (c *Client) ListIdentityAuthServerClaims(ctx context.Context, parent string
 	return result, nil
 }
 
-func (c *Client) ListIdentityAuthServerClients(ctx context.Context, parent string) ([]kkComps.AuthServerClient, error) {
+func (c *Client) ListIdentityAuthServerClients(ctx context.Context, parent string) ([]kkComps.Client, error) {
 	return helpers.ListIdentityAuthServerClients(ctx, c.identityAuthServerClientsAPI, parent, 100)
 }
 
@@ -66,10 +66,10 @@ func (c *Client) GetIdentityAuthServerScope(ctx context.Context, parent, id stri
 		}
 		return nil, fmt.Errorf("failed to get auth-server scope: %w", err)
 	}
-	if response == nil || response.AuthServerScope == nil || response.AuthServerScope.ID != id {
+	if response == nil || response.Scope == nil || response.Scope.ID != id {
 		return nil, fmt.Errorf("missing or inconsistent auth-server scope response")
 	}
-	return &IdentityAuthServerScope{*response.AuthServerScope}, nil
+	return &IdentityAuthServerScope{*response.Scope}, nil
 }
 
 func (c *Client) GetIdentityAuthServerClaim(ctx context.Context, parent, id string) (*IdentityAuthServerClaim, error) {
@@ -99,10 +99,10 @@ func (c *Client) CreateIdentityAuthServerScope(ctx context.Context, parent strin
 	if err != nil {
 		return nil, fmt.Errorf("failed to create auth-server scope: %w", err)
 	}
-	if response == nil || response.AuthServerScope == nil || response.AuthServerScope.ID == "" {
+	if response == nil || response.Scope == nil || response.Scope.ID == "" {
 		return nil, fmt.Errorf("missing created auth-server scope response")
 	}
-	return &IdentityAuthServerScope{*response.AuthServerScope}, nil
+	return &IdentityAuthServerScope{*response.Scope}, nil
 }
 
 func (c *Client) CreateIdentityAuthServerClaim(ctx context.Context, parent string,
@@ -136,7 +136,7 @@ func (c *Client) UpdateIdentityAuthServerScope(ctx context.Context, parent, id s
 	if err != nil {
 		return fmt.Errorf("failed to update auth-server scope: %w", err)
 	}
-	if response == nil || response.AuthServerScope == nil || response.AuthServerScope.ID != id {
+	if response == nil || response.Scope == nil || response.Scope.ID != id {
 		return fmt.Errorf("missing updated auth-server scope response")
 	}
 	return nil

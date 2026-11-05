@@ -72,7 +72,7 @@ func TestInitialClientSecretCapturedWithoutPublishingOrRetrying(t *testing.T) {
 				fixtureServerID,
 				kkComps.CreateClient{
 					Name:          "worker",
-					GrantTypes:    []kkComps.AuthServerGrantType{kkComps.AuthServerGrantTypeClientCredentials},
+					GrantTypes:    []kkComps.GrantType{kkComps.GrantTypeClientCredentials},
 					ResponseTypes: []kkComps.ResponseType{},
 				},
 				output,

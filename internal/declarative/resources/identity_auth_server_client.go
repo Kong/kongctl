@@ -12,18 +12,18 @@ import (
 
 type IdentityAuthServerClientResource struct {
 	BaseResource            `yaml:",inline" json:",inline"`
-	AuthServer              string                                     `yaml:"auth_server,omitempty" json:"auth_server,omitempty"`                               //nolint:lll
-	Name                    string                                     `yaml:"name" json:"name"`                                                                 //nolint:lll
-	GrantTypes              []kkComps.AuthServerGrantType              `yaml:"grant_types" json:"grant_types"`                                                   //nolint:lll
-	ResponseTypes           []kkComps.ResponseType                     `yaml:"response_types" json:"response_types"`                                             //nolint:lll
-	RedirectURIs            []string                                   `yaml:"redirect_uris,omitempty" json:"redirect_uris,omitzero"`                            //nolint:lll
-	LoginURI                *string                                    `yaml:"login_uri,omitempty" json:"login_uri,omitempty"`                                   //nolint:lll
-	AccessTokenDuration     *int64                                     `yaml:"access_token_duration,omitempty" json:"access_token_duration,omitempty"`           //nolint:lll
-	IDTokenDuration         *int64                                     `yaml:"id_token_duration,omitempty" json:"id_token_duration,omitempty"`                   //nolint:lll
-	AllowAllScopes          *bool                                      `yaml:"allow_all_scopes,omitempty" json:"allow_all_scopes,omitempty"`                     //nolint:lll
-	AllowScopes             []string                                   `yaml:"allow_scopes,omitempty" json:"allow_scopes,omitzero"`                              //nolint:lll
-	TokenEndpointAuthMethod *kkComps.AuthServerTokenEndpointAuthMethod `yaml:"token_endpoint_auth_method,omitempty" json:"token_endpoint_auth_method,omitempty"` //nolint:lll
-	Labels                  map[string]string                          `yaml:"labels,omitempty" json:"labels,omitzero"`                                          //nolint:lll
+	AuthServer              string                           `yaml:"auth_server,omitempty" json:"auth_server,omitempty"`                               //nolint:lll
+	Name                    string                           `yaml:"name" json:"name"`                                                                 //nolint:lll
+	GrantTypes              []kkComps.GrantType              `yaml:"grant_types" json:"grant_types"`                                                   //nolint:lll
+	ResponseTypes           []kkComps.ResponseType           `yaml:"response_types" json:"response_types"`                                             //nolint:lll
+	RedirectURIs            []string                         `yaml:"redirect_uris,omitempty" json:"redirect_uris,omitzero"`                            //nolint:lll
+	LoginURI                *string                          `yaml:"login_uri,omitempty" json:"login_uri,omitempty"`                                   //nolint:lll
+	AccessTokenDuration     *int64                           `yaml:"access_token_duration,omitempty" json:"access_token_duration,omitempty"`           //nolint:lll
+	IDTokenDuration         *int64                           `yaml:"id_token_duration,omitempty" json:"id_token_duration,omitempty"`                   //nolint:lll
+	AllowAllScopes          *bool                            `yaml:"allow_all_scopes,omitempty" json:"allow_all_scopes,omitempty"`                     //nolint:lll
+	AllowScopes             []string                         `yaml:"allow_scopes,omitempty" json:"allow_scopes,omitzero"`                              //nolint:lll
+	TokenEndpointAuthMethod *kkComps.TokenEndpointAuthMethod `yaml:"token_endpoint_auth_method,omitempty" json:"token_endpoint_auth_method,omitempty"` //nolint:lll
+	Labels                  map[string]string                `yaml:"labels,omitempty" json:"labels,omitzero"`                                          //nolint:lll
 }
 
 func (c IdentityAuthServerClientResource) GetType() ResourceType {
@@ -77,7 +77,7 @@ func (c IdentityAuthServerClientResource) Validate() error {
 	if c.ResponseTypes == nil {
 		return fmt.Errorf("client response_types must be explicitly declared, including [] when empty")
 	}
-	seen := make(map[kkComps.AuthServerGrantType]bool)
+	seen := make(map[kkComps.GrantType]bool)
 	for _, value := range c.GrantTypes {
 		if !value.IsExact() || seen[value] {
 			return fmt.Errorf("client grant_types contains an unsupported or duplicate value")
@@ -92,7 +92,7 @@ func (c IdentityAuthServerClientResource) Validate() error {
 	// Public SDK enum filtering omits this value, but canonical Sliver and the
 	// deployed API support it. Wire tests already verify SDK string passthrough.
 	if c.TokenEndpointAuthMethod != nil && !c.TokenEndpointAuthMethod.IsExact() &&
-		*c.TokenEndpointAuthMethod != kkComps.AuthServerTokenEndpointAuthMethod("client_secret_basic") {
+		*c.TokenEndpointAuthMethod != kkComps.TokenEndpointAuthMethod("client_secret_basic") {
 		return fmt.Errorf("unsupported client token_endpoint_auth_method")
 	}
 	for _, duration := range []*int64{c.AccessTokenDuration, c.IDTokenDuration} {

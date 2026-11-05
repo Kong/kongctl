@@ -46,14 +46,14 @@ type IdentityAuthServerResource struct {
 	Scopes           []IdentityAuthServerScopeResource  `yaml:"scopes,omitempty" json:"scopes,omitzero"`
 	Claims           []IdentityAuthServerClaimResource  `yaml:"claims,omitempty" json:"claims,omitzero"`
 	BaseResource     `yaml:",inline" json:",inline"`
-	Name             string                              `yaml:"name" json:"name"`
-	Audience         string                              `yaml:"audience" json:"audience"`
-	Description      *string                             `yaml:"description,omitempty" json:"description,omitempty"`
-	SigningAlgorithm *kkComps.AuthServerSigningAlgorithm `yaml:"signing_algorithm,omitempty" json:"signing_algorithm,omitempty"` //nolint:lll
-	TrustedOrigins   []string                            `yaml:"trusted_origins,omitempty" json:"trusted_origins,omitzero"`
-	DCR              *IdentityAuthServerDCR              `yaml:"dcr,omitempty" json:"dcr,omitempty"`
-	Labels           map[string]string                   `yaml:"labels,omitempty" json:"labels,omitzero"`
-	External         *ExternalBlock                      `yaml:"_external,omitempty" json:"_external,omitempty"`
+	Name             string                 `yaml:"name" json:"name"`
+	Audience         string                 `yaml:"audience" json:"audience"`
+	Description      *string                `yaml:"description,omitempty" json:"description,omitempty"`
+	SigningAlgorithm *kkComps.Algorithm     `yaml:"signing_algorithm,omitempty" json:"signing_algorithm,omitempty"` //nolint:lll
+	TrustedOrigins   []string               `yaml:"trusted_origins,omitempty" json:"trusted_origins,omitzero"`
+	DCR              *IdentityAuthServerDCR `yaml:"dcr,omitempty" json:"dcr,omitempty"`
+	Labels           map[string]string      `yaml:"labels,omitempty" json:"labels,omitzero"`
+	External         *ExternalBlock         `yaml:"_external,omitempty" json:"_external,omitempty"`
 }
 
 func identityAuthServerSlice(rs *ResourceSet) *[]IdentityAuthServerResource {

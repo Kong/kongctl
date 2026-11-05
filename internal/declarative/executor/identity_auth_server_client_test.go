@@ -223,7 +223,7 @@ func TestIdentityClientExternalParentAndNamespaceScopedSync(t *testing.T) {
 	require.Zero(t, result.FailureCount, "%+v", result.Errors)
 	children.Clients[parent] = append(
 		children.Clients[parent],
-		kkComps.AuthServerClient{
+		kkComps.Client{
 			ID:     "foreign",
 			Name:   "foreign",
 			Labels: map[string]string{labels.NamespaceKey: "other"},

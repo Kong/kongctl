@@ -43,13 +43,13 @@ func TestAuthServerDumpRoundTrip(t *testing.T) {
 func TestAuthServerClientDumpRoundTripPreservesIndependentMetadataAndReferences(t *testing.T) {
 	current := fixture.AuthServer("issuer", "auth-team", false)
 	scope := "12345678-1234-4123-8123-123456789012"
-	method := kkComps.AuthServerTokenEndpointAuthMethod("client_secret_basic")
+	method := kkComps.TokenEndpointAuthMethod("client_secret_basic")
 	children := &fixture.AuthServerChildrenAPI{
-		Scopes: map[string][]kkComps.AuthServerScope{current.ID: {{ID: scope, Name: "read"}}},
-		Clients: map[string][]kkComps.AuthServerClient{current.ID: {{
+		Scopes: map[string][]kkComps.Scope{current.ID: {{ID: scope, Name: "read"}}},
+		Clients: map[string][]kkComps.Client{current.ID: {{
 			ID: "opaque-client", Name: "worker",
-			GrantTypes: []kkComps.AuthServerGrantType{
-				kkComps.AuthServerGrantTypeClientCredentials,
+			GrantTypes: []kkComps.GrantType{
+				kkComps.GrantTypeClientCredentials,
 			}, ResponseTypes: []kkComps.ResponseType{},
 			TokenEndpointAuthMethod: &method, AllowScopes: []string{scope},
 			Labels: map[string]string{

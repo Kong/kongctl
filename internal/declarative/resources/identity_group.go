@@ -10,7 +10,7 @@ import (
 	"github.com/kong/kongctl/internal/maturity"
 )
 
-var identityGroupNamePattern = regexp.MustCompile(`^[A-Za-z0-9]+$`)
+var identityGroupNamePattern = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$`)
 
 type IdentityGroupResource struct {
 	APIKeys      []IdentityGroupAPIKeyResource     `yaml:"api_keys,omitempty"    json:"api_keys,omitempty"`
@@ -34,7 +34,7 @@ func init() {
 			WithExplainAliases("identity.groups", "identity.group", "group", "groups"),
 			WithExplainRecommendedFields("ref", "directory", "name"),
 			WithExplainFieldHint("name", ExplainFieldHint{Literal: "MyGroup", Notes: []string{
-				"Required: 1-255 ASCII letters or digits, without spaces or punctuation.",
+				"Required: 1-255 ASCII letters, digits or internal hyphens; start and end with a letter or digit.",
 			}}),
 			WithExplainFieldHint("type", ExplainFieldHint{Enum: []any{"group"}, Notes: []string{
 				"Only directly provisioned ordinary groups are managed; team/importer writes are deferred (Q32).",
@@ -126,7 +126,10 @@ func (g IdentityGroupResource) Validate() error {
 		return g.External.Validate()
 	}
 	if len(g.Name) == 0 || len(g.Name) > 255 || !identityGroupNamePattern.MatchString(g.Name) {
-		return fmt.Errorf("group name is required; use 1-255 ASCII letters or digits")
+		return fmt.Errorf(
+			"group name is required; use 1-255 ASCII letters, digits or internal hyphens; " +
+				"start and end with a letter or digit",
+		)
 	}
 	if g.Type != nil && *g.Type != "group" {
 		return fmt.Errorf("only ordinary type group is supported; team/importer writes are deferred (Q32)")

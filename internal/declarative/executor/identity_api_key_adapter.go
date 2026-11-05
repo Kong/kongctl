@@ -84,7 +84,7 @@ func (a *identityAPIKeyAdapter) MapCreateFields(_ context.Context, execCtx *Exec
 	if err := json.Unmarshal(data, request); err != nil {
 		return fmt.Errorf("invalid API-key create payload")
 	}
-	if request.Type != kkComps.CreatePrincipalKeyBodyv1TypeV1 {
+	if fields[planner.FieldType] != "v1" {
 		return fmt.Errorf("declarative API keys require type v1")
 	}
 	ref, owned, err := resources.IdentityAPIKeyRef(request.ManagedBy)
@@ -94,7 +94,7 @@ func (a *identityAPIKeyAdapter) MapCreateFields(_ context.Context, execCtx *Exec
 	if !owned || ref != execCtx.PlannedChange.ResourceRef || len(request.ManagedBy) != 4 {
 		return fmt.Errorf("API-key create requires its canonical generated identity markers")
 	}
-	declaration := resources.IdentityAPIKeyFields{Ref: ref, Type: string(request.Type), Name: request.Name}
+	declaration := resources.IdentityAPIKeyFields{Ref: ref, Type: request.GetType(), Name: request.Name}
 	return declaration.Validate()
 }
 

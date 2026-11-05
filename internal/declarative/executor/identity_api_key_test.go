@@ -54,7 +54,6 @@ func generatedKeysTestState() (*state.Client, *fixture.PrincipalAPI, *fixture.Gr
 	keys := &fixture.APIKeyHTTP{PageSize: 1}
 	sdk := keys.SDK()
 	return state.NewClient(state.ClientConfig{
-		RegistryAgentReferencesReader: &fixture.RegistryReferencesAPI{},
 		IdentityDirectoriesAPI: &fixture.DirectoryAPI{
 			Directories: []kkComps.KongDirectory{{ID: directory, Name: "default"}},
 		},

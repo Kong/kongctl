@@ -17,7 +17,7 @@ type IdentityAuthServersAPI interface {
 	UpdateAuthServer(context.Context, string, kkComps.UpdateAuthServer, ...kkOps.Option) (
 		*kkOps.UpdateAuthServerResponse, error,
 	)
-	DeleteAuthServer(context.Context, string, *kkOps.DeleteAuthServerForce, ...kkOps.Option) (
+	DeleteAuthServer(context.Context, string, *kkOps.Force, ...kkOps.Option) (
 		*kkOps.DeleteAuthServerResponse, error,
 	)
 }

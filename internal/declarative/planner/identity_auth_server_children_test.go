@@ -59,7 +59,7 @@ func TestAuthChildrenSamePlanReferencesAndDeleteOrdering(t *testing.T) {
 	require.Contains(t, plan.Changes[2].DependsOn, plan.Changes[1].ID)
 	root := fixture.AuthServer("issuer", "auth-team", false)
 	roots.Servers = []kkComps.AuthServer{root}
-	children.Scopes = map[string][]kkComps.AuthServerScope{root.ID: {{ID: "scope-id", Name: "read:data"}}}
+	children.Scopes = map[string][]kkComps.Scope{root.ID: {{ID: "scope-id", Name: "read:data"}}}
 	children.Claims = map[string][]kkComps.Claim{root.ID: {{
 		ID: "claim-id", Name: "department", Value: "value",
 		IncludeInScopes: []string{"scope-id"},
@@ -86,7 +86,7 @@ func TestScopeSyncRequiresExplicitCollectionAndRejectsRetainedReferences(t *test
 	root := fixture.AuthServer("issuer", "auth-team", false)
 	roots := &fixture.AuthServerAPI{Servers: []kkComps.AuthServer{root}}
 	children := &fixture.AuthServerChildrenAPI{
-		Scopes: map[string][]kkComps.AuthServerScope{root.ID: {{ID: "scope-id", Name: "read:data"}}},
+		Scopes: map[string][]kkComps.Scope{root.ID: {{ID: "scope-id", Name: "read:data"}}},
 	}
 	plan, err := planAuthChildren(t, authChildParent, roots, children, PlanModeSync)
 	require.NoError(t, err)
@@ -98,7 +98,7 @@ func TestScopeSyncRequiresExplicitCollectionAndRejectsRetainedReferences(t *test
 	_, err = planAuthChildren(t, authChildParent+"      scopes: []\n", roots, children, PlanModeSync)
 	require.ErrorContains(t, err, "still referenced by claim")
 	children.Claims = nil
-	children.Clients = map[string][]kkComps.AuthServerClient{root.ID: {{
+	children.Clients = map[string][]kkComps.Client{root.ID: {{
 		ID: "opaque-client", Name: "keep",
 		AllowScopes: []string{"scope-id"},
 	}}}
@@ -115,13 +115,13 @@ func TestScopeSyncRequiresExplicitCollectionAndRejectsRetainedReferences(t *test
 
 func TestClientMetadataUpdateDoesNotAuthorizeScopeDeletion(t *testing.T) {
 	root := fixture.AuthServer("issuer", "auth-team", false)
-	method := kkComps.AuthServerTokenEndpointAuthMethod("client_secret_basic")
+	method := kkComps.TokenEndpointAuthMethod("client_secret_basic")
 	roots := &fixture.AuthServerAPI{Servers: []kkComps.AuthServer{root}}
 	children := &fixture.AuthServerChildrenAPI{
-		Scopes: map[string][]kkComps.AuthServerScope{root.ID: {{ID: "scope-id", Name: "read:data"}}},
-		Clients: map[string][]kkComps.AuthServerClient{root.ID: {{
+		Scopes: map[string][]kkComps.Scope{root.ID: {{ID: "scope-id", Name: "read:data"}}},
+		Clients: map[string][]kkComps.Client{root.ID: {{
 			ID: "opaque-client", Name: "worker",
-			GrantTypes:    []kkComps.AuthServerGrantType{kkComps.AuthServerGrantTypeClientCredentials},
+			GrantTypes:    []kkComps.GrantType{kkComps.GrantTypeClientCredentials},
 			ResponseTypes: []kkComps.ResponseType{}, AllowScopes: []string{"scope-id"}, TokenEndpointAuthMethod: &method,
 			Labels: map[string]string{"KONGCTL-namespace": "auth-team", "team": "old"},
 		}}},

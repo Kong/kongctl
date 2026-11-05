@@ -86,8 +86,7 @@ func TestIdentityDirectoryControlPlaneReferencesAndScope(t *testing.T) {
 			rs.SyncScope.AddRoot(resources.ResourceTypeIdentityDirectory)
 		}
 		plan, err := NewPlanner(state.NewClient(state.ClientConfig{
-			RegistryAgentReferencesReader: &fixture.RegistryReferencesAPI{},
-			IdentityDirectoriesAPI:        api, IdentityDirectoryDependenciesAPI: &fixture.DirectoryDependenciesAPI{},
+			IdentityDirectoriesAPI: api, IdentityDirectoryDependenciesAPI: &fixture.DirectoryDependenciesAPI{},
 		}), slog.Default()).
 			GeneratePlan(t.Context(), rs, Options{Mode: PlanModeSync})
 		require.NoError(t, err)

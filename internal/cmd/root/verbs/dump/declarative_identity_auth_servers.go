@@ -143,7 +143,7 @@ func collectIdentityAuthServerChildren(ctx context.Context, d *declarativeDumpCo
 }
 
 func identityClientForDump(
-	client kkComps.AuthServerClient,
+	client kkComps.Client,
 	scopes []string,
 ) resources.IdentityAuthServerClientResource {
 	userLabels := labels.GetUserLabels(client.Labels)
@@ -156,7 +156,7 @@ func identityClientForDump(
 	}
 	return resources.IdentityAuthServerClientResource{
 		BaseResource: resources.BaseResource{Ref: client.ID, Kongctl: kongctlMetaFromLabels(client.Labels)},
-		Name:         client.Name, GrantTypes: append([]kkComps.AuthServerGrantType{}, client.GrantTypes...),
+		Name:         client.Name, GrantTypes: append([]kkComps.GrantType{}, client.GrantTypes...),
 		ResponseTypes: append([]kkComps.ResponseType{}, client.ResponseTypes...), RedirectURIs: redirects,
 		LoginURI: client.LoginURI, AccessTokenDuration: client.AccessTokenDuration, IDTokenDuration: client.IDTokenDuration,
 		AllowAllScopes: client.AllowAllScopes, AllowScopes: scopes, TokenEndpointAuthMethod: client.TokenEndpointAuthMethod,

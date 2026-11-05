@@ -22,7 +22,11 @@
   title: Federated Management
   description: Enable self-service with shared resources and clear ownership.
   order: 6
+- id: kong-identity
+  title: Kong Identity
+  description: Configure principals, identity associations, and Token Vault.
+  order: 7
 - id: extensions
   title: Extensions
   description: Install, build, and publish additional kongctl commands.
-  order: 7
+  order: 8

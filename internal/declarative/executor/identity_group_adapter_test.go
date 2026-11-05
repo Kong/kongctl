@@ -109,7 +109,7 @@ func TestGroupSavedMutationsRecheckFreshAuthorityAndDescendants(t *testing.T) {
 
 func TestGroupSavedFieldsRejectUnsupportedAndRoundedValues(t *testing.T) {
 	for _, fields := range []map[string]any{
-		{planner.FieldName: "Bad-Name"},
+		{planner.FieldName: "Bad-Name-"},
 		{planner.FieldName: "Valid", planner.FieldType: "team"},
 		{planner.FieldName: "Valid", planner.FieldMetadata: map[string]any{"number": json.Number("9007199254740993")}},
 		{planner.FieldName: "Valid", planner.FieldDescription: nil},

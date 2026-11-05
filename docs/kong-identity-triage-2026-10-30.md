@@ -1,13 +1,19 @@
 # Kong Identity support in KongCTL: triage report
 
+**Current scope, November 5:** Agent Registry is excluded from this Identity
+work. Its SDK reads, retirement guards, dedicated tests and active engineering
+questions are removed. Sections 68–69 below describe historical work, not the
+current contract. Identity operations require no Registry API access.
+See [the SDK 0.83 assessment](kong-identity-sdk-83-impact.md) for migration status.
+
 Date: October 30, 2026
 
 KongCTL branch: `ki-triage`
 KongCTL commit inspected: `2beef7be`
 
-## Current branch status
+## Previous validation checkpoint
 
-Latest update: November 1, 2026 (US Central).
+Checkpoint date: November 1, 2026 (US Central).
 
 The preceding checkpoint is `94556ccb`: generated principal/group API-key
 declarations, private capture, saved authority checks and scoped retirement.

@@ -8,7 +8,7 @@ it does not establish which tool or namespace owns it.
 
 The current source is the public preview SDK at `2f51ede0670e`, generated
 from the [directory][directory-spec] and [auth-server][auth-spec]
-specifications, plus two read-only Registry inventory operations.
+specifications. Agent Registry is outside the scope of this work.
 Initial live observations are from US `.com`; the October 31 `.tech`
 revalidation below distinguishes deployment-specific behavior. Keep this
 ledger current as each resource is implemented.
@@ -112,7 +112,6 @@ or protection metadata on them.
 | Org-chart import operation | Directory plus CSV import contract | Explicit preview/execution stamps no KongCTL metadata. New users/teams have empty maps; adopted users can retain old managed_by while becoming imported. Principal management rejects that state and dump uses external UUIDs. Private report context carries directory ID, dry-run mode and an input hash; it is not remote ownership. Q48–Q51, #2665. |
 | Runtime authentication and lookup responses | Authenticated principal/credential | Runtime data, not a new declarative resource or ownership store. |
 | Principal group inspection | Group ID plus direct/inherited status and nullable membership-entry ID | Scoped get/list projects group type, manager and provisioning fields with complete pagination. It stamps no metadata and grants no authority to mutate inherited/imported relationships. #2658. |
-| Registry Agent principal associations | Association UUID; stored directory/principal UUID tuple under an Agent | Read-only global incoming-reference checks before Identity retirement. No metadata is stamped and no Registry mutation/adoption authority is inferred. Planning and fresh execution block on links or unknown inventories. #1414/#1415/#2419, Q53. |
 
 Token Vault public keys now inherit ownership from an explicitly managed
 directory. Matching uses the verified RFC 7638 fingerprint, never nonunique

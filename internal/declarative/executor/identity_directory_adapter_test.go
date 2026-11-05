@@ -67,8 +67,7 @@ func TestIdentityDirectoryRejectsChangedOwnershipAndProtection(t *testing.T) {
 			api := &fixture.DirectoryAPI{Current: fixture.Directory("people", namespace, protected)}
 			api.Current.VaultEnabled = new(true)
 			adapter := &IdentityDirectoryAdapter{client: state.NewClient(state.ClientConfig{
-				RegistryAgentReferencesReader: &fixture.RegistryReferencesAPI{},
-				IdentityDirectoriesAPI:        api, IdentityDirectoryDependenciesAPI: &fixture.DirectoryDependenciesAPI{},
+				IdentityDirectoriesAPI: api, IdentityDirectoryDependenciesAPI: &fixture.DirectoryDependenciesAPI{},
 			})}
 			change := directorySavedChange(t, map[string]any{
 				planner.FieldName: "people", planner.FieldDescription: "changed",
@@ -100,8 +99,7 @@ func TestIdentityDirectorySavedDeletionReobservesVaultChildren(t *testing.T) {
 			api.Current.VaultEnabled = new(true)
 			dependencies := &fixture.DirectoryDependenciesAPI{Attached: attached}
 			adapter := &IdentityDirectoryAdapter{client: state.NewClient(state.ClientConfig{
-				RegistryAgentReferencesReader: &fixture.RegistryReferencesAPI{},
-				IdentityDirectoriesAPI:        api, IdentityDirectoryDependenciesAPI: dependencies,
+				IdentityDirectoriesAPI: api, IdentityDirectoryDependenciesAPI: dependencies,
 			})}
 			change := directorySavedChange(t, map[string]any{planner.FieldName: "people"})
 			err := adapter.Delete(t.Context(), change.ResourceID, NewExecutionContext(change))
@@ -120,8 +118,7 @@ func TestIdentityDirectorySavedDeletionReobservesVaultChildren(t *testing.T) {
 		api.Current.VaultEnabled = value
 		dependencies := &fixture.DirectoryDependenciesAPI{}
 		adapter := &IdentityDirectoryAdapter{client: state.NewClient(state.ClientConfig{
-			RegistryAgentReferencesReader: &fixture.RegistryReferencesAPI{},
-			IdentityDirectoriesAPI:        api, IdentityDirectoryDependenciesAPI: dependencies,
+			IdentityDirectoriesAPI: api, IdentityDirectoryDependenciesAPI: dependencies,
 		})}
 		change := directorySavedChange(t, map[string]any{planner.FieldName: "people"})
 		err := adapter.Delete(t.Context(), change.ResourceID, NewExecutionContext(change))
