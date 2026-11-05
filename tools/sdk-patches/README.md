@@ -44,11 +44,13 @@ A wire regression verifies the bracketed names and cursor encoding; it fails
 before the patches. Skip SDKs without these operations. Remove replacements
 when upstream generation preserves the documented/deployed cursor shape.
 
-Identity credential expiration requires a separate preview-spec correction:
-the combined specification merges a writable credential `ExpiresAt` definition
-with a read-only IAM timestamp. The preview preparation script gives the six
-credential request schemas a dedicated writable nullable date-time reference
-(Q36). It leaves the shared IAM response schema unchanged.
+SDK 0.83 includes a dedicated writable nullable expiration schema for the six
+Identity credential requests. No preview-spec correction is needed for that
+schema separation. Generated time pointers still cannot distinguish omitted
+expiration from explicit null, so the targeted Go model corrections below
+remain necessary. SDK 0.83 also splits the key-creation variants into separate
+model files; the replacements follow those files and preserve their generated
+constant discriminators.
 
 For the five optional request fields, targeted replacements use the SDK's
 existing `optionalnullable.OptionalNullable[time.Time]` type. The zero value
