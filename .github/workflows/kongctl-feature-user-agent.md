@@ -12,6 +12,7 @@ permissions:
   id-token: write
   issues: read
 checkout:
+  github-token: ${{ secrets.GITHUB_TOKEN }}
   fetch-depth: 0
 engine:
   id: claude
@@ -45,9 +46,190 @@ tools:
     allowed-extensions: [".json"]
   web-fetch:
   github:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
     toolsets: [issues]
     lockdown: false
 safe-outputs:
+  github-token: ${{ secrets.GITHUB_TOKEN }}
+  runs-on: ubuntu-latest
+  steps:
+    - name: Download sanitized replay evidence
+      continue-on-error: true
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      with:
+        name: kongctl-feature-user-agent-sanitized
+        path: /tmp/gh-aw/kongctl-feature-user-agent/sanitized
+    - name: Hydrate replay prompt into final report safe output
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
+        REPLAY_PROMPT: /tmp/gh-aw/kongctl-feature-user-agent/sanitized/selected-use-case-prompt.md
+      with:
+        script: |
+          const fs = require("fs");
+
+          const agentOutputPath = process.env.GH_AW_AGENT_OUTPUT;
+          const replayPromptPath = process.env.REPLAY_PROMPT;
+          if (!agentOutputPath || !replayPromptPath ||
+              !fs.existsSync(agentOutputPath) || !fs.existsSync(replayPromptPath)) return;
+          const unsafePattern = /([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|Bearer\s+[A-Za-z0-9._~+/-]+=*|Authorization:|X-Api-Key:|KONGCTL_[A-Z0-9_]*PAT=|https:\/\/[^\s]*[?&](token|signature|X-Amz-Signature)=)/;
+          if (unsafePattern.test(fs.readFileSync(replayPromptPath, "utf8"))) {
+            throw new Error("Replay prompt contains values that look unsafe. Redact or omit them before safe output creation.");
+          }
+          const artifactName = "kongctl-feature-user-agent-sanitized";
+          const replayPromptArtifactPath = "selected-use-case-prompt.md";
+          const maxInlinePromptLength = 30000;
+          const maxBodyLength = 64000;
+          const runURL = process.env.GITHUB_SERVER_URL &&
+            process.env.GITHUB_REPOSITORY &&
+            process.env.GITHUB_RUN_ID
+            ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
+            : "";
+          const artifactLocation = runURL
+            ? `the \`${artifactName}\` artifact from ${runURL}`
+            : `the \`${artifactName}\` workflow run artifact`;
+
+          const data = JSON.parse(fs.readFileSync(agentOutputPath, "utf8"));
+          const rawReplayPrompt = fs.readFileSync(replayPromptPath, "utf8").trim();
+          if (!rawReplayPrompt) {
+            return;
+          }
+
+          function clippedReplayPrompt(maxLength) {
+            if (rawReplayPrompt.length <= maxLength) {
+              return rawReplayPrompt;
+            }
+
+            return `${rawReplayPrompt.slice(0, maxLength).trimEnd()}
+
+          [Replay prompt truncated in safe output; full sanitized prompt is available in ${artifactLocation} as \`${replayPromptArtifactPath}\`.]`;
+          }
+
+          function markdownFenceFor(content) {
+            let fence = "```";
+            while (content.includes(fence)) {
+              fence += "`";
+            }
+            return fence;
+          }
+
+          function replayPromptSection(maxPromptLength = maxInlinePromptLength) {
+            const replayPrompt = clippedReplayPrompt(maxPromptLength);
+            const fence = markdownFenceFor(replayPrompt);
+
+            return `## Replay Prompt
+
+          Sanitized replay prompt excerpt from \`${replayPromptArtifactPath}\` in the \`${artifactName}\` artifact:
+
+          ${fence}markdown
+          ${replayPrompt}
+          ${fence}`;
+          }
+
+          function hasInlineReplayPrompt(body) {
+            const match = body.match(/^## Replay Prompt\s*$/im);
+            if (!match) {
+              return false;
+            }
+
+            const rest = body.slice(match.index);
+            const next = rest.slice(match[0].length).search(/\n##\s+/);
+            const section = next === -1 ? rest : rest.slice(0, match[0].length + next);
+
+            return section.includes("```") && !/See artifact:\s*\/tmp\/gh-aw\/kongctl-feature-user-agent\/sanitized\/selected-use-case-prompt\.md/i.test(section);
+          }
+
+          function hydrateBody(body) {
+            if (hasInlineReplayPrompt(body)) {
+              return body;
+            }
+
+            function buildHydratedBody(maxPromptLength) {
+              const section = replayPromptSection(maxPromptLength);
+              if (/^## Replay Prompt\s*$/im.test(body)) {
+                return body.replace(
+                  /(^|\r?\n)## Replay Prompt[^\n]*\r?\n[\s\S]*?(?=\r?\n##\s+|$)/i,
+                  (_, prefix) => `${prefix}${section}`,
+                );
+              }
+
+              return `${body.trimEnd()}
+
+          ${section}`;
+            }
+
+            const hydrated = buildHydratedBody(maxInlinePromptLength);
+            if (hydrated.length <= maxBodyLength) {
+              return hydrated;
+            }
+
+            const overflow = hydrated.length - maxBodyLength;
+            const smallerPromptLength = Math.max(1000, maxInlinePromptLength - overflow - 500);
+
+            return buildHydratedBody(smallerPromptLength);
+          }
+
+          function finalReportArgs(value) {
+            if (!value || typeof value !== "object" || Array.isArray(value)) {
+              return undefined;
+            }
+
+            if (value.create_issue && typeof value.create_issue === "object") {
+              return value.create_issue;
+            }
+
+            if (value.create_discussion && typeof value.create_discussion === "object") {
+              return value.create_discussion;
+            }
+
+            const toolName = String(value.name || value.tool || value.tool_name || value.type || "").toLowerCase();
+            const isFinalReport = toolName === "create_issue" ||
+              toolName.endsWith(".create_issue") ||
+              toolName === "create_discussion" ||
+              toolName.endsWith(".create_discussion");
+            if (!isFinalReport) {
+              return undefined;
+            }
+
+            for (const key of ["arguments", "args", "input", "parameters"]) {
+              if (value[key] && typeof value[key] === "object" && typeof value[key].body === "string") {
+                return value[key];
+              }
+            }
+
+            if (typeof value.body === "string") {
+              return value;
+            }
+
+            return undefined;
+          }
+
+          let hydrated = 0;
+          function visit(value) {
+            if (!value || typeof value !== "object") {
+              return;
+            }
+
+            const args = finalReportArgs(value);
+            if (args && typeof args.body === "string") {
+              const nextBody = hydrateBody(args.body);
+              if (nextBody !== args.body) {
+                args.body = nextBody;
+                hydrated += 1;
+              }
+            }
+
+            for (const child of Array.isArray(value) ? value : Object.values(value)) {
+              visit(child);
+            }
+          }
+
+          visit(data);
+
+          if (hydrated > 0) {
+            fs.writeFileSync(agentOutputPath, `${JSON.stringify(data, null, 2)}\n`);
+            console.log(`Hydrated replay prompt into ${hydrated} final report safe output item(s).`);
+          }
   mentions: false
   allowed-github-references:
     - repo
@@ -183,187 +365,9 @@ post-steps:
         echo "::error::Sanitized artifacts contain values that look unsafe. Redact or omit them before upload."
         exit 1
       fi
-  - name: Hydrate replay prompt into final report safe output
-    if: always()
-    run: |
-      set -euo pipefail
-
-      agent_output="/tmp/gh-aw/agent_output.json"
-      replay_prompt="/tmp/gh-aw/kongctl-feature-user-agent/sanitized/selected-use-case-prompt.md"
-
-      if [ ! -f "${agent_output}" ] || [ ! -f "${replay_prompt}" ]; then
-        exit 0
-      fi
-
-      unsafe_pattern='([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|Bearer[[:space:]]+[A-Za-z0-9._~+/-]+=*|Authorization:|X-Api-Key:|KONGCTL_[A-Z0-9_]*PAT=|https://[^[:space:]]*[?&](token|signature|X-Amz-Signature)=)'
-      if grep -E -q "${unsafe_pattern}" "${replay_prompt}"; then
-        echo "::error::Replay prompt contains values that look unsafe. Redact or omit them before safe output creation."
-        exit 1
-      fi
-
-      node <<'NODE'
-      const fs = require("fs");
-
-      const agentOutputPath = "/tmp/gh-aw/agent_output.json";
-      const replayPromptPath = "/tmp/gh-aw/kongctl-feature-user-agent/sanitized/selected-use-case-prompt.md";
-      const artifactName = "kongctl-feature-user-agent-sanitized";
-      const replayPromptArtifactPath = "selected-use-case-prompt.md";
-      const maxInlinePromptLength = 30000;
-      const maxBodyLength = 64000;
-      const runURL = process.env.GITHUB_SERVER_URL &&
-        process.env.GITHUB_REPOSITORY &&
-        process.env.GITHUB_RUN_ID
-        ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
-        : "";
-      const artifactLocation = runURL
-        ? `the \`${artifactName}\` artifact from ${runURL}`
-        : `the \`${artifactName}\` workflow run artifact`;
-
-      const data = JSON.parse(fs.readFileSync(agentOutputPath, "utf8"));
-      const rawReplayPrompt = fs.readFileSync(replayPromptPath, "utf8").trim();
-      if (!rawReplayPrompt) {
-        process.exit(0);
-      }
-
-      function clippedReplayPrompt(maxLength) {
-        if (rawReplayPrompt.length <= maxLength) {
-          return rawReplayPrompt;
-        }
-
-        return `${rawReplayPrompt.slice(0, maxLength).trimEnd()}
-
-      [Replay prompt truncated in safe output; full sanitized prompt is available in ${artifactLocation} as \`${replayPromptArtifactPath}\`.]`;
-      }
-
-      function markdownFenceFor(content) {
-        let fence = "```";
-        while (content.includes(fence)) {
-          fence += "`";
-        }
-        return fence;
-      }
-
-      function replayPromptSection(maxPromptLength = maxInlinePromptLength) {
-        const replayPrompt = clippedReplayPrompt(maxPromptLength);
-        const fence = markdownFenceFor(replayPrompt);
-
-        return `## Replay Prompt
-
-      Sanitized replay prompt excerpt from \`${replayPromptArtifactPath}\` in the \`${artifactName}\` artifact:
-
-      ${fence}markdown
-      ${replayPrompt}
-      ${fence}`;
-      }
-
-      function hasInlineReplayPrompt(body) {
-        const match = body.match(/^## Replay Prompt\s*$/im);
-        if (!match) {
-          return false;
-        }
-
-        const rest = body.slice(match.index);
-        const next = rest.slice(match[0].length).search(/\n##\s+/);
-        const section = next === -1 ? rest : rest.slice(0, match[0].length + next);
-
-        return section.includes("```") && !/See artifact:\s*\/tmp\/gh-aw\/kongctl-feature-user-agent\/sanitized\/selected-use-case-prompt\.md/i.test(section);
-      }
-
-      function hydrateBody(body) {
-        if (hasInlineReplayPrompt(body)) {
-          return body;
-        }
-
-        function buildHydratedBody(maxPromptLength) {
-          const section = replayPromptSection(maxPromptLength);
-          if (/^## Replay Prompt\s*$/im.test(body)) {
-            return body.replace(
-              /(^|\r?\n)## Replay Prompt[^\n]*\r?\n[\s\S]*?(?=\r?\n##\s+|$)/i,
-              (_, prefix) => `${prefix}${section}`,
-            );
-          }
-
-          return `${body.trimEnd()}
-
-      ${section}`;
-        }
-
-        const hydrated = buildHydratedBody(maxInlinePromptLength);
-        if (hydrated.length <= maxBodyLength) {
-          return hydrated;
-        }
-
-        const overflow = hydrated.length - maxBodyLength;
-        const smallerPromptLength = Math.max(1000, maxInlinePromptLength - overflow - 500);
-
-        return buildHydratedBody(smallerPromptLength);
-      }
-
-      function finalReportArgs(value) {
-        if (!value || typeof value !== "object" || Array.isArray(value)) {
-          return undefined;
-        }
-
-        if (value.create_issue && typeof value.create_issue === "object") {
-          return value.create_issue;
-        }
-
-        if (value.create_discussion && typeof value.create_discussion === "object") {
-          return value.create_discussion;
-        }
-
-        const toolName = String(value.name || value.tool || value.tool_name || value.type || "").toLowerCase();
-        const isFinalReport = toolName === "create_issue" ||
-          toolName.endsWith(".create_issue") ||
-          toolName === "create_discussion" ||
-          toolName.endsWith(".create_discussion");
-        if (!isFinalReport) {
-          return undefined;
-        }
-
-        for (const key of ["arguments", "args", "input", "parameters"]) {
-          if (value[key] && typeof value[key] === "object" && typeof value[key].body === "string") {
-            return value[key];
-          }
-        }
-
-        if (typeof value.body === "string") {
-          return value;
-        }
-
-        return undefined;
-      }
-
-      let hydrated = 0;
-      function visit(value) {
-        if (!value || typeof value !== "object") {
-          return;
-        }
-
-        const args = finalReportArgs(value);
-        if (args && typeof args.body === "string") {
-          const nextBody = hydrateBody(args.body);
-          if (nextBody !== args.body) {
-            args.body = nextBody;
-            hydrated += 1;
-          }
-        }
-
-        for (const child of Array.isArray(value) ? value : Object.values(value)) {
-          visit(child);
-        }
-      }
-
-      visit(data);
-
-      if (hydrated > 0) {
-        fs.writeFileSync(agentOutputPath, `${JSON.stringify(data, null, 2)}\n`);
-        console.log(`Hydrated replay prompt into ${hydrated} final report safe output item(s).`);
-      }
-      NODE
   - name: Upload sanitized feature-user artifacts
     if: always()
-    uses: actions/upload-artifact@v7.0.1
+    uses: actions/upload-artifact@v7.0.2
     with:
       name: kongctl-feature-user-agent-sanitized
       path: /tmp/gh-aw/kongctl-feature-user-agent/sanitized

@@ -387,6 +387,7 @@ jobs:
     permissions:
       actions: read
       contents: read
+      id-token: write
       issues: write
     with:
       issue_number: ${{ needs.declarative-benchmark.outputs.regression_issue_number }}

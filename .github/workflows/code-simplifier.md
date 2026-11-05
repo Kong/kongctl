@@ -10,8 +10,10 @@ imports:
 - githubnext/agentics/workflows/shared/reporting.md@eb7950f37d350af6fa09d19827c4883e72947221
 tools:
   github:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
     toolsets: [default]
 safe-outputs:
+  github-token: ${{ secrets.GITHUB_TOKEN }}
   noop:
     report-as-issue: false
   create-issue:
@@ -20,6 +22,8 @@ safe-outputs:
     labels:
     - refactoring
 description: Analyzes recently modified code and creates issues summarizing simplifications that improve clarity, consistency, and maintainability while preserving functionality
+checkout:
+  github-token: ${{ secrets.GITHUB_TOKEN }}
 engine:
   id: claude
   auth:

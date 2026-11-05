@@ -74,6 +74,7 @@ permissions:
   id-token: write
   issues: read
 checkout:
+  github-token: ${{ secrets.GITHUB_TOKEN }}
   fetch-depth: 0
 engine:
   id: claude
@@ -93,9 +94,52 @@ network:
     - github
 tools:
   github:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
     toolsets: [issues]
     lockdown: false
 safe-outputs:
+  github-token: ${{ secrets.GITHUB_TOKEN }}
+  runs-on: ubuntu-latest
+  steps:
+    - name: Validate benchmark analysis comment target
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
+        ISSUE_NUMBER: ${{ inputs.issue_number }}
+      with:
+        script: |
+          const fs = require("fs");
+          const outputPath = process.env.GH_AW_AGENT_OUTPUT;
+          if (!outputPath || !fs.existsSync(outputPath)) return;
+
+          let issueNumber = process.env.ISSUE_NUMBER || "";
+          if (!issueNumber) {
+            const title = "[benchmark-regression] Declarative benchmark regressions";
+            try {
+              const result = await github.rest.search.issuesAndPullRequests({
+                q: `repo:${context.repo.owner}/${context.repo.repo} is:issue is:open ${title} in:title`,
+                per_page: 1,
+              });
+              issueNumber = String(result.data.items[0]?.number || "");
+            } catch {
+              core.warning("Could not resolve the benchmark issue; comments will be skipped.");
+            }
+          }
+
+          const data = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+          data.items = (data.items || []).filter(item =>
+            item.type !== "add_comment" ||
+            (issueNumber !== "" && String(item.item_number ?? item.issue_number ?? "") === issueNumber)
+          );
+          if (data.items.length === 0) {
+            data.items = [{
+              type: "noop",
+              message: "Skipped benchmark analysis comment because the requested target did not match the resolved benchmark regression issue.",
+            }];
+          }
+          const validated = outputPath + ".validated";
+          fs.writeFileSync(validated, JSON.stringify(data) + "\n");
+          fs.renameSync(validated, outputPath);
   mentions: false
   allowed-github-references: []
   noop:
@@ -254,78 +298,6 @@ steps:
             regressions_json: $regressions_json_url
           }
         }' > "${data_dir}/run-context.json"
-post-steps:
-  - name: Validate benchmark analysis comment target
-    if: always()
-    run: |
-      set -euo pipefail
-
-      data_dir="/tmp/gh-aw/benchmark-analysis"
-      run_context="${data_dir}/run-context.json"
-      agent_output="/tmp/gh-aw/agent_output.json"
-      safe_outputs="${RUNNER_TEMP}/gh-aw/safeoutputs/outputs.jsonl"
-
-      if [ ! -f "${safe_outputs}" ] && [ ! -f "${agent_output}" ]; then
-        exit 0
-      fi
-
-      issue_number=""
-      if [ -f "${run_context}" ]; then
-        issue_number="$(jq -r '.issue_number // ""' "${run_context}")"
-      fi
-
-      filtered_outputs="${data_dir}/safeoutputs.validated.jsonl"
-      invalid_comment_count=0
-
-      if [ -f "${safe_outputs}" ]; then
-        invalid_comment_count="$(
-          jq -s --arg issue_number "${issue_number}" \
-            '[.[] | select(.type == "add_comment" and ($issue_number == "" or ((.item_number // .issue_number // "") | tostring) != $issue_number))] | length' \
-            "${safe_outputs}"
-        )"
-
-        if [ "${invalid_comment_count}" -gt 0 ]; then
-          jq -c --arg issue_number "${issue_number}" \
-            'select(.type != "add_comment" or ($issue_number != "" and ((.item_number // .issue_number // "") | tostring) == $issue_number))' \
-            "${safe_outputs}" > "${filtered_outputs}"
-
-          if [ ! -s "${filtered_outputs}" ]; then
-            jq -cn --arg message \
-              "Skipped benchmark analysis comment because the requested target did not match the resolved benchmark regression issue." \
-              '{type: "noop", message: $message}' >> "${filtered_outputs}"
-          fi
-
-          mv "${filtered_outputs}" "${safe_outputs}"
-        fi
-      fi
-
-      if [ -f "${agent_output}" ]; then
-        agent_invalid_comment_count="$(
-          jq --arg issue_number "${issue_number}" \
-            '[.items[]? | select(.type == "add_comment" and ($issue_number == "" or ((.item_number // .issue_number // "") | tostring) != $issue_number))] | length' \
-            "${agent_output}"
-        )"
-        if [ "${agent_invalid_comment_count}" -eq 0 ]; then
-          exit 0
-        fi
-
-        filtered_agent_output="${data_dir}/agent_output.validated.json"
-        jq --arg issue_number "${issue_number}" --arg message \
-          "Skipped benchmark analysis comment because the requested target did not match the resolved benchmark regression issue." \
-          '
-          def valid_output:
-            .type != "add_comment" or
-            ($issue_number != "" and ((.item_number // .issue_number // "") | tostring) == $issue_number);
-
-          .items = ([.items[]? | select(valid_output)]) |
-          if (.items | length) == 0 then
-            .items = [{type: "noop", message: $message}]
-          else
-            .
-          end
-          ' "${agent_output}" > "${filtered_agent_output}"
-        mv "${filtered_agent_output}" "${agent_output}"
-      fi
 tracker-id: benchmark-regression-analysis
 ---
 

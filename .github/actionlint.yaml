@@ -3,3 +3,6 @@ paths:
     ignore:
       # actionlint v1.7.12 does not recognize GitHub's concurrency.queue key.
       - 'unexpected key "queue" for "concurrency" section'
+      # v1.7.12 also predates these documented GitHub.com job identity fields.
+      # https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#job-context
+      - '^property "workflow_(ref|sha|repository|file_path)" is not defined in object type \{check_run_id:'

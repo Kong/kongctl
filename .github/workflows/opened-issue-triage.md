@@ -19,6 +19,8 @@ permissions:
   id-token: write
   issues: read
 
+checkout:
+  github-token: ${{ secrets.GITHUB_TOKEN }}
 engine:
   id: claude
   auth:
@@ -33,6 +35,7 @@ model: claude-opus-4-6
 network: defaults
 
 safe-outputs:
+  github-token: ${{ secrets.GITHUB_TOKEN }}
   add-labels:
     max: 5
   add-comment:
@@ -40,6 +43,7 @@ safe-outputs:
 tools:
   web-fetch:
   github:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
     toolsets: [issues]
     # If in a public repo, setting `lockdown: false` allows
     # reading issues, pull requests and comments from 3rd-parties
