@@ -100,7 +100,7 @@ jobs:
               continue
             fi
 
-            gh release delete "${tag}" --cleanup-tag --yes
+            gh release delete "${tag}" --repo "${GITHUB_REPOSITORY}" --cleanup-tag --yes
             deleted_count="$((deleted_count + 1))"
             echo "- Deleted \`${tag}\` (expired \`${expires_at}\`)" >> "${summary}"
           done < "${releases_file}"
