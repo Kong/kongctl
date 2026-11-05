@@ -1,0 +1,11 @@
+overlay: 1.0.0
+info:
+  title: Preserve omitted optional fields in portal AI settings PATCH requests
+  version: 0.0.1
+actions:
+  - target: $.components.schemas.AISettingsRequestFeatures.properties.mcp_server.properties.write_operations_enabled.default
+    remove: true
+  - target: $.components.schemas.PortalAgentDisplayNameNullable.default
+    remove: true
+  - target: $.components.schemas.PortalAgentAudienceNullable.default
+    remove: true
