@@ -156,7 +156,11 @@ def main():
             collections = ("snippets", "backend_clusters", "virtual_clusters",
                            "model_providers", "models", "policies", "mcp_servers", "datastores")
             pruned = {field: ([] if field in collections else value) for field, value in values.items()}
-            (directory / "pruned.yaml").write_text(base + render(pruned))
+            prune_defaults = ""
+            if key == "ai_gateway":
+                # Empty independently owned collections use the file namespace.
+                prune_defaults = "_defaults:\n  kongctl:\n    namespace: !env KONGCTL_SMOKE_NAMESPACE_AI_GATEWAY\n"
+            (directory / "pruned.yaml").write_text(prune_defaults + base + render(pruned))
             if key == "ai_gateway":
                 replacement = copy.deepcopy(values)
                 replacement["model_providers"][0]["name"] = "smoke-provider-replacement"
