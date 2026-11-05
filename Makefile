@@ -43,19 +43,10 @@ format:
 	golines -m 120 -w --base-formatter=gofumpt .
 fmt: format
 
-.PHONY: patch-gh-aw-maintenance patch-gh-aw-workflows
-patch-gh-aw-maintenance: patch-gh-aw-workflows
-patch-gh-aw-workflows:
-	bash scripts/patch-gh-aw-maintenance.sh
-	python3 scripts/patch-gh-aw-tokens.py
-
-.PHONY: compile-gh-aw test-gh-aw
-compile-gh-aw:
-	bash scripts/compile-gh-aw.sh
-
+.PHONY: test-gh-aw
 test-gh-aw:
-	python3 scripts/tests/test-gh-aw-tokens.py
-	python3 scripts/patch-gh-aw-tokens.py --check
+	python3 scripts/tests/test-gh-aw-auth.py
+	node --test scripts/tests/test-gh-aw-migrations.mjs
 
 .PHONY: milestone-pulse
 milestone-pulse:

@@ -8,39 +8,32 @@ Claude authenticates through GitHub OIDC; it does not need a Copilot token.
 
 ## Regenerate agentic workflows
 
-Install gh-aw v0.86.2, edit the Markdown sources in `.github/workflows`, then
-run:
+The checked-in workflows use gh-aw v1.0.1. Edit the Markdown sources in
+`.github/workflows`, then run the standard compiler and local checks:
 
 ```sh
-make compile-gh-aw
+gh aw compile
 make test-gh-aw
 ```
 
-`GH_AW_BIN=/absolute/path/to/gh-aw make compile-gh-aw` can select a standalone
-compiler binary. The command compiles all eight workflows, applies the
-repository's maintenance overlay, and removes unused credential probes and
-metadata. Run this command instead of committing raw `gh aw compile` output.
-The required Checks workflow rejects obsolete secret references and missing
-overlays, including changes from automated updates.
+Commit the compiler output unchanged. There are no post-compilation patches,
+custom compilation wrappers, or repository-specific compiler version guards.
+The Checks workflow tests the selected authentication settings, job permissions,
+and the behavior of the benchmark and feature-user publishing hooks.
 
 The source files explicitly set `checkout.github-token`,
 `tools.github.github-token`, and `safe-outputs.github-token` to the built-in
-token. These supported settings remove the optional PAT fallback chains.
-The compiler still unconditionally emits probes for `GH_AW_GITHUB_TOKEN`,
-`GH_AW_GITHUB_MCP_SERVER_TOKEN`, and `COPILOT_GITHUB_TOKEN`. Both v0.86.2 and
-v1.0.1 emit these probes; upgrading alone does not remove the references.
-See the upstream [token selection helpers][tokens] and
-[activation step generator][activation].
+`GITHUB_TOKEN`. Claude authenticates to Anthropic through GitHub OIDC.
 
-`scripts/patch-gh-aw-tokens.py` handles those compiler-injected references.
-It removes the unused OAuth checks, optional policy environment variables,
-reusable secret declarations, redaction entries, and manifest entries. The
-daily credit guardrail receives `GITHUB_TOKEN`, which its runtime supports
-directly. The overlay preserves the activation output consumed by failure
-handlers and leaves Konnect secret redaction intact. Unexpected remaining
-consumers or a different compiler version fail regeneration and require
-review. Review this overlay when upgrading gh-aw; remove it once upstream
-offers equivalent generation without the obsolete probes.
+The v1.0.1 migration moves benchmark comment-target validation and feature-user
+replay-prompt hydration into `safe-outputs.steps`. Agent `post-steps` no longer
+rewrite compiler-owned output files. Both hooks use `actions/github-script`
+so JavaScript templates are not parsed as shell command substitutions by the
+safe-output shell harness. The benchmark publishing hook resolves
+the scheduled target using the GitHub API and drops comments for any other
+issue. The feature-user publishing hook downloads the sanitized artifact and
+rechecks the replay prompt before embedding it in the final report. Both use
+`GH_AW_AGENT_OUTPUT`, the downloaded output path provided by the compiler.
 
 ## GitHub Apps
 
@@ -60,11 +53,20 @@ request an appropriately scoped App installation from the organization admins.
 Do not add a PAT. The existing SDK PR and publication Apps preserve their
 downstream workflow triggers.
 
-## Obsolete Actions secrets
+## Credential policy
 
-After merging this cleanup, remove `GH_AW_GITHUB_MCP_SERVER_TOKEN` and
-`COPILOT_GITHUB_TOKEN`. Remove `GH_AW_GITHUB_TOKEN` wherever configured; it
-was absent from repository secret metadata during the audit.
+Enforce the absence of GitHub PATs through repository and organization
+configuration. Keep `GH_AW_GITHUB_TOKEN`, `GH_AW_GITHUB_MCP_SERVER_TOKEN`, and
+`COPILOT_GITHUB_TOKEN` unset in repository, organization, and environment
+Actions secrets. Use the built-in token or scoped App installation tokens for
+GitHub operations that need authentication.
+
+Upstream gh-aw still emits optional references to these names in checks,
+manifests, reusable declarations, and redaction settings. Missing secrets are
+empty, and the checks accept them as unset. The references alone do not create
+a PAT dependency. Preserve them as part of the compiler's natural output.
+See the upstream [token selection helpers][tokens] and
+[activation step generator][activation].
 
 No checked-in Actions consumer references the older `PAT`,
 `GH_TOKEN_PRIVATE_READ`, `GET_KONGHQ_COM_TOKEN`, or `TAP_GITHUB_TOKEN`
@@ -79,5 +81,5 @@ secret values to account tokens.
 Keep `KONGCTL_E2E_KONNECT_PAT`, `KONGCTL_BENCHMARK_KONNECT_PAT`, and
 `KONGCTL_FEATURE_USER_AGENT_KONNECT_PAT`. They authenticate to Konnect.
 
-[tokens]: https://github.com/github/gh-aw/blob/v0.86.2/pkg/workflow/github_token.go
+[tokens]: https://github.com/github/gh-aw/blob/v1.0.1/pkg/workflow/github_token.go
 [activation]: https://github.com/github/gh-aw/blob/v1.0.1/pkg/workflow/compiler_activation_steps.go

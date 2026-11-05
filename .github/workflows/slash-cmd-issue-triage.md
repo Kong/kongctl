@@ -48,6 +48,7 @@ safe-outputs:
   add-comment:
 
 tools:
+  cli-proxy: false
   bash: []
   web-fetch:
   github:
