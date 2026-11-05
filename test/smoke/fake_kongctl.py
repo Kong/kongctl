@@ -93,6 +93,8 @@ def parse_fixture(path):
         if raw != "":
             if isinstance(raw, str):
                 raw = re.sub(r"!ref ([\w#-]+)", r'"\1"', raw)
+                raw = re.sub(r"!env \{var: (\w+)\}",
+                             lambda match: json.dumps(os.environ[match.group(1)]), raw)
                 raw = json.loads(raw)
             item[field] = raw
     return key, item
@@ -309,6 +311,7 @@ elif args[:2] == ["dump", "declarative"]:
         namespace = "another-project"
     match = namespace_field(text)
     text = text[:match.start(1)] + json.dumps(namespace) + text[match.end(1):]
+    text = re.sub(r"!env \{var: KONGCTL_SMOKE_NAMESPACE_AI_GATEWAY\}", json.dumps(namespace), text)
     if os.environ.get("FAKE_FAULT") == "bad-dump" and key == "portal":
         text = re.sub(r"^    snippets:.*$", "    snippets: []", text, flags=re.MULTILINE)
     if "--include-child-resources" not in args:

@@ -275,7 +275,8 @@ import sys
 text = pathlib.Path(sys.argv[1]).read_text()
 model = json.loads(next(line.removeprefix("    models: ") for line in text.splitlines()
                         if line.startswith("    models: ")).replace("!ref smoke-policy-ref#name", '"policy"')
-                   .replace("!ref smoke-store-ref#name", '"store"'))[0]
+                   .replace("!ref smoke-store-ref#name", '"store"')
+                   .replace("!env {var: KONGCTL_SMOKE_NAMESPACE_AI_GATEWAY}", '"namespace"'))[0]
 assert model["config"]["balancer"]["embeddings"]["provider"] == "smoke-provider-replacement"
 assert len(model["targets"]) == 2
 assert all(t["provider"] == "smoke-provider-replacement" for t in model["targets"])
