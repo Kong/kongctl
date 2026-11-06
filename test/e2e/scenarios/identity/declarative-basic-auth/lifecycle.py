@@ -28,7 +28,6 @@ def main():
     marker = {"e2e-basic-auth": name[-36:]}
     fixture_map = {"e2e-fixture": name[-36:]}
     needles, captures = [], []
-    root, parent_path = None, None
     username = "worker-" + name
 
     def request(method, path, body=None):

@@ -128,7 +128,7 @@ def main():
                 {"member": {"type": "principal", "id": person["id"]}})
             membership_ids.add(entry["id"])
         before = collection("groups"), request("GET", root + "/principals/" + person["id"])
-        native = collection("principals/" + person["id"] + "/groups")
+        collection("principals/" + person["id"] + "/groups")
         observed = invoke("ordinary-json", args(person["id"], directory_name=True))
         assert len(observed) == 2 and {v["id"] for v in observed} == ordinary
         assert all(v["direct"] and v["membership_id"] in membership_ids for v in observed)
