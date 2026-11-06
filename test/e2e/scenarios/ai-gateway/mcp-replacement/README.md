@@ -28,4 +28,4 @@ success is not data-plane readiness; see the
 [cutover guidance][mcp-cutover].
 
 [mcp-cutover]:
-  ../../../../../docs/declarative.md#ai-gateway-mcp-server-replacements
+  ../../../../../docs/declarative/resource-behavior.md#ai-gateway-mcp-server-replacements

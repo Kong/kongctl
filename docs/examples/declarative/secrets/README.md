@@ -11,7 +11,7 @@ It includes three representative cases:
 - A create-only AI Consumer Credential API key.
 
 For the complete behavior reference, see
-[Write-only Secret Fields](../../../declarative.md#write-only-secret-fields).
+[Write-only Secret Fields](../../../declarative/secrets.md).
 
 ## Configuration
 
