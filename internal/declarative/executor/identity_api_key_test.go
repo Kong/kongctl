@@ -336,3 +336,35 @@ func TestGeneratedAPIKeyCaptureConflictsAndUncertainCreationPreserveOldKeys(t *t
 		require.True(t, found)
 	}
 }
+
+func TestGeneratedAPIKeyPreRequestValidationDiscardsReservedCaptures(t *testing.T) {
+	client, _, _, api := generatedKeysTestState()
+	plan := identityClientTestPlan(t, client, generatedKeysManifest, planner.PlanModeApply)
+	out := t.TempDir()
+	exec := NewWithOptions(client, nil, false, Options{SecretOutputDir: out})
+	require.NoError(t, exec.prepareClientSecretOutputs(plan))
+	for i := range plan.Changes {
+		output, err := exec.initialClientOutput(&plan.Changes[i])
+		require.NoError(t, err)
+		var keys *helpers.IdentityAPIKeyClient
+		if output.metadata.GroupID != "" {
+			keys, err = helpers.NewGroupAPIKeyClient(api.SDK().GetIdentityGroupKeysAPI(),
+				output.metadata.DirectoryID, output.metadata.GroupID)
+		} else {
+			keys, err = helpers.NewPrincipalAPIKeyClient(api.SDK().GetIdentityPrincipalKeysAPI(),
+				output.metadata.DirectoryID, output.metadata.PrincipalID)
+		}
+		require.NoError(t, err)
+		_, err = keys.CreateWithReservedCapture(t.Context(), helpers.IdentityAPIKeyCreate{
+			Secret: new("unsupported-import"), ManagedBy: map[string]string{"tool": "kongctl"},
+		}, output.file, output.metadata)
+		require.Error(t, err)
+	}
+	result := &ExecutionResult{}
+	exec.finishClientSecretOutputs(result)
+	require.Empty(t, api.Writes)
+	require.Empty(t, result.GeneratedFiles, "validation failure is not an unconfirmed issuance")
+	entries, err := os.ReadDir(out)
+	require.NoError(t, err)
+	require.Empty(t, entries, "unused captures must be discarded")
+}

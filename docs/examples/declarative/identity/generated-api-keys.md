@@ -20,8 +20,10 @@ kongctl diff \
 ```
 
 Review the four planned creates before executing. Creation requires a new
-private capture file for each key. Kongctl reserves every output before any
-planned write, captures the issued material before reading public metadata,
+private capture file for each key. If recreating a previously deleted ref, use
+a new `--secret-output-dir` and preserve the earlier capture; output paths
+are stable for the same declared resource and are never overwritten. Kongctl
+reserves every output before any planned write, captures the issued material before reading public metadata,
 and prints file locations in the result. Files have mode `0600`. Keep them
 outside source control and give the material to its intended consumer through
 your normal secret distribution process. Never blindly repeat an uncertain

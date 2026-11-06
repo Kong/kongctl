@@ -262,6 +262,8 @@ func TestIdentityClientCapturePreflightRejectsConflictsAndDiscardsUnattempted(t 
 	require.Empty(t, roots.Servers)
 	require.Zero(t, children.Writes)
 	require.FileExists(t, reserved)
+	require.Contains(t, other.Errors[0].Error, reserved)
+	require.Contains(t, other.Errors[0].Error, "choose a new --secret-output-dir")
 	exec.finishClientSecretOutputs(&ExecutionResult{})
 	require.NoFileExists(t, reserved)
 	// A stale parent identity fails before client creation, so its reservation

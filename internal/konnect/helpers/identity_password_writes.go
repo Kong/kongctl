@@ -191,12 +191,12 @@ func UpdateIdentityPasswordExpiration(ctx context.Context, api IdentityPasswordW
 	if err != nil {
 		return nil, err
 	}
-	response, err := api.UpdatePassword(ctx, kkOps.UpdatePasswordRequest{
+	response, err := api.UpdatePassword(httpclient.WithoutRetries(ctx), kkOps.UpdatePasswordRequest{
 		DirectoryID: directoryID, PrincipalID: principalID, BasicAuthID: basicAuthID, PasswordID: id,
 		UpdatePasswordBody: kkComps.UpdatePasswordBody{ExpiresAt: optionalnullable.From(expiresAt)},
-	})
+	}, kkOps.WithRetries(retry.Config{Strategy: httpclient.RetryStrategyNone}))
 	if err != nil {
-		return nil, identitySecretAPIError("update basic-auth password expiration", err)
+		return nil, identitySecretAPIError("update basic-auth password expiration; inspect metadata before retrying", err)
 	}
 	if response == nil || response.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("missing password expiration response; inspect metadata before retrying")
@@ -270,11 +270,11 @@ func DeleteIdentityPassword(ctx context.Context, api IdentityPasswordWritesAPI,
 	if err := validateIdentityCredentialPath(directoryID, principalID, basicAuthID, id); err != nil {
 		return err
 	}
-	response, err := api.DeletePassword(ctx, kkOps.DeletePasswordRequest{
+	response, err := api.DeletePassword(httpclient.WithoutRetries(ctx), kkOps.DeletePasswordRequest{
 		DirectoryID: directoryID, PrincipalID: principalID, BasicAuthID: basicAuthID, PasswordID: id,
-	})
+	}, kkOps.WithRetries(retry.Config{Strategy: httpclient.RetryStrategyNone}))
 	if err != nil {
-		return identitySecretAPIError("delete basic-auth password", err)
+		return identitySecretAPIError("delete basic-auth password; inspect metadata before retrying", err)
 	}
 	if response == nil || response.StatusCode != http.StatusNoContent {
 		return fmt.Errorf("missing password deletion response; inspect metadata before retrying")
@@ -291,11 +291,11 @@ func DeleteAllIdentityPasswords(ctx context.Context, api IdentityPasswordWritesA
 	if err := validateIdentityCredentialPath(directoryID, principalID, basicAuthID); err != nil {
 		return err
 	}
-	response, err := api.DeleteAllPasswords(ctx, kkOps.DeleteAllPasswordsRequest{
+	response, err := api.DeleteAllPasswords(httpclient.WithoutRetries(ctx), kkOps.DeleteAllPasswordsRequest{
 		DirectoryID: directoryID, PrincipalID: principalID, BasicAuthID: basicAuthID,
-	})
+	}, kkOps.WithRetries(retry.Config{Strategy: httpclient.RetryStrategyNone}))
 	if err != nil {
-		return identitySecretAPIError("delete all basic-auth passwords", err)
+		return identitySecretAPIError("delete all basic-auth passwords; inspect metadata before retrying", err)
 	}
 	if response == nil || response.StatusCode != http.StatusNoContent {
 		return fmt.Errorf("missing password collection deletion response; inspect metadata before retrying")

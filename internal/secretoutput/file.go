@@ -39,9 +39,10 @@ type record struct {
 
 // File reserves a new output path before a remote create can issue a secret.
 type File struct {
-	file *os.File
-	path string
-	kind string
+	file             *os.File
+	path             string
+	kind             string
+	requestAttempted bool
 }
 
 // Path identifies the reserved file without reading captured material.
@@ -141,9 +142,19 @@ func (f *File) CaptureEnrollmentURL(metadata Metadata, value string) error {
 	return nil
 }
 
-// RecordPending fills identities resolved after reservation, before the POST.
+// RecordPending durably binds the request identity before the create attempt.
+// Call immediately before issuing the request, after local validation succeeds.
 func (f *File) RecordPending(metadata Metadata) error {
-	return f.write(record{Metadata: metadata, Status: "creation_not_confirmed"})
+	if err := f.write(record{Metadata: metadata, Status: "creation_not_confirmed"}); err != nil {
+		return err
+	}
+	f.requestAttempted = true
+	return nil
+}
+
+// RequestAttempted distinguishes recovery files from unused reservations.
+func (f *File) RequestAttempted() bool {
+	return f != nil && f.requestAttempted
 }
 
 func (f *File) write(value record) error {
@@ -189,7 +200,7 @@ func (f *File) checkPath() error {
 }
 
 func (f *File) Close() error {
-	if f.file == nil {
+	if f == nil || f.file == nil {
 		return nil
 	}
 	err := f.file.Close()

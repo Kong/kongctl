@@ -331,3 +331,35 @@ func TestPasswordWriteValidationPrecedesCaptureAndMutation(t *testing.T) {
 	)
 	require.Error(t, err)
 }
+
+func TestPasswordExpirationAndDeletesDoNotRetryUncertainWrites(t *testing.T) {
+	for _, operation := range []string{"expiration", "selected", "all"} {
+		t.Run(operation, func(t *testing.T) {
+			writes := 0
+			api := passwordWriteAPI(secretHTTPFunc(func(request *http.Request) (*http.Response, error) {
+				if request.Method == http.MethodGet {
+					body, err := json.Marshal(passwordPublicBody(nil))
+					require.NoError(t, err)
+					return secretResponse(request, http.StatusOK, string(body)), nil
+				}
+				writes++
+				return secretResponse(request, http.StatusServiceUnavailable, `{"detail":"private-password-value"}`), nil
+			}))
+			var err error
+			switch operation {
+			case "expiration":
+				_, err = helpers.UpdateIdentityPasswordExpiration(t.Context(), api,
+					writeFixtureDirectory, writeFixturePrincipal, writeFixtureBasicAuth, writeFixtureID, nil)
+			case "selected":
+				err = helpers.DeleteIdentityPassword(t.Context(), api,
+					writeFixtureDirectory, writeFixturePrincipal, writeFixtureBasicAuth, writeFixtureID)
+			case "all":
+				err = helpers.DeleteAllIdentityPasswords(t.Context(), api,
+					writeFixtureDirectory, writeFixturePrincipal, writeFixtureBasicAuth)
+			}
+			require.Error(t, err)
+			require.NotContains(t, err.Error(), "private-password-value")
+			require.Equal(t, 1, writes, "neither retry layer may replay an uncertain credential mutation")
+		})
+	}
+}

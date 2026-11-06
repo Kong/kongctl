@@ -255,6 +255,7 @@ import json,os,sys
 from pathlib import Path
 p=Path(os.environ['CLEANUP_STATE'])
 args=sys.argv[1:]
+with (p/'calls.jsonl').open('a') as calls: calls.write(json.dumps(args)+'\n')
 if args[0]=='fail':
     print('scenario failure',file=sys.stderr)
     sys.exit(1)
@@ -318,6 +319,10 @@ if args[0]=='get':
         values=[v for v in values if v.get('kind')=='trusted-idp' and v.get('directory_id')==directory]
         if fault=='trusted-idp-missing': values=None
     elif args[:3]==['get','identity','principals']:
+        if fault=='late-trusted-idp':
+            attached=json.loads((p/'resources.json').read_text())
+            attached.append({'id':'late-idp','kind':'trusted-idp','directory_id':args[args.index('--directory-id')+1]})
+            (p/'resources.json').write_text(json.dumps(attached))
         directory=args[args.index('--directory-id')+1]
         values=[v for v in values if v.get('kind')=='principal' and v.get('directory_id')==directory]
     elif args[2] in ['auth-server-claims','auth-server-scopes','auth-server-clients']:
@@ -353,3 +358,50 @@ elif args[:2]==['api','delete']:
 else:
     raise RuntimeError('unexpected command')
 `
+
+func TestDirectoryCleanupDeduplicatesOverlappingGuardsAndRechecksLateAttachments(t *testing.T) {
+	for _, mode := range []string{"vault", "trusted", "both", "late"} {
+		t.Run(mode, func(t *testing.T) {
+			cli, dir := cleanupFixtureCLI(t)
+			const directory = "c0b37b67-06c8-49fb-b51b-2c8f49b20fb1"
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "resources.json"),
+				[]byte(`[{"id":"`+directory+`","name":"generated"}]`), 0o600))
+			if mode == "late" {
+				cli.WithEnv(map[string]string{"CLEANUP_FAULT": "late-trusted-idp"})
+			}
+			err := cleanupResource(t.Context(), cli, cleanupTarget{
+				kind: resources.ResourceTypeIdentityDirectory, name: "generated",
+				requireEmptyVaultDependencies: mode != "trusted", requireEmptyTrustedIDPs: mode != "vault",
+			})
+			if mode == "late" {
+				require.Error(t, err)
+				require.NoFileExists(t, filepath.Join(dir, "deleted"), "fresh attachments must block parent deletion")
+			} else {
+				require.NoError(t, err)
+			}
+			data, err := os.ReadFile(filepath.Join(dir, "calls.jsonl"))
+			require.NoError(t, err)
+			idpReads, vaultReads := 0, 0
+			for line := range strings.SplitSeq(strings.TrimSpace(string(data)), "\n") {
+				var args []string
+				require.NoError(t, json.Unmarshal([]byte(line), &args))
+				if len(args) < 3 {
+					continue
+				}
+				if args[0] == "get" && args[1] == "identity" && args[2] == "trusted-idps" {
+					idpReads++
+				}
+				if args[0] == "api" && args[1] == "get" && strings.HasSuffix(args[2], "/trusted-idps") {
+					vaultReads++
+				}
+			}
+			if mode == "trusted" {
+				require.Equal(t, 2, idpReads)
+				require.Zero(t, vaultReads)
+			} else {
+				require.Zero(t, idpReads, "the Vault dependency guard already checks Trusted IdPs")
+				require.Equal(t, 2, vaultReads, "retain pre-cleanup and fresh pre-delete checks")
+			}
+		})
+	}
+}

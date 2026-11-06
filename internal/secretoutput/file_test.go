@@ -154,3 +154,8 @@ func TestEnrollmentCaptureRetainsCapabilityOnlyInExclusivePrivateRecord(t *testi
 		require.Error(t, err)
 	}
 }
+
+func TestNilOutputCanBeClosed(t *testing.T) {
+	var output *File
+	require.NoError(t, output.Close())
+}

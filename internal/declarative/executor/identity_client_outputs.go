@@ -2,6 +2,7 @@ package executor
 
 import (
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,10 +13,9 @@ import (
 )
 
 type generatedClientOutput struct {
-	file      *secretoutput.File
-	path      string
-	metadata  secretoutput.Metadata
-	attempted bool
+	file     *secretoutput.File
+	path     string
+	metadata secretoutput.Metadata
 }
 
 func (e *Executor) prepareClientSecretOutputs(plan *planner.Plan) (resultErr error) {
@@ -82,6 +82,10 @@ func (e *Executor) prepareClientSecretOutputs(plan *planner.Plan) (resultErr err
 		}
 		file, err := secretoutput.Reserve(path, metadata)
 		if err != nil {
+			if errors.Is(err, os.ErrExist) {
+				return fmt.Errorf("initial-secret output %q already exists for resource %q; preserve the existing capture "+
+					"and choose a new --secret-output-dir: %w", path, change.ResourceRef, err)
+			}
 			return fmt.Errorf("reserve initial secret for resource %q: %w", change.ResourceRef, err)
 		}
 		e.generatedOutputs[change.ID] = &generatedClientOutput{file: file, path: path, metadata: metadata}
@@ -91,7 +95,7 @@ func (e *Executor) prepareClientSecretOutputs(plan *planner.Plan) (resultErr err
 
 func (e *Executor) discardUnattemptedClientOutputs() {
 	for _, output := range e.generatedOutputs {
-		if !output.attempted {
+		if !output.file.RequestAttempted() {
 			_ = output.file.Discard()
 		} else {
 			_ = output.file.Close()
@@ -109,13 +113,12 @@ func (e *Executor) initialClientOutput(change *planner.PlannedChange) (*generate
 	if output == nil {
 		return nil, fmt.Errorf("resource %q has no reserved initial-secret output", change.ResourceRef)
 	}
-	output.attempted = true
 	return output, nil
 }
 
 func (e *Executor) finishClientSecretOutputs(result *ExecutionResult) {
 	for _, output := range e.generatedOutputs {
-		if output.attempted {
+		if output.file.RequestAttempted() {
 			_ = output.file.Close()
 			result.GeneratedFiles = append(result.GeneratedFiles, output.path)
 		} else if err := output.file.Discard(); err != nil {

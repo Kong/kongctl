@@ -277,7 +277,9 @@ func TestAPIKeyUnsupportedCreatesDoNotReserveOrIssue(t *testing.T) {
 
 func TestAPIKeyCreationAcceptsWholePlanCaptureReservation(t *testing.T) {
 	for _, group := range []bool{false, true} {
-		for _, mode := range []string{"captured", "closed", "replaced", "unsupported-import", "missing-output"} {
+		for _, mode := range []string{
+			"captured", "failed-create", "closed", "replaced", "unsupported-import", "missing-output",
+		} {
 			t.Run(keyWritePath(group)+"/"+mode, func(t *testing.T) {
 				path := filepath.Join(t.TempDir(), "key.json")
 				local := secretoutput.Metadata{
@@ -303,7 +305,11 @@ func TestAPIKeyCreationAcceptsWholePlanCaptureReservation(t *testing.T) {
 					public := passwordPublicBody(nil)
 					public["managed_by"] = metadata
 					if request.Method == http.MethodPost {
+						require.True(t, output.RequestAttempted())
 						posts++
+						if mode == "failed-create" {
+							return secretResponse(request, http.StatusServiceUnavailable, `{"detail":"private-material"}`), nil
+						}
 						pending, err := os.ReadFile(path)
 						require.NoError(t, err)
 						var observed map[string]any
@@ -345,6 +351,13 @@ func TestAPIKeyCreationAcceptsWholePlanCaptureReservation(t *testing.T) {
 					capture = nil
 				}
 				value, err := client.CreateWithReservedCapture(t.Context(), options, capture, local)
+				require.Equal(t, mode == "captured" || mode == "failed-create", output.RequestAttempted())
+				if mode == "failed-create" {
+					require.Error(t, err)
+					require.Equal(t, 1, posts)
+					require.FileExists(t, path, "uncertain issuance must retain recovery metadata")
+					return
+				}
 				if mode == "captured" {
 					require.NoError(t, err)
 					require.Equal(t, writeFixtureID, value.ID)

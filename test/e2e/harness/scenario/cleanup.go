@@ -162,7 +162,7 @@ func cleanupResource(ctx context.Context, cli *harness.CLI, target cleanupTarget
 				return err
 			}
 		}
-		if target.requireEmptyTrustedIDPs {
+		if target.requireEmptyTrustedIDPs && !target.requireEmptyVaultDependencies {
 			if err := requireNoTrustedIDPFixtures(ctx, cli, id); err != nil {
 				return err
 			}
@@ -179,7 +179,7 @@ func cleanupResource(ctx context.Context, cli *harness.CLI, target cleanupTarget
 		if err := cleanupPrincipalFixtures(ctx, cli, id, target.principalAPIKeys); err != nil {
 			return err
 		}
-		if target.requireEmptyTrustedIDPs {
+		if target.requireEmptyTrustedIDPs && !target.requireEmptyVaultDependencies {
 			if err := requireNoTrustedIDPFixtures(ctx, cli, id); err != nil {
 				return err
 			}

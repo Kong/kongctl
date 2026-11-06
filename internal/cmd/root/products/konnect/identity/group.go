@@ -187,19 +187,18 @@ func printGroupReadRows(out io.Writer, rows []groupReadRow, memberships bool) er
 }
 
 func groupParentSelector(cmd *cobra.Command, parent string) (string, error) {
-	id, err := cmd.Flags().GetString(parent + "-id")
-	if err != nil {
-		return "", err
-	}
-	name, err := cmd.Flags().GetString(parent + "-name")
-	if err != nil {
-		return "", err
-	}
+	var id, name string
+	var err error
 	if parent == "directory" {
 		id, name, err = common.IdentityDirectorySelector(cmd)
-		if err != nil {
-			return "", err
+	} else {
+		id, err = cmd.Flags().GetString(parent + "-id")
+		if err == nil {
+			name, err = cmd.Flags().GetString(parent + "-name")
 		}
+	}
+	if err != nil {
+		return "", err
 	}
 	if (id == "") == (name == "") {
 		return "", fmt.Errorf("provide exactly one of --%s-id or --%s-name", parent, parent)
@@ -216,14 +215,17 @@ func groupParentSelector(cmd *cobra.Command, parent string) (string, error) {
 func groupDirectoryIDFromFlags(ctx context.Context, cmd *cobra.Command, api helpers.IdentityDirectoriesAPI,
 	pageSize int64,
 ) (string, error) {
-	selector, err := groupParentSelector(cmd, "directory")
+	id, name, err := common.IdentityDirectorySelector(cmd)
 	if err != nil {
 		return "", err
 	}
-	if id, _ := cmd.Flags().GetString("directory-id"); id != "" {
+	if id != "" {
+		if !util.IsValidUUID(id) {
+			return "", fmt.Errorf("%s must be a UUID", common.IdentityDirectoryIDFlagName)
+		}
 		return id, nil
 	}
-	value, err := helpers.ResolveIdentityDirectory(ctx, api, selector, pageSize)
+	value, err := helpers.ResolveIdentityDirectory(ctx, api, name, pageSize)
 	if err != nil {
 		return "", err
 	}
