@@ -1,6 +1,6 @@
 # `kongctl` Declarative Resource Reference
 
-[stored-env]: declarative.md#storing-typed-environment-values-in-plans
+[stored-env]: declarative/environment-values.md#storing-typed-environment-values-in-plans
 
 This document is a reference for `kongctl` declarative
 configuration. It lists supported resource types and common field-level values.
@@ -59,112 +59,37 @@ Templates are shared across all sources loaded by one command. Consumer
 configuration blocks recursively override inherited configuration blocks;
 scalars, sequences, explicit `null`, and values of a different type replace the
 inherited value. Sequences never append. See
-[Configuration Templates](declarative.md#configuration-templates) for
+[Configuration Templates](declarative/templates.md) for
 inheritance, discovery, merge, tag, and sync-scope behavior.
 
 ## YAML Tags
 
-Use YAML tags in field values to load files or reference other resources.
+Use tags in field values to load content or select related resources. Read
+only the relevant language reference when authoring a field:
 
-- `!file`: Load content from a file. Supports `path#extract.path` and
-  `path`/`extract` map form.
-- `!env`: Load string content from an environment variable. Supports
-  `VAR#extract.path` and `var`/`extract` map form. Add `store: true` in
-  mapping form to retain typed values in plaintext plans. Known destination
-  types are inferred; unknown or ambiguous destinations require `type`.
-  See [stored environment values][stored-env]
-  for conversion types, numeric limits, errors, and nesting restrictions.
-- `!secret`: Declare a sensitive deferred value on a reviewed write-only
-  field. Supports `source: !env VAR`, `source: !file ./path`, and ordered
-  `parts` containing strings and deferred `!env` or `!file` sources.
-- `!ref`: Reference another declarative resource by `ref`.
-  `resource-ref#field` is supported; the default field is `id`.
-- `!lookup`: Resolve an existing Konnect resource directly in a relationship
-  field. Supports `field:value` and flat mapping forms.
-- `!external`: An exact alias for `!lookup`; both use the same planner-time
-  resolver and cache.
-- `!ref` is intended for string fields.
-- For root-level child parent selectors such as `portal` and `api`, see
-  [parent selectors](declarative.md#parent-selectors-and-references).
-  Use plain refs on affected releases as described in the compatibility note.
-- `string (uuid)` and `array[string(uuid)]` annotations in this document
-  describe API value types. In declarative config, prefer `!ref` and avoid
-  literal UUID values.
-- For a one-off unmanaged relationship, use `!lookup`. Use an `_external`
-  declaration plus `!ref` when the resource needs a reusable declarative ref
-  or owns managed child resources.
-- Sync never changes or deletes an external parent. Its child collections
-  placed in sync scope are still fully reconciled, including stale child
-  deletion. Omitted child collections remain out of scope.
-- Large text/spec fields are commonly loaded with `!file`.
-- `!file` paths are resolved relative to the config file and must remain
-  within the configured base directory boundary.
+- [File values](declarative/files.md): `!file`, extraction, and path boundaries.
+- [Environment values](declarative/environment-values.md): deferred strings,
+  stored typed values, and saved-plan behavior.
+- [Write-only secrets](declarative/secrets.md): `!secret`, deferred sources,
+  composition, and intentional rotation.
+- [References and lookups](declarative/references.md): `!ref`, `_external`,
+  `!lookup`, the `!external` alias, scoped parents, and supported tag nesting.
 
-Nested tag composition is opt-in. `!env` can supply a direct mapping selector
-value inside `!lookup` or `!external`. Both `!env` and `!file` can supply
-deferred source values inside `!secret`:
+`!ref resource-ref` selects the resource's ID by default. Use
+`!ref resource-ref#field` for a declared scalar field. Boolean and numeric
+values retain their types in arbitrary payload values; string destinations
+must be compatible.
 
-```yaml
-portal_id: !lookup
-  name: !env PORTAL_NAME
+API foreign keys, such as `portal_id`, and root-level parent selectors, such
+as `api` on `api_versions`, have different field names. See
+[parent selectors](declarative/configuration.md#parent-selectors-and-references)
+for nested and root-level declarations and release compatibility guidance.
+Run `kongctl explain <resource>.<field>` to confirm targets, selectors, and
+scope requirements for your installed version.
 
-control_plane: !lookup {name: !env CONTROL_PLANE_NAME}
-
-key: !secret {source: !file ./certs/runtime.key}
-```
-
-| Outer tag | Supported inner tags |
-|---|---|
-| `!lookup` / `!external` | `!env` in direct mapping values |
-| `!secret` | `!env` or `!file` as `source` or a `parts` element |
-| `!env`, `!file`, `!ref` | None |
-
-`!file`, `!ref`, and nested lookup tags are not supported inside lookup tags.
-A deferred `!file` source is supported only within `!secret`; a bare `!file`
-on a reviewed write-only field is rejected. Tags are not supported in mapping
-keys or control fields such as `var`, `extract`, and `path`. Use mapping lookup
-syntax for composition; tags cannot be interpolated into the scalar
-`field:value` form.
-
-Nested environment values are used only for planner-time lookup and are
-redacted from diagnostics. A saved plan contains the resolved ID, so execution
-does not reread the variable or repeat the lookup. This differs from ordinary
-`!env` fields, which remain deferred until execution.
-
-```yaml
-portals:
-  - ref: docs-portal
-    _external:
-      selector:
-        matchFields:
-          name: "Docs Portal"
-
-apis:
-  - ref: billing-api
-    publications:
-      - ref: billing-publication
-        portal_id: !ref docs-portal
-```
-
-The target resource type is inferred from the field. Scalar values use
-`field:value` syntax and mapping selectors use AND semantics:
-
-```yaml
-portal_id: !lookup {name: Docs Portal}
-ai_gateway: !lookup {name: shared-ai-gateway}
-```
-
-API-native foreign keys such as `portal_id` and kongctl-added root parent
-selectors such as `ai_gateway` retain their established names. They share the
-same relationship resolution behavior. Parent selectors are omitted when the
-child is nested and the parent can be inferred.
-
-Inline lookup targets are the resource types that support `_external`:
-Catalog APIs, application auth strategies, portals, control planes, gateway
-services, AI gateways, audit-log webhook destinations, organization teams,
-Event Gateway control planes, and Event Gateway virtual clusters. Run
-`kongctl explain` to see selectors and scope requirements for a specific
-field.
+The `string (uuid)` and `array[string(uuid)]` annotations in this reference
+are API value types. Prefer references over literal UUIDs when the target is
+also declared in your configuration.
 
 ## Audit Logs
 
