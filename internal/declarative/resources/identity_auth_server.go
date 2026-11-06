@@ -5,7 +5,6 @@ import (
 	"net/url"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
-	"github.com/kong/kongctl/internal/maturity"
 )
 
 func init() {
@@ -27,10 +26,6 @@ func init() {
 				Ref: a.Ref, Label: string(ResourceTypeIdentityAuthServer),
 				Meta: &a.Kongctl, SupportsProtected: true, External: a.IsExternal(),
 			}
-		}),
-		WithMaturity(maturity.Metadata{
-			Level:   maturity.LevelTechPreview,
-			Message: "Requires the Kong Identity SDK preview and regional auth-server administration access.",
 		}),
 		WithRootSyncScope(),
 		withCollectionValidation(240, authServerCollectionValidation),

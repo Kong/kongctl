@@ -6,6 +6,7 @@ test:
   privateTempDirVar: secret_dir
   cleanupResources:
     - resource: identity_directory
+      useDefaultDirectory: true
       nameVar: directory_name
       nameEnv: KONGCTL_E2E_IDENTITY_LOOKUP_DIRECTORY_NAME
     - resource: identity_auth_server
@@ -22,6 +23,7 @@ steps:
       - name: create-directory
         create:
           resource: identity_directory
+          useDefaultDirectory: true
           payload:
             inline:
               name: '{{ .vars.directory_name }}'

@@ -5,6 +5,7 @@ log-level: trace
 test:
   cleanupResources:
     - resource: identity_directory
+      useDefaultDirectory: true
       nameVar: directory_name
       nameEnv: KONGCTL_E2E_INTEGER_DIRECTORY_NAME
   info: >-
@@ -15,6 +16,16 @@ steps:
   - name: 001-numeric-metadata
     skipInputs: true
     commands:
+      - name: prepare-default-directory
+        create:
+          resource: identity_directory
+          useDefaultDirectory: true
+          payload:
+            inline:
+              name: '{{ .vars.directory_name }}'
+          recordVar:
+            name: directory_id
+            responsePath: id
       - name: prepare-manifests
         exec:
           - python3
@@ -71,7 +82,7 @@ steps:
           - select: summary
             expect:
               fields:
-                total_changes: 2
+                total_changes: 1
       - name: apply-saved
         run:
           - apply
@@ -82,7 +93,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 2
+                applied: 1
                 failed: 0
       - name: get-directory
         run:
@@ -224,5 +235,5 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 2
+                applied: 1
                 failed: 0

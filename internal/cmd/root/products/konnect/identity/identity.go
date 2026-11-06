@@ -12,7 +12,6 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
-	"github.com/kong/kongctl/internal/maturity"
 	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
 )
@@ -62,6 +61,7 @@ func NewIdentityCmd(verb verbs.VerbValue,
 	if err := addNestedIdentityCommands(group, verb, addParentFlags, parentPreRun); err != nil {
 		return nil, err
 	}
+	hideLegacyIdentityCommands(group)
 	return group, nil
 }
 
@@ -71,12 +71,6 @@ func newIdentityCmd(verb verbs.VerbValue,
 ) (*cobra.Command, error) {
 	group := &cobra.Command{Use: "identity", Aliases: []string{"id"}, Short: "Manage Kong Identity resources"}
 	cmdpkg.ConfigureRequiresSubcommand(group)
-	if err := maturity.AnnotateCommand(group, maturity.Metadata{
-		Level:   maturity.LevelTechPreview,
-		Message: "Requires the Kong Identity SDK preview and regional management API access.",
-	}); err != nil {
-		return nil, err
-	}
 	if verb == verbs.Import {
 		chart, err := newOrgChartImportCommand(verb, addParentFlags, parentPreRun)
 		if err != nil {

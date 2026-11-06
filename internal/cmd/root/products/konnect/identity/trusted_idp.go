@@ -22,9 +22,9 @@ func newTrustedIDPReadCommand(verb verbs.VerbValue, principals bool,
 	command := &cobra.Command{
 		Use: "trusted-idp [id]", Aliases: []string{"trusted-idps", "trusted_idps"},
 		Short: "List or get directory Trusted IdP configuration",
-		Long: "Inspect an enabled directory Token Vault's trusted identity providers. " +
-			"Select one by UUID or exact --issuer-url; display names are not unique. " +
-			"This is directory trust configuration, separate from auth-server identity providers.",
+		Long: `Inspect an enabled directory Token Vault's trusted identity providers. Select
+one by UUID or exact --issuer-url; display names are not unique. This is
+directory trust configuration, separate from auth-server identity providers.`,
 		PreRunE: parentPreRun,
 	}
 	common.AddIdentityDirectoryFlags(command)
@@ -33,8 +33,9 @@ func newTrustedIDPReadCommand(verb verbs.VerbValue, principals bool,
 		command.Use = "trusted-idp-principals"
 		command.Aliases = []string{"trusted-idp-principal", "trusted_idp_principals"}
 		command.Short = "List principals associated with a directory Trusted IdP"
-		command.Long = "Inspect principals whose OIDC identities match the selected Trusted IdP. " +
-			"Visibility does not imply administrative ownership or that the principal was provisioned by this IdP."
+		command.Long = `Inspect principals whose OIDC identities match the selected Trusted IdP.
+Visibility does not imply administrative ownership or that the principal was
+provisioned by this IdP.`
 		command.Flags().String("trusted-idp-id", "", "Parent Trusted IdP UUID")
 		command.MarkFlagsOneRequired("trusted-idp-id", "issuer-url")
 		command.MarkFlagsMutuallyExclusive("trusted-idp-id", "issuer-url")

@@ -5,6 +5,7 @@ log-level: trace
 test:
   cleanupResources:
     - resource: identity_directory
+      useDefaultDirectory: true
       nameVar: directory_name
       nameEnv: KONGCTL_E2E_DECLARATIVE_KEY_DIRECTORY_NAME
   info: Verify generated principal/group key declarations under managed parents and an external directory. Cover private capture, saved plans, inherited authority, nullable expiration, dump, scoped sync, replacement ordering and guarded deletion while preserving foreign/imported keys.
@@ -15,6 +16,7 @@ steps:
       - name: create-directory
         create:
           resource: identity_directory
+          useDefaultDirectory: true
           payload:
             inline:
               name: '{{ .vars.directory_name }}'

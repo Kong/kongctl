@@ -9,7 +9,6 @@ import (
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/konnect/identitytrust"
-	"github.com/kong/kongctl/internal/maturity"
 )
 
 // IdentityTrustedIDPResource inherits directory lifecycle authority. The exact
@@ -213,7 +212,6 @@ func init() {
 		WithExternalUnsupportedReason(
 			"Trusted IdPs inherit explicit managed-directory ownership; external parents are read-only",
 		),
-		WithMaturity(maturity.Metadata{Level: maturity.LevelTechPreview}),
 		withChildLoad(ResourceTypeIdentityTrustedIDP, ensureIdentityTrustedIDPSlice,
 			childLoad[IdentityTrustedIDPResource, IdentityDirectoryResource]{
 				family: ResourceTypeIdentityDirectory, extractOrder: 52, validateOrder: 62, validatePhase: 250,

@@ -34,6 +34,8 @@ type ScenarioTest struct {
 
 // CleanupResource reserves a generated resource name for this scenario run.
 type CleanupResource struct {
+	UseDefaultDirectory           bool     `yaml:"useDefaultDirectory,omitempty"`
+	DefaultDirectoryNamespace     string   `yaml:"defaultDirectoryNamespace,omitempty"`
 	Resource                      string   `yaml:"resource"`
 	NameVar                       string   `yaml:"nameVar"`
 	NameEnv                       string   `yaml:"nameEnv"`
@@ -105,13 +107,14 @@ type Command struct {
 }
 
 type CreateSpec struct {
-	RecoverTeam    bool              `yaml:"recoverTeam"`
-	Resource       string            `yaml:"resource"`
-	Payload        CreatePayload     `yaml:"payload"`
-	ExpectStatus   int               `yaml:"expectStatus"`
-	RecordVar      *RecordVar        `yaml:"recordVar"`
-	RecordVars     []RecordVar       `yaml:"recordVars"`
-	EndpointParams map[string]string `yaml:"endpointParams"`
+	UseDefaultDirectory bool              `yaml:"useDefaultDirectory"`
+	RecoverTeam         bool              `yaml:"recoverTeam"`
+	Resource            string            `yaml:"resource"`
+	Payload             CreatePayload     `yaml:"payload"`
+	ExpectStatus        int               `yaml:"expectStatus"`
+	RecordVar           *RecordVar        `yaml:"recordVar"`
+	RecordVars          []RecordVar       `yaml:"recordVars"`
+	EndpointParams      map[string]string `yaml:"endpointParams"`
 }
 
 type DeleteSpec struct {

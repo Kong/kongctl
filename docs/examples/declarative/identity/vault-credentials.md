@@ -40,10 +40,10 @@ User entries include principal ID/display name, active status and nullable
 expiration. A principal's own collection shows the provider and template:
 
 ```sh
-./kongctl get identity principal vault-credentials \
+./kongctl get identity principal vault credentials \
   --directory-name default --principal-id PRINCIPAL_UUID -o text
 
-./kongctl get identity principal vault-credential CREDENTIAL_UUID \
+./kongctl get identity principal vault credential CREDENTIAL_UUID \
   --directory-name default --principal-id PRINCIPAL_UUID -o yaml
 ```
 

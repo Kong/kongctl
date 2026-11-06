@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/kong/kongctl/internal/konnect/identitykeys"
-	"github.com/kong/kongctl/internal/maturity"
 )
 
 // IdentityVaultKeyResource inherits lifecycle authority from a managed directory.
@@ -129,7 +128,6 @@ func init() {
 		WithExternalUnsupportedReason(
 			"Vault keys inherit explicitly managed directory ownership; external parents are read-only",
 		),
-		WithMaturity(maturity.Metadata{Level: maturity.LevelTechPreview}),
 		withChildLoad(ResourceTypeIdentityVaultKey, ensureIdentityVaultKeySlice,
 			childLoad[IdentityVaultKeyResource, IdentityDirectoryResource]{
 				family: ResourceTypeIdentityDirectory, extractOrder: 50, validateOrder: 60, validatePhase: 248,

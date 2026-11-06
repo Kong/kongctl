@@ -6,7 +6,6 @@ import (
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/tags"
-	"github.com/kong/kongctl/internal/maturity"
 	"github.com/kong/kongctl/internal/util"
 )
 
@@ -71,9 +70,6 @@ func init() {
 		WithManagedBy(ManagedByPolicy{MaxEntries: 5, PersistsRef: true}),
 		WithChildSyncScope(ResourceTypeIdentityPrincipal),
 		withReferenceValidation(101),
-		WithMaturity(
-			maturity.Metadata{Level: maturity.LevelTechPreview, Message: "Requires the Kong Identity SDK preview."},
-		),
 		withChildLoad(ResourceTypeIdentityPrincipalIdentity, ensureIdentityPrincipalIdentitySlice,
 			childLoad[IdentityPrincipalIdentityResource, IdentityPrincipalResource]{
 				family: ResourceTypeIdentityDirectory, extractOrder: 10, validateOrder: 20, validatePhase: 240,

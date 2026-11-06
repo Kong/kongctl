@@ -38,7 +38,7 @@ func newAuthServerSecretMutationCommand(verb verbs.VerbValue,
 		command.Use = "auth-server-client-secret"
 		command.Short = "Create an OAuth client secret and capture its value in a new private file"
 		command.Flags().String("secret-output-file", "",
-			"New file for generated or imported material (0600; never overwritten)")
+			"New file for generated or imported material (never overwritten)")
 		command.Flags().String("secret-env", "", "Environment variable containing a secret to import; omit to generate")
 		command.Flags().String("secret-file", "", "File containing a secret to import; omit to generate")
 		command.MarkFlagsMutuallyExclusive("secret-env", "secret-file")

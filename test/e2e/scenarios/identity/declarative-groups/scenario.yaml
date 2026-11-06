@@ -5,6 +5,8 @@ log-level: trace
 test:
   cleanupResources:
   - resource: identity_directory
+    useDefaultDirectory: true
+    defaultDirectoryNamespace: identity-group-directory-e2e
     nameVar: directory_name
     nameEnv: KONGCTL_E2E_GROUP_DIRECTORY_NAME
     principalGroups: true

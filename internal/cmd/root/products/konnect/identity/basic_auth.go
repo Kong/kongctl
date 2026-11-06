@@ -22,8 +22,9 @@ func newBasicAuthReadCommand(verb verbs.VerbValue, passwords bool,
 	command := &cobra.Command{
 		Use: "principal-basic-auth [basic-auth-id]", Aliases: []string{"principal-basic-auths", "principal_basic_auths"},
 		Short: "List or get basic-auth username records under an explicit principal",
-		Long: "Inspect username records separately from their password children. " +
-			"Positional selectors are UUIDs; use --username for an exact username lookup, including UUID-shaped usernames.",
+		Long: `Inspect username records separately from their password children. Positional
+selectors are UUIDs; use --username for an exact username lookup, including
+UUID-shaped usernames.`,
 		PreRunE: parentPreRun,
 	}
 	common.AddIdentityDirectoryFlags(command)
@@ -36,8 +37,9 @@ func newBasicAuthReadCommand(verb verbs.VerbValue, passwords bool,
 		command.Use = "principal-basic-auth-password [password-id]"
 		command.Aliases = []string{"principal-basic-auth-passwords", "principal_basic_auth_passwords"}
 		command.Short = "List or get public basic-auth password metadata"
-		command.Long = "Inspect password IDs, expiration, management metadata and timestamps. " +
-			"Password values are never displayed. Select the username record with --basic-auth-id or --username."
+		command.Long = `Inspect password IDs, expiration, management metadata and timestamps. Password
+values are never displayed. Select the username record with --basic-auth-id or
+--username.`
 		command.Flags().String("basic-auth-id", "", "Parent basic-auth record UUID")
 		command.MarkFlagsOneRequired("basic-auth-id", "username")
 		command.MarkFlagsMutuallyExclusive("basic-auth-id", "username")

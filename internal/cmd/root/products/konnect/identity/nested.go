@@ -16,6 +16,17 @@ func addNestedIdentityCommands(root *cobra.Command, verb verbs.VerbValue,
 	//exhaustive:ignore
 	switch verb {
 	case verbs.Get, verbs.List:
+		server := identityResourceGroup(root, "auth-server", "auth-servers")
+		client := renameNestedIdentityCommand(newAuthServerClientCommand(verb, false, addParentFlags, parentPreRun),
+			"client", "clients")
+		client.AddCommand(renameNestedIdentityCommand(
+			newAuthServerClientCommand(verb, true, addParentFlags, parentPreRun), "secret", "secrets",
+		))
+		server.AddCommand(client,
+			renameNestedIdentityCommand(newAuthServerChildCommand(verb, false, addParentFlags, parentPreRun),
+				"scope", "scopes"),
+			renameNestedIdentityCommand(newAuthServerChildCommand(verb, true, addParentFlags, parentPreRun),
+				"claim", "claims"))
 		trustedIDP := identityResourceGroup(root, "trusted-idp", "trusted-idps")
 		trustedIDP.AddCommand(renameNestedIdentityCommand(
 			newTrustedIDPReadCommand(verb, true, addParentFlags, parentPreRun), "principal", "principals",
@@ -29,6 +40,9 @@ func addNestedIdentityCommands(root *cobra.Command, verb verbs.VerbValue,
 			return err
 		}
 		provider.AddCommand(renameNestedIdentityCommand(providerCredential, "credential", "credentials"))
+		provider.AddCommand(renameNestedIdentityCommand(
+			newVaultProviderReadCommand(verb, true, addParentFlags, parentPreRun), "template", "templates",
+		))
 		vault.AddCommand(
 			renameNestedIdentityCommand(newVaultKeyReadCommand(verb, addParentFlags, parentPreRun), "key", "keys"),
 			provider,
@@ -59,8 +73,22 @@ func addNestedIdentityCommands(root *cobra.Command, verb verbs.VerbValue,
 		if err != nil {
 			return err
 		}
-		principal.AddCommand(renameNestedIdentityCommand(credentials, "vault-credential", "vault-credentials"))
+		legacyCredentials := renameNestedIdentityCommand(credentials, "vault-credential", "vault-credentials")
+		legacyCredentials.Hidden = true
+		principal.AddCommand(legacyCredentials)
+		credentials, err = newVaultCredentialReadCommand(verb, true, addParentFlags, parentPreRun)
+		if err != nil {
+			return err
+		}
+		principalVault := identityResourceGroup(principal, "vault", "vaults")
+		principalVault.AddCommand(renameNestedIdentityCommand(credentials, "credential", "credentials"))
 	case verbs.Adopt:
+		client, err := adopt.NewIdentityAuthServerClientCmd(verb, addParentFlags, parentPreRun)
+		if err != nil {
+			return err
+		}
+		server := identityResourceGroup(root, "auth-server", "auth-servers")
+		server.AddCommand(renameNestedIdentityCommand(client, "client", "clients"))
 		principal := identityResourceGroup(root, "principal", "principals")
 		identity, err := adopt.NewIdentityPrincipalIdentityCmd(verb, addParentFlags, parentPreRun)
 		if err != nil {
@@ -73,6 +101,10 @@ func addNestedIdentityCommands(root *cobra.Command, verb verbs.VerbValue,
 		principal.AddCommand(renameNestedIdentityCommand(identity, "identity", "identities"),
 			renameNestedIdentityCommand(basicAuth, "basic-auth", "basic-auths"))
 	case verbs.Create, verbs.Patch, verbs.Delete:
+		secret := newAuthServerSecretMutationCommand(verb, addParentFlags, parentPreRun)
+		server := identityResourceGroup(root, "auth-server", "auth-servers")
+		client := identityResourceGroup(server, "client", "clients")
+		client.AddCommand(renameNestedIdentityCommand(secret, "secret", "secrets"))
 		if verb != verbs.Patch {
 			vault := &cobra.Command{Use: "vault", Short: "Manage directory Token Vault credentials"}
 			cmdpkg.ConfigureRequiresSubcommand(vault)
@@ -98,6 +130,15 @@ func addNestedIdentityCommands(root *cobra.Command, verb verbs.VerbValue,
 			return err
 		}
 		basicAuth.AddCommand(renameNestedIdentityCommand(password, "password", "passwords"))
+	case verbs.Inspect:
+		csv, err := newPrincipalCSVInspectCommand(addParentFlags, parentPreRun)
+		if err != nil {
+			return err
+		}
+		principal := identityResourceGroup(root, "principal", "principals")
+		csv.Use = "csv"
+		csv.Aliases = nil
+		principal.AddCommand(csv)
 	default:
 		return nil
 	}
@@ -116,6 +157,20 @@ func addNestedIdentityCommands(root *cobra.Command, verb verbs.VerbValue,
 		}
 	}
 	return nil
+}
+
+// Keep previous paths working for scripts while advertising only the resource hierarchy.
+func hideLegacyIdentityCommands(root *cobra.Command) {
+	for _, child := range root.Commands() {
+		switch child.Name() {
+		case "auth-server-claim", "auth-server-client", "auth-server-client-secret", "auth-server-scope",
+			"credential-provider-template", "group-api-key", "group-membership", "principal-api-key",
+			"principal-basic-auth", "principal-basic-auth-password", "principal-group", "principal-identity",
+			"principal-vault-credential", "trusted-idp-principals", "vault-key", "vault-provider",
+			"vault-provider-credential", "vault-provider-enrollment", "principal-csv", "org-chart-import":
+			child.Hidden = true
+		}
+	}
 }
 
 func identityResourceGroup(parent *cobra.Command, name, alias string) *cobra.Command {

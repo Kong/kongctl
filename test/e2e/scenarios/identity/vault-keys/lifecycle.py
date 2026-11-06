@@ -247,24 +247,27 @@ def main():
         assert request("GET", root)["id"] == directory
         assert [value["id"] for value in collection()] == [late["id"]]
         request("DELETE", root + "/vault/keys/" + late["id"], expected=204)
-        assert invoke("delete-saved", ["delete", "--plan", str(saved), "--auto-approve"])["summary"]["failed"] == 0
-        deleted = True
-        request("GET", root, expected=404)
-        assert invoke("delete-repeat", ["delete", "--plan", str(saved), "--auto-approve"])["summary"]["failed"] == 0
-        # Exercise a missing directory and its key in one plan, including
-        # runtime parent-ID resolution, then direct declarative teardown.
-        bootstrap = plan("bootstrap-plan", rotated)
-        assert bootstrap["summary"]["total_changes"] == 2
-        apply("bootstrap-parent-and-key", rotated)
-        fresh_parent = invoke("bootstrap-directory", ["get", "identity", "directory", name])
-        directory = fresh_parent["id"]
-        root = "/v2/directories/" + directory
-        deleted = False
-        assert fresh_parent["vault_enabled"] is True and len(collection()) == 1
-        assert plan("bootstrap-noop", rotated)["summary"]["total_changes"] == 0
-        apply("direct-delete", rotated, "delete")
-        deleted = True
-        request("GET", root, expected=404)
+        if name != "default":
+            assert invoke("delete-saved", ["delete", "--plan", str(saved), "--auto-approve"])["summary"]["failed"] == 0
+            deleted = True
+            request("GET", root, expected=404)
+            assert invoke("delete-repeat", ["delete", "--plan", str(saved), "--auto-approve"])["summary"]["failed"] == 0
+            # Exercise a missing directory and its key in one plan, including
+            # runtime parent-ID resolution, then direct declarative teardown.
+            bootstrap = plan("bootstrap-plan", rotated)
+            assert bootstrap["summary"]["total_changes"] == 2
+            apply("bootstrap-parent-and-key", rotated)
+            fresh_parent = invoke("bootstrap-directory", ["get", "identity", "directory", name])
+            directory = fresh_parent["id"]
+            root = "/v2/directories/" + directory
+            deleted = False
+            assert fresh_parent["vault_enabled"] is True and len(collection()) == 1
+            assert plan("bootstrap-noop", rotated)["summary"]["total_changes"] == 0
+            apply("direct-delete", rotated, "delete")
+            deleted = True
+            request("GET", root, expected=404)
+        if name == "default":
+            assert request("GET", root)["id"] == directory
         return {"public_key_algorithms": 2, "output_formats": 3, "real_pagination": True,
             "explicit_parent_adoption": True, "fingerprint_identity_and_rename": True,
             "scoped_sync_and_rotation": True, "saved_authority_checks": True, "five_key_limit": True,

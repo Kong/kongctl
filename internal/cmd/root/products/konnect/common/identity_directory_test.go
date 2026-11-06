@@ -47,3 +47,15 @@ func TestIdentityDirectorySelection(t *testing.T) {
 		})
 	}
 }
+
+func TestIdentityDirectoryDefaultHelpMatchesRuntimeSelection(t *testing.T) {
+	cmd := &cobra.Command{Use: "resource"}
+	AddIdentityDirectoryFlags(cmd)
+	usage := cmd.Flags().FlagUsages()
+	require.Contains(t, usage, "- Default: [ default ]")
+	require.NotContains(t, usage, `(default "default")`)
+	id, name, err := IdentityDirectorySelector(cmd)
+	require.NoError(t, err)
+	require.Empty(t, id)
+	require.Equal(t, DefaultIdentityDirectoryName, name)
+}

@@ -6,6 +6,8 @@ test:
   privateTempDirVar: secret_dir
   cleanupResources:
   - resource: identity_directory
+    useDefaultDirectory: true
+    defaultDirectoryNamespace: identity-basic-directories-e2e
     nameVar: directory_name
     nameEnv: KONGCTL_E2E_BASIC_AUTH_LIFECYCLE_DIRECTORY_NAME
   info: Username-record declarative lifecycle with independent managed_by, protected parents, saved plans, adoption, external lookup, dump/reload, scoped sync, stale ownership/password guards and credential-aware principal deletion. Password/key fixtures are explicit native operations with private capture and verified teardown.
@@ -14,6 +16,7 @@ steps:
   skipInputs: true
   commands:
   - name: verify-lifecycle
+    timeout: 5m
     exec:
     - python3
     - '{{ .scenario_dir }}/lifecycle.py'

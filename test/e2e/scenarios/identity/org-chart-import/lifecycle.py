@@ -95,13 +95,14 @@ def main():
         path.chmod(0o600)
         return path
 
-    def invoke(label, source, mode="--dry-run", output="json", failure=None, capture_path=None, explicit=False, legacy=False):
+    def invoke(label, source, mode="--dry-run", output="json", failure=None, report_dir=None, explicit=False, legacy=False):
         nonlocal phase, attempted_execution
         phase = label
-        capture_path = capture_path or private / (label + ".json")
+        report_dir = report_dir or private / (label + "-reports")
+        before_reports = set(report_dir.glob("*.json"))
         verb, noun = ("create", "org-chart-import") if legacy else ("import", "org-chart")
         args = [binary, verb, *(["konnect"] if explicit else []), "identity", noun,
-            "--directory-name", name, "--file", str(source), "--report-output-file", str(capture_path),
+            "--directory-name", name, "--file", str(source), "--report-output-dir", str(report_dir),
             "-o", output, "--log-level", "trace", "--log-file", str(work / (label + ".log")), *config]
         if mode:
             args.append(mode)
@@ -118,6 +119,11 @@ def main():
         else:
             assert result.returncode == 0, label
         value = json.loads(result.stdout) if result.stdout.strip() and output == "json" else result.stdout.decode()
+        new_reports = set(report_dir.glob("*.json")) - before_reports
+        assert len(new_reports) <= 1, label
+        capture_path = next(iter(new_reports)) if new_reports else report_dir / "unused.json"
+        if isinstance(value, dict):
+            assert value["report_output_file"] == str(capture_path), label
         return value, capture_path
 
     def report(path, source, dry_run):
@@ -164,10 +170,13 @@ def main():
         assert snapshot() == before
         old_bytes = saved.read_bytes()
         legacy, legacy_report = invoke("legacy-preview", original, legacy=True)
-        assert legacy == preview
+        assert {key: value for key, value in legacy.items() if key != "report_output_file"} == {
+            key: value for key, value in preview.items() if key != "report_output_file"}
         assert report(legacy_report, original, True)["counts"] == report(saved, original, True)["counts"]
         assert snapshot() == before
-        invoke("existing-report", original, failure="reserve report output", capture_path=saved)
+        repeated_preview, new_report = invoke("repeated-preview", original, report_dir=saved.parent)
+        assert repeated_preview["status"] == "validated" and new_report != saved
+        assert report(new_report, original, True)["counts"] == report(saved, original, True)["counts"]
         assert saved.read_bytes() == old_bytes
         _, unused = invoke("missing-intent", original, mode=None, failure="choose exactly one")
         assert not unused.exists()

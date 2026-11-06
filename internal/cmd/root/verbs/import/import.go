@@ -22,10 +22,13 @@ func NewImportCmd() (*cobra.Command, error) {
 	command := &cobra.Command{
 		Use:   Verb.String(),
 		Short: "Import data into Konnect",
-		Long: "Import data using native Konnect import operations. " +
-			"Organization-chart imports validate or execute a complete employee roster and reporting hierarchy.",
-		Example: fmt.Sprintf(`  %[1]s import id org-chart --file roster.csv --dry-run --report-output-file report.json
-  %[1]s import konnect identity org-chart --file roster.csv --execute --report-output-file run.json`, meta.CLIName),
+		Long: `Import data using native Konnect import operations. Organization-chart imports
+validate or execute a complete employee roster and reporting hierarchy.`,
+		Example: fmt.Sprintf(`  %[1]s import id org-chart \
+    --file roster.csv --dry-run --report-output-dir ./import-reports
+
+  %[1]s import konnect identity org-chart \
+    --file roster.csv --execute --report-output-dir ./import-reports`, meta.CLIName),
 		PersistentPreRunE: verbs.KonnectFirstPreRunE(Verb, konnectCmd),
 	}
 	cmdpkg.ConfigureRequiresSubcommand(command)

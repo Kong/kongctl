@@ -15,7 +15,14 @@ const (
 // AddIdentityDirectoryFlags registers directory selectors with a name fallback.
 func AddIdentityDirectoryFlags(cmd *cobra.Command) {
 	cmd.Flags().String(IdentityDirectoryIDFlagName, "", "Parent directory UUID (overrides the default name)")
-	cmd.Flags().String(IdentityDirectoryNameFlagName, DefaultIdentityDirectoryName, "Exact parent directory name")
+	cmd.Flags().String(
+		IdentityDirectoryNameFlagName,
+		DefaultIdentityDirectoryName,
+		fmt.Sprintf(`Exact parent directory name.
+- Default: [ %s ]`, DefaultIdentityDirectoryName),
+	)
+	// The default is documented in the help text instead of Cobra's suffix.
+	cmd.Flags().Lookup(IdentityDirectoryNameFlagName).DefValue = ""
 	cmd.MarkFlagsMutuallyExclusive(IdentityDirectoryIDFlagName, IdentityDirectoryNameFlagName)
 }
 

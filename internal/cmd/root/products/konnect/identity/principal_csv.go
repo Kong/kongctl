@@ -18,9 +18,10 @@ func newPrincipalCSVInspectCommand(addParentFlags func(verbs.VerbValue, *cobra.C
 ) (*cobra.Command, error) {
 	command := &cobra.Command{
 		Use: "principal-csv", Short: "Validate a principal CSV locally and show structural counts",
-		Long: "Validate principal CSV headers, rows and supported nested declarations without contacting Konnect. " +
-			"Use the CSV through a YAML !csv principal collection for plan/apply/diff/sync/delete. " +
-			"Inspection does not verify remote ownership, references or UUID assertions.",
+		Long: `Validate principal CSV headers, rows and supported nested declarations without
+contacting Konnect. Use the CSV through a YAML !csv principal collection for
+plan/apply/diff/sync/delete. Inspection does not verify remote ownership,
+references or UUID assertions.`,
 		Args: cobra.NoArgs, PreRunE: parentPreRun,
 	}
 	command.Flags().StringP("file", "f", "", "Local principal CSV file")

@@ -966,6 +966,10 @@ def clean_environment(directory, binary, scenario=SCENARIO):
         # Its round trip intentionally resets between dump and reconstruction.
         # Record/replay these HTTP calls rather than silently skipping the reset.
         env["KONGCTL_E2E_RESET"] = "1"
+        # These reviewed reset exchanges predate Identity reset and the dump
+        # scenarios do not exercise Identity. Preserve their exact recorded
+        # resource scope; all existing reset requests still replay strictly.
+        env["KONGCTL_E2E_RESET_IDENTITY"] = "0"
     return env
 
 
@@ -1058,7 +1062,8 @@ def main():
         private = Path(temporary)
         env = clean_environment(private, args.binary.resolve(), args.scenario)
         env.update(inputs)
-        reset_env = {**env, "KONGCTL_E2E_KONNECT_PAT": token or DUMMY_PAT, "KONGCTL_E2E_RESET": "1"}
+        reset_env = {**env, "KONGCTL_E2E_KONNECT_PAT": token or DUMMY_PAT,
+                     "KONGCTL_E2E_RESET": "1", "KONGCTL_E2E_RESET_IDENTITY": "1"}
         started = time.monotonic()
         try:
             if token:

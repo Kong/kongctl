@@ -19,8 +19,9 @@ func newPrincipalCommand(verb verbs.VerbValue,
 	command := &cobra.Command{
 		Use: "principal [id]", Aliases: []string{"principals"},
 		Short: "List or get principals in a Kong Identity directory",
-		Long: "List principals or get one by UUID. Use --display-name to list every exact display-name match. " +
-			"Display names are not unique and cannot select a single principal.",
+		Long: `List principals or get one by UUID. Use --display-name to list every exact
+display-name match. Display names are not unique and cannot select a single
+principal.`,
 		PreRunE: parentPreRun,
 	}
 	common.AddIdentityDirectoryFlags(command)

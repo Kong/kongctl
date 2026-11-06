@@ -244,28 +244,31 @@ def main():
         invoke("late-provider-blocks-parent", ["delete", "--plan", saved, "--auto-approve"], failure="attached Vault providers")
         assert request("GET", root)["id"] == directory and len(collection()) == 1
         request("DELETE", root + "/vault/providers/" + late["id"], expected=204)
-        assert invoke("delete-saved", ["delete", "--plan", saved, "--auto-approve"])["summary"]["failed"] == 0
-        deleted = True
-        request("GET", root, expected=404)
-        assert invoke("delete-repeat", ["delete", "--plan", saved, "--auto-approve"])["summary"]["failed"] == 0
-        bootstrap = plan("bootstrap-plan", single)
-        assert bootstrap["summary"]["by_action"] == {"CREATE": 2}
-        apply("bootstrap-directory-and-provider", single)
-        fresh = invoke("bootstrap-directory", ["get", "identity", "directory", name])
-        directory, root, deleted = fresh["id"], "/v2/directories/" + fresh["id"], False
-        assert len(collection()) == 1 and collection()[0]["enabled"] is False
-        assert plan("bootstrap-noop", single)["summary"]["total_changes"] == 0
-        apply("direct-delete", single, "delete")
-        deleted = True
-        request("GET", root, expected=404)
+        if name != "default":
+            assert invoke("delete-saved", ["delete", "--plan", saved, "--auto-approve"])["summary"]["failed"] == 0
+            deleted = True
+            request("GET", root, expected=404)
+            assert invoke("delete-repeat", ["delete", "--plan", saved, "--auto-approve"])["summary"]["failed"] == 0
+            bootstrap = plan("bootstrap-plan", single)
+            assert bootstrap["summary"]["by_action"] == {"CREATE": 2}
+            apply("bootstrap-directory-and-provider", single)
+            fresh = invoke("bootstrap-directory", ["get", "identity", "directory", name])
+            directory, root, deleted = fresh["id"], "/v2/directories/" + fresh["id"], False
+            assert len(collection()) == 1 and collection()[0]["enabled"] is False
+            assert plan("bootstrap-noop", single)["summary"]["total_changes"] == 0
+            apply("direct-delete", single, "delete")
+            deleted = True
+            request("GET", root, expected=404)
         for path in work.rglob("*"):
             if path.is_file():
                 assert not any(needle in path.read_bytes() for needle in needles)
+        if name == "default":
+            assert request("GET", root)["id"] == directory
         return {"provider_modes": 3, "all_public_fields": True, "explicit_parent_adoption": True,
             "initial_disabled_state": True, "deferred_and_selected_secrets": True,
             "saved_authority_and_credential_guards": True, "scoped_sync_and_delete": True,
             "name_replacement_ordered": True,
-            "dump_reload": True, "bootstrap_parent_and_provider": True, "fixtures_removed": True}
+            "dump_reload": True, "bootstrap_parent_and_provider": name != "default", "fixtures_removed": True}
     except Exception:
         raise RuntimeError("Vault provider phase failed: " + phase) from None
     finally:

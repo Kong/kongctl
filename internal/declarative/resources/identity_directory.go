@@ -6,7 +6,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/kong/kongctl/internal/declarative/tags"
-	"github.com/kong/kongctl/internal/maturity"
 	"github.com/kong/kongctl/internal/util"
 )
 
@@ -35,10 +34,6 @@ func init() {
 			}
 		}),
 		WithManagedBy(ManagedByPolicy{MaxEntries: 5, OwnsLifecycle: true}),
-		WithMaturity(maturity.Metadata{
-			Level:   maturity.LevelTechPreview,
-			Message: "Requires the Kong Identity SDK preview and regional directory-admin access.",
-		}),
 		WithRootSyncScope(),
 		withCollectionValidation(
 			220,

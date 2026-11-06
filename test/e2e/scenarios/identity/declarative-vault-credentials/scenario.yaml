@@ -5,10 +5,11 @@ log-level: trace
 test:
   cleanupResources:
     - resource: identity_directory
+      useDefaultDirectory: true
       nameVar: directory_name
       nameEnv: KONGCTL_E2E_VAULT_CREDENTIALS_DECLARATIVE_DIRECTORY_NAME
       requireEmptyVaultDependencies: true
-  info: Requires Token Vault availability and temporary directory capacity. Verify static shared default/priority slots, directory-inherited authority, deferred sources and explicit material replacement, encryption-key dependencies, saved routing/ownership guards, scoped sync/delete and public dump. OAuth enrollment and runtime stored-material recovery are outside this administrative lifecycle.
+  info: Requires Token Vault availability and the shared default directory. Verify static shared default/priority slots, directory-inherited authority, deferred sources and explicit material replacement, encryption-key dependencies, saved routing/ownership guards, scoped sync/delete and public dump. OAuth enrollment and runtime stored-material recovery are outside this administrative lifecycle.
 steps:
   - name: 001-static-credential-lifecycle
     skipInputs: true
@@ -16,6 +17,7 @@ steps:
       - name: create-directory
         create:
           resource: identity_directory
+          useDefaultDirectory: true
           payload:
             inline:
               name: '{{ .vars.directory_name }}'
@@ -46,6 +48,6 @@ steps:
                 saved_routing_and_key_guards: true
                 scoped_sync_and_retirement: true
                 dump_without_material: true
-                bootstrap_dependencies: true
+
                 fixtures_removed: true
                 private_workspace_removed: true

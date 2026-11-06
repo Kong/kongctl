@@ -125,3 +125,27 @@ func TestInvalidResourceMaturityPanicsDuringRegistration(t *testing.T) {
 		)
 	})
 }
+
+func TestIdentityResourceSchemasAreGenerallyAvailable(t *testing.T) {
+	for _, kind := range []ResourceType{
+		ResourceTypeIdentityDirectory, ResourceTypeIdentityPrincipal, ResourceTypeIdentityPrincipalIdentity,
+		ResourceTypeIdentityGroup, ResourceTypeIdentityGroupMembership, ResourceTypeIdentityBasicAuth,
+		ResourceTypeIdentityPrincipalAPIKey, ResourceTypeIdentityGroupAPIKey, ResourceTypeIdentityTrustedIDP,
+		ResourceTypeIdentityVaultKey, ResourceTypeIdentityVaultProvider, ResourceTypeIdentityVaultProviderCredential,
+		ResourceTypeIdentityAuthServer, ResourceTypeIdentityAuthServerClient,
+		ResourceTypeIdentityAuthServerScope, ResourceTypeIdentityAuthServerClaim,
+	} {
+		t.Run(string(kind), func(t *testing.T) {
+			subject, err := ResolveExplainSubject(string(kind))
+			require.NoError(t, err)
+			schema := RenderExplainSchema(subject)
+			require.NotNil(t, schema.XMaturity)
+			require.Equal(t, maturity.LevelGA, schema.XMaturity.Level)
+			require.Empty(t, schema.XMaturity.Message)
+			for _, operation := range schema.XMaturity.Operations {
+				require.Equal(t, maturity.LevelGA, operation.Level)
+			}
+			require.NotContains(t, RenderExplainText(subject, false), "tech preview")
+		})
+	}
+}

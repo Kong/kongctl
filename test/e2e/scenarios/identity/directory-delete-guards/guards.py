@@ -138,14 +138,17 @@ def main():
         toggle("late-disable", False)
         blocked("late-disabled-empty", "explicitly enable Vault")
         toggle("explicit-final-enable", True)
-        result = invoke("delete-after-retirement", ["delete", "--plan", str(saved), "--auto-approve"])
-        assert result["summary"]["failed"] == 0 and result["summary"]["applied"] == 1
-        request("GET", root, expected=404)
-        result = invoke("repeat-saved-delete", ["delete", "--plan", str(saved), "--auto-approve"])
-        assert result["summary"]["failed"] == 0
+        if name != "default":
+            result = invoke("delete-after-retirement", ["delete", "--plan", str(saved), "--auto-approve"])
+            assert result["summary"]["failed"] == 0 and result["summary"]["applied"] == 1
+            request("GET", root, expected=404)
+            result = invoke("repeat-saved-delete", ["delete", "--plan", str(saved), "--auto-approve"])
+            assert result["summary"]["failed"] == 0
+        if name == "default":
+            assert request("GET", root)["id"] == directory
         return {"attached_families": 3, "planning_and_scoped_sync": True, "saved_plan_rechecks": True,
                 "disabled_vault_blocks": True, "observations_do_not_enable": True,
-                "explicit_retirement_then_delete": True, "repeat_saved_deletion": True, "fixtures_removed": True}
+                "explicit_retirement_then_delete": name != "default", "repeat_saved_deletion": name != "default", "fixtures_removed": True}
     except Exception:
         print("directory deletion verification failed at " + phase, file=sys.stderr)
         raise

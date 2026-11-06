@@ -40,15 +40,18 @@ namespace/protection or stamp KongCTL ownership.
 
 ## Preview without writing
 
-Choose an existing private directory for report files. Every invocation needs
-a new report filename; existing files and symlinks are never overwritten.
+Choose a directory for report files using `--report-output-dir`. KongCTL creates
+it if needed and writes a new private JSON report for each run. Filenames
+include `preview` or `execute` and a UTC timestamp. Reuse the same directory
+for both stages; earlier reports are preserved. Output includes the actual
+saved path as `report_output_file`.
 
 ```sh
 ./kongctl import identity org-chart \
   --directory-name default \
   --file docs/examples/declarative/identity/org-chart.csv \
   --dry-run \
-  --report-output-file /path/to/private/org-preview.json
+  --report-output-dir ./org-import-reports
 ```
 
 Exactly one of `--dry-run` and `--execute` is required. Local validation checks
@@ -79,7 +82,7 @@ uploads its file again against the then-current directory state.
   --directory-name default \
   --file docs/examples/declarative/identity/org-chart.csv \
   --execute \
-  --report-output-file /path/to/private/org-execution-01.json
+  --report-output-dir ./org-import-reports
 
 ./kongctl get identity principals --directory-name default -o json
 ./kongctl get identity groups --directory-name default -o json
@@ -88,9 +91,9 @@ uploads its file again against the then-current directory state.
 ```
 
 The API preserves IDs on identical re-import and reports unchanged users.
-Use another output filename for each run. Manager changes reconcile team
-memberships; dropping an imported user deactivates that record. An unrelated
-manually created user is retained in the tested workflow.
+You can reuse the same report directory for each run. Manager changes reconcile
+team memberships; dropping an imported user deactivates that record. An
+unrelated manually created user is retained in the tested workflow.
 
 A returning user keeps its UUID but remains inactive in the tested API.
 Normal output includes `inactive_not_reactivated`; the full report explains

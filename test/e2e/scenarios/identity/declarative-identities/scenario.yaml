@@ -6,6 +6,7 @@ test:
   privateTempDirVar: secret_dir
   cleanupResources:
     - resource: identity_directory
+      useDefaultDirectory: true
       nameVar: directory_name
       nameEnv: KONGCTL_E2E_DECL_IDENTITY_DIRECTORY_NAME
     - resource: identity_auth_server

@@ -697,7 +697,7 @@ func slugFromArgs(args []string) string {
 }
 
 func hasOutputArg(args []string) bool {
-	for i := 0; i < len(args); i++ {
+	for i := range args {
 		a := args[i]
 		if a == "-o" {
 			return true
@@ -728,7 +728,7 @@ func supportsHarnessOutputArg(args []string) bool {
 }
 
 func hasLogFileArg(args []string) bool {
-	for i := 0; i < len(args); i++ {
+	for i := range args {
 		a := args[i]
 		if a == "--log-file" {
 			return true

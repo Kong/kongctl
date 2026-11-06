@@ -8,7 +8,7 @@ is absent, use the separate [directory bootstrap](README.md) first.
 Validate the CSV locally, without API calls or printing row values:
 
 ```sh
-kongctl inspect identity principal-csv \
+kongctl inspect identity principal csv \
   --file docs/examples/declarative/identity/principals.csv \
   --metadata-mode merge -o json
 ```

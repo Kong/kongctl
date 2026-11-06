@@ -64,15 +64,16 @@ type IdentityOrgChartImportError struct {
 // Public summaries contain counts and value-free notices. The API can carry employee
 // names/emails in arbitrary diagnostic fields and stays exclusively private.
 type IdentityOrgChartImportSummary struct {
-	DirectoryID  string                          `json:"directory_id" yaml:"directory_id"`
-	DryRun       bool                            `json:"dry_run" yaml:"dry_run"`
-	Status       string                          `json:"status" yaml:"status"`
-	Rows         int                             `json:"rows" yaml:"rows"`
-	Counts       IdentityOrgChartImportCounts    `json:"counts" yaml:"counts"`
-	WarningCount int                             `json:"warning_count" yaml:"warning_count"`
-	ErrorCount   int                             `json:"error_count" yaml:"error_count"`
-	Warnings     []IdentityOrgChartImportWarning `json:"warnings" yaml:"warnings"`
-	Errors       []IdentityOrgChartImportError   `json:"errors" yaml:"errors"`
+	ReportOutputFile string                          `json:"report_output_file" yaml:"report_output_file"`
+	DirectoryID      string                          `json:"directory_id" yaml:"directory_id"`
+	DryRun           bool                            `json:"dry_run" yaml:"dry_run"`
+	Status           string                          `json:"status" yaml:"status"`
+	Rows             int                             `json:"rows" yaml:"rows"`
+	Counts           IdentityOrgChartImportCounts    `json:"counts" yaml:"counts"`
+	WarningCount     int                             `json:"warning_count" yaml:"warning_count"`
+	ErrorCount       int                             `json:"error_count" yaml:"error_count"`
+	Warnings         []IdentityOrgChartImportWarning `json:"warnings" yaml:"warnings"`
+	Errors           []IdentityOrgChartImportError   `json:"errors" yaml:"errors"`
 }
 
 func publicIdentityImportRow(value *int64, rows int) *int64 {
@@ -181,7 +182,7 @@ func identityOrgChartImportFailureBody(err error) []byte {
 
 func ImportAndCaptureIdentityOrgChart(ctx context.Context, api IdentityOrgChartImportAPI,
 	directoryID string, contents []byte, dryRun bool, outputPath string,
-) (*IdentityOrgChartImportSummary, error) {
+) (summary *IdentityOrgChartImportSummary, resultErr error) {
 	if api == nil {
 		return nil, fmt.Errorf("org-chart import API is not configured")
 	}
@@ -197,11 +198,16 @@ func ImportAndCaptureIdentityOrgChart(ctx context.Context, api IdentityOrgChartI
 	metadata := secretoutput.Metadata{
 		DirectoryID: directoryID, DryRun: &dryRun, RequestSHA256: hex.EncodeToString(digest[:]),
 	}
-	output, err := secretoutput.ReserveReport(outputPath, metadata)
+	output, err := secretoutput.ReserveNextReport(outputPath, metadata)
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = output.Close() }()
+	defer func() {
+		_ = output.Close()
+		if resultErr != nil {
+			resultErr = fmt.Errorf("%w; report file: %s", resultErr, output.Path())
+		}
+	}()
 	response, err := api.ImportOrgChart(httpclient.WithoutRetries(ctx), directoryID, kkComps.ImportPrincipalsRequest{
 		File: kkComps.File{FileName: "org-chart.csv", Content: contents}, DryRun: &dryRun,
 	}, kkOps.WithRetries(retry.Config{Strategy: httpclient.RetryStrategyNone}))
@@ -242,8 +248,9 @@ func ImportAndCaptureIdentityOrgChart(ctx context.Context, api IdentityOrgChartI
 	if dryRun {
 		status = "validated"
 	}
-	summary := &IdentityOrgChartImportSummary{
-		DirectoryID: directoryID, DryRun: dryRun, Rows: rows,
+	summary = &IdentityOrgChartImportSummary{
+		ReportOutputFile: output.Path(),
+		DirectoryID:      directoryID, DryRun: dryRun, Rows: rows,
 		Counts: *report.Counts, Status: status, WarningCount: len(report.Warnings), ErrorCount: len(report.Errors),
 	}
 	summary.Warnings, summary.Errors = publicIdentityImportDiagnostics(report.Warnings, report.Errors, rows)

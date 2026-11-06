@@ -22,9 +22,9 @@ func newPasswordMutationCommand(verb verbs.VerbValue,
 	command := &cobra.Command{
 		Use: "principal-basic-auth-password <password-id>", Aliases: []string{"principal-basic-auth-passwords"},
 		Short: fmt.Sprintf("%s a basic-auth password", verb), PreRunE: parentPreRun,
-		Long: "Manage password material and expiration separately from the username record. " +
-			"Choose the parent with --basic-auth-id or exact --username. " +
-			"Values never appear in normal output. These explicit operations preserve management metadata.",
+		Long: `Manage password material and expiration separately from the username record.
+Choose the parent with --basic-auth-id or exact --username. Values never appear
+in normal output. These explicit operations preserve management metadata.`,
 	}
 	common.AddIdentityDirectoryFlags(command)
 	command.Flags().String("principal-id", "", "Parent principal UUID")
@@ -47,18 +47,19 @@ func newPasswordMutationCommand(verb verbs.VerbValue,
 	switch verb {
 	case verbs.Create:
 		command.Use = "principal-basic-auth-password"
-		command.Short = "Create a password and capture generated or imported material in a new private file"
-		command.Long += " Omit secret source flags to generate a password. " +
-			"The API permits two total password records; expired records still occupy a slot."
-		command.Flags().String("secret-output-file", "", "New private capture file (0600; never overwritten)")
+		command.Short = "Create a password and save generated or imported material in a private file"
+		command.Long += "\n\n" + `Omit secret source flags to generate a password. The API permits two total
+password records; expired records still occupy a slot.`
+		command.Flags().String("secret-output-file", "", "New private capture file (never overwritten)")
 		if err := command.MarkFlagRequired("secret-output-file"); err != nil {
 			return nil, err
 		}
 	case verbs.Patch:
 		command.Short = "Change password expiration or replace explicitly supplied password material"
-		command.Long += " Expiration-only changes use PATCH. Supplying --secret-env or --secret-file " +
-			"replaces material in place through PUT, preserving omitted expiration and existing management metadata. " +
-			"For rotation with a second record, create another password before explicitly retiring the old one."
+		command.Long += "\n\n" + `Expiration-only changes use PATCH. Supplying --secret-env or --secret-file
+replaces material in place through PUT, preserving omitted expiration and
+existing management metadata. For rotation with a second record, create another
+password before explicitly retiring the old one.`
 	case verbs.Delete:
 		command.Use = "principal-basic-auth-password [password-id]"
 		command.Flags().Bool("all", false, "Delete every password under the explicitly selected username record")

@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"time"
 	"unicode/utf8"
-
-	"github.com/kong/kongctl/internal/maturity"
 )
 
 const (
@@ -265,7 +263,6 @@ func init() {
 		WithExternalUnsupportedReason(
 			"generated API keys require managed-parent authority; imported key adoption is unavailable",
 		),
-		WithMaturity(maturity.Metadata{Level: maturity.LevelTechPreview}),
 		withChildLoad(ResourceTypeIdentityPrincipalAPIKey, ensurePrincipalAPIKeySlice,
 			childLoad[IdentityPrincipalAPIKeyResource, IdentityPrincipalResource]{
 				family:       ResourceTypeIdentityDirectory,
@@ -312,7 +309,6 @@ func init() {
 		WithExternalUnsupportedReason(
 			"generated API keys require managed-parent authority; imported key adoption is unavailable",
 		),
-		WithMaturity(maturity.Metadata{Level: maturity.LevelTechPreview}),
 		withChildLoad(ResourceTypeIdentityGroupAPIKey, ensureGroupAPIKeySlice,
 			childLoad[IdentityGroupAPIKeyResource, IdentityGroupResource]{
 				family:       ResourceTypeIdentityDirectory,

@@ -5,6 +5,7 @@ log-level: trace
 test:
   cleanupResources:
     - resource: identity_directory
+      useDefaultDirectory: true
       nameVar: directory_name
       nameEnv: KONGCTL_E2E_VAULT_CREDENTIAL_DIRECTORY_NAME
       requireEmptyVaultDependencies: true
@@ -16,6 +17,7 @@ steps:
       - name: create-directory
         create:
           resource: identity_directory
+          useDefaultDirectory: true
           payload:
             inline:
               name: '{{ .vars.directory_name }}'
@@ -25,6 +27,7 @@ steps:
             name: directory_id
             responsePath: id
       - name: verify-credential-inspection
+        timeout: 5m
         exec:
           - python3
           - '{{ .scenario_dir }}/inspection.py'

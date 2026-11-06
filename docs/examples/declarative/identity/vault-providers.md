@@ -127,9 +127,9 @@ Templates are a built-in, read-only catalog. They are not desired-state
 resources and require no directory selector or enabled Vault:
 
 ```sh
-kongctl get identity credential-provider-templates -o text
-kongctl get identity credential-provider-template github -o yaml
-kongctl list identity provider-templates --page-size 1 -o json
+kongctl get identity vault provider templates -o text
+kongctl get identity vault provider template github -o yaml
+kongctl list identity vault provider templates --page-size 1 -o json
 ```
 
 The catalog exposes the template name, display name, secret type, supported

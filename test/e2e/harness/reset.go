@@ -556,6 +556,26 @@ func executeReset(baseURL, token string, policy HTTPRetryPolicy) (result resetRe
 		resetEndpointResult("v3", "e2e-user-assignments", tot, del, metrics, err),
 	)
 
+	resetIdentity := os.Getenv("KONGCTL_E2E_RESET_IDENTITY")
+	if resetIdentity == "" || truthyEnv(resetIdentity) {
+		// Retire Identity links before resetting the gateways they can reference.
+		identitySession := newResetHTTPSession(policy.RequestTimeout, transportOptions)
+		defer identitySession.Close()
+		identityStarted := time.Now()
+		identityCounts := &identityResetCounts{}
+		_, identityErr := resetIdentityDirectories(ctx,
+			identityResetClient{session: identitySession, baseURL: baseURL, token: token, counts: identityCounts}, false)
+		identitySession.metrics.Duration = time.Since(identityStarted)
+		if errors.Is(identityErr, errIdentityResetUnavailable) {
+			identityErr = nil
+		}
+		result.Details = append(result.Details,
+			resetEndpointResult("v2", "identity-directories", identityCounts.listed, identityCounts.deleted,
+				identitySession.Metrics(), identityErr))
+		if firstErr == nil {
+			firstErr = identityErr
+		}
+	}
 	details, err := resetResources(ctx, baseURL, globalBaseURL, token, resetSequence, policy, transportOptions)
 	result.Details = append(result.Details, details...)
 	if firstErr == nil {

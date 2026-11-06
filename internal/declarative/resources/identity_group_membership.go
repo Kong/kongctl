@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/kong/kongctl/internal/declarative/tags"
-	"github.com/kong/kongctl/internal/maturity"
 	"github.com/kong/kongctl/internal/util"
 )
 
@@ -53,7 +52,6 @@ func init() {
 		WithExternalUnsupportedReason(
 			"memberships inherit managed ordinary-group ownership; external groups are read-only",
 		),
-		WithMaturity(maturity.Metadata{Level: maturity.LevelTechPreview}),
 		withChildLoad(ResourceTypeIdentityGroupMembership, ensureIdentityGroupMembershipSlice,
 			childLoad[IdentityGroupMembershipResource, IdentityGroupResource]{
 				family: ResourceTypeIdentityDirectory, extractOrder: 30, validateOrder: 40, validatePhase: 246,

@@ -26,9 +26,10 @@ func newIdentityAPIKeyCommand(verb verbs.VerbValue, group bool,
 	command := &cobra.Command{
 		Use: parent + "-api-key [key-id]", Aliases: []string{parent + "-api-keys", parent + "_api_keys"},
 		Short: fmt.Sprintf("%s %s API-key metadata", verb, parent), PreRunE: parentPreRun,
-		Long: "Select a parent UUID; the directory defaults to default. Names are not unique key identifiers. " +
-			"Material is captured only at creation in a new private file. Rotation creates a new key. " +
-			"Explicit mutations preserve management metadata and do not stamp ownership.",
+		Long: `Select a parent UUID; the directory defaults to default. Names are not unique
+key identifiers. Material is captured only at creation in a new private file.
+Rotation creates a new key. Explicit mutations preserve management metadata and
+do not stamp ownership.`,
 	}
 	common.AddIdentityDirectoryFlags(command)
 	command.Flags().String(parent+"-id", "", "Parent "+parent+" UUID")
@@ -48,11 +49,12 @@ func newIdentityAPIKeyCommand(verb verbs.VerbValue, group bool,
 		command.Flags().String("secret-env", "", "Environment variable containing imported key material")
 		command.Flags().String("secret-file", "", "File containing imported key material")
 		command.MarkFlagsMutuallyExclusive("secret-env", "secret-file")
-		command.Flags().String("secret-output-file", "", "New private capture file (0600; never overwritten)")
+		command.Flags().String("secret-output-file", "", "New private capture file (never overwritten)")
 		if err := command.MarkFlagRequired("secret-output-file"); err != nil {
 			return nil, err
 		}
-		command.Long += " Omit secret source flags to generate a key. Imported group keys cannot set names."
+		command.Long += "\n\n" + `Omit secret source flags to generate a key. Imported group keys cannot set
+names.`
 	}
 	command.Args = func(cmd *cobra.Command, args []string) error {
 		if _, err := groupParentSelector(cmd, "directory"); err != nil {

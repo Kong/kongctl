@@ -4,13 +4,17 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"strings"
 	"text/tabwriter"
+	"time"
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
+	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
 )
@@ -24,11 +28,51 @@ func newOrgChartImportCommand(verb verbs.VerbValue, addParentFlags func(verbs.Ve
 	command := &cobra.Command{
 		Use: "org-chart", Aliases: []string{"org-charts"},
 		Short: "Upload a complete organization-chart CSV and privately capture its report",
-		Long: "Validate or execute the native full-file organization-chart import. " +
-			"Choose --dry-run to preview, or --execute to apply the complete file. " +
-			"Execution can adopt existing users, change team relationships and deactivate absent imported users. " +
-			"A required new 0600 report file preserves detailed diagnostics; normal output omits employee values. " +
-			"Imports follow the API's matching/provisioning rules and do not stamp KongCTL ownership metadata.",
+		Long: normalizers.LongDesc(`Import users and manager relationships from an organization-chart CSV file.
+
+Required flags: --file, --report-output-dir, and exactly one of --dry-run
+or --execute. Start with --dry-run to preview the import.
+
+CSV columns (one row per user, with a header row):
+
+  COLUMN               REQUIRED  DESCRIPTION
+  external_id          Yes       Unique person ID from your HR system;
+                                 matches the user across imports.
+  email                Yes       User's email address.
+  given_name           Yes       User's first name.
+  family_name          Yes       User's last name.
+  manager_external_id  Yes       Manager's external_id; builds the teams.
+  cost_center          No        User's cost center.
+
+The manager_external_id column is required, but leave its value blank for
+the one user at the top of the organization. Column names are matched
+without regard to case; extra columns are ignored.
+
+Execution applies the complete roster. It can adopt existing users, change
+team relationships and deactivate previously imported users absent from
+the file. Imports follow the API's matching and provisioning rules; they
+do not add KongCTL ownership metadata.
+
+Each run saves a private JSON report in --report-output-dir. The directory
+is created if needed. Filenames include preview or execute and a timestamp.
+Existing reports are preserved; output includes the actual report path.
+Normal output shows counts and diagnostic categories, omitting employee
+values. Reuse the same directory for preview and execution.
+
+CSV format and import behavior:
+https://developer.konghq.com/ai-cost-management/org-chart/`),
+		Example: normalizers.Examples(`
+  # Preview the complete roster without changing users or teams
+  kongctl import id org-chart \
+    --file org-chart.csv \
+    --dry-run \
+    --report-output-dir ./import-reports
+
+  # Apply the roster after reviewing the preview report
+  kongctl import id org-chart \
+    --file org-chart.csv \
+    --execute \
+    --report-output-dir ./import-reports`),
 		PreRunE: parentPreRun,
 	}
 	if verb == verbs.Create {
@@ -36,9 +80,10 @@ func newOrgChartImportCommand(verb verbs.VerbValue, addParentFlags func(verbs.Ve
 		command.Aliases = []string{"org-chart-imports"}
 	}
 	common.AddIdentityDirectoryFlags(command)
-	command.Flags().StringP("file", "f", "", "Complete canonical UTF-8 CSV file")
-	command.Flags().String("report-output-file", "", "New private report file (0600; never overwritten)")
-	for _, flag := range []string{"file", "report-output-file"} {
+	command.Flags().StringP("file", "f", "", "CSV file containing all users and their managers (required)")
+	command.Flags().String("report-output-dir", "",
+		"Directory for uniquely named private JSON reports (required; created if needed)")
+	for _, flag := range []string{"file", "report-output-dir"} {
 		if err := command.MarkFlagRequired(flag); err != nil {
 			return nil, err
 		}
@@ -56,14 +101,20 @@ func newOrgChartImportCommand(verb verbs.VerbValue, addParentFlags func(verbs.Ve
 		}
 		dryRun, _ := cmd.Flags().GetBool("dry-run")
 		execute, _ := cmd.Flags().GetBool("execute")
-		if dryRun == execute {
-			return fmt.Errorf("choose exactly one of --dry-run or --execute")
+		var missing []string
+		file, _ := cmd.Flags().GetString("file")
+		if file == "" {
+			missing = append(missing, "  --file <path>")
 		}
-		for _, flag := range []string{"file", "report-output-file"} {
-			value, _ := cmd.Flags().GetString(flag)
-			if value == "" {
-				return fmt.Errorf("%s must not be empty", flag)
-			}
+		reportDir, _ := cmd.Flags().GetString("report-output-dir")
+		if reportDir == "" {
+			missing = append(missing, "  --report-output-dir <directory>")
+		}
+		if dryRun == execute {
+			missing = append(missing, "  --dry-run or --execute (choose exactly one)")
+		}
+		if len(missing) != 0 {
+			return fmt.Errorf("required flags (missing or invalid):\n%s", strings.Join(missing, "\n"))
 		}
 		return nil
 	}
@@ -114,7 +165,10 @@ func runOrgChartImport(command *cobra.Command, args []string) error {
 		return err
 	}
 	dryRun, _ := command.Flags().GetBool("dry-run")
-	output, _ := command.Flags().GetString("report-output-file")
+	output, err := orgChartReportPath(command, dryRun)
+	if err != nil {
+		return err
+	}
 	summary, importErr := helpers.ImportAndCaptureIdentityOrgChart(
 		ctx, sdk.GetIdentityOrgChartImportAPI(), directory, contents, dryRun, output,
 	)
@@ -136,8 +190,27 @@ func runOrgChartImport(command *cobra.Command, args []string) error {
 	return importErr
 }
 
+func orgChartReportPath(command *cobra.Command, dryRun bool) (string, error) {
+	directory, _ := command.Flags().GetString("report-output-dir")
+	if directory == "" {
+		return "", fmt.Errorf("report-output-dir must not be empty")
+	}
+	if err := os.MkdirAll(directory, 0o700); err != nil {
+		return "", fmt.Errorf("create report output directory: %w", err)
+	}
+	mode := "execute"
+	if dryRun {
+		mode = "preview"
+	}
+	name := "org-chart-" + mode + "-" + time.Now().UTC().Format("20060102T150405.000000000Z") + ".json"
+	return filepath.Join(directory, name), nil
+}
+
 func printOrgChartImportSummary(out io.Writer, value *helpers.IdentityOrgChartImportSummary) error {
 	w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
+	if _, err := fmt.Fprintf(w, "report_output_file\t%s\n", value.ReportOutputFile); err != nil {
+		return err
+	}
 	_, err := fmt.Fprintf(w, "status\t%s\ndry_run\t%t\nrows\t%d\n", value.Status, value.DryRun, value.Rows)
 	if err != nil {
 		return err

@@ -23,8 +23,8 @@ func NewInspectCmd() (*cobra.Command, error) {
 	cmd := &cobra.Command{
 		Use:   Verb.String(),
 		Short: "Inspect computed configuration and runtime state",
-		Long: "Inspect resource relationships, computed configuration, and runtime state. " +
-			"Supports Kong Mesh and local Kong Identity principal CSV validation.",
+		Long: `Inspect resource relationships, computed configuration, and runtime state.
+Supports Kong Mesh and local Kong Identity principal CSV validation.`,
 		Example:           fmt.Sprintf("  %s inspect mesh dataplanes", meta.CLIName),
 		PersistentPreRunE: verbs.KonnectFirstPreRunE(Verb, konnectCmd),
 		RunE:              cmdpkg.RequireSubcommand,

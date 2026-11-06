@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/kong/kongctl/internal/declarative/tags"
-	"github.com/kong/kongctl/internal/maturity"
 	"github.com/kong/kongctl/internal/util"
 )
 
@@ -214,7 +213,6 @@ func init() {
 		}),
 		WithChildSyncScope(ResourceTypeIdentityAuthServer), withReferenceValidation(110),
 		WithExternalUnsupportedReason("scopes inherit managed auth-server ownership; use UUIDs for read-only scope links"),
-		WithMaturity(maturity.Metadata{Level: maturity.LevelTechPreview}),
 		withChildLoad(ResourceTypeIdentityAuthServerScope, ensureIdentityScopeSlice,
 			childLoad[IdentityAuthServerScopeResource, IdentityAuthServerResource]{
 				family: ResourceTypeIdentityAuthServer, extractOrder: 10, validateOrder: 10, validatePhase: 250,
@@ -237,7 +235,6 @@ func init() {
 		}),
 		WithChildSyncScope(ResourceTypeIdentityAuthServer), withReferenceValidation(120),
 		WithExternalUnsupportedReason("claims inherit managed auth-server ownership and reject ambiguous names"),
-		WithMaturity(maturity.Metadata{Level: maturity.LevelTechPreview}),
 		withChildLoad(ResourceTypeIdentityAuthServerClaim, ensureIdentityClaimSlice,
 			childLoad[IdentityAuthServerClaimResource, IdentityAuthServerResource]{
 				family: ResourceTypeIdentityAuthServer, extractOrder: 20, validateOrder: 20, validatePhase: 260,

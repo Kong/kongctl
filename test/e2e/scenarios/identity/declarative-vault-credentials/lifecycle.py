@@ -226,22 +226,23 @@ def main():
         execute("late-credential-blocks-parent", deletion, failure="attached")
         assert any(c["id"] == late["id"] for c in credentials(provider))
         request("DELETE", root + "/vault/providers/" + provider + "/credentials/" + late["id"], expected=204)
-        execute("delete-with-retirement", deletion)
-        request("GET", root, expected=404)
-        deleted = True
-        bootstrap_source = manifest("bootstrap", values)
-        bootstrap = plan("bootstrap-plan", bootstrap_source)
-        assert bootstrap["summary"]["total_changes"] == 6
-        execute("bootstrap", bootstrap)
-        directories = request("GET", "/v2/directories")["data"]
-        assert len(directories) == 1 and directories[0]["name"] == name
-        directory = directories[0]["id"]
-        root = "/v2/directories/" + directory
-        deleted = False
-        assert len(credentials(collection("vault/providers")[0]["id"])) == 3
-        execute("bootstrap-delete", plan("bootstrap-delete-plan", bootstrap_source, mode="delete"))
-        request("GET", root, expected=404)
-        deleted = True
+        if name != "default":
+            execute("delete-with-retirement", deletion)
+            request("GET", root, expected=404)
+            deleted = True
+            bootstrap_source = manifest("bootstrap", values)
+            bootstrap = plan("bootstrap-plan", bootstrap_source)
+            assert bootstrap["summary"]["total_changes"] == 6
+            execute("bootstrap", bootstrap)
+            directories = request("GET", "/v2/directories")["data"]
+            assert len(directories) == 1 and directories[0]["name"] == name
+            directory = directories[0]["id"]
+            root = "/v2/directories/" + directory
+            deleted = False
+            assert len(credentials(collection("vault/providers")[0]["id"])) == 3
+            execute("bootstrap-delete", plan("bootstrap-delete-plan", bootstrap_source, mode="delete"))
+            request("GET", root, expected=404)
+            deleted = True
     except Exception:
         raise RuntimeError("Static credential lifecycle failed during " + phase + "; private responses withheld") from None
     finally:
@@ -270,7 +271,7 @@ def main():
     print(json.dumps({"static_shared_slots": 3, "deferred_sources_and_explicit_replacement": True,
         "inherited_parent_authority": True, "saved_routing_and_key_guards": True,
         "scoped_sync_and_retirement": True, "dump_without_material": True,
-        "bootstrap_dependencies": True, "fixtures_removed": True, "private_workspace_removed": True}))
+        "bootstrap_dependencies": name != "default", "fixtures_removed": True, "private_workspace_removed": True}))
 
 
 if __name__ == "__main__":

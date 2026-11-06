@@ -23,17 +23,17 @@ func newGroupReadCommand(verb verbs.VerbValue, memberships bool,
 	command := &cobra.Command{
 		Use: "group [id|name]", Aliases: []string{"groups"}, PreRunE: parentPreRun,
 		Short: "List or get Kong Identity groups in a directory",
-		Long: "Inspect ordinary groups and organization-chart teams. " +
-			"Select one by UUID or exact name within the selected directory.",
+		Long: `Inspect ordinary groups and organization-chart teams. Select one by UUID or
+exact name within the selected directory.`,
 	}
 	common.AddIdentityDirectoryFlags(command)
 	if memberships {
 		command.Use = "group-membership [membership-id]"
 		command.Aliases = []string{"group-memberships", "group_memberships"}
 		command.Short = "List or get direct membership entries in an explicit group"
-		command.Long = "Inspect direct membership entries under a selected group. " +
-			"The optional UUID selects the membership entry, not its member principal or group. " +
-			"This collection does not expand transitive membership."
+		command.Long = `Inspect direct membership entries under a selected group. The optional UUID
+selects the membership entry, not its member principal or group. This collection
+does not expand transitive membership.`
 		command.Flags().String("group-id", "", "Parent group UUID")
 		command.Flags().String("group-name", "", "Exact parent group name within the selected directory")
 		command.MarkFlagsOneRequired("group-id", "group-name")

@@ -21,8 +21,9 @@ func newPrincipalIdentityCommand(verb verbs.VerbValue, addParentFlags func(verbs
 	command := &cobra.Command{
 		Use: "principal-identity [identity-id]", Aliases: []string{"principal-identities", "principal_identities"},
 		Short: "List or get external identities under an explicit directory principal", PreRunE: parentPreRun,
-		Long: "Inspect OIDC, OAuth client, control-plane consumer and custom identity associations. " +
-			"Select a principal UUID; display names are not unique. The directory defaults to default.",
+		Long: `Inspect OIDC, OAuth client, control-plane consumer and custom identity
+associations. Select a principal UUID; display names are not unique. The
+directory defaults to default.`,
 	}
 	common.AddIdentityDirectoryFlags(command)
 	command.Flags().String("principal-id", "", "Parent principal UUID")

@@ -5,10 +5,11 @@ log-level: trace
 test:
   cleanupResources:
     - resource: identity_directory
+      useDefaultDirectory: true
       nameVar: directory_name
       nameEnv: KONGCTL_E2E_VAULT_KEYS_DIRECTORY_NAME
       requireEmptyVaultDependencies: true
-  info: Requires Token Vault availability and capacity for a temporary directory. Verify RFC 7638 matching, public inspection with real pagination, explicit parent adoption, declarative create/rename/material rotation, omitted and empty scoped sync, dump/reload, saved authority checks, five-key quota and ordered guarded directory deletion. Fixtures contain public keys only; no runtime encryption or private-key retention claim is made.
+  info: Requires Token Vault availability and the shared default directory. Verify RFC 7638 matching, public inspection with real pagination, explicit parent adoption, declarative create/rename/material rotation, omitted and empty scoped sync, dump/reload, saved authority checks, five-key quota and ordered guarded directory deletion. Fixtures contain public keys only; no runtime encryption or private-key retention claim is made.
 steps:
   - name: 001-vault-key-lifecycle
     skipInputs: true
@@ -16,6 +17,7 @@ steps:
       - name: create-directory
         create:
           resource: identity_directory
+          useDefaultDirectory: true
           payload:
             inline:
               name: '{{ .vars.directory_name }}'
@@ -25,6 +27,7 @@ steps:
             name: directory_id
             responsePath: id
       - name: verify-vault-key-lifecycle
+        timeout: 5m
         exec:
           - python3
           - '{{ .scenario_dir }}/lifecycle.py'

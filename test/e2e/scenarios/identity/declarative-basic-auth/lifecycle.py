@@ -140,7 +140,7 @@ def main():
         assert initial_plan["summary"]["total_changes"] == 3
         changes = {v["resource_type"]: v for v in initial_plan["changes"]}
         child = changes["identity_basic_auth"]
-        assert len(child["depends_on"]) == 2 and len(child["fields"]["managed_by"]) == 4
+        assert len(child["depends_on"]) == (1 if name == "default" else 2) and len(child["fields"]["managed_by"]) == 4
         assert child["namespace"] == namespace and "protecting_parent" not in child
         assert saved("create-apply", "apply", "create")["summary"]["applied"] == 3
         directory = invoke("directory", ["get", "identity", "directory", name])["id"]

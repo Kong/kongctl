@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/spf13/cobra"
@@ -214,6 +215,9 @@ func runNestedIdentityCommand(t *testing.T, verb verbs.VerbValue, path, flags []
 	called := false
 	leaf.RunE = func(cmd *cobra.Command, _ []string) error {
 		called = true
+		if cmd.Flags().Lookup(common.IdentityDirectoryNameFlagName) == nil {
+			return nil
+		}
 		id, name, err := common.IdentityDirectorySelector(cmd)
 		require.NoError(t, err)
 		require.Empty(t, id)
@@ -224,6 +228,82 @@ func runNestedIdentityCommand(t *testing.T, verb verbs.VerbValue, path, flags []
 	require.NoError(t, root.Execute())
 	require.True(t, called)
 	require.Equal(t, 1, preRuns)
+}
+
+func TestIdentityHelpAdvertisesOnlyResourceParents(t *testing.T) {
+	for _, verb := range []verbs.VerbValue{verbs.Get, verbs.List} {
+		root, err := NewIdentityCmd(verb, nil, nil)
+		require.NoError(t, err)
+		require.Equal(t, []string{"auth-server", "directory", "group", "principal", "trusted-idp", "vault"},
+			cmdpkg.AvailableSubcommands(root))
+		for _, legacy := range []string{
+			"auth-server-client", "group-membership", "principal-identity",
+			"trusted-idp-principals", "vault-provider", "credential-provider-template",
+		} {
+			command, remaining, err := root.Find([]string{legacy})
+			require.NoError(t, err)
+			require.Empty(t, remaining)
+			require.True(t, command.Hidden, legacy)
+			require.NotNil(t, command.RunE, legacy)
+		}
+	}
+}
+
+func TestNestedAuthServerAndCatalogReads(t *testing.T) {
+	for _, verb := range []verbs.VerbValue{verbs.Get, verbs.List} {
+		for _, tc := range []struct{ path, flags []string }{
+			{[]string{"auth-server", "scopes"}, []string{"--auth-server-name", "issuer"}},
+			{[]string{"auth-servers", "claims"}, []string{"--auth-server-name", "issuer"}},
+			{[]string{"auth-server", "clients"}, []string{"--auth-server-name", "issuer"}},
+			{
+				[]string{"auth-server", "client", "secrets"},
+				[]string{"--auth-server-name", "issuer", "--client-name", "worker"},
+			},
+			{[]string{"vault", "providers", "templates"}, nil},
+			{
+				[]string{"principal", "vault", "credentials"},
+				[]string{"--principal-id", "731559d3-39bd-48c7-b33c-eb192847eb20"},
+			},
+		} {
+			t.Run(string(verb)+"/"+strings.Join(tc.path, "/"), func(t *testing.T) {
+				runNestedIdentityCommand(t, verb, tc.path, tc.flags)
+			})
+		}
+	}
+}
+
+func TestNestedAuthServerSecretMutations(t *testing.T) {
+	const id = "731559d3-39bd-48c7-b33c-eb192847eb20"
+	for _, verb := range []verbs.VerbValue{verbs.Create, verbs.Patch, verbs.Delete} {
+		t.Run(string(verb), func(t *testing.T) {
+			flags := []string{"--auth-server-name", "issuer", "--client-name", "worker"}
+			if verb == verbs.Create {
+				flags = append(flags, "--secret-output-file", "private-capture.json")
+			} else {
+				flags = append(flags, id)
+				if verb == verbs.Patch {
+					flags = append(flags, "--enabled=false")
+				}
+			}
+			runNestedIdentityCommand(t, verb, []string{"auth-server", "clients", "secret"}, flags)
+			root, err := NewIdentityCmd(verb, nil, nil)
+			require.NoError(t, err)
+			command, remaining, err := root.Find([]string{"auth-server", "client", "secret"})
+			require.NoError(t, err)
+			require.Empty(t, remaining)
+			require.Error(t, command.ValidateFlagGroups())
+			if verb != verbs.Delete {
+				require.Error(t, command.ValidateRequiredFlags())
+			}
+		})
+	}
+}
+
+func TestNestedIdentityAdoptionAndInspection(t *testing.T) {
+	runNestedIdentityCommand(t, verbs.Adopt, []string{"auth-server", "client"},
+		[]string{"--auth-server-name", "issuer", "--client-name", "worker"})
+	runNestedIdentityCommand(t, verbs.Inspect, []string{"principal", "csv"},
+		[]string{"--file", "principals.csv", "--metadata-mode", "merge"})
 }
 
 func TestNestedPrincipalCommandsPreserveValidationAndFlatForms(t *testing.T) {

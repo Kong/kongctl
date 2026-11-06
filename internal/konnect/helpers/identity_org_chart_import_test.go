@@ -253,12 +253,15 @@ func TestOrgChartImportLocalPreflightRejectsInputWithoutUpload(t *testing.T) {
 	}
 	f := &orgImportFixture{t: t, path: filepath.Join(t.TempDir(), "report.json")}
 	require.NoError(t, os.WriteFile(f.path, []byte("preserve-existing"), 0o600))
-	_, err := helpers.ImportAndCaptureIdentityOrgChart(
-		t.Context(), f.api(), orgImportDirectory, []byte(orgImportCSV), true, f.path,
+	f.path = filepath.Join(filepath.Dir(f.path), "report.1.json")
+	summary, err := helpers.ImportAndCaptureIdentityOrgChart(
+		t.Context(), f.api(), orgImportDirectory, []byte(orgImportCSV), false,
+		filepath.Join(filepath.Dir(f.path), "report.json"),
 	)
-	require.ErrorContains(t, err, "reserve report output")
-	require.Zero(t, f.calls)
-	data, err := os.ReadFile(f.path)
+	require.NoError(t, err)
+	require.Equal(t, f.path, summary.ReportOutputFile)
+	require.Equal(t, 1, f.calls)
+	data, err := os.ReadFile(filepath.Join(filepath.Dir(f.path), "report.json"))
 	require.NoError(t, err)
 	require.Equal(t, "preserve-existing", string(data))
 	var empty *helpers.KonnectSDK

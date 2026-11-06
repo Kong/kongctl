@@ -29,8 +29,7 @@ def main():
             "labels": {"e2e-fixture": "REF:people#id"}, "metadata": metadata,
         }
         directory = {
-            "ref": "people", "name": sys.argv[3],
-            "allow_all_control_planes": True, "vault": {"enabled": False},
+            "ref": "people", "_external": {"selector": {"matchFields": {"name": sys.argv[3]}}},
             "principals": [principal],
         }
         value = {

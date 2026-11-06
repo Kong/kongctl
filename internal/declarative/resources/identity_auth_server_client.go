@@ -6,7 +6,6 @@ import (
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/tags"
-	"github.com/kong/kongctl/internal/maturity"
 	"github.com/kong/kongctl/internal/util"
 )
 
@@ -261,7 +260,6 @@ func init() {
 		WithExternalUnsupportedReason(
 			"use an external auth-server parent and explicitly adopt the client before managing it",
 		),
-		WithMaturity(maturity.Metadata{Level: maturity.LevelTechPreview}),
 		withChildLoad(ResourceTypeIdentityAuthServerClient, ensureIdentityClientSlice,
 			childLoad[IdentityAuthServerClientResource, IdentityAuthServerResource]{
 				family: ResourceTypeIdentityAuthServer, extractOrder: 30, validateOrder: 30, validatePhase: 270,

@@ -22,10 +22,10 @@ func newVaultKeyReadCommand(verb verbs.VerbValue,
 	command := &cobra.Command{
 		Use: "vault-key [id]", Aliases: []string{"vault-keys", "vault_keys"},
 		Short: "List or get directory Token Vault public encryption keys",
-		Long: "Inspect an enabled directory Token Vault's public encryption keys. " +
-			"Select one by UUID or exact --kid fingerprint; names are not unique. " +
-			"These keys encrypt Vault data and are separate from principal/group API-key credentials. " +
-			"JSON and YAML output include public key material; no private key is returned.",
+		Long: `Inspect an enabled directory Token Vault's public encryption keys. Select one by
+UUID or exact --kid fingerprint; names are not unique. These keys encrypt Vault
+data and are separate from principal/group API-key credentials. JSON and YAML
+output include public key material; no private key is returned.`,
 		PreRunE: parentPreRun,
 	}
 	common.AddIdentityDirectoryFlags(command)

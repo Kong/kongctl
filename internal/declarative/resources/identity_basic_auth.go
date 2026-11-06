@@ -3,8 +3,6 @@ package resources
 import (
 	"fmt"
 	"unicode/utf8"
-
-	"github.com/kong/kongctl/internal/maturity"
 )
 
 // Username records have a unique directory-wide moniker; refs remain local.
@@ -43,9 +41,6 @@ func init() {
 		WithManagedBy(ManagedByPolicy{MaxEntries: 5}),
 		WithChildSyncScope(ResourceTypeIdentityPrincipal),
 		withReferenceValidation(104),
-		WithMaturity(
-			maturity.Metadata{Level: maturity.LevelTechPreview, Message: "Requires the Kong Identity SDK preview."},
-		),
 		withChildLoad(ResourceTypeIdentityBasicAuth, ensureIdentityBasicAuthSlice,
 			childLoad[IdentityBasicAuthResource, IdentityPrincipalResource]{
 				family: ResourceTypeIdentityDirectory, extractOrder: 40, validateOrder: 50, validatePhase: 247,

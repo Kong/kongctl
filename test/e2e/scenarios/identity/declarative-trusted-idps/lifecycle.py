@@ -114,6 +114,8 @@ def main():
         assert request("PUT", root, body)["managed_by"] == body["managed_by"]
 
     def subject(issuer):
+        if name == "default":
+            assert request("GET", root)["id"] == directory
         return {"ref": "staff", "display_name": "Trust lifecycle subject", "type": "user", "active": False,
             "kongctl": {"namespace": principal_namespace}, "labels": {"trust-declarative-fixture": directory},
             "identities": [{"ref": "staff-oidc", "type": "oidc", "issuer": issuer,
@@ -242,28 +244,28 @@ def main():
         invoke("late-trust-blocks-parent", ["delete", "--plan", saved, "--auto-approve"], failure="attached Trusted IdPs")
         assert request("GET", root)["id"] == directory and len(collection()) == 1
         request("DELETE", root + "/trusted-idps/" + late["id"], expected=204)
-        invoke("delete-saved", ["delete", "--plan", saved, "--auto-approve"])
-        deleted = True
-        request("GET", root, expected=404)
-        invoke("delete-repeat", ["delete", "--plan", saved, "--auto-approve"])
-        # Exercise the common missing-default bootstrap with its actual name.
-        name = "default"
-        single = manifest("default-bootstrap", [empty])
-        assert plan("bootstrap-plan", single)["summary"]["by_action"] == {"CREATE": 2}
-        apply("bootstrap-default-and-trust", single)
-        fresh = invoke("bootstrap-directory", ["get", "identity", "directory", name])
-        directory, root, deleted = fresh["id"], "/v2/directories/" + fresh["id"], False
-        assert len(collection()) == 1 and plan("bootstrap-noop", single)["summary"]["total_changes"] == 0
-        apply("direct-delete", single, "delete")
-        deleted = True
-        request("GET", root, expected=404)
+        if name != "default":
+            invoke("delete-saved", ["delete", "--plan", saved, "--auto-approve"])
+            deleted = True
+            request("GET", root, expected=404)
+            invoke("delete-repeat", ["delete", "--plan", saved, "--auto-approve"])
+            # Exercise the common missing-default bootstrap with its actual name.
+            single = manifest("default-bootstrap", [empty])
+            assert plan("bootstrap-plan", single)["summary"]["by_action"] == {"CREATE": 2}
+            apply("bootstrap-default-and-trust", single)
+            fresh = invoke("bootstrap-directory", ["get", "identity", "directory", name])
+            directory, root, deleted = fresh["id"], "/v2/directories/" + fresh["id"], False
+            assert len(collection()) == 1 and plan("bootstrap-noop", single)["summary"]["total_changes"] == 0
+            apply("direct-delete", single, "delete")
+            deleted = True
+            request("GET", root, expected=404)
         for path in work.rglob("*"):
             if path.is_file():
                 assert not any(needle in path.read_bytes() for needle in needles)
         return {"trust_records": 3, "all_public_fields": True, "parent_adoption_and_protection": True,
             "fresh_put_hydration_and_clears": True, "issuer_replacement_ordered": True,
             "independent_detachments_ordered": True, "saved_association_and_parent_guards": True,
-            "scoped_sync_and_delete": True, "dump_reload": True, "bootstrap_default": True, "fixtures_removed": True}
+            "scoped_sync_and_delete": True, "dump_reload": True, "bootstrap_default": name != "default", "fixtures_removed": True}
     except Exception:
         raise RuntimeError("Trusted IdP phase failed: " + phase) from None
     finally:
@@ -286,7 +288,8 @@ def main():
                 request("DELETE", root + "/trusted-idps/" + value["id"], expected=204)
             assert collection() == [] and collection("principals") == [] and collection("groups") == []
             assert collection("vault/keys") == [] and collection("vault/providers") == []
-            request("DELETE", root + "?force=false", expected=204)
+            if name != "default":
+                request("DELETE", root + "?force=false", expected=204)
 
 
 if __name__ == "__main__":

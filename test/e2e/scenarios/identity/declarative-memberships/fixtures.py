@@ -55,17 +55,21 @@ def main():
         write("unprotected", manifest())
         delete = manifest(["alice", "worker"], True, True)
         delete["identity"]["directories"][0]["kongctl"]["protected"] = False
+        if name == "default":
+            parent = delete["identity"]["directories"][0]
+            parent.clear()
+            parent.update(manifest(["alice", "worker"], True)["identity"]["directories"][0])
         write("delete", delete)
-        unprotect_directory = copy.deepcopy(delete)
+        unprotect_directory = manifest(managed_directory=True)
+        unprotect_directory["identity"]["directories"][0]["kongctl"]["protected"] = False
         del unprotect_directory["identity"]["directories"][0]["groups"]
-        del unprotect_directory["identity"]["directories"][0]["principals"]
         write("unprotect-directory", unprotect_directory)
         group_only = manifest()
         write("group-only", group_only)
         principal_only = manifest(include_principals=True)
         del principal_only["identity"]["directories"][0]["groups"]
         write("principal-only", principal_only)
-        return {"prepared": True, "group_name": group_name}
+        return {"prepared": True, "group_name": group_name, "delete_changes": 6 if name == "default" else 7}
 
     if action == "verify-plan":
         plan = json.loads(Path(sys.argv[3]).read_text())

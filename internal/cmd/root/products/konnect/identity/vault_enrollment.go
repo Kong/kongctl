@@ -20,11 +20,12 @@ func newVaultCredentialMutationCommand(verb verbs.VerbValue, enrollment bool,
 	command := &cobra.Command{
 		Use:     "vault-provider-credential",
 		Aliases: []string{"vault-provider-credentials", "provider-credential", "provider-credentials"},
-		Short:   "Create a pending shared OAuth credential and privately capture its enrollment URL", PreRunE: parentPreRun,
-		Long: "Create a shared OAuth credential for an explicitly selected provider. " +
-			"The enrollment URL is a private capability saved only in a new 0600 capture file. " +
-			"Credential creation does not complete consent. Static credentials use declarative configuration. " +
-			"These explicit operations do not stamp management metadata or adopt user authorizations.",
+		Short:   "Create a pending shared OAuth credential and save its enrollment URL", PreRunE: parentPreRun,
+		Long: `Create a shared OAuth credential for an explicitly selected provider. The
+enrollment URL is a private capability saved only in a new private capture file.
+Credential creation does not complete consent. Static credentials use
+declarative configuration. These explicit operations do not stamp management
+metadata or adopt user authorizations.`,
 	}
 	if enrollment {
 		if verb != verbs.Create {
@@ -32,17 +33,18 @@ func newVaultCredentialMutationCommand(verb verbs.VerbValue, enrollment bool,
 		}
 		command.Use = "vault-provider-enrollment <credential-id>"
 		command.Aliases = []string{"vault-provider-enrollments", "provider-enrollment", "provider-enrollments"}
-		command.Short = "Issue an enrollment URL for an existing shared OAuth credential into a new private file"
-		command.Long = "Explicitly issue a new private enrollment URL for an existing shared OAuth credential. " +
-			"This invokes the API's capability-producing detail GET once. " +
-			"Normal credential get/list commands never issue enrollment URLs. " +
-			"Capture does not complete consent or prove that previous URLs remain valid."
+		command.Short = "Save an enrollment URL for an existing shared OAuth credential"
+		command.Long = `Explicitly issue a new private enrollment URL for an existing shared OAuth
+credential. This invokes the API's capability-producing detail GET once. Normal
+credential get/list commands never issue enrollment URLs. Capture does not
+complete consent or prove that previous URLs remain valid.`
 	} else if verb == verbs.Delete {
 		command.Use = "vault-provider-credential <credential-id>"
 		command.Short = "Delete an explicitly selected shared Vault credential record"
-		command.Long = "Delete one shared static or OAuth credential after proving its provider membership. " +
-			"User authorizations are not deleted through this command. No enrollment URL is issued. " +
-			"Remote record deletion does not prove upstream token invalidation."
+		command.Long = `Delete one shared static or OAuth credential after proving its provider
+membership. User authorizations are not deleted through this command. No
+enrollment URL is issued. Remote record deletion does not prove upstream token
+invalidation.`
 	} else if verb != verbs.Create {
 		return nil, fmt.Errorf("unsupported shared credential operation")
 	}
@@ -53,7 +55,7 @@ func newVaultCredentialMutationCommand(verb verbs.VerbValue, enrollment bool,
 	command.MarkFlagsMutuallyExclusive("provider-id", "provider-name")
 	if verb == verbs.Create {
 		command.Flags().
-			String("secret-output-file", "", "New private enrollment capture file (0600; never overwritten)")
+			String("secret-output-file", "", "New private enrollment capture file (never overwritten)")
 		if err := command.MarkFlagRequired("secret-output-file"); err != nil {
 			return nil, err
 		}

@@ -109,13 +109,13 @@ func TestImportOrgChartRoutesPreserveScopeIntentAndReport(t *testing.T) {
 			}
 			const csv = "external_id,email,given_name,family_name,manager_external_id\none,person@example.test,First,Last,\n"
 			source := filepath.Join(t.TempDir(), "roster.csv")
-			report := filepath.Join(t.TempDir(), "report.json")
+			report := filepath.Join(t.TempDir(), "reports")
 			require.NoError(t, os.WriteFile(source, []byte(csv), 0o600))
 			mode := "--execute"
 			if tc.dryRun {
 				mode = "--dry-run"
 			}
-			command.SetArgs(append(tc.path, "--file", source, "--report-output-file", report, mode,
+			command.SetArgs(append(tc.path, "--file", source, "--report-output-dir", report, mode,
 				"--base-url", "https://us.api.konghq.tech", "--region", "us", "--pat", "fixture"))
 			require.NoError(t, command.ExecuteContext(ctx))
 			require.Equal(t, 1, api.calls)
@@ -128,6 +128,13 @@ func TestImportOrgChartRoutesPreserveScopeIntentAndReport(t *testing.T) {
 			require.Equal(t, directory.ID, summary.DirectoryID)
 			require.Equal(t, 1, summary.Rows)
 			require.Zero(t, summary.ErrorCount)
+			require.Equal(t, report, filepath.Dir(summary.ReportOutputFile))
+			if tc.dryRun {
+				require.Contains(t, filepath.Base(summary.ReportOutputFile), "org-chart-preview-")
+			} else {
+				require.Contains(t, filepath.Base(summary.ReportOutputFile), "org-chart-execute-")
+			}
+			report = summary.ReportOutputFile
 			info, err := os.Stat(report)
 			require.NoError(t, err)
 			require.Equal(t, os.FileMode(0o600), info.Mode().Perm())

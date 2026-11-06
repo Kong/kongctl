@@ -6,6 +6,25 @@ file; see the [organization-chart guide](org-chart.md). This operation follows
 the API importer's provisioning rules and does not take declarative ownership.
 
 `identity` has the alias `id`: `kongctl get id groups` lists Identity groups.
+Commands follow the resource hierarchy, for example:
+
+```sh
+kongctl get id auth-server clients --auth-server-name my-issuer
+```
+
+```sh
+kongctl get id auth-server client secrets \
+  --auth-server-name my-issuer --client-name my-client
+```
+
+```sh
+kongctl get id vault provider templates
+```
+
+Flat child commands remain available for compatibility but are hidden from
+help. Parent selectors belong to the command that reads or changes the child;
+place them after the full resource path.
+
 Use `kongctl get id group memberships --group-name MyGroup` to inspect a
 group's direct memberships. The flat `group-memberships` form remains
 supported. Nesting describes the resource relationship; the parent group
@@ -91,7 +110,7 @@ kongctl get id principal basic-auths --principal-id PRINCIPAL_UUID
 kongctl get id principal basic-auth passwords \
   --principal-id PRINCIPAL_UUID --username example
 kongctl get id principal groups --principal-id PRINCIPAL_UUID
-kongctl get id principal vault-credentials --principal-id PRINCIPAL_UUID
+kongctl get id principal vault credentials --principal-id PRINCIPAL_UUID
 kongctl get id group api-keys --group-id GROUP_UUID
 ```
 
@@ -327,11 +346,11 @@ settings are outside this manifest's schema.
 Scope and claim inspection is available under an explicitly selected server:
 
 ```sh
-kongctl get identity auth-server-scopes --auth-server-name existing-issuer
-kongctl get identity auth-server-scope read:data \
+kongctl get identity auth-server scopes --auth-server-name existing-issuer
+kongctl get identity auth-server scope read:data \
   --auth-server-name existing-issuer -o yaml
-kongctl get identity auth-server-claims --auth-server-name existing-issuer
-kongctl get identity auth-server-claim <claim-id> \
+kongctl get identity auth-server claims --auth-server-name existing-issuer
+kongctl get identity auth-server claim <claim-id> \
   --auth-server-id <server-id> -o json
 ```
 

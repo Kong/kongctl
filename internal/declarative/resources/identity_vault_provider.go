@@ -5,7 +5,6 @@ import (
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/konnect/identityproviders"
-	"github.com/kong/kongctl/internal/maturity"
 )
 
 // IdentityVaultProviderResource inherits ownership from an explicitly managed
@@ -153,7 +152,6 @@ func init() {
 		WithExternalUnsupportedReason(
 			"Vault providers inherit explicit managed-directory ownership; external parents are read-only",
 		),
-		WithMaturity(maturity.Metadata{Level: maturity.LevelTechPreview}),
 		withChildLoad(ResourceTypeIdentityVaultProvider, ensureIdentityVaultProviderSlice,
 			childLoad[IdentityVaultProviderResource, IdentityDirectoryResource]{
 				family: ResourceTypeIdentityDirectory, extractOrder: 51, validateOrder: 61, validatePhase: 249,

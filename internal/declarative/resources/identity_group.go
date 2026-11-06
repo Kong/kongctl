@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"regexp"
 	"unicode/utf8"
-
-	"github.com/kong/kongctl/internal/maturity"
 )
 
 var identityGroupNamePattern = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$`)
@@ -61,9 +59,6 @@ func init() {
 		WithManagedBy(ManagedByPolicy{MaxEntries: 5}),
 		WithChildSyncScope(ResourceTypeIdentityDirectory),
 		withReferenceValidation(102),
-		WithMaturity(
-			maturity.Metadata{Level: maturity.LevelTechPreview, Message: "Requires the Kong Identity SDK preview."},
-		),
 		withChildLoad(
 			ResourceTypeIdentityGroup, identityGroupSlice,
 			childLoad[IdentityGroupResource, IdentityDirectoryResource]{

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -349,14 +350,22 @@ func executeScenario(
 						return fmt.Errorf("command %s build endpoint params failed: %w", cmdName, perr)
 					}
 					diagnostics.phase = "http"
+					defaultDirectoryID := ""
+					if cmd.Create.UseDefaultDirectory && !harness.IdentityAdditionalDirectoryCapacity() {
+						defaultDirectoryID, _ = s.Vars["identity_default_directory_id"].(string)
+						if defaultDirectoryID == "" {
+							return fmt.Errorf("useDefaultDirectory requires shared default directory cleanup")
+						}
+					}
 					result, lastErr = step.CreateResource(
 						cmd.Create.Resource,
 						payload,
 						harness.CreateResourceOptions{
-							RecoverTeam:  cmd.Create.RecoverTeam,
-							Slug:         cmdName,
-							ExpectStatus: cmd.Create.ExpectStatus,
-							PathParams:   pathParams,
+							DefaultDirectoryID: defaultDirectoryID,
+							RecoverTeam:        cmd.Create.RecoverTeam,
+							Slug:               cmdName,
+							ExpectStatus:       cmd.Create.ExpectStatus,
+							PathParams:         pathParams,
 						},
 					)
 					diagnostics.current.RetryStop = "attempt_limit"
@@ -2051,12 +2060,7 @@ func dropKeysDeep(v any, keys []string) any {
 }
 
 func contains(ss []string, s string) bool {
-	for _, x := range ss {
-		if x == s {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(ss, s)
 }
 
 // normalizeNumbersDeep recursively converts all integer and float32-like values to float64.
@@ -2155,9 +2159,7 @@ func mergeGeneric(base, overlay any) any {
 			return overlay
 		}
 		out := make(map[string]any, len(b))
-		for k, v := range b {
-			out[k] = v
-		}
+		maps.Copy(out, b)
 		for k, v := range o {
 			if bv, ok2 := out[k]; ok2 {
 				out[k] = mergeGeneric(bv, v)

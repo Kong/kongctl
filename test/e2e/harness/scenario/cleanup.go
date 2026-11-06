@@ -22,6 +22,9 @@ import (
 var cleanupEnvPattern = regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
 
 type cleanupTarget struct {
+	useDefaultDirectory           bool
+	defaultDirectoryNamespace     string
+	defaultDirectoryID            string
 	kind                          resources.ResourceType
 	name                          string
 	principalAPIKeys              bool
@@ -34,7 +37,20 @@ type cleanupTarget struct {
 func registerResourceCleanup(t *testing.T, cli *harness.CLI, specs []CleanupResource, vars map[string]any) error {
 	t.Helper()
 	seenVars, seenEnv := map[string]bool{}, map[string]bool{}
+	sharedDefault := false
 	for _, spec := range specs {
+		if spec.UseDefaultDirectory && resources.ResourceType(spec.Resource) != resources.ResourceTypeIdentityDirectory {
+			return fmt.Errorf("useDefaultDirectory cleanup requires an identity directory")
+		}
+		if spec.DefaultDirectoryNamespace != "" && !spec.UseDefaultDirectory {
+			return fmt.Errorf("defaultDirectoryNamespace requires useDefaultDirectory")
+		}
+		if spec.UseDefaultDirectory {
+			if sharedDefault {
+				return fmt.Errorf("a scenario can declare only one shared default directory")
+			}
+			sharedDefault = true
+		}
 		if spec.RequireEmptyVaultDependencies &&
 			resources.ResourceType(spec.Resource) != resources.ResourceTypeIdentityDirectory {
 			return fmt.Errorf("requireEmptyVaultDependencies cleanup requires an identity directory")
@@ -83,10 +99,18 @@ func registerResourceCleanup(t *testing.T, cli *harness.CLI, specs []CleanupReso
 	targets := make([]cleanupTarget, 0, len(specs))
 	for _, spec := range specs {
 		name := "kongctl-e2e-" + strings.ReplaceAll(spec.Resource, "_", "-") + "-" + uuid.NewString()
+		useDefault := spec.UseDefaultDirectory && !harness.IdentityAdditionalDirectoryCapacity()
+		if useDefault {
+			name = "default"
+		}
 		vars[spec.NameVar] = name
 		cli.WithEnv(map[string]string{spec.NameEnv: name})
 		targets = append(targets, cleanupTarget{
-			kind: resources.ResourceType(spec.Resource), name: name, principalAPIKeys: spec.PrincipalAPIKeys,
+			useDefaultDirectory:           useDefault,
+			defaultDirectoryNamespace:     spec.DefaultDirectoryNamespace,
+			kind:                          resources.ResourceType(spec.Resource),
+			name:                          name,
+			principalAPIKeys:              spec.PrincipalAPIKeys,
 			principalGroups:               spec.PrincipalGroups,
 			groupNamespaces:               spec.GroupNamespaces,
 			requireEmptyTrustedIDPs:       spec.RequireEmptyTrustedIDPs,
@@ -96,7 +120,7 @@ func registerResourceCleanup(t *testing.T, cli *harness.CLI, specs []CleanupReso
 	t.Cleanup(func() {
 		// Preserve teardown evidence separately from finalized scenario diagnostics.
 		cli.ObserveHTTP = nil
-		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 		defer cancel()
 		for _, target := range targets {
 			var err error
@@ -117,10 +141,39 @@ func registerResourceCleanup(t *testing.T, cli *harness.CLI, specs []CleanupReso
 			}
 		}
 	})
+	for index := range targets {
+		target := &targets[index]
+		if target.useDefaultDirectory {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+			directory, err := harness.ResetDefaultIdentityDirectory(ctx, "")
+			cancel()
+			if err != nil {
+				return fmt.Errorf("prepare shared default directory: %w", err)
+			}
+			vars["identity_default_directory_id"] = directory["id"]
+			target.defaultDirectoryID, _ = directory["id"].(string)
+			if target.defaultDirectoryNamespace != "" {
+				if _, err := cli.Run(context.Background(), "adopt", "identity", "directory", "default",
+					"--namespace", target.defaultDirectoryNamespace); err != nil {
+					return fmt.Errorf("adopt shared default directory fixture: %w", err)
+				}
+			}
+		}
+	}
 	return nil
 }
 
 func cleanupResource(ctx context.Context, cli *harness.CLI, target cleanupTarget) error {
+	if target.useDefaultDirectory {
+		directory, err := harness.ResetDefaultIdentityDirectory(ctx, target.defaultDirectoryID)
+		if err != nil {
+			return err
+		}
+		if directory["id"] != target.defaultDirectoryID {
+			return fmt.Errorf("shared default directory ID changed during the scenario")
+		}
+		return nil
+	}
 	var args []string
 	var endpoint string
 	// Only explicitly supported, independently named resources participate.

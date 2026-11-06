@@ -96,7 +96,7 @@ func moduleRoot() (string, error) {
 	// Use the caller file to start from the repository tree.
 	_, file, _, _ := runtime.Caller(0)
 	dir := filepath.Dir(file)
-	for i := 0; i < 10; i++ { // avoid infinite loops
+	for range 10 { // avoid infinite loops
 		cand := filepath.Join(dir, "go.mod")
 		if fi, err := os.Stat(cand); err == nil && !fi.IsDir() {
 			return dir, nil

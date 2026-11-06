@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"unicode/utf8"
 
-	"github.com/kong/kongctl/internal/maturity"
 	"github.com/kong/kongctl/internal/util"
 )
 
@@ -74,12 +73,6 @@ func init() {
 		WithManagedBy(ManagedByPolicy{MaxEntries: 5, PersistsRef: true}),
 		WithChildSyncScope(ResourceTypeIdentityDirectory),
 		withReferenceValidation(100),
-		WithMaturity(
-			maturity.Metadata{
-				Level:   maturity.LevelTechPreview,
-				Message: "Requires the Kong Identity SDK preview. Principal type is create-only.",
-			},
-		),
 		withChildLoad(
 			ResourceTypeIdentityPrincipal,
 			identityPrincipalSlice,

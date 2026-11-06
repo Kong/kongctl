@@ -23,8 +23,9 @@ func newVaultCredentialReadCommand(verb verbs.VerbValue, principal bool,
 		Use:     "vault-provider-credential [credential-id]",
 		Aliases: []string{"vault-provider-credentials", "provider-credential", "provider-credentials"},
 		Short:   "Inspect public shared or user credential metadata under a Vault provider",
-		Long: "Inspect credential IDs, routing metadata, status and timestamps under an explicit provider. " +
-			"Credential values and enrollment URLs are excluded. Inspection does not issue OAuth enrollment URLs.",
+		Long: `Inspect credential IDs, routing metadata, status and timestamps under an
+explicit provider. Credential values and enrollment URLs are excluded.
+Inspection does not issue OAuth enrollment URLs.`,
 		PreRunE: parentPreRun,
 	}
 	common.AddIdentityDirectoryFlags(command)
@@ -32,9 +33,9 @@ func newVaultCredentialReadCommand(verb verbs.VerbValue, principal bool,
 		command.Use = "principal-vault-credential [credential-id]"
 		command.Aliases = []string{"principal-vault-credentials", "vault-credential", "vault-credentials"}
 		command.Short = "Inspect Token Vault authorizations held by an explicit principal"
-		command.Long = "Inspect public provider, template, status, expiry and timestamps " +
-			"for a principal's Vault authorizations. " +
-			"Enrollment is a runtime operation; inspection grants no credential ownership or synchronization authority."
+		command.Long = `Inspect public provider, template, status, expiry and timestamps for a
+principal's Vault authorizations. Enrollment is a runtime operation; inspection
+grants no credential ownership or synchronization authority.`
 		command.Flags().String("principal-id", "", "Parent principal UUID")
 		if err := command.MarkFlagRequired("principal-id"); err != nil {
 			return nil, err

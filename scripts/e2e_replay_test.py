@@ -131,6 +131,7 @@ class ReplayTest(unittest.TestCase):
             MODULE.check_eligibility(directory)
         env = MODULE.clean_environment(Path("/private"), Path("/kongctl"), "dump/portal-owned")
         self.assertEqual("1", env["KONGCTL_E2E_RESET"])
+        self.assertEqual("0", env["KONGCTL_E2E_RESET_IDENTITY"])
         self.assertFalse(any("ORG_USER_EMAIL" in key for key in env))
         self.assertEqual("kongctl-acceptance-2", MODULE.recording_org("dump/portal-owned"))
 
@@ -732,6 +733,7 @@ class ReplayTest(unittest.TestCase):
         self.assertEqual("0", env["KONGCTL_E2E_RESET"])
         dump = MODULE.clean_environment(Path("/private"), Path("/kongctl"), "dump/organization-teams")
         self.assertEqual("1", dump["KONGCTL_E2E_RESET"])
+        self.assertEqual("0", dump["KONGCTL_E2E_RESET_IDENTITY"])
 
     def test_user_recording_inputs_fail_closed(self):
         for env in [{}, {"KONGCTL_E2E_ORG_USER_EMAIL_1": "replay-user-1@example.invalid"},

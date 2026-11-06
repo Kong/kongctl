@@ -29,8 +29,8 @@ func newAuthServerClientCommand(verb verbs.VerbValue, secrets bool,
 		command.Use = "auth-server-client-secret [secret-id]"
 		command.Aliases = []string{"auth-server-client-secrets", "auth_server_client_secrets"}
 		command.Short = "List or get OAuth client secret metadata"
-		command.Long = "Read secret IDs, enabled state and timestamps under an explicit OAuth client. " +
-			"Secret values are never displayed."
+		command.Long = `Read secret IDs, enabled state and timestamps under an explicit OAuth client.
+Secret values are never displayed.`
 		command.Flags().String("client-id", "", "Parent OAuth client ID (an opaque string)")
 		command.MarkFlagsOneRequired("client-id", "client-name")
 		command.MarkFlagsMutuallyExclusive("client-id", "client-name")

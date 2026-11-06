@@ -86,8 +86,19 @@ dataplane. These scenarios have no simulated API or replay cassette.
 
 ### Cleanup for scenario resources
 
+Identity child scenarios use `useDefaultDirectory: true` on both their directory
+cleanup specification and directory fixture `create` step. This resets and
+reuses `default` while preserving its UUID, so a quota of one directory is
+sufficient. **Its contents are cleared before and after each scenario.** Use
+dedicated test organizations.
+See [Identity directory isolation](../../docs/contributor/kong-identity-e2e.md)
+for the reset baseline, coverage split, and extra-capacity opt-in.
+
 Scenarios that create directories or Gateway control planes can reserve unique
-names and register cleanup before their first command:
+names and register cleanup before their first command. Directory creation
+alongside `default` requires `KONGCTL_E2E_IDENTITY_MULTI_DIRECTORY=1` and a
+larger organization quota; the shared-directory pattern above is the default
+for Identity child coverage:
 
 ```yaml
 test:
@@ -177,6 +188,9 @@ Core harness settings:
   Default: a temp dir.
 - `KONGCTL_E2E_BIN`: Path to an existing `kongctl` binary to skip building.
 - `KONGCTL_E2E_RESET`: Reset the Konnect org before tests. Destructive.
+- `KONGCTL_E2E_IDENTITY_MULTI_DIRECTORY`: Set to `1` only when another directory
+  fits alongside `default`; enables generated Identity fixtures and directory
+  CRUD coverage. Otherwise child scenarios preserve and reuse `default`.
   Defaults to enabled; set to `0` or `false` to disable.
 - `KONGCTL_E2E_KONNECT_ENV`: Konnect environment selector. Supported values
   are `com` (default) and `tech`; `production` remains accepted as a legacy

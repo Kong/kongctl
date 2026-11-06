@@ -18,7 +18,7 @@ func shouldSkipStep(stepName, patterns string) bool {
 	}
 
 	stepLower := strings.ToLower(stepName)
-	for _, pattern := range strings.Split(patterns, ",") {
+	for pattern := range strings.SplitSeq(patterns, ",") {
 		pattern = strings.TrimSpace(pattern)
 		if pattern == "" {
 			continue

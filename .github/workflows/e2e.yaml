@@ -69,6 +69,7 @@ on:
 
 env:
   DO_NOT_TRACK: "1"
+  KONGCTL_E2E_IDENTITY_MULTI_DIRECTORY: ${{ vars.KONGCTL_E2E_IDENTITY_MULTI_DIRECTORY || '0' }}
 
 # The E2E target orgs are shared stateful environments. Queue full workflow
 # runs per Konnect environment so runs sharing an environment never overlap.

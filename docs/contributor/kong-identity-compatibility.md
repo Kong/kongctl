@@ -1,5 +1,8 @@
 # Kong Identity compatibility tracking
 
+Kong Identity commands and declarative schemas are generally available. The
+API compatibility restrictions below do not imply a preview maturity label.
+
 Agent Registry integration is outside the scope of this Identity work.
 Identity operations do not inspect or manage Registry associations.
 
@@ -1467,8 +1470,17 @@ validation remains authoritative. The bytes are read once and hashed for local
 correlation. The operation does not expand declarative tags or upsert rows
 through an unrelated client loop.
 
-Reports reserve an exclusive 0600 path before the POST. Complete successful
-native reports, including unknown fields and counts.users.adopted missing from
+The preferred `--report-output-dir` interface creates the directory if needed
+and generates report filenames containing the mode and a UTC timestamp.
+The previous `--report-output-file` flag is no longer accepted.
+Reports reserve an exclusive 0600 path before the POST. Reusing an explicit path
+creates a numbered sibling file, preserving earlier reports as individual JSON
+documents. The summary includes the actual `report_output_file`; errors after
+reservation also include that path. Secret and enrollment captures continue to
+require unused paths.
+
+Complete successful native reports, including unknown fields and
+counts.users.adopted missing from
 the typed SDK, are captured before interpretation. Available API error bodies
 or SDK/transport diagnostics are also private. Unexpected non-JSON bodies are
 stored as base64; unrecoverable/read failures may leave only request context.

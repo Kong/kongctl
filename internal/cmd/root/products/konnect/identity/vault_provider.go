@@ -24,19 +24,21 @@ func newVaultProviderReadCommand(verb verbs.VerbValue, templates bool,
 		Use:     "vault-provider [id-or-name]",
 		Aliases: []string{"vault-providers", "vault_providers", "credential-provider", "credential-providers"},
 		Short:   "List or get directory Token Vault provider configuration",
-		Long: "Inspect public Credential Provider configuration in an enabled directory Token Vault. " +
-			"Select by UUID or exact name; --provider-name also selects names shaped like UUIDs. " +
-			"Responses contain effective endpoints, not the stored override settings. " +
-			"Provider client secrets, credential values and enrollment capabilities are excluded.",
+		Long: `Inspect public Credential Provider configuration in an enabled directory Token
+Vault. Select by UUID or exact name; --provider-name also selects names shaped
+like UUIDs. Responses contain effective endpoints, not the stored override
+settings. Provider client secrets, credential values and enrollment capabilities
+are excluded.`,
 		PreRunE: parentPreRun,
 	}
 	if templates {
 		command.Use = "credential-provider-template [name]"
 		command.Aliases = []string{"credential-provider-templates", "provider-template", "provider-templates"}
 		command.Short = "List or get the built-in credential-provider template catalog"
-		command.Long = "Inspect the read-only catalog of built-in Credential Provider templates. " +
-			"Templates describe OAuth/static-secret behavior, endpoint defaults, scopes and PKCE requirements. " +
-			"This catalog does not require a directory selector or enabled Token Vault and is not desired state."
+		command.Long = `Inspect the read-only catalog of built-in Credential Provider templates.
+Templates describe OAuth/static-secret behavior, endpoint defaults, scopes and
+PKCE requirements. This catalog does not require a directory selector or enabled
+Token Vault and is not desired state.`
 	} else {
 		common.AddIdentityDirectoryFlags(command)
 		command.Flags().String("provider-name", "", "Exact provider name, including names shaped like UUIDs")

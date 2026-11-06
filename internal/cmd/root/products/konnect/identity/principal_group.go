@@ -21,10 +21,11 @@ func newPrincipalGroupReadCommand(verb verbs.VerbValue, addParentFlags func(verb
 	command := &cobra.Command{
 		Use: "principal-group [group-id|group-name]", Aliases: []string{"principal-groups", "principal_groups"},
 		Short: "Inspect a principal's direct and inherited group memberships", PreRunE: parentPreRun,
-		Long: "List the groups a principal belongs to, including inherited organization-chart teams. " +
-			"The optional group UUID or exact name selects one association from the complete collection. " +
-			"membership_id identifies a direct entry; inherited entries have no membership_id. " +
-			"Inspection does not grant authority to remove imported or inherited memberships.",
+		Long: `List the groups a principal belongs to, including inherited organization-chart
+teams. The optional group UUID or exact name selects one association from the
+complete collection. membership_id identifies a direct entry; inherited entries
+have no membership_id. Inspection does not grant authority to remove imported or
+inherited memberships.`,
 	}
 	common.AddIdentityDirectoryFlags(command)
 	command.Flags().String("principal-id", "", "Parent principal UUID; display names are not unique")

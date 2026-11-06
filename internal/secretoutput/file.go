@@ -3,8 +3,11 @@ package secretoutput
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 )
 
 // Metadata identifies the remote record without containing credential material.
@@ -63,6 +66,31 @@ func Reserve(path string, metadata Metadata) (*File, error) {
 // reports whose diagnostics can contain personal or otherwise sensitive data.
 func ReserveReport(path string, metadata Metadata) (*File, error) {
 	return reserve(path, metadata, "report output", "request_not_confirmed")
+}
+
+// ReserveNextReport preserves earlier reports by reserving a numbered sibling
+// when the requested path is already a regular file.
+func ReserveNextReport(path string, metadata Metadata) (*File, error) {
+	extension := filepath.Ext(path)
+	base := strings.TrimSuffix(path, extension)
+	for sequence := range 10000 {
+		candidate := path
+		if sequence != 0 {
+			candidate = fmt.Sprintf("%s.%d%s", base, sequence, extension)
+		}
+		output, err := ReserveReport(candidate, metadata)
+		if err == nil || !errors.Is(err, os.ErrExist) {
+			return output, err
+		}
+		info, statErr := os.Lstat(candidate)
+		if statErr != nil {
+			return nil, fmt.Errorf("inspect existing report path: %w", statErr)
+		}
+		if !info.Mode().IsRegular() {
+			return nil, fmt.Errorf("report output path is not a regular file: %s", candidate)
+		}
+	}
+	return nil, fmt.Errorf("too many existing report files for %s", path)
 }
 
 func reserve(path string, metadata Metadata, kind, status string) (*File, error) {

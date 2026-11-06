@@ -999,6 +999,7 @@ steps:
           - directories
     name: 009-explicit-delete
 test:
+  enabledByEnvVar: KONGCTL_E2E_IDENTITY_MULTI_DIRECTORY
   cleanupResources:
     - resource: identity_directory
       nameVar: directory_name
@@ -1006,6 +1007,6 @@ test:
     - resource: control_plane
       nameVar: gateway_name
       nameEnv: KONGCTL_E2E_IDENTITY_GATEWAY_NAME
-  info: Requires directory/principal-admin access and capacity for one temporary directory; supports a one-directory quota. Deletes only resources created by this scenario.
+  info: Requires explicit KONGCTL_E2E_IDENTITY_MULTI_DIRECTORY opt-in and capacity for a temporary directory alongside default. Exercises directory CRUD and parent bootstrap using only resources created by this scenario; default is preserved.
 vars:
   namespace: identity-directory-e2e

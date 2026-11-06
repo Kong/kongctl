@@ -50,7 +50,7 @@ Adopt an existing client before declaring it, selecting an opaque ID or exact
 name under an explicit server:
 
 ```sh
-kongctl adopt identity auth-server-client --client-name my-service \
+kongctl adopt identity auth-server client --client-name my-service \
   --auth-server-name my-issuer --namespace identity-client-example
 ```
 
@@ -70,10 +70,10 @@ positional argument always means an ID. Use `--client-name` for an exact,
 case-sensitive name lookup; the lookup rejects duplicate matches.
 
 ```sh
-kongctl get identity auth-server-clients --auth-server-name my-issuer
-kongctl get identity auth-server-client CLIENT_ID \
+kongctl get identity auth-server clients --auth-server-name my-issuer
+kongctl get identity auth-server client CLIENT_ID \
   --auth-server-name my-issuer -o yaml
-kongctl get identity auth-server-client --client-name my-service \
+kongctl get identity auth-server client --client-name my-service \
   --auth-server-name my-issuer
 ```
 
@@ -86,9 +86,9 @@ in the current probes (engineering question Q17).
 Select a client by ID or exact name to inspect its secrets:
 
 ```sh
-kongctl get identity auth-server-client-secrets \
+kongctl get identity auth-server client secrets \
   --auth-server-name my-issuer --client-name my-service
-kongctl get identity auth-server-client-secret SECRET_UUID \
+kongctl get identity auth-server client secret SECRET_UUID \
   --auth-server-id SERVER_UUID --client-id CLIENT_ID -o yaml
 ```
 
@@ -116,7 +116,7 @@ an unused file path; the command reserves it with permissions `0600` before
 POST. Normal JSON/YAML/text output contains metadata only.
 
 ```sh
-kongctl create identity auth-server-client-secret \
+kongctl create identity auth-server client secret \
   --auth-server-name my-issuer --client-name my-service \
   --enabled=false --secret-output-file ./issued-client-secret.json
 ```
@@ -126,7 +126,7 @@ The private JSON file contains `auth_server_id`, `client_id`, `secret_id`,
 application's secret store. Enable the replacement using its metadata ID:
 
 ```sh
-kongctl patch identity auth-server-client-secret NEW_SECRET_UUID \
+kongctl patch identity auth-server client secret NEW_SECRET_UUID \
   --auth-server-name my-issuer --client-name my-service --enabled=true
 ```
 
@@ -134,9 +134,9 @@ After testing authentication with the replacement and switching consumers,
 disable or delete the old record explicitly:
 
 ```sh
-kongctl patch identity auth-server-client-secret OLD_SECRET_UUID \
+kongctl patch identity auth-server client secret OLD_SECRET_UUID \
   --auth-server-name my-issuer --client-name my-service --enabled=false
-kongctl delete identity auth-server-client-secret OLD_SECRET_UUID \
+kongctl delete identity auth-server client secret OLD_SECRET_UUID \
   --auth-server-name my-issuer --client-name my-service
 ```
 

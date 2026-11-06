@@ -3,8 +3,6 @@ package resources
 import (
 	"fmt"
 	"strconv"
-
-	"github.com/kong/kongctl/internal/maturity"
 )
 
 // IdentityVaultProviderCredentialResource inherits managed-directory authority
@@ -162,7 +160,6 @@ func init() {
 		WithExternalUnsupportedReason(
 			"Static shared credentials inherit explicitly managed-directory authority through their provider",
 		),
-		WithMaturity(maturity.Metadata{Level: maturity.LevelTechPreview}),
 		withChildLoad(ResourceTypeIdentityVaultProviderCredential, ensureIdentityVaultProviderCredentialSlice,
 			childLoad[IdentityVaultProviderCredentialResource, IdentityVaultProviderResource]{
 				family: ResourceTypeIdentityDirectory, extractOrder: 53, validateOrder: 63, validatePhase: 251,

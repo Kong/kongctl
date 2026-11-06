@@ -1,13 +1,38 @@
 package identity
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
+	"github.com/kong/kongctl/internal/maturity"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 )
+
+func TestIdentityHelpTextFitsEightyColumns(t *testing.T) {
+	for _, verb := range []verbs.VerbValue{
+		verbs.Get, verbs.List, verbs.Adopt, verbs.Create, verbs.Patch, verbs.Delete, verbs.Inspect, verbs.Import,
+	} {
+		root, err := NewIdentityCmd(verb, nil, nil)
+		require.NoError(t, err)
+		var check func(*cobra.Command)
+		check = func(command *cobra.Command) {
+			for name, text := range map[string]string{
+				"short": command.Short, "description": command.Long, "examples": command.Example,
+			} {
+				for line := range strings.SplitSeq(text, "\n") {
+					require.LessOrEqual(t, len(line), 80, "%s %s %s: %s", verb, command.CommandPath(), name, line)
+				}
+			}
+			for _, child := range command.Commands() {
+				check(child)
+			}
+		}
+		check(root)
+	}
+}
 
 func TestIdentityAlias(t *testing.T) {
 	for _, verb := range []verbs.VerbValue{
@@ -152,5 +177,27 @@ func TestIdentityPrincipalKeyCommandsRequireExplicitParents(t *testing.T) {
 		require.NoError(t, child.Args(child, []string{"731559d3-39bd-48c7-b33c-eb192847eb21"}))
 		require.ErrorContains(t, child.Args(child, []string{"key-name"}), "UUID")
 		require.Error(t, child.Args(child, []string{"one", "two"}))
+	}
+}
+
+func TestIdentityCommandTreesAreGenerallyAvailable(t *testing.T) {
+	for _, verb := range []verbs.VerbValue{
+		verbs.Get, verbs.List, verbs.Adopt, verbs.Create, verbs.Patch, verbs.Delete, verbs.Inspect, verbs.Import,
+	} {
+		t.Run(string(verb), func(t *testing.T) {
+			root, err := NewIdentityCmd(verb, nil, nil)
+			require.NoError(t, err)
+			var check func(*cobra.Command)
+			check = func(cmd *cobra.Command) {
+				resolved, err := maturity.ResolveCommand(cmd)
+				require.NoError(t, err)
+				require.Equal(t, maturity.LevelGA, resolved.Effective.Level, cmd.CommandPath())
+				require.Empty(t, resolved.Effective.Message)
+				for _, child := range cmd.Commands() {
+					check(child)
+				}
+			}
+			check(root)
+		})
 	}
 }
