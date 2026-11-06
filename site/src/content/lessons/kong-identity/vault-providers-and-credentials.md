@@ -1,7 +1,9 @@
 ---
 title: Vault Providers and Credentials
-summary: Register an encryption key, store a shared credential, and rotate it explicitly.
-order: 4
+summary: >-
+  Register an encryption key, store a shared credential, and rotate it
+  explicitly.
+order: 6
 ---
 
 ## Goal
@@ -10,7 +12,7 @@ Configure a fictional support ticketing integration. Its provider uses the
 `static_secret` template and holds one shared credential. No real ticketing
 service is required; use the harmless demonstration value below.
 
-Complete [Enable Token Vault](../enable-token-vault/) first and stay in the
+Complete [Configure a Trusted IdP](../trusted-idps/) first and stay in the
 same working directory.
 
 ## Generate an encryption key
@@ -21,9 +23,19 @@ private local directory and export only its public counterpart into the
 workspace:
 
 ```shell
-mkdir -m 700 private
-openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 \
-  -out private/vault-private.pem
+mkdir -p private
+```
+
+```shell
+chmod 700 private
+```
+
+```shell
+(umask 077; openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 \
+  -out private/vault-private.pem)
+```
+
+```shell
 openssl pkey -in private/vault-private.pem -pubout -out vault-public.pem
 ```
 
@@ -67,7 +79,10 @@ identity:
 YAML
 ```
 
-The provider describes how credentials are used with an upstream service.
+The provider identifies the service whose credential should be retrieved.
+It does not configure the service's URL. AI Gateway chooses the URL separately
+and selects this provider using its directory-scoped `name`,
+`identity-guide-ticketing`. The local `ref: support-ticketing` is for KongCTL.
 `shared` means this credential is shared rather than enrolled separately for
 each user. Omitting `selector` and `priority` selects the provider's single
 default credential slot.
@@ -85,10 +100,21 @@ with its owner; do not delete someone else's key to make room.
 
 ```shell
 kongctl get id vault keys -o json
-kongctl get id vault provider --provider-name identity-guide-ticketing -o json
+```
+
+```shell
+kongctl get id vault provider \
+  --provider-name identity-guide-ticketing \
+  -o json
+```
+
+```shell
 kongctl get id vault provider credentials \
   --provider-name identity-guide-ticketing -o json
-kongctl diff -f vault.yaml
+```
+
+```shell
+kongctl diff --mode apply -f vault.yaml
 ```
 
 The key response includes its `kid`. The provider reports
@@ -102,13 +128,19 @@ and credential slot described in the previous lesson.
 
 ## Rotate the secret explicitly
 
+This is an optional exercise. Keep the latest value in
+`SUPPORT_TICKETING_TOKEN`: the later upstream verifier needs that same value.
 Changing the environment variable alone does not request a credential update.
 The remote plaintext cannot be read back for comparison. Explicitly request
 the write using the credential's local ref and secret field:
 
 ```shell
 export SUPPORT_TICKETING_TOKEN='identity-guide-demo-token-v2'
-kongctl apply -f vault.yaml --write-secret 'support-ticketing-token#secret'
+```
+
+```shell
+kongctl apply -f vault.yaml \
+  --write-secret 'support-ticketing-token#secret'
 ```
 
 `!secret` defers reading the value until execution and keeps it out of plans
@@ -120,7 +152,10 @@ injection mechanism instead of placing the value in terminal history.
 ```shell
 kongctl dump declarative --resources identity.directories \
   --include-child-resources --output-file identity-export.yaml
-kongctl diff -f identity-export.yaml
+```
+
+```shell
+kongctl diff --mode apply -f identity-export.yaml
 ```
 
 The export can include other managed Identity resources in your organization;
@@ -129,10 +164,15 @@ information, but not a reusable copy of the shared plaintext secret. Reloading
 an unchanged export should produce zero changes. It cannot restore a deleted
 credential without a secret source.
 
-You have configured the administrative side of Token Vault. Runtime use also
-requires caller authentication, authorization, and an application able to
-consume the Vault response and use the corresponding private key. This
-chapter has not verified those runtime operations.
+## Next steps
+
+You have configured the administrative side of Token Vault. Only its public
+key was uploaded; the matching private key stays in `private/vault-private.pem`.
+The [AI Gateway authentication quickstart](../../quickstarts/identity-authentication/)
+uses the principal API key to authenticate requests to a mocked model. Then
+[Token Vault with AI Gateway](../../quickstarts/identity-token-vault/) uses the
+private key in the runtime to demonstrate actual upstream credential use.
+Neither administrative readback nor a mocked response proves vault decryption.
 
 Leave the directory and key material in place until its owner has reviewed
 credential retirement and key retention. Avoid blanket deletion or collection

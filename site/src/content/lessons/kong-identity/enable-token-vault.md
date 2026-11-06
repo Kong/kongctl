@@ -1,16 +1,27 @@
 ---
 title: Enable Token Vault
-summary: Understand directory ownership and enable Vault before adding its children.
-order: 3
+summary: >-
+  Understand directory ownership and enable Vault before adding its
+  children.
+order: 4
 ---
 
 ## Goal
 
-Enable Token Vault on the existing `default` directory. This changes the
-ownership boundary: Vault children have no `labels` or `managed_by` field, so
+Enable Token Vault on the existing `default` directory. This is separate
+from principal API-key authentication: the first AI Gateway quickstart can
+use the agent key without adopting the directory or enabling Token Vault.
+
+Managing Vault changes the ownership boundary: Vault children have no `labels` or `managed_by` field, so
 `kongctl` requires a managed parent directory for their declarative writes.
 
-Coordinate this step with the directory administrator. Use a development
+This is a **KongCTL ownership requirement for declarative reconciliation**,
+not a requirement of the Identity API to enable Vault. Because Vault children
+cannot carry independent ownership markers, KongCTL needs explicit authority
+from their parent before managing those collections. Merely finding the
+directory with `_external` grants no such authority.
+
+Coordinate this step with the directory administrator. Use a test
 organization where you can take responsibility for the directory's Vault
 configuration.
 
@@ -23,13 +34,14 @@ kongctl get id directory default -o json
 If `managed_by` has no ownership metadata, adopt the directory explicitly:
 
 ```shell
-kongctl adopt id directory default --namespace identity-guide-directory
+kongctl adopt id directory default \
+  --namespace identity-guide-directory
 ```
 
 Adoption adds ownership metadata to the existing directory; it does not create
 a new directory. If it is already managed, skip adoption and use its existing
-`kongctl-namespace` in **both** Vault manifests in this chapter, replacing
-`identity-guide-directory`. Do not overwrite another team's ownership. If the
+`kongctl-namespace` in **all directory-management manifests** in this chapter.
+Replace `identity-guide-directory` with that namespace. Do not overwrite another team's ownership. If the
 directory is protected, coordinate a separate protection-only change with its
 owner before proceeding.
 
@@ -60,6 +72,9 @@ lesson.
 
 ```shell
 kongctl apply -f directory.yaml
+```
+
+```shell
 kongctl get id directory default -o json
 ```
 
@@ -72,7 +87,8 @@ creation would prevent a reliable inventory.
 
 ## Understand the boundary
 
-The next lesson adds a public key, provider, and shared credential. These
+The following lessons add issuer trust, a public key, a provider and a
+shared credential. These
 inherit the directory's namespace and protection. They cannot have separate
 team ownership metadata. Keys are matched by their public-key fingerprint
 (`kid`), providers by their unique directory-scoped name, and the example

@@ -55,9 +55,11 @@ test("presents the home curriculum as a chapter list", async ({ page }) => {
   ).toHaveAttribute("href", "/kongctl/extensions/");
 });
 
-test("walks through Identity before Extensions", async ({ page }) => {
+test("walks through Identity before Quickstarts and Extensions", async ({
+  page,
+}) => {
   const chapters = page.locator(".curriculum-chapters > li");
-  await expect(chapters.nth(6).getByRole("link")).toHaveAttribute(
+  await expect(chapters.nth(5).getByRole("link")).toHaveAttribute(
     "href",
     "/kongctl/kong-identity/",
   );
@@ -65,16 +67,22 @@ test("walks through Identity before Extensions", async ({ page }) => {
     "href",
     "/kongctl/extensions/",
   );
-  await chapters.nth(6).getByRole("link").click();
+  await expect(chapters.nth(6).getByRole("link")).toHaveAttribute(
+    "href",
+    "/kongctl/quickstarts/",
+  );
+  await chapters.nth(5).getByRole("link").click();
   const lessons = page.locator(".chapter-lessons");
-  await expect(lessons.locator(":scope > li")).toHaveCount(4);
+  await expect(lessons.locator(":scope > li")).toHaveCount(6);
   await lessons
     .getByRole("link", { name: /Use the Default Directory/ })
     .click();
   for (const [slug, command] of [
-    ["use-the-default-directory", "kongctl get id directory default -o json"],
+    ["use-the-default-directory", "kongctl get id directory"],
     ["principals-and-identities", "kongctl apply -f principals.yaml"],
+    ["principal-api-keys", "--secret-output-dir"],
     ["enable-token-vault", "kongctl adopt id directory default"],
+    ["trusted-idps", "vault_access_enabled: true"],
     ["vault-providers-and-credentials", "support-ticketing-token#secret"],
   ]) {
     await expect(page).toHaveURL(new RegExp(`kong-identity/${slug}/$`));
@@ -83,7 +91,7 @@ test("walks through Identity before Extensions", async ({ page }) => {
       .getByRole("link", { name: /Mark complete and continue/ })
       .click();
   }
-  await expect(page).toHaveURL(/extensions\//);
+  await expect(page).toHaveURL(/quickstarts\/identity-authentication\//);
 });
 
 test("routes OpenAI requests through a local AI Gateway", async ({ page }) => {
@@ -111,7 +119,7 @@ test("protects an AI Gateway model with Consumer credentials", async ({
 }) => {
   await page.goto("quickstarts/");
   const quickstarts = page.locator(".chapter-lessons");
-  await expect(quickstarts.locator(":scope > li")).toHaveCount(3);
+  await expect(quickstarts.locator(":scope > li")).toHaveCount(5);
   await expect(
     quickstarts.getByRole("link", { name: /AI Gateway: Route OpenAI/ }),
   ).toBeVisible();
@@ -122,7 +130,7 @@ test("protects an AI Gateway model with Consumer credentials", async ({
   ).toBeVisible();
   await expect(
     quickstarts.getByRole("link", {
-      name: /AI Gateway: Vault-backed OpenAI/,
+      name: /AI Gateway: OpenAI Credentials in Config Store/,
     }),
   ).toBeVisible();
 
@@ -158,7 +166,7 @@ test("routes Consumer requests with a vaulted OpenAI credential", async ({
 
   await expect(
     page.getByRole("heading", {
-      name: "AI Gateway: Vault-backed OpenAI",
+      name: "AI Gateway: OpenAI Credentials in Config Store",
     }),
   ).toBeVisible();
   await expect(lesson).toContainText("config_stores:");
@@ -808,4 +816,34 @@ test("opens the guide navigation on a small screen", async ({ page }) => {
   await expect(
     page.getByRole("navigation", { name: "Guide chapters" }),
   ).toBeVisible();
+});
+
+test("connects Identity authentication to a mock and then real vault use", async ({
+  page,
+}) => {
+  await page.goto("quickstarts/identity-authentication/");
+  let lesson = page.locator(".lesson-body");
+  await expect(lesson).toContainText("identity_realms: []");
+  await expect(lesson).toContainText("SUPPORT_API_KEY");
+  await expect(lesson).toContainText("403");
+  await expect(lesson).toContainText("kong/kong-ai-gateway:2.3.0");
+  await lesson
+    .getByRole("link", { name: "Token Vault with AI Gateway", exact: true })
+    .click();
+  lesson = page.locator(".lesson-body");
+  await expect(lesson).toContainText(
+    "--network container:identity-guide-runtime",
+  );
+  await expect(lesson).toContainText("subject_token_type: api_key");
+  await expect(lesson).toContainText("upstream_credential_verified=True");
+  const download = lesson.getByRole("link", {
+    name: "download the consolidated manifest",
+  });
+  const href = await download.getAttribute("href");
+  expect(href).toBeTruthy();
+  const response = await page.request.get(new URL(href!, page.url()).href);
+  expect(response.ok()).toBe(true);
+  expect(await response.text()).toContain(
+    "namespace: identity-guide-directory",
+  );
 });

@@ -6,9 +6,10 @@ order: 1
 
 ## Goal
 
-Use Kong Identity to represent a support worker and associate an external
-identifier with that principal. Then configure Token Vault to hold a shared
-credential for a fictional ticketing service.
+Create a human and an automation principal, associate an external identifier,
+and issue an API key. Then configure Token Vault to hold a shared credential
+for a fictional ticketing service. Each lesson includes CLI verification. The later [Quickstarts](../../quickstarts/) connect these resources
+to a running AI Gateway.
 
 A **directory** contains principals and their identity associations. A
 **principal** represents a person or application. An **identity** associates
@@ -27,15 +28,30 @@ You need:
 
 - A [Kong Konnect account](https://konghq.com/products/kong-konnect/register)
   with access to the Kong Identity APIs and permission to manage directories.
-- A `kongctl` build containing the Identity commands in this chapter.
-- An authenticated profile pointing to the environment you intend to use.
-- `openssl` for the Token Vault lessons.
+- `kongctl` installed and available on your PATH.
+- `kongctl` authenticated to the Konnect organization you intend to use.
+- `openssl` for the Token Vault lessons, and Python 3 for API-key capture
+  extraction in the API-key lesson.
 
-These examples were validated against the US `.tech` environment during
-Identity development. Availability can differ by environment. Use a development
-organization, and check API availability with your platform team if a command
-returns an unsupported route or field. Authentication and profile setup are
-covered in [Konnect Authentication](../../installation/authenticate/).
+These examples use the US Konnect region. Use a test organization with Kong
+Identity enabled and configure KongCTL to use that organization and region.
+Authentication is covered in [Konnect Authentication](../../installation/authenticate/).
+
+Confirm that the Identity commands are available:
+
+```shell
+kongctl version
+```
+
+```shell
+kongctl get identity --help
+```
+
+`identity` has the shorter alias `id`; later lessons use that alias.
+The `-o json` flag selects JSON output so the fields in these examples are
+visible. Use
+`kongctl COMMAND --help` for command-specific flags. If a command fails, stop
+and address the error before continuing.
 
 This chapter configures administrative resources. It does not require a local
 Gateway or demonstrate runtime authentication or credential decryption.
@@ -43,13 +59,11 @@ Gateway or demonstrate runtime authentication or credential decryption.
 ## Find the default directory
 
 ```shell
-kongctl get id directory default -o json
+kongctl get id directory
 ```
 
-Look for `name: "default"`, its `managed_by` object, and `vault_enabled`.
-The `id` command namespace is an alias for `identity`. Directory-scoped read
-commands use the directory named `default` when neither `--directory-id` nor
-`--directory-name` is supplied.
+Konnect normally provides a single directory named `default`. This command
+should show that existing directory, which we will use throughout the guide.
 
 If there is no default directory, stop before the next lesson. An administrator
 can bootstrap one using the configuration in
@@ -59,11 +73,15 @@ because a permissions or connectivity error prevents reading the existing one.
 
 ## Prepare a workspace
 
+The commands use Bash syntax. Start Bash if your usual shell is different.
 Keep the same terminal and working directory for the remaining lessons:
 
 ```shell
-mkdir -p identity-guide
-cd identity-guide
+mkdir -p identity-guide && cd identity-guide
+```
+
+```shell
+printf 'private/\ncerts/\n' > .gitignore
 ```
 
 Use one copy of this walkthrough per organization. The namespace, principal
@@ -71,5 +89,17 @@ references, and custom identity value below are fixed demonstration values.
 If other people are running it in the same organization, agree on distinct
 values before applying the files.
 
-The first lesson references the directory externally. This allows you to
-manage your principal without taking ownership of the directory itself.
+In the next lesson, the configuration references this existing directory and
+creates principals inside it. The directory itself stays unchanged.
+
+## How to apply a lesson
+
+Each `cat > FILE <<'YAML'` block writes a local configuration file. Copy the
+whole block, including its last `YAML` line. Quotes around `YAML` preserve
+special YAML tags and prevent the shell from expanding the file contents.
+
+`kongctl apply -f FILE` reads that file, compares it with Konnect, and prompts
+with the proposed changes. Confirm only the changes described in the lesson.
+`apply` creates or updates resources; it does not prune omitted collections.
+We do not use `--auto-approve` in this guide. A failed apply can leave earlier
+successful changes in place; inspect the error and rerun after correcting it.

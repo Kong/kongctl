@@ -1,9 +1,9 @@
 ---
-title: "AI Gateway: Vault-backed OpenAI"
+title: "AI Gateway: OpenAI Credentials in Config Store"
 summary: >-
   Route Consumer-authenticated LLM requests while keeping the OpenAI credential
   in a Config Store-backed Konnect Vault.
-order: 3
+order: 5
 related:
   - label: Declarative configuration documentation
     url: https://developer.konghq.com/kongctl/declarative/
@@ -14,6 +14,12 @@ related:
 ---
 
 ## Goal
+
+This quickstart uses a Config Store-backed Gateway vault for secret references.
+It does not use **Kong Identity Token Vault**, which brokers upstream
+credentials for authenticated principals. For that workflow, see
+[Token Vault with AI Gateway](../identity-token-vault/). The existing URL of
+this lesson is retained so shared links continue to work.
 
 You will use `kongctl` to create an AI Gateway that routes requests to OpenAI
 and requires clients to authenticate as an AI Gateway Consumer. The same
