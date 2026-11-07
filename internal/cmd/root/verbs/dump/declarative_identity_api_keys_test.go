@@ -83,3 +83,49 @@ func TestGeneratedAPIKeyDumpRoundTripUsesParentAuthorityAndCreationMarkers(t *te
 	require.NoError(t, err)
 	require.Empty(t, plan.Changes)
 }
+
+func TestExternalImportedPrincipalKeyDumpRoundTrip(t *testing.T) {
+	directory := fixture.Directory("default", "", false)
+	principal := kkComps.KongPrincipal{
+		ID: "5078f559-063b-4f10-9098-9e6553b21d9b", Type: new(kkComps.KongPrincipalTypeUser),
+		ProvisionedBy: new(kkComps.ProvisionedBy("imported")),
+	}
+	path := "/v2/directories/" + directory.ID + "/principals/" + principal.ID + "/api-keys"
+	api := &fixture.APIKeyHTTP{PageSize: 1, Keys: map[string][]helpers.IdentityAPIKey{path: {{
+		ID: "6078f559-063b-4f10-9098-9e6553b21d9b", Name: new("Employee key"),
+		ManagedBy: map[string]string{
+			resources.ManagedByToolKey: "kongctl", resources.ManagedByVersionKey: "creator",
+			resources.ManagedByRefKey: "employee-key", resources.IdentityAPIKeyCreateTypeKey: "v1",
+			resources.ChildNamespaceKey: "workforce-access",
+		}, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC(),
+	}}}}
+	sdk := api.SDK()
+	client := state.NewClient(state.ClientConfig{
+		IdentityDirectoriesAPI: &fixture.DirectoryAPI{Directories: []kkComps.KongDirectory{directory}},
+		IdentityPrincipalsAPI: &fixture.PrincipalAPI{
+			Directories: map[string][]kkComps.KongPrincipal{directory.ID: {principal}},
+		},
+		IdentityGroupsAPI: &fixture.GroupAPI{}, IdentityPrincipalIdentitiesAPI: &fixture.PrincipalIdentitiesAPI{},
+		IdentityBasicAuthAPI: &fixture.BasicAuthAPI{}, IdentityPrincipalKeysAPI: sdk.GetIdentityPrincipalKeysAPI(),
+	})
+	rs := &resources.ResourceSet{}
+	require.NoError(t, identityDirectoryCollector().collect(t.Context(), &declarativeDumpContext{
+		stateClient: client, includeChildren: true,
+	}, rs))
+	p := rs.Identity.Directories[0].Principals[0]
+	require.True(t, p.IsExternal())
+	require.Len(t, p.APIKeys, 1)
+	require.Equal(t, "workforce-access", resources.GetNamespace(p.APIKeys[0].Kongctl))
+	data, err := yaml.Marshal(rs)
+	require.NoError(t, err)
+	require.NotContains(t, string(data), "managed_by")
+	require.NotContains(t, string(data), "secret")
+	file := filepath.Join(t.TempDir(), "dump.yaml")
+	require.NoError(t, os.WriteFile(file, data, 0o600))
+	loaded, err := loader.New().LoadFile(file)
+	require.NoError(t, err)
+	plan, err := planner.NewPlanner(client, slog.Default()).
+		GeneratePlan(t.Context(), loaded, planner.Options{Mode: planner.PlanModeApply})
+	require.NoError(t, err)
+	require.Empty(t, plan.Changes)
+}

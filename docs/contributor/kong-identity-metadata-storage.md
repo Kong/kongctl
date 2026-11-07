@@ -28,6 +28,7 @@ ledger current as each resource is implemented.
 | Principal | `labels`, `managed_by`, runtime `metadata` | `managed_by`, including local ref | Create, GET, list, PUT, adoption and live lifecycle pass. PATCH metadata gap is Q11. Deletion requires explicitly authorized identity, username-record, membership and generated-key retirements, followed by fresh empty checks. Unmanaged keys block deletion (Q24). |
 | Principal identities, all four variants | `labels`, `managed_by` | `managed_by`, including local ref | Declarative lifecycle, scoped get/list, adoption and dump pass live verification. Parent ownership is independent. Q21 requires collection membership proof. Workspace writes/adoption are deferred under Q25; Q26 governs associated-resource deletion effects. |
 | Generated principal/group API-key declarations | `managed_by`; no labels | Four immutable creation markers; current managed parent supplies namespace/protection | Declarative generated creation/private capture, updates, scoped sync/delete, saved plans, dump/explain/scaffold and live lifecycle pass. No independent key adoption/protection. Imported create rejects metadata and PATCH ignores map changes (Q4/Q28–Q30). #1417/#2659. |
+| Generated keys under external principals | `managed_by`; no labels | Five immutable keys: tool/version/ref/creation-type plus independent namespace | Parent stays external, including imported provisioning. Namespace-scoped lifecycle and conflict detection; no key adoption or independent protection. PATCH ignores management-map changes. See the external-principal key example. #1417. |
 | Principal/group API-key commands | `managed_by`; no labels | Explicit operations preserve existing maps; no ownership stamp | Generated/imported private capture, complete public reads, expiration updates, principal scalar rename and explicit scoped retirement. Imported/legacy keys stay outside declarative ownership. #1417/#2659. |
 | Basic-auth username record | `managed_by`; no labels | Four-entry `managed_by`; unique username matching | Declarative lifecycle, adoption, protection, scoped sync/delete, dump and external UUID/username lookup are implemented. Ref stays local. Full PUT never sends password values; deletion requires empty passwords. #1418. |
 | Basic-auth passwords | `managed_by`; no labels | Explicit imperative operations preserve maps; no ownership stamping | Public-only reads, private generated/imported capture, expiration/material changes and explicit deletion. No declarative password ownership/adoption is exposed. Q35 governs metadata-only writes; SDK expiration is corrected (Q36). #1418. |
@@ -154,6 +155,14 @@ noted. A parent with ownership fields alone does not establish collection
 authority for another resource family.
 
 ## Change log
+
+- November 6, external-principal generated keys add an immutable namespace
+  marker to the four-entry key creation convention. Parent UUIDs remain
+  external. Only matching namespace/ref keys enter update, sync or delete;
+  dump preserves the key namespace and external principal reference. Existing
+  managed-parent and group conventions are unchanged. Direct `.com` probes
+  verified key creation, name/expiration updates and deletion without changing
+  the imported principal. Management-map PATCH still ignores updates/removal.
 
 - November 1, principal CSV: loader expansion and offline structural inspection
   add no remote metadata store. Principals/identities/username records/generated

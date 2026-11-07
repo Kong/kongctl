@@ -2654,6 +2654,7 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 	if rs.SyncScope != nil {
 		for _, kind := range []resources.ResourceType{
 			resources.ResourceTypeIdentityPrincipal,
+			resources.ResourceTypeIdentityPrincipalAPIKey,
 			resources.ResourceTypeIdentityPrincipalIdentity,
 			resources.ResourceTypeIdentityBasicAuth,
 			resources.ResourceTypeIdentityGroup,

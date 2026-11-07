@@ -6,9 +6,12 @@ import (
 	"github.com/kong/kongctl/internal/declarative/resources"
 )
 
-func IndexIdentityAPIKeys(values []IdentityAPIKey) (map[string]IdentityAPIKey, error) {
+func IndexIdentityAPIKeys(values []IdentityAPIKey, namespace ...string) (map[string]IdentityAPIKey, error) {
 	result := make(map[string]IdentityAPIKey)
 	for _, value := range values {
+		if !identityAPIKeyNamespaceMatches(value, namespace) {
+			continue
+		}
 		ref, owned, err := resources.IdentityAPIKeyRef(value.ManagedBy)
 		if err != nil {
 			return nil, err
@@ -24,12 +27,15 @@ func IndexIdentityAPIKeys(values []IdentityAPIKey) (map[string]IdentityAPIKey, e
 	return result, nil
 }
 
-func FindIdentityAPIKey(values []IdentityAPIKey, ref string) (*IdentityAPIKey, error) {
-	indexed, err := IndexIdentityAPIKeys(values)
+func FindIdentityAPIKey(values []IdentityAPIKey, ref string, namespace ...string) (*IdentityAPIKey, error) {
+	indexed, err := IndexIdentityAPIKeys(values, namespace...)
 	if err != nil {
 		return nil, err
 	}
 	for _, value := range values {
+		if !identityAPIKeyNamespaceMatches(value, namespace) {
+			continue
+		}
 		if value.ManagedBy[resources.ManagedByToolKey] == resources.ManagedByTool &&
 			value.ManagedBy[resources.ManagedByRefKey] == ref {
 			_, owned, err := resources.IdentityAPIKeyRef(value.ManagedBy)
@@ -45,4 +51,12 @@ func FindIdentityAPIKey(values []IdentityAPIKey, ref string) (*IdentityAPIKey, e
 		return &value, nil
 	}
 	return nil, nil
+}
+
+func identityAPIKeyNamespaceMatches(value IdentityAPIKey, namespace []string) bool {
+	want := ""
+	if len(namespace) > 0 {
+		want = namespace[0]
+	}
+	return value.ManagedBy[resources.ChildNamespaceKey] == want
 }

@@ -18,7 +18,7 @@ type (
 	identityAPIKeyParent struct {
 		kind, parentKind                         resources.ResourceType
 		ref, id, name, directoryRef, directoryID string
-		protected, scoped                        bool
+		protected, scoped, external              bool
 		desired                                  []identityAPIKeyDesired
 	}
 )
@@ -46,17 +46,19 @@ func (p *identityDirectoryPlanner) planAPIKeys(ctx context.Context, config *Conf
 			return fmt.Errorf("API key requires its declared principal")
 		}
 		parent := parentResource.(*resources.IdentityPrincipalResource)
-		if parent.IsExternal() || resources.GetNamespace(parent.Kongctl) != config.Namespace {
+		if !parent.IsExternal() && resources.GetNamespace(parent.Kongctl) != config.Namespace {
 			continue
 		}
 		value := identityAPIKeyParent{
 			kind: resources.ResourceTypeIdentityPrincipalAPIKey, parentKind: resources.ResourceTypeIdentityPrincipal,
 			ref: parent.Ref, id: scope.id, name: parent.Ref,
 			directoryRef: scope.directoryRef, directoryID: scope.directoryID, protected: parent.Protected(),
+			external: parent.IsExternal(), scoped: scope.scoped,
 		}
 		for i := range rs.Identity.PrincipalAPIKeys {
 			key := &rs.Identity.PrincipalAPIKeys[i]
-			if scope.refs[resources.NormalizeResourceRef(key.Principal)] {
+			if scope.refs[resources.NormalizeResourceRef(key.Principal)] &&
+				(!parent.IsExternal() || resources.GetNamespace(key.Kongctl) == config.Namespace) {
 				value.desired = append(value.desired, identityAPIKeyDesired{key.IdentityAPIKeyFields, key})
 			}
 		}
@@ -103,7 +105,9 @@ func (p *identityDirectoryPlanner) planAPIKeys(ctx context.Context, config *Conf
 		parents = append(parents, value)
 	}
 	for _, parent := range parents {
-		parent.scoped = rs.SyncScope != nil && rs.SyncScope.ChildInScope(parent.parentKind, parent.ref, parent.kind)
+		if !parent.external {
+			parent.scoped = rs.SyncScope != nil && rs.SyncScope.ChildInScope(parent.parentKind, parent.ref, parent.kind)
+		}
 		if len(parent.desired) == 0 && (plan.Metadata.Mode != PlanModeSync || !parent.scoped) {
 			continue
 		}
@@ -122,14 +126,20 @@ func (p *identityDirectoryPlanner) planAPIKeyParent(
 ) error {
 	var all []state.IdentityAPIKey
 	if parent.id != "" {
-		protected, err := p.planner.client.VerifyIdentityAPIKeyParent(
-			ctx,
-			parent.kind,
-			parent.directoryID,
-			parent.id,
-			config.Namespace,
-			parent.name,
-		)
+		var protected bool
+		var err error
+		if parent.external {
+			err = p.planner.client.VerifyIdentityMembershipPrincipal(ctx, parent.directoryID, parent.id)
+		} else {
+			protected, err = p.planner.client.VerifyIdentityAPIKeyParent(
+				ctx,
+				parent.kind,
+				parent.directoryID,
+				parent.id,
+				config.Namespace,
+				parent.name,
+			)
+		}
 		if err != nil {
 			return err
 		}
@@ -139,7 +149,11 @@ func (p *identityDirectoryPlanner) planAPIKeyParent(
 			return err
 		}
 	}
-	indexed, err := state.IndexIdentityAPIKeys(all)
+	var namespace []string
+	if parent.external {
+		namespace = []string{config.Namespace}
+	}
+	indexed, err := state.IndexIdentityAPIKeys(all, namespace...)
 	if err != nil {
 		return err
 	}
@@ -148,7 +162,7 @@ func (p *identityDirectoryPlanner) planAPIKeyParent(
 		if parent.protected && action != ActionCreate {
 			return fmt.Errorf("API-key parent %q is protected", parent.ref)
 		}
-		plan.AddChange(PlannedChange{
+		change := PlannedChange{
 			ID: p.NextChangeID(
 				action,
 				string(parent.kind),
@@ -165,7 +179,11 @@ func (p *identityDirectoryPlanner) planAPIKeyParent(
 				ResourceID:   parent.id,
 				ResourceName: parent.name,
 			},
-		})
+		}
+		if parent.external {
+			change.ProtectingParent = nil
+		}
+		plan.AddChange(change)
 		return nil
 	}
 	for _, desired := range parent.desired {
@@ -176,7 +194,7 @@ func (p *identityDirectoryPlanner) planAPIKeyParent(
 			return fmt.Errorf("multiple declarations match API-key ref %q", desired.fields.Ref)
 		}
 		seen[desired.fields.Ref] = true
-		current, err := state.FindIdentityAPIKey(all, desired.fields.Ref)
+		current, err := state.FindIdentityAPIKey(all, desired.fields.Ref, namespace...)
 		if err != nil {
 			return err
 		}
@@ -195,6 +213,9 @@ func (p *identityDirectoryPlanner) planAPIKeyParent(
 			fields := map[string]any{
 				FieldType:      desired.fields.Type,
 				FieldManagedBy: map[string]string{resources.ManagedByRefKey: desired.fields.Ref},
+			}
+			if parent.external {
+				fields[FieldManagedBy].(map[string]string)[resources.ChildNamespaceKey] = config.Namespace
 			}
 			if desired.fields.NameDeclared() {
 				fields[FieldName] = *desired.fields.Name

@@ -93,10 +93,6 @@ func TestGeneratedKeysRejectUnsupportedDeclarations(t *testing.T) {
 		{"ownership", "name: Worker primary", "managed_by: {tool: kongctl}"},
 		{"independent-namespace", "name: Worker primary", "kongctl: {namespace: other}"},
 		{
-			"external-principal", "          type: user\n          kongctl: {namespace: principal-team}",
-			"          _external: {id: 5078f559-063b-4f10-9098-9e6553b21d9b}",
-		},
-		{
 			"external-group", "          name: Operators\n          kongctl: {namespace: group-team}",
 			"          _external: {id: 6078f559-063b-4f10-9098-9e6553b21d9b}",
 		},
@@ -108,6 +104,47 @@ func TestGeneratedKeysRejectUnsupportedDeclarations(t *testing.T) {
 			require.Error(t, err)
 		})
 	}
+}
+
+func TestGeneratedKeysUnderExternalPrincipalHaveNamespaceOnlyScope(t *testing.T) {
+	const input = `_defaults:
+  kongctl: {namespace: workforce}
+identity:
+  directories:
+    - ref: directory
+      _external: {selector: {matchFields: {name: default}}}
+      principals:
+        - ref: employee
+          _external: {id: 5078f559-063b-4f10-9098-9e6553b21d9b}
+          api_keys:
+            - ref: primary
+              type: v1
+              kongctl: {namespace: application}
+`
+	rs, err := New().LoadFile(writeLoaderTestFile(t, input))
+	require.NoError(t, err)
+	require.Len(t, resources.GetResourcesByNamespace[resources.IdentityPrincipalAPIKeyResource](rs, "application"), 1)
+	require.Empty(t, resources.GetResourcesByNamespace[resources.IdentityPrincipalAPIKeyResource](rs, "workforce"))
+	scopes := rs.SyncScope.ChildNamespaces[resources.ResourceTypeIdentityPrincipalAPIKey]["employee"]
+	require.Contains(t, scopes, "application")
+	for _, protected := range []string{"true", "false"} {
+		_, err := New().LoadFile(writeLoaderTestFile(t,
+			strings.Replace(input, "namespace: application", "namespace: application, protected: "+protected, 1)))
+		require.ErrorContains(t, err, "metadata is immutable")
+	}
+	collection := `api_keys:
+            - ref: primary
+              type: v1
+              kongctl: {namespace: application}`
+	empty := strings.Replace(input, collection, "api_keys: []", 1)
+	rs, err = New().LoadFile(writeLoaderTestFile(t, empty))
+	require.NoError(t, err)
+	scopes = rs.SyncScope.ChildNamespaces[resources.ResourceTypeIdentityPrincipalAPIKey]["employee"]
+	require.Contains(t, scopes, "workforce")
+	omitted := strings.Replace(empty, "          api_keys: []\n", "", 1)
+	rs, err = New().LoadFile(writeLoaderTestFile(t, omitted))
+	require.NoError(t, err)
+	require.Empty(t, rs.SyncScope.ChildNamespaces[resources.ResourceTypeIdentityPrincipalAPIKey]["employee"])
 }
 
 func TestGeneratedKeyCollectionsRequireExplicitSyncScope(t *testing.T) {

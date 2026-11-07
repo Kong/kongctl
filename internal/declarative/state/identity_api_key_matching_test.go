@@ -31,15 +31,13 @@ func TestGeneratedKeyMatchingRejectsAmbiguousAndLegacyIdentity(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, indexed, 1)
 
-	faults := []string{"duplicate", "legacy", "namespace", "protection", "no-version", "bad-ref", "extra-marker"}
+	faults := []string{"duplicate", "legacy", "protection", "no-version", "bad-ref", "extra-marker"}
 	for _, fault := range faults {
 		t.Run(fault, func(t *testing.T) {
 			extra := generatedKeyFixture("second", "primary")
 			switch fault {
 			case "legacy":
 				delete(extra.ManagedBy, resources.IdentityAPIKeyCreateTypeKey)
-			case "namespace":
-				extra.ManagedBy[resources.ChildNamespaceKey] = "independent"
 			case "protection":
 				extra.ManagedBy[resources.ChildProtectedKey] = "false"
 			case "no-version":
@@ -62,4 +60,27 @@ func TestGeneratedKeyMatchingRejectsAmbiguousAndLegacyIdentity(t *testing.T) {
 	_, err = FindIdentityAPIKey(values, "missing")
 	require.NoError(t, err)
 	require.Equal(t, before, primary.ManagedBy)
+}
+
+func TestGeneratedKeysUnderExternalPrincipalsMatchNamespaceAndRef(t *testing.T) {
+	first := generatedKeyFixture("first", "primary")
+	first.ManagedBy[resources.ChildNamespaceKey] = "team-a"
+	other := generatedKeyFixture("other", "primary")
+	other.ManagedBy[resources.ChildNamespaceKey] = "team-b"
+	legacy := generatedKeyFixture("inherited", "primary")
+	values := []IdentityAPIKey{first, other, legacy}
+	for _, namespace := range []string{"team-a", "team-b"} {
+		value, err := FindIdentityAPIKey(values, "primary", namespace)
+		require.NoError(t, err)
+		require.Equal(t, namespace, value.ManagedBy[resources.ChildNamespaceKey])
+	}
+	value, err := FindIdentityAPIKey(values, "primary")
+	require.NoError(t, err)
+	require.Equal(t, legacy.ID, value.ID)
+	duplicate := generatedKeyFixture("duplicate", "primary")
+	duplicate.ManagedBy[resources.ChildNamespaceKey] = "team-a"
+	_, err = FindIdentityAPIKey(append(values, duplicate), "primary", "team-a")
+	require.ErrorContains(t, err, "multiple API keys")
+	_, err = FindIdentityAPIKey(append(values, duplicate), "primary", "team-b")
+	require.NoError(t, err, "another namespace's duplicates must not widen authority")
 }

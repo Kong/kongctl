@@ -163,6 +163,10 @@ inspection validates structure without API calls or printing row values.
 declarative issuance, private capture, inherited parent authority, expiration
 updates and scoped retirement using the existing default directory.
 
+[Keys for imported or externally managed principals](external-principal-api-keys.md)
+uses UUID parent references and independently scoped generated keys without
+adopting the importer-controlled person.
+
 [Organization-chart imports and ownership](org-chart.md) explains explicit CSV
 preview/execution, private complete reports, safe diagnostic output, imported
 users/teams and ordinary declarative boundaries. The CSV workflow does not

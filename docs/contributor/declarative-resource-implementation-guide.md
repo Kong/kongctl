@@ -114,7 +114,14 @@ Registering a declaration does not complete those steps automatically.
   Team/importer writes remain deferred. These groups use the existing
   directory root planner and child dump inventory.
 
-  Generated principal/group API keys inherit current managed-parent authority.
+  Generated keys under external principals use immutable namespace-only
+  ownership in addition to the four creation/ref markers. They have no
+  key-level protection or metadata adoption; PATCH ignores map updates and the
+  map holds at most five entries. Their scope capture does not enroll them in
+  mutable independent ownership. External UUID membership and fresh key
+  namespace/ref checks guard each write; duplicate tuples fail.
+
+  Generated keys under managed principals/groups retain managed-parent authority.
   Their four immutable `managed_by` entries record tool, creator version, ref
   and explicit generated creation intent. No child namespace/protection copies
   or key adoption are exposed. Both scopes require complete duplicate/ref and

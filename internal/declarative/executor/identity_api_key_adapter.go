@@ -46,7 +46,11 @@ func (a *identityAPIKeyAdapter) validateContext(change *planner.PlannedChange) e
 		return fmt.Errorf("API key requires its directory reference")
 	}
 	parent := change.ProtectingParent
-	if parent == nil || parent.ResourceType != a.parentKind() || parent.ResourceRef != change.Parent.Ref ||
+	if parent == nil {
+		if a.kind != resources.ResourceTypeIdentityPrincipalAPIKey || !util.IsValidUUID(change.Parent.ID) {
+			return fmt.Errorf("independently owned API keys require an external principal UUID")
+		}
+	} else if parent.ResourceType != a.parentKind() || parent.ResourceRef != change.Parent.Ref ||
 		parent.ResourceName == "" {
 		return fmt.Errorf("API key requires its managed protecting parent; regenerate the plan")
 	}
@@ -91,8 +95,15 @@ func (a *identityAPIKeyAdapter) MapCreateFields(_ context.Context, execCtx *Exec
 	if err != nil {
 		return err
 	}
-	if !owned || ref != execCtx.PlannedChange.ResourceRef || len(request.ManagedBy) != 4 {
+	if !owned || ref != execCtx.PlannedChange.ResourceRef {
 		return fmt.Errorf("API-key create requires its canonical generated identity markers")
+	}
+	wantNamespace := ""
+	if execCtx.PlannedChange.ProtectingParent == nil && a.kind == resources.ResourceTypeIdentityPrincipalAPIKey {
+		wantNamespace = execCtx.PlannedChange.Namespace
+	}
+	if request.ManagedBy[resources.ChildNamespaceKey] != wantNamespace {
+		return fmt.Errorf("API-key ownership namespace differs from the planned authority")
 	}
 	declaration := resources.IdentityAPIKeyFields{Ref: ref, Type: request.GetType(), Name: request.Name}
 	return declaration.Validate()
@@ -149,6 +160,12 @@ func (a *identityAPIKeyAdapter) parent(ctx context.Context, execCtx *ExecutionCo
 		return "", "", err
 	}
 	protecting := execCtx.PlannedChange.ProtectingParent
+	if protecting == nil {
+		if err := a.client.VerifyIdentityMembershipPrincipal(ctx, directory, parent); err != nil {
+			return "", "", err
+		}
+		return directory, parent, nil
+	}
 	if protecting.ResourceID != "" && protecting.ResourceID != parent {
 		return "", "", fmt.Errorf("API-key protecting parent UUID changed; regenerate the plan")
 	}
@@ -186,7 +203,7 @@ func (a *identityAPIKeyAdapter) current(
 	if err != nil {
 		return nil, err
 	}
-	value, err := state.FindIdentityAPIKey(all, execCtx.PlannedChange.ResourceRef)
+	value, err := state.FindIdentityAPIKey(all, execCtx.PlannedChange.ResourceRef, a.keyNamespace(execCtx)...)
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +232,17 @@ func (a *identityAPIKeyAdapter) current(
 	if !owned || ref != execCtx.PlannedChange.ResourceRef {
 		return nil, fmt.Errorf("API-key identity markers changed; regenerate the plan")
 	}
+	if fresh.ManagedBy[resources.ChildNamespaceKey] != value.ManagedBy[resources.ChildNamespaceKey] {
+		return nil, fmt.Errorf("API-key namespace changed; regenerate the plan")
+	}
 	return fresh, nil
+}
+
+func (a *identityAPIKeyAdapter) keyNamespace(execCtx *ExecutionContext) []string {
+	if a.kind == resources.ResourceTypeIdentityPrincipalAPIKey && execCtx.PlannedChange.ProtectingParent == nil {
+		return []string{execCtx.PlannedChange.Namespace}
+	}
+	return nil
 }
 
 func (a *identityAPIKeyAdapter) GetByID(
@@ -241,7 +268,7 @@ func (a *identityAPIKeyAdapter) Create(ctx context.Context, request kkComps.Crea
 	if err != nil {
 		return "", err
 	}
-	value, err := state.FindIdentityAPIKey(all, execCtx.PlannedChange.ResourceRef)
+	value, err := state.FindIdentityAPIKey(all, execCtx.PlannedChange.ResourceRef, a.keyNamespace(execCtx)...)
 	if err != nil {
 		return "", err
 	}
@@ -260,7 +287,7 @@ func (a *identityAPIKeyAdapter) Create(ctx context.Context, request kkComps.Crea
 	if err != nil {
 		return "", err
 	}
-	value, err = state.FindIdentityAPIKey(all, execCtx.PlannedChange.ResourceRef)
+	value, err = state.FindIdentityAPIKey(all, execCtx.PlannedChange.ResourceRef, a.keyNamespace(execCtx)...)
 	if err != nil {
 		return "", err
 	}

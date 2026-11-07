@@ -222,7 +222,13 @@ func identityDirectoryCollector() declarativeCollector {
 					slices.SortFunc(principal.BasicAuths, func(a, b resources.IdentityBasicAuthResource) int {
 						return cmp.Compare(a.Ref, b.Ref)
 					})
-					if !principal.IsExternal() {
+					if principal.IsExternal() {
+						keys, err := collectExternalPrincipalAPIKeys(ctx, d, values[i].Ref, current.ID, seen)
+						if err != nil {
+							return err
+						}
+						principal.APIKeys = keys
+					} else {
 						keys, err := collectIdentityAPIKeys(
 							ctx,
 							d,

@@ -90,7 +90,9 @@ func WithIndependentChildOwnership[R any](capture func(*ResourceSet,
 }
 
 func HasIndependentChildOwnership(kind ResourceType) bool {
-	return registry[kind].captureOwnedChildScope != nil
+	// Namespace-only immutable registrations capture scope without enrolling
+	// in mutable protection/ownership operations.
+	return registry[kind].independentChildMeta != nil
 }
 
 // WithIndependentChildLabelOwnership enrolls a child that persists lifecycle

@@ -4,7 +4,7 @@ The normal Identity suite uses the existing directory named `default`. It
 preserves that directory's UUID and never requires a second directory slot.
 This matches organizations whose directory quota is one.
 
-Of the 32 Identity scenarios, 25 exercise directory children using this shared
+Of the 33 Identity scenarios, 26 exercise directory children using this shared
 fixture. Six auth-server scenarios do not need a directory. The directory CRUD
 scenario requires additional directory capacity and is explicitly opt-in.
 
@@ -95,3 +95,13 @@ five-minute budget so their own cleanup can finish. Individual HTTP and CLI
 request timeouts remain bounded separately.
 
 [quota-run]: https://github.com/Kong/kongctl/actions/runs/42290874671
+
+The `identity/external-principal-api-keys` scenario imports one person into
+`default` through `kongctl import id org-chart` with preview and execution.
+It reads principals and custom identities through `kongctl get`, then uses the
+returned principal UUID as an external reference for generated keys. It covers
+private import reports, public key reads, repeated-import preservation, private
+secret capture, updates,
+duplicate conflicts, foreign-namespace isolation, omitted/empty sync scope,
+explicit deletion and dump reload. Its fixture requires an empty directory;
+run through the harness in a dedicated test organization.

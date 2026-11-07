@@ -36,6 +36,9 @@ type ManagedByPolicy struct {
 	// Independent ownership needs five keys; inherited lifecycle needs no copy
 	// of the parent's namespace/protection fields.
 	PersistsRef bool
+	// PersistsNamespace retains optional namespace-only immutable ownership.
+	// It does not enroll the resource in mutable namespace/protection writes.
+	PersistsNamespace bool
 	// OwnsLifecycle uses managed_by for namespace/protection on a managed root.
 	OwnsLifecycle bool
 	// CreateOnly leaves an immutable remote map unchanged on later updates.
@@ -68,6 +71,9 @@ func WithManagedBy(policy ManagedByPolicy) ResourceRegistrationOption {
 				return fmt.Errorf("persisted ref requires namespace participation and capacity for five keys")
 			}
 		}
+		if policy.PersistsNamespace && (!policy.CreateOnly || !policy.PersistsRef || ops.namespace == nil) {
+			return fmt.Errorf("immutable namespace metadata requires create-only refs and namespace participation")
+		}
 		reserved := map[string]bool{
 			ManagedByToolKey: true, ManagedByVersionKey: true, ManagedByRefKey: true,
 			ChildNamespaceKey: true, ChildProtectedKey: true,
@@ -79,6 +85,9 @@ func WithManagedBy(policy ManagedByPolicy) ResourceRegistrationOption {
 		}
 		minimum := 2 + len(policy.CreationValues)
 		if policy.PersistsRef {
+			minimum++
+		}
+		if policy.PersistsNamespace {
 			minimum++
 		}
 		if policy.OwnsLifecycle || ops.independentChildMeta != nil {
@@ -118,10 +127,16 @@ func PrepareManagedBy(kind ResourceType, metadata map[string]string, version str
 		return metadata, nil
 	}
 	ref := metadata[ManagedByRefKey]
+	namespace := metadata[ChildNamespaceKey]
 	if !UsesManagedByOwnership(kind) {
 		metadata = nil
 	}
 	result := ManagedByWithProvenance(metadata, version)
+	if policy.PersistsNamespace {
+		if namespace != "" {
+			result[ChildNamespaceKey] = namespace
+		}
+	}
 	if policy.PersistsRef {
 		if err := ValidateRef(ref); err != nil {
 			return nil, fmt.Errorf("invalid persisted managed_by ref: %w", err)

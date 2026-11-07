@@ -135,6 +135,96 @@ func TestGeneratedAPIKeysSavedPlanLifecycleAndPrivateCapture(t *testing.T) {
 	}
 }
 
+func TestGeneratedAPIKeysUnderImportedExternalPrincipal(t *testing.T) {
+	const input = `_defaults:
+  kongctl: {namespace: keys}
+identity:
+  directories:
+    - ref: people
+      _external: {id: 4078f559-063b-4f10-9098-9e6553b21d9b}
+      principals:
+        - ref: imported-worker
+          _external: {id: 5078f559-063b-4f10-9098-9e6553b21d9b}
+          api_keys:
+            - ref: primary
+              type: v1
+              name: Worker primary
+              expires_at: 2030-01-01T00:00:00Z
+`
+	client, principals, _, api := generatedKeysTestState()
+	const directory = "4078f559-063b-4f10-9098-9e6553b21d9b"
+	principal := &principals.Directories[directory][0]
+	principal.ManagedBy = nil
+	principal.ProvisionedBy = new(kkComps.ProvisionedBy("imported"))
+	before, err := json.Marshal(principal)
+	require.NoError(t, err)
+	plan := identityClientTestPlan(t, client, input, planner.PlanModeApply)
+	require.Len(t, plan.Changes, 1)
+	require.Nil(t, plan.Changes[0].ProtectingParent)
+	metadata := plan.Changes[0].Fields[planner.FieldManagedBy].(map[string]any)
+	require.Len(t, metadata, 5)
+	require.Equal(t, "keys", metadata[resources.ChildNamespaceKey])
+	require.NotContains(t, metadata, resources.ChildProtectedKey)
+	result := executeIdentityClientTest(t, client, plan, t.TempDir())
+	require.Zero(t, result.FailureCount, "%+v", result.Errors)
+	require.Len(t, result.GeneratedFiles, 1)
+	require.Empty(t, identityClientTestPlan(t, client, input, planner.PlanModeApply).Changes)
+	updated := strings.Replace(input, "name: Worker primary", "name: Renamed worker", 1)
+	updated = strings.Replace(updated, "expires_at: 2030-01-01T00:00:00Z", "expires_at: null", 1)
+	plan = identityClientTestPlan(t, client, updated, planner.PlanModeApply)
+	require.Len(t, plan.Changes, 1)
+	result = executeIdentityClientTest(t, client, plan, "")
+	require.Zero(t, result.FailureCount, "%+v", result.Errors)
+	require.Empty(t, identityClientTestPlan(t, client, updated, planner.PlanModeApply).Changes)
+	for path, values := range api.Keys {
+		foreign := values[0]
+		foreign.ID = "7078f559-063b-4f10-9098-9e6553b21d9b"
+		foreign.ManagedBy = map[string]string{
+			resources.ManagedByToolKey: "kongctl", resources.ManagedByVersionKey: "dev",
+			resources.ManagedByRefKey: "primary", resources.IdentityAPIKeyCreateTypeKey: "v1",
+			resources.ChildNamespaceKey: "other-team",
+		}
+		api.Keys[path] = append(values, foreign)
+	}
+	plan = identityClientTestPlan(t, client, input, planner.PlanModeDelete)
+	require.Len(t, plan.Changes, 1)
+	for path, values := range api.Keys {
+		duplicate := values[0]
+		duplicate.ID = "8078f559-063b-4f10-9098-9e6553b21d9b"
+		api.Keys[path] = append(values, duplicate)
+	}
+	result = executeIdentityClientTest(t, client, plan, "")
+	require.Positive(t, result.FailureCount, "saved deletion must reject duplicate namespace/ref matches")
+	for path, values := range api.Keys {
+		api.Keys[path] = values[:2]
+	}
+	// An explicitly empty collection still runs its captured namespace.
+	empty := strings.Split(input, "          api_keys:")[0] + "          api_keys: []\n"
+	require.Len(t, identityClientTestPlan(t, client, empty, planner.PlanModeSync).Changes, 1)
+	omitted := strings.Split(input, "          api_keys:")[0]
+	require.Empty(t, identityClientTestPlan(t, client, omitted, planner.PlanModeSync).Changes)
+	// Saved writes must observe a fresh UUID and ownership tuple.
+	for path, values := range api.Keys {
+		values[0].ManagedBy[resources.ChildNamespaceKey] = "another-team"
+		api.Keys[path] = values
+	}
+	result = executeIdentityClientTest(t, client, plan, "")
+	require.Positive(t, result.FailureCount)
+	for path, values := range api.Keys {
+		values[0].ManagedBy[resources.ChildNamespaceKey] = "keys"
+		api.Keys[path] = values
+	}
+	result = executeIdentityClientTest(t, client, plan, "")
+	require.Zero(t, result.FailureCount, "%+v", result.Errors)
+	for _, values := range api.Keys {
+		require.Len(t, values, 1)
+		require.Equal(t, "other-team", values[0].ManagedBy[resources.ChildNamespaceKey])
+	}
+	after, err := json.Marshal(principal)
+	require.NoError(t, err)
+	require.JSONEq(t, string(before), string(after))
+}
+
 func TestGeneratedAPIKeysResolveNewParentsBeforeIssuance(t *testing.T) {
 	client, principals, groups, api := generatedKeysTestState()
 	principals.Directories = make(map[string][]kkComps.KongPrincipal)

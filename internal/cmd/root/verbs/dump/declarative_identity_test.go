@@ -137,9 +137,11 @@ func TestIdentityDumpKeepsImporterAdoptedPrincipalExternal(t *testing.T) {
 		ID: id, ProvisionedBy: new(kkComps.ProvisionedBy("imported")),
 		ManagedBy: resources.BuildPrincipalManagedBy("old-team", "former-ref", true, "dev"),
 	}}}}
+	keys := (&fixture.APIKeyHTTP{}).SDK()
 	d := &declarativeDumpContext{includeChildren: true, stateClient: state.NewClient(state.ClientConfig{
 		IdentityDirectoriesAPI:         &fixture.DirectoryAPI{Directories: []kkComps.KongDirectory{directory}},
 		IdentityPrincipalsAPI:          api,
+		IdentityPrincipalKeysAPI:       keys.GetIdentityPrincipalKeysAPI(),
 		IdentityBasicAuthAPI:           &fixture.BasicAuthAPI{},
 		IdentityGroupsAPI:              &fixture.GroupAPI{},
 		IdentityPrincipalIdentitiesAPI: &fixture.PrincipalIdentitiesAPI{},

@@ -1510,3 +1510,25 @@ documented and verified API contract. Q48/Q49 still cover source isolation and
 ownership transfer; Q50 covers the public enum/adoption-count schema gaps.
 No SDK revision is needed: the existing multipart operation is wire-tested and
 the complete response is projected from raw JSON.
+
+## Generated keys beneath external imported principals (November 6)
+
+Direct `.com` tests verified generated key creation with five management
+entries, list/detail discovery, name/expiration changes, expiration clearing
+and deletion beneath an active imported unowned principal. Ownership-map
+PATCH updates and null removal returned 200 but did not persist. Duplicate
+namespace/ref tuples were accepted. Principal and identities were unchanged
+and all probe keys were deleted.
+
+Declarative principal API keys now accept external UUID parents. New keys in
+that mode stamp tool/version/ref/creation-type plus namespace; matching,
+update/delete, explicit collection sync and saved execution use that namespace.
+Fresh complete observations reject duplicate matches and changed UUIDs.
+Dump preserves external principal references and key namespaces. Existing
+managed-parent keys keep their inherited convention; legacy/imported/unowned
+and other-namespace keys are not enrolled by external linkage. Protection and
+key adoption remain unavailable because immutable metadata cannot represent
+those transitions. See [the example][external-key-example] and
+[the API investigation](kong-identity-import-adoption.md).
+
+[external-key-example]: ../examples/declarative/identity/external-principal-api-keys.md

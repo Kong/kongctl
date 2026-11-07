@@ -87,11 +87,15 @@ func IdentityAPIKeyRef(metadata map[string]string) (string, bool, error) {
 		metadata[IdentityAPIKeyCreateTypeKey] != IdentityAPIKeyGeneratedType {
 		return "", false, nil
 	}
-	if len(metadata) != 4 {
+	if len(metadata) != 4 && len(metadata) != 5 {
 		return "", false, fmt.Errorf("API key has an incompatible generated identity marker shape")
 	}
-	if _, found := metadata[ChildNamespaceKey]; found {
-		return "", false, fmt.Errorf("API key has incompatible independent namespace metadata")
+	if namespace, found := metadata[ChildNamespaceKey]; found {
+		if namespace == "" || len(metadata) != 5 {
+			return "", false, fmt.Errorf("API key has invalid independent namespace metadata")
+		}
+	} else if len(metadata) != 4 {
+		return "", false, fmt.Errorf("API key has incompatible generated identity marker shape")
 	}
 	if _, found := metadata[ChildProtectedKey]; found {
 		return "", false, fmt.Errorf("API key has incompatible independent protection metadata")
@@ -105,7 +109,8 @@ func IdentityAPIKeyRef(metadata map[string]string) (string, bool, error) {
 
 type IdentityPrincipalAPIKeyResource struct {
 	IdentityAPIKeyFields `       yaml:",inline"             json:",inline"`
-	Principal            string `yaml:"principal,omitempty" json:"principal,omitempty"`
+	Principal            string       `yaml:"principal,omitempty" json:"principal,omitempty"`
+	Kongctl              *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
 }
 
 type IdentityGroupAPIKeyResource struct {
@@ -197,12 +202,13 @@ func identityPrincipalByRef(rs *ResourceSet, ref string) *IdentityPrincipalResou
 	if rs == nil || rs.Identity == nil {
 		return nil
 	}
-	for i := range rs.Identity.Principals {
-		if rs.Identity.Principals[i].Ref == NormalizeResourceRef(ref) {
-			return &rs.Identity.Principals[i]
+	var found *IdentityPrincipalResource
+	visitIdentityPrincipals(rs, func(p *IdentityPrincipalResource) {
+		if p.Ref == NormalizeResourceRef(ref) {
+			found = p
 		}
-	}
-	return nil
+	})
+	return found
 }
 
 func principalAPIKeySlice(rs *ResourceSet) *[]IdentityPrincipalAPIKeyResource {
@@ -254,14 +260,15 @@ func init() {
 				},
 			),
 		),
-		WithNamespaceFrom(func(rs *ResourceSet, k *IdentityPrincipalAPIKeyResource) *IdentityPrincipalResource {
-			return identityPrincipalByRef(rs, k.Principal)
+		withPrincipalAPIKeyNamespaces(),
+		WithManagedBy(ManagedByPolicy{
+			MaxEntries: 5, PersistsRef: true, PersistsNamespace: true, CreateOnly: true,
+			CreationValues: map[string]string{IdentityAPIKeyCreateTypeKey: IdentityAPIKeyGeneratedType},
 		}),
-		WithManagedBy(policy),
 		WithChildSyncScope(ResourceTypeIdentityPrincipal),
 		withReferenceValidation(111),
 		WithExternalUnsupportedReason(
-			"generated API keys require managed-parent authority; imported key adoption is unavailable",
+			"API-key adoption is unavailable; declare generated keys under a managed or external principal",
 		),
 		withChildLoad(ResourceTypeIdentityPrincipalAPIKey, ensurePrincipalAPIKeySlice,
 			childLoad[IdentityPrincipalAPIKeyResource, IdentityPrincipalResource]{
@@ -275,8 +282,18 @@ func init() {
 							return err
 						}
 						p := identityPrincipalByRef(rs, values[i].Principal)
-						if p == nil || p.IsExternal() {
-							return fmt.Errorf("API key %q requires a declared managed principal", values[i].Ref)
+						if p == nil {
+							return fmt.Errorf("API key %q requires a declared principal", values[i].Ref)
+						}
+						meta := values[i].Kongctl
+						if meta != nil && meta.Protected != nil {
+							return fmt.Errorf("API key %q cannot set protection: API-key management metadata is immutable", values[i].Ref)
+						}
+						if !p.IsExternal() && meta != nil && meta.NamespaceOrigin == NamespaceOriginExplicit {
+							return fmt.Errorf("API key %q inherits its managed principal namespace", values[i].Ref)
+						}
+						if !p.IsExternal() {
+							values[i].Kongctl = nil
 						}
 					}
 					return nil

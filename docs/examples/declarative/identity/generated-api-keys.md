@@ -48,7 +48,9 @@ fail before changes. Client-side collection scanning is intentional.
 Namespace and update/delete protection come from the current managed parent.
 The key has no independent `kongctl` block. Its immutable map contains no
 namespace or protection copies. A managed parent may use an external
-directory, but an external principal or group cannot authorize key writes.
+directory. External principals use a separate namespace-based ownership
+convention; see [keys for imported principals](external-principal-api-keys.md).
+External groups still cannot authorize key writes.
 Adopting or transferring a parent does not require rewriting its keys.
 
 Required `type: v1` records generated creation intent. Imported keys and
