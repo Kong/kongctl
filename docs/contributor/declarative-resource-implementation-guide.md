@@ -85,98 +85,10 @@ Registering a declaration does not complete those steps automatically.
   certificates, and SNIs are intentional exceptions: `WithNamespace` supplies
   independent ownership and protection using reserved lowercase `managed_by`
   keys. Nested namespace groups must visit original slices before extraction.
-  Kong Identity principals use the same independent ownership capability under
-  directories, with an additional persisted ref because display names are not
-  unique. Their verified PUT path preserves omitted public fields. See
-  [Identity compatibility](kong-identity-compatibility.md) for temporary API
-  restrictions.
-
-  Principal public metadata has optional merge or sync semantics. Planning
-  previews the effective map but stores only the patch with explicit merge
-  intent; execution merges against fresh state before full PUT. This needs
-  plan format 1.2 so older executors cannot silently replace the map with a
-  patch. Optional declared principal UUIDs are assertions on an existing
-  namespace/ref match, never ownership or creation authority. The !csv
-  principal-collection frontend uses the same resources/planner/executor,
-  bounded local file rules and public-field validation. It must reject
-  embedded template controls, deferred environment/secret encodings, unknown
-  nested credential fields and conflicting parent selectors before planning.
-
-  Ordinary Identity groups use independent four-entry managed_by ownership
-  with directory/name matching and full-PUT hydration. They preserve foreign
-  groups during scoped sync and require empty membership/key observations
-  before deletion. Principal deletion also checks incoming direct memberships.
-  Direct principal memberships inherit that group's ownership through
-  `WithNamespaceFrom`; they have no metadata store and require explicit
-  collection authority for pruning. The membership planner/executor enforce
-  directory-scoped group protection independently of directory protection.
-  Final plans order authorized detachments before group/principal deletion.
-  Team/importer writes remain deferred. These groups use the existing
-  directory root planner and child dump inventory.
-
-  Generated keys under external principals use immutable namespace-only
-  ownership in addition to the four creation/ref markers. They have no
-  key-level protection or metadata adoption; PATCH ignores map updates and the
-  map holds at most five entries. Their scope capture does not enroll them in
-  mutable independent ownership. External UUID membership and fresh key
-  namespace/ref checks guard each write; duplicate tuples fail.
-
-  Generated keys under managed principals/groups retain managed-parent authority.
-  Their four immutable `managed_by` entries record tool, creator version, ref
-  and explicit generated creation intent. No child namespace/protection copies
-  or key adoption are exposed. Both scopes require complete duplicate/ref and
-  parent authority checks, including saved writes. Whole-plan preflight
-  reserves private capture files; issuance is captured before public read-back.
-  Sync distinguishes omitted/empty collections and orders replacement capture
-  before old-key retirement. Parent deletion requires explicitly authorized
-  key deletes followed by fresh empty checks. Imported/legacy keys are outside
-  this convention. See the Identity compatibility tracker and generated-key
-  example for supported public updates and creation-only group names.
-
-  Basic-auth username records use independent four-entry managed_by metadata
-  under principals, with exact directory-wide unique usernames and local refs.
-  Their shared parent-scope builder handles principal aliases and namespace
-  selection; full PUT never sends passwords. Final plans order explicitly
-  authorized username deletions before principal deletion. Password/key
-  observations fail closed, and saved writes repeat the guards. Passwords
-  remain outside declarative enrollment under Q35 and explicit secret-write
-  policy; the SDK expiration gap is corrected in the current preview.
-  Principal identities also persist refs with independent ownership under
-  principals. Their four association variants use fresh full PUT payloads;
-  external UUID references remain outside management. Parent and associated
-  resource deletions use final cross-namespace dependencies and fresh scoped
-  observations. See the same compatibility tracker for workspace limits and
-  the boundary of those reference checks.
-  Kong Identity auth-server scopes and claims use ordinary inherited ownership
-  instead: they have no labels or `managed_by`. A declared managed server and
-  explicit child collection define mutation/sync authority. Child writes
-  recheck the server's identity, namespace and update/delete protection;
-  external server references do not authorize them. Scope deletion observes
-  all client/claim references, orders proven detachments first, and rechecks
-  after those writes. Claim pagination uses terminal pages under API question
-  Q13. See the [metadata ledger](kong-identity-metadata-storage.md).
-  Directory Trusted IdPs inherit explicitly managed-directory authority, like
-  Vault keys/providers. Exact issuer URL is their directory-scoped identity.
-  They have no ownership metadata. Full PUT hydrates omitted public settings
-  from fresh detail; explicit nullable display/JWKS values and empty JIT mapping
-  are preserved through declaration/saved-plan serialization. Associated
-  principals retain independent ownership. Final plans may order proven OIDC
-  identity retargeting/deletion or independently authorized principal deletion
-  before trust retirement; execution still requires actual empty associations.
-  Static shared Vault credentials inherit managed-directory authority through
-  a declared static/shared provider. Default/priority slots determine identity;
-  refs stay local. Create requires deferred material, and every update requires
-  explicit secret-write selection. Key/provider/directory dependencies and fresh
-  routing/authority guards apply even to secret-only saved changes. Provider
-  retirement orders exact explicitly authorized credential deletions before
-  actual-empty checks; a parent declaration alone grants no child retirement.
-  Dump exports public routing without material/source bindings. OAuth/user
-  authorization flows remain separate; see the same compatibility tracker.
-  OAuth clients use independent label ownership, enrolled through
-  `WithIndependentChildLabelOwnership`, rather than `managed_by`. Client
-  namespaces and auth-server pruning namespaces are captured separately.
-  Initial generated secrets require execution-only `--secret-output-dir`
-  capture; plans and dumps contain no secret material or output paths.
+  Kong Identity combines independently owned principals/credentials with
+  children that inherit authority from a directory or Auth Server. Use the
+  [Identity contributor guide](kong-identity.md) for these boundaries and
+  compatibility constraints; do not assume one policy applies to every child.
   Model namespace scope is captured per source, separately from gateway scope;
   parent linkage never authorizes model mutation. See
   [model ownership](../ai-gateway-model-ownership.md) for migration and API
@@ -1529,7 +1441,7 @@ engine contract. Each refactoring migration should:
 [portal-child-dump]:
   ../../internal/cmd/root/verbs/dump/declarative_portal_child_collectors.go
 [cp-child-dump]:
-../../internal/cmd/root/verbs/dump/declarative_control_plane_child_collectors.go
+  ../../internal/cmd/root/verbs/dump/declarative_control_plane_child_collectors.go
 
 [portal-child-plan]:
   ../../internal/declarative/planner/portal_child_traversal.go

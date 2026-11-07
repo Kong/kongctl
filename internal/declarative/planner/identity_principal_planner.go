@@ -152,7 +152,7 @@ func (p *identityDirectoryPlanner) planPrincipals(ctx context.Context, config *C
 						return fmt.Errorf("principal %q: %w", value.Ref, err)
 					}
 				}
-				// Q9 compatibility restriction; see contributor/kong-identity-compatibility.md.
+				// Type changes require verified API support; see contributor/kong-identity.md.
 				if plan.Metadata.Mode != PlanModeDelete && value.TypeDeclared() &&
 					!principalTypeEqual(current.Type, value.Type) {
 					return fmt.Errorf("principal %q type is create-only pending API question Q9", value.Ref)

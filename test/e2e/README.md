@@ -91,7 +91,7 @@ cleanup specification and directory fixture `create` step. This resets and
 reuses `default` while preserving its UUID, so a quota of one directory is
 sufficient. **Its contents are cleared before and after each scenario.** Use
 dedicated test organizations.
-See [Identity directory isolation](../../docs/contributor/kong-identity-e2e.md)
+See [Identity testing](../../docs/contributor/kong-identity.md#testing)
 for the reset baseline, coverage split, and extra-capacity opt-in.
 
 Scenarios that create directories or Gateway control planes can reserve unique

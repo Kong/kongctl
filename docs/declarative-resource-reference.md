@@ -226,193 +226,49 @@ application_auth_strategies:
      key: value
 ```
 
-## Kong Identity directories
+## Kong Identity
 
-Directory declarations use the `identity.directories` collection. Each managed
-entry requires `ref` and an explicit unique API `name`. Optional settings are
-`description`, `allowed_control_planes`, `allow_all_control_planes`, `ttl_secs`,
-`negative_ttl_secs`, `vault.enabled`, `labels`, and `kongctl` metadata.
+Declare directory resources under `identity.directories` and issuers under
+`identity.auth_servers`. Directory children include principals, identities,
+ordinary groups/memberships, basic-auth usernames, generated API keys,
+Trusted IdPs and Token Vault configuration. Auth Servers contain scopes,
+claims and OAuth clients.
 
-KongCTL stores namespace, protection, tool, and version in `managed_by` and
-performs local filtering after listing all pages. Public labels remain
-independent. Omitted fields are preserved on update. Explicit empty maps,
-lists, and descriptions clear their respective settings. TTLs must be between
-300 and 86400 seconds. Control plane entries accept UUIDs and `!ref ref#id`.
+Use `kongctl explain identity` to discover accepted fields and
+`kongctl scaffold identity.principals` for a principal starting point. Grouped
+collections support explicit parent refs; examples use nested declarations:
 
-Use `_external.id` or `_external.selector.matchFields.name` to reference an
-existing directory, including one named `default`, without taking ownership.
-Explicitly adopt an existing directory before managing it. Protected updates
-require a separate unprotect operation. Deletion never requests a cascade.
+```yaml
+identity:
+  directories:
+    - ref: default-directory
+      _external:
+        selector:
+          matchFields:
+            name: default
+      principals:
+        - ref: support-worker
+          display_name: Support worker
+          type: agent
+```
 
-See the [directory examples](examples/declarative/identity/README.md) for
-configuration, adoption, quota constraints, and sync behavior. Auth-server
-administration and runtime authentication/lookup are separate API surfaces;
-this implementation covers directory configuration and principals.
+Principals support `user`, `agent` or an unclassified type. Their namespace/ref
+is persisted remotely because display names are not unique. External principal
+references require UUIDs; declared principal IDs are assertions, not adoption.
+Public `metadata`, public labels and KongCTL ownership serve separate purposes.
 
-## Kong Identity Token Vault public keys
+Vault is grouped as `vault.enabled`, `vault.keys` and `vault.providers` beneath
+a managed directory. Providers can contain static `shared_credentials`.
+Trusted IdPs use the directory's `trusted_idps` collection. These resources
+inherit directory authority; they do not store independent ownership metadata.
 
-Nest `vault.keys` under a managed `identity.directories` entry, or declare
-`identity.vault.keys` with a `directory` ref. Required fields are `ref`, `name`
-and `public_key`. PKIX PEM RSA >= 2048 bits and EC P-256/P-384/P-521 are
-supported.
-RFC 7638 `kid`, computed from public material, identifies the resource; names
-are mutable and nonunique. Public material changes create a different key.
+Auth Servers require explicit `name` and `audience`. Scopes and claims inherit
+server authority; OAuth clients have independent label ownership. Generated
+key/client secrets require private execution capture with
+`--secret-output-dir`; dumps do not export secret material.
 
-Keys inherit directory namespace and protection; no independent management
-metadata or key adoption is exposed. External directories are read-only for
-these children. Existing Vaults must already be enabled for complete
-observation. Explicit key collections scope sync; omission preserves keys,
-while an explicit empty collection prunes them. Rotations create before
-retirement and fail at the five-key limit until a key is explicitly retired.
-
-Plan, diff, apply, scoped sync/delete, saved execution, public dump/reload,
-explain/scaffold and get/list are supported. Directory deletion orders selected
-key removals before fresh empty-dependency checks. Public export requires a
-managed, enabled parent. See the [Vault key tutorial][identity-vault-keys].
-
-[identity-vault-keys]: examples/declarative/identity/README.md#token-vault
-
-## Kong Identity directory Trusted IdPs
-
-Nest `trusted_idps` under a managed directory, or use grouped
-`identity.trusted_idps` with a `directory` ref. Each entry requires `ref` and
-`issuer_url`. The exact issuer URL is unique per directory; display names are
-nonunique and refs stay local. Optional public settings are `display_name`,
-`jwks_uri`, `jit_provisioning_enabled`, `vault_access_enabled` and `jit.mapping`
-(claim names for `email`, `groups`, `display_name` and a metadata map).
-
-Authority comes from an explicitly managed directory, with no independent
-metadata or child adoption. External directories are read-only for trust
-configuration. Existing Vault must be enabled before observation. Omission
-preserves collections/settings. Explicit collections scope sync; empty lists
-select all trust records under that parent. Full PUT hydrates omitted public
-settings; explicit nullable display/JWKS values and `jit: {}` clear them.
-
-Plan/diff/apply, saved execution, scoped sync/delete, public dump/reload,
-explain/scaffold and get/list are supported. Issuer changes create before
-retiring the old trust during sync. Every retirement requires empty principal
-associations after any independently authorized OIDC detachments. Trust
-configuration never grants principal/identity ownership or executes runtime
-JIT provisioning. Directory deletion orders selected retirements before fresh
-empty checks. See the
-[trust tutorial][identity-workflows].
-
-## Kong Identity principals
-
-Declare principals under `identity.directories[].principals`, or in
-`identity.principals` with a `directory` selector referencing a declared
-managed or external directory. Each principal requires `ref`. Optional fields
-are `display_name`, `description`, `type`, `active`, `metadata`, `labels`, and
-`kongctl`.
-
-Identity is directory + namespace + ref, persisted in five generated
-`managed_by` entries. Display names need not be unique. Each principal has
-independent ownership and protection. Complete list scans match identities
-locally and reject duplicate tuples; saved writes repeat those checks.
-
-`type` accepts `user`, `agent`, or null on creation. Until API question Q9 is
-resolved, existing classifications cannot change: omission preserves the
-current type, and explicit changes, including a reset to null, fail.
-`active` accepts an optional boolean where the API exposes that state. Omission
-preserves it; explicit reconciliation fails if responses omit the field.
-Developer-portal principals cannot be deactivated. Inspection preserves missing
-state and dump never invents false (Q10). Updates and adoption use fresh GET + PUT
-and preserve omitted public fields. Empty metadata/labels maps and an empty
-description clear those values.
-
-Metadata supports strings, booleans, integers, string arrays, and integer
-arrays. Sync only prunes principal namespaces explicitly captured under the
-selected directories. Omitted collections retain principals. An explicitly
-empty nested collection prunes only owned, unprotected principals in the
-source default namespace. Unowned and foreign principals remain untouched.
-
-Adoption requires the principal UUID, directory name or UUID, namespace, and
-`--ref`. Dump exports principals with directory child resources and preserves
-owned refs. See [Identity examples](examples/declarative/identity/README.md)
-and the [temporary compatibility tracker][identity-compatibility].
-
-[identity-compatibility]: contributor/kong-identity-compatibility.md
-
-## Kong Identity basic-auth username records
-
-Declare username records under `principals[].basic_auths`, or grouped in
-`identity.basic_auths` with `principal: LOCAL_PRINCIPAL_REF`. Required fields
-are `ref` and `username`; `kongctl` controls independent namespace/protection.
-Username accepts 1-255 characters and is unique within a directory. Ref stays
-local; changing a username declares a different resource. Directory and
-principal selectors must refer to declared managed or external parents.
-
-Four generated `managed_by` entries store ownership and protection. Fresh
-full PUT/readback updates metadata without supplying password values. Saved
-plans recheck identity, namespace and protection. Sync only prunes explicitly
-selected namespaces/collections, preserving foreign and unowned credentials.
-Adoption requires a username or UUID and explicit directory/principal scope.
-External references support UUID or exact username selection under a principal.
-
-Passwords are separate resources and are not declared or exported here.
-Username deletion requires an empty password collection. Principal deletion
-refuses API keys and requires explicitly authorized child deletions, followed
-by fresh empty observations. No parent ownership authorizes password/key
-retirement. API failures block deletion. Runtime authentication continuity
-needs a supported integration context (Q30); password metadata-only updates
-remain constrained by Q35 and incomplete SDK write models.
-
-See the [grouped access example][identity-workflows] for username records
-alongside principals, groups and generated keys.
-
-## Kong Identity authorization servers
-
-Declare servers in `identity.auth_servers`. Required fields are `ref`, `name`,
-and `audience`. Optional fields are `description`, `signing_algorithm`,
-`trusted_origins`, `dcr.default_access_token_duration`, `labels`, and `kongctl`.
-Supported signing algorithms are RS256/384/512 and PS256/384/512. DCR token
-duration ranges from 60 through 2592000 seconds.
-
-The exact API name identifies the server within its regional organization.
-Ownership/protection use `KONGCTL-namespace` and `KONGCTL-protected` labels;
-there is no `managed_by` field. Full list scans reject ambiguous matches.
-Unowned servers require explicit adoption. External references support an ID
-or an exact name selector and do not authorize writes.
-
-PATCH preserves omitted settings. Empty descriptions, `trusted_origins: []`,
-and `labels: {}` clear their respective fields. Unprotect separately before
-changing or deleting a protected server. Sync requires an explicitly declared
-collection; `identity.auth_servers: []` prunes owned, unprotected servers in
-the source namespace. Deletion uses `force=false`; it cannot silently cascade
-to clients or other children. Dump excludes generated issuer/discovery URLs.
-
-This resource exposes the public DCR token-duration setting. It does not
-configure internal DCR options or OAuth clients and secrets.
-See [Identity examples](examples/declarative/identity/README.md) and the
-[metadata storage ledger](contributor/kong-identity-metadata-storage.md).
-
-### Authorization-server scopes and claims
-
-Nest `scopes` and `claims` under a managed `identity.auth_servers` entry.
-Grouped `identity.scopes` and `identity.claims` entries use an `auth_server`
-reference to a declared managed server. Each requires `ref` and an explicit
-API `name`. Claims also require a nonempty string `value`, preserved verbatim
-for static, JSON-encoded, or server-templated values.
-
-Scope fields are `description`, `default`, `include_in_metadata`, and
-`enabled`. Claim fields are `include_in_token`, `include_in_all_scopes`,
-`include_in_scopes`, and `enabled`. Scope links accept UUIDs or
-`!ref scope-ref#id`, including same-plan creates, within the same server.
-PATCH preserves omitted optional fields, explicit false flags, and empty
-association lists. Empty descriptions and association lists clear settings.
-
-These children have no independent ownership/protection metadata. Parent
-ownership and explicit collection scope authorize operations. They cannot
-declare `kongctl` or use an external parent to authorize writes. Adoption is
-through their server. Sync omission preserves a collection; an explicit empty
-collection under the server prunes it. Apply supports partial collections.
-
-Duplicate claim names fail before mutation or dump. Scope deletion checks
-all observed client/claim references, orders planned claim detachment/deletion
-first, and repeats the check during execution. Root deletion never cascades;
-declared child deletes run first and undeclared children may block it. Dump
-with `--include-child-resources` preserves flags and raw values and emits
-scope links as references. See the Identity example for a complete manifest.
+See [Identity resource behavior][identity-behavior] for lifecycle constraints
+and [workflow examples][identity-examples] for complete manifests.
 
 ## DCR Providers
 
@@ -1810,4 +1666,5 @@ audit-logs:
             name: foo
 ```
 
-[identity-workflows]: examples/declarative/identity/README.md
+[identity-behavior]: declarative/resource-behavior.md#kong-identity
+[identity-examples]: examples/declarative/identity/README.md

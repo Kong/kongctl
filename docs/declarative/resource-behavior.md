@@ -2,9 +2,9 @@
 
 [Declarative configuration](../declarative.md)
 
-Read the relevant section when updating API specifications, portal webhooks, or
-AI Gateway resources whose lifecycle has additional constraints. Field schemas
-remain in the [resource reference](../declarative-resource-reference.md).
+Read the relevant section for API operation removal, portal webhooks, and
+AI Gateway or Kong Identity lifecycle constraints. Field schemas remain in the
+[resource reference](../declarative-resource-reference.md).
 
 ## Authorizing API Operation Removal
 
@@ -294,3 +294,55 @@ expressions. Gateway PUT updates preserve existing server `managed_by` metadata.
 This field is reserved for Kong tools and cannot be declared in manifests.
 
 Use `kongctl get ai-gateway datastores --gateway-name support` to list stores.
+
+## Kong Identity
+
+Most organizations already have a directory named `default`. Reference it
+externally when managing principals and their independently owned children;
+adopt it explicitly before managing directory settings or inherited Vault
+children. External references do not transfer ownership. See the
+[workflow examples][identity-examples].
+
+Principals and identities persist namespace/ref ownership in `managed_by`,
+with complete local list filtering and duplicate detection. Basic-auth
+usernames and ordinary groups also have independent ownership; direct
+memberships inherit their group. Auth Servers and OAuth clients use labels.
+Scopes/claims inherit their managed server's authority. Parent linkage alone
+does not authorize changes to an independently owned child.
+
+Principal type is create-only. Omitted public fields are preserved through
+fresh reads before full PUT. `metadata_mode: merge` preserves unmentioned
+metadata at execution; `sync` replaces the map. Merge plans use format 1.2,
+which older executors reject. Imported principals remain external; native
+org-chart import controls their names and descriptions. Retained management
+metadata does not grant the full declarative principal lifecycle.
+
+Generated keys under managed principals/groups inherit parent authority.
+Keys under external principal UUIDs instead carry their own immutable
+namespace/ref markers. Their matching, updates, scoped sync and deletion do
+not adopt the principal. Duplicate matches stop reconciliation. Existing key
+adoption, ownership changes and key-level protection are unsupported in this
+mode because the management map cannot be updated. Initial key/client-secret
+issuance requires `--secret-output-dir`; capture files are private and are
+never overwritten. See [secret handling](secrets.md).
+
+Vault keys, providers, static shared credentials and Trusted IdPs require a
+managed directory. Enable an existing Vault in a separate step before
+planning children, because disabled Vaults hide those collections. Public-key
+`kid`, provider name, credential default/priority slot and IdP issuer URL are
+their respective remote identities; local refs do not imply remote names.
+Static credential changes require explicit secret-write selection. Consent,
+OAuth user authorizations and runtime token retrieval are separate workflows.
+
+Apply preserves undeclared resources. Sync only prunes explicitly scoped
+collections; omission preserves them. Parent deletion requires independently
+authorized child retirements and fresh empty-dependency checks. Passwords,
+importer-owned teams/nested groups and workspace-specific identity settings
+are outside the supported declarative lifecycle.
+
+`kongctl import id org-chart` processes a complete roster and can deactivate
+previously imported people omitted from the file. It does not add KongCTL
+ownership. Declarative `!csv` input instead expands ordinary managed
+principals and supported children; see [CSV loading](files.md#principal-csv).
+
+[identity-examples]: ../examples/declarative/identity/README.md

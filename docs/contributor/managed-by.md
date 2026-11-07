@@ -49,8 +49,7 @@ HTTP write. SDK serialization errors are sanitized to avoid exposing secrets.
 
 For mutable policies, use this path for every create/update, including
 replacements, saved plans, direct state calls and secret-only updates. Plan
-previews show the planning
-binary version; execution records the executing binary version. Local builds
+previews show the planning binary version; execution records the executing binary version. Local builds
 without release information record `dev`.
 
 `PrepareManagedBy` generates the complete tool-owned map. It discards outside
@@ -87,54 +86,30 @@ Before enrolling a resource, cover:
 - Credential and other write-only field preservation using behavioral or
   equivalent backend evidence, beyond a redacted GET response alone.
 
-The initial adoption covered 14 AI Gateway child families, including consumer
-credentials. Current registrations also include Kong Identity families; the
-registry is authoritative for enrollment. Adding this capability never opts
-other resource families into a blanket migration.
+The resource registry is authoritative for enrollment. Adding this capability
+never opts other resource families into a blanket migration.
 
-## Create-only provenance with inherited lifecycle
+### Immutable management metadata
 
-Some credential APIs retain management metadata at creation but ignore later
-map changes. `ManagedByPolicy.CreateOnly` allows explicit enrollment without
-requesting a metadata update during a later plan. Existing mutable policies
-keep normal create/update stamping. This option does not authorize adoption,
-metadata replacement or independent child protection.
+`ManagedByPolicy.CreateOnly` records provenance during creation without
+requesting later metadata updates. `PersistsRef` retains a declared ref;
+`CreationValues` records fixed creation intent. `PersistsNamespace` supports
+immutable namespace-only markers. Registration validates the complete map
+against the API's capacity and reserved keys.
 
-`PersistsRef` also supports resources registered with `WithNamespaceFrom`.
-For those children, the ref is retained alongside tool/version without copying
-parent namespace/protection into the child's map. `CreationValues` can add fixed
-markers for creation intent that public fields cannot otherwise reveal.
-Capacity checks include every generated entry. Fixed markers cannot override
-tool, version, ref, namespace or protection, and registration clones their map.
-
-Create requests still stamp the executing version. Update adapters for such an
-API must not call `stampManagedByRequest` or send a management map: the generic
-request helper does not infer the operation from an SDK struct. The stored
-version records issuance rather than later public-field changes. A fresh
-observation must verify unchanged metadata after each supported update.
-
-Parent-derived lifecycle authority needs full resource integration: declared
-managed parents, current provisioning/namespace/protection checks, exact key
-identity, duplicate and incompatible-marker handling, explicit sync scopes,
-saved-plan validation and authorized child-before-parent retirement. A tool/ref
-marker alone does not authorize a mutation. Imported or legacy ownership shapes
-must not be silently adopted. Generated Kong Identity principal/group keys use
-this contract with four immutable entries: tool, creator version, persisted
-ref and `kongctl-create-type: v1`. Their full implementation verifies current
-parent authority on saved writes, hydrates omitted expiration, captures each
-new key privately and orders replacement capture before old-key retirement.
-The [grouped access example][identity-workflows]
-and [compatibility tracker](kong-identity-compatibility.md) describe supported
-updates, explicit collection authority and imported/legacy boundaries.
+These options alone do not authorize adoption, ownership transfer or mutable
+protection. Resource-specific adapters must enforce the actual lifecycle
+contract, including fresh ownership checks and complete duplicate detection.
+Update adapters must omit unsupported metadata writes. See the
+[Identity guide](kong-identity.md) for inherited and external-parent keys.
 
 ## Stage two: migrate lifecycle authority
 
 Make ownership migration a separate, resource-specific change. Define the
 namespace and protection fields, their reserved-key and capacity rules, and
 the transition from existing labels before changing lifecycle decisions.
-Do not infer independent ownership from `managed_by.tool`, version, source
-defaults or a parent alone. An inherited-lifecycle family must enforce its
-explicit managed-parent and resource-identity contract.
+Do not infer ownership from `managed_by.tool`, version, source defaults, or a
+parent resource.
 
 Specify explicit adoption and transfer procedures, handling for conflicting
 label/metadata ownership, and compatibility with old binaries and saved plans.
@@ -156,26 +131,4 @@ additional to tool/version; all four are generated by kongctl. The contract is
 documented in
 [AI Gateway child ownership](../ai-gateway-child-ownership.md).
 
-Kong Identity directories are managed roots whose lifecycle authority starts
-in `managed_by`. They register namespace participation followed by
-`WithManagedBy(ManagedByPolicy{MaxEntries: 5, OwnsLifecycle: true})`.
-`UsesManagedByOwnership` distinguishes these roots from resources that only
-write provenance. This retains the same four generated keys used by owned AI
-Gateway children without enrolling directories in child scope capture or
-protection inheritance. Directory adapters check `tool: kongctl` and their
-own namespace/protection after a fresh GET before writes. Matching uses the
-API's unique name, and unowned directories require explicit adoption.
-
-Kong Identity principals enroll independent child ownership under directories,
-with `ManagedByPolicy{MaxEntries: 5, PersistsRef: true}`. Their fifth generated
-key, `kongctl-ref`, is required because display names are not unique. The
-shared stamper retains this key only for explicitly enrolled policies; it does
-not add it to AI Gateway children or directories. Principal adapters recheck
-the directory/namespace/ref tuple, complete-list duplicates, and protection
-before mutations. Full PUT uses a fresh read to preserve omitted public fields.
-See the [Identity compatibility tracker](kong-identity-compatibility.md) for
-Q9–Q11 restrictions and the criteria for removing them.
-
 [migration]: https://github.com/Kong/kongctl/issues/2521
-
-[identity-workflows]: ../examples/declarative/identity/README.md

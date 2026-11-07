@@ -191,10 +191,12 @@ Reuse a manifest across independently managed dev and prod environments.
 <a id="ai-gateway-23-configuration"></a>
 
 <a id="manage-ai-gateway-declaratively"></a>
+<a id="manage-kong-identity-declaratively"></a>
 
 ### [Resource-specific declarative behavior](declarative/resource-behavior.md)
 
-Check API operation removal, portal webhooks, and AI Gateway lifecycle rules.
+Check API operation removal, portal webhooks, AI Gateway and Kong Identity
+lifecycle rules.
 
 <a id="resources-managed-by-deck"></a>
 
