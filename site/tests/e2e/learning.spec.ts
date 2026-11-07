@@ -787,13 +787,23 @@ test("persists explicit completion and continues to the next lesson", async ({
   page,
 }) => {
   await page.goto("installation/install-kongctl/");
+  const totalLessons = await page
+    .locator("#learning-data")
+    .evaluate((element) => {
+      return JSON.parse(element.textContent ?? "{}").lessons.length;
+    });
+  expect(totalLessons).toBeGreaterThan(1);
   await page.getByRole("link", { name: "Mark complete and continue" }).click();
 
   await expect(page).toHaveURL(/\/kongctl\/installation\/authenticate\/$/);
-  await expect(page.getByText("1 of 40", { exact: true })).toBeVisible();
+  await expect(page.locator("[data-progress-text]")).toHaveText(
+    `1 of ${totalLessons}`,
+  );
 
   await page.reload();
-  await expect(page.getByText("1 of 40", { exact: true })).toBeVisible();
+  await expect(page.locator("[data-progress-text]")).toHaveText(
+    `1 of ${totalLessons}`,
+  );
 });
 
 test("persists a chosen color theme", async ({ page }) => {
