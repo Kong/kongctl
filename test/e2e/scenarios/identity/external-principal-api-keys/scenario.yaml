@@ -1,0 +1,52 @@
+defaults:
+  retry:
+    attempts: 1
+log-level: trace
+test:
+  cleanupResources:
+    - resource: identity_directory
+      useDefaultDirectory: true
+      nameVar: directory_name
+      nameEnv: KONGCTL_E2E_EXTERNAL_KEY_DIRECTORY_NAME
+  info: Import a CSV through kongctl, read principals and custom identities, then manage generated API keys through an external principal UUID. Verify preview/execution reports, private capture, repeated import, no drift, updates, duplicate conflicts, namespace-scoped sync, dump and explicit deletion while preserving the default directory.
+steps:
+  - name: 001-external-principal-keys
+    skipInputs: true
+    commands:
+      - name: use-default-directory
+        create:
+          resource: identity_directory
+          useDefaultDirectory: true
+          payload:
+            inline:
+              name: '{{ .vars.directory_name }}'
+              allow_all_control_planes: true
+          recordVar:
+            name: directory_id
+            responsePath: id
+      - name: verify-external-principal-keys
+        timeout: 5m
+        exec:
+          - python3
+          - '{{ .scenario_dir }}/lifecycle.py'
+          - '{{ .bin }}'
+          - '{{ .vars.directory_id }}'
+          - '{{ .vars.directory_name }}'
+        env:
+          KONGCTL_PROFILE: e2e
+        parseAs: json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                cli_import_preview_execute: true
+                cli_principal_and_identity_reads: true
+                cli_api_key_reads: true
+                independent_generated_keys: true
+                repeat_import_preserves_keys: true
+                updates_and_no_drift: true
+                duplicate_conflicts: true
+                scoped_sync_and_explicit_delete: true
+                dump_reload: true
+                principal_unchanged: true
+                fixtures_removed: true

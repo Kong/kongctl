@@ -1,0 +1,54 @@
+[
+  {
+    "algorithm": "RSA",
+    "alternate": "-----BEGIN RSA PUBLIC KEY-----\nMIIBCgKCAQEA7AgjGI6tR5UzNjvnh37lc2Bb82P9en0cmmwIDGEfKMMots4C4yJ4\nv+FDSJ2YkjKX1+AUbYbGhRgXjc+vrE8OVLEd7QkEf2Yw8buuhSsKRphLY6SgEUU8\n58C4shLeeHQmuz4dspxAi6JR1W39w6Xc2p/jILbz4Xwwg3qSz0tKvoXTWNFYdW99\nuCEdP0SiE1Kvx+1nwJbJFU5Ut+10EgeRPiSeEgW93GlH9slvytOWyg2IXNOlUzqb\nUE6wYDV16XyiKAKN2VNbk2OgVR6bl0Xf6Jc6UQgU+zrOHouhdgRV0XLVwP9nQflK\nR1m3oLJhA6SWc7qc73B1C4ZxUgQdvj/tbQIDAQAB\n-----END RSA PUBLIC KEY-----\n",
+    "bits": 2048,
+    "kid": "yoyUJfs6w_CYRcQF3iKwM6d15CYE0JKX1nNSofZ6Y7w",
+    "label": "rsa-2048-0",
+    "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA7AgjGI6tR5UzNjvnh37l\nc2Bb82P9en0cmmwIDGEfKMMots4C4yJ4v+FDSJ2YkjKX1+AUbYbGhRgXjc+vrE8O\nVLEd7QkEf2Yw8buuhSsKRphLY6SgEUU858C4shLeeHQmuz4dspxAi6JR1W39w6Xc\n2p/jILbz4Xwwg3qSz0tKvoXTWNFYdW99uCEdP0SiE1Kvx+1nwJbJFU5Ut+10EgeR\nPiSeEgW93GlH9slvytOWyg2IXNOlUzqbUE6wYDV16XyiKAKN2VNbk2OgVR6bl0Xf\n6Jc6UQgU+zrOHouhdgRV0XLVwP9nQflKR1m3oLJhA6SWc7qc73B1C4ZxUgQdvj/t\nbQIDAQAB\n-----END PUBLIC KEY-----\n"
+  },
+  {
+    "algorithm": "RSA",
+    "alternate": "-----BEGIN RSA PUBLIC KEY-----\nMIIBCgKCAQEA7zPTirJbmSedzdiDfVghxUDUucshKiIwSe/ca/3YFNRdVq+DF+qa\nDuV63Cay6dAeL9yeRT6GlS3WeO27e+1jdQVZ2fob+nnlZIIVcyv1Uueb6eTUB5Ph\nRqkf/ecWXm8FNucXfZ3EkqC73rGY83Fx/mqFaO4NedKsecEMt0S3iW9uBrU25rSJ\nL9le/wVeD7EpT0S6d8E93e/f6aNz9NGiZpx1DuDpcyjjW+NLX57zl9BEkDihDuHu\nbBk8GIDpXewbKg/pOFUyNjMk2vty/04GicainRKDEzSZuZJ36QHXqtg+1nB/xP+l\n8QW99YD2EneMi4fJ19KK76xf/53CI68BtQIDAQAB\n-----END RSA PUBLIC KEY-----\n",
+    "bits": 2048,
+    "kid": "PCvwb5PLUmBs3sFFeoVOTDZTeZ7qPaXtavOYk31ApdA",
+    "label": "rsa-2048-1",
+    "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA7zPTirJbmSedzdiDfVgh\nxUDUucshKiIwSe/ca/3YFNRdVq+DF+qaDuV63Cay6dAeL9yeRT6GlS3WeO27e+1j\ndQVZ2fob+nnlZIIVcyv1Uueb6eTUB5PhRqkf/ecWXm8FNucXfZ3EkqC73rGY83Fx\n/mqFaO4NedKsecEMt0S3iW9uBrU25rSJL9le/wVeD7EpT0S6d8E93e/f6aNz9NGi\nZpx1DuDpcyjjW+NLX57zl9BEkDihDuHubBk8GIDpXewbKg/pOFUyNjMk2vty/04G\nicainRKDEzSZuZJ36QHXqtg+1nB/xP+l8QW99YD2EneMi4fJ19KK76xf/53CI68B\ntQIDAQAB\n-----END PUBLIC KEY-----\n"
+  },
+  {
+    "algorithm": "RSA",
+    "alternate": "-----BEGIN RSA PUBLIC KEY-----\nMIGJAoGBALlPdNYux7oI2VJ/EVCPiGzckGzs6I+5saG4FZrUsFzxpK+QDB97oOUa\n5+VZ4vEXwwkdNzzaHOR32dr0x2zF2nJC2OWfasRS2lSx38zmC0B8H9CWYhkpowLj\n1MszFIR7EFE8YmNYROBeSZVInV5nbjdEkCwNtR3cpPhpED+xc+FxAgMBAAE=\n-----END RSA PUBLIC KEY-----\n",
+    "bits": 1024,
+    "kid": "nyddpYOyP9YGPUPzjD34BcB42zYO8Oh5oNXmXsvib2o",
+    "label": "rsa-1024-2",
+    "public_key": "-----BEGIN PUBLIC KEY-----\nMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC5T3TWLse6CNlSfxFQj4hs3JBs\n7OiPubGhuBWa1LBc8aSvkAwfe6DlGuflWeLxF8MJHTc82hzkd9na9MdsxdpyQtjl\nn2rEUtpUsd/M5gtAfB/QlmIZKaMC49TLMxSEexBRPGJjWETgXkmVSJ1eZ243RJAs\nDbUd3KT4aRA/sXPhcQIDAQAB\n-----END PUBLIC KEY-----\n"
+  },
+  {
+    "algorithm": "EC",
+    "bits": 256,
+    "kid": "oQxATEjLZxIilgPIMHe5GQx9ayLKsbCKhFGaFohRlYg",
+    "label": "P-256",
+    "public_key": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEl97GVmoH8C2ngzcdu2quBbvnSmLe\n1200T00drTLl+SJiyJ2A8QEQnURh+Z/UwfcSxKEawifbwFgVicQvrk9BNQ==\n-----END PUBLIC KEY-----\n"
+  },
+  {
+    "algorithm": "EC",
+    "bits": 384,
+    "kid": "R-M6At6JdHARBkfo5Arf085QwPXRHsbhZXMA63O1h5A",
+    "label": "P-384",
+    "public_key": "-----BEGIN PUBLIC KEY-----\nMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAE6IlsP2OV5ml/e8bK5M69hUt/Y3dbVagC\nJw+n5rzPqYn+YeDC40vG5X7hda6O9+NYy/Ow/GYxcBAUW4tlkVm0CoSLFqvFTgdC\nK8fL0LbFyq8gQ9Dadfsq0Kg3hD7YSOTJ\n-----END PUBLIC KEY-----\n"
+  },
+  {
+    "algorithm": "EC",
+    "bits": 521,
+    "kid": "OOlud1TusADzlCNgXlqfFrgA8QY-qB4SyoS7FwzyrmQ",
+    "label": "P-521",
+    "public_key": "-----BEGIN PUBLIC KEY-----\nMIGbMBAGByqGSM49AgEGBSuBBAAjA4GGAAQBu8sxtNTkaCk/DC7z9jJ6KmuTAu2e\nlj2nBV9nDGIhR8vjtw9rxMsUiU8GoUSlSUlqKmChFa8b3wVu7VtSxaFlRMIB/G58\nLJuedjuzQ7yMQ5vN6ZSaTR7hAv35azVgIK24uDzy7yJacuJOD7xyuOB+YtgP+DTc\nwFVehB/MHZmFeK24Q4w=\n-----END PUBLIC KEY-----\n"
+  },
+  {
+    "algorithm": "EC",
+    "bits": 256,
+    "kid": "iVqpLQZFbD_zDNB70f_uJBcuOq8vdRoZ-SK8DkT3Q-M",
+    "label": "P-256",
+    "public_key": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEMxR7NJSoipGtYj1JHaGNJcR5AFSS\nqbofh2i8qOqquo6kpkYkqHLqhYl55qgL3zv6UICP9S7Tc0Q+7ZPwB3Wzxw==\n-----END PUBLIC KEY-----\n"
+  }
+]

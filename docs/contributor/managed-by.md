@@ -47,9 +47,9 @@ clones the SDK request, writes `tool: kongctl` and the executing binary's
 An unenrolled type is unchanged. An incompatible SDK request fails before an
 HTTP write. SDK serialization errors are sanitized to avoid exposing secrets.
 
-Use this path for every create/update, including replacements, saved plans,
-direct state calls, and secret-only updates. Plan previews show the planning
-binary version; execution records the executing binary version. Local builds
+For mutable policies, use this path for every create/update, including
+replacements, saved plans, direct state calls and secret-only updates. Plan
+previews show the planning binary version; execution records the executing binary version. Local builds
 without release information record `dev`.
 
 `PrepareManagedBy` generates the complete tool-owned map. It discards outside
@@ -86,10 +86,22 @@ Before enrolling a resource, cover:
 - Credential and other write-only field preservation using behavioral or
   equivalent backend evidence, beyond a redacted GET response alone.
 
-Current enrollment covers the 14 previously supported AI Gateway child
-families, including consumer credentials. Config stores, their secrets, data
-plane certificates, and non-AI Gateway resources are not enrolled by this PR.
-This is the initial adoption of a reusable facility, not a blanket migration.
+The resource registry is authoritative for enrollment. Adding this capability
+never opts other resource families into a blanket migration.
+
+### Immutable management metadata
+
+`ManagedByPolicy.CreateOnly` records provenance during creation without
+requesting later metadata updates. `PersistsRef` retains a declared ref;
+`CreationValues` records fixed creation intent. `PersistsNamespace` supports
+immutable namespace-only markers. Registration validates the complete map
+against the API's capacity and reserved keys.
+
+These options alone do not authorize adoption, ownership transfer or mutable
+protection. Resource-specific adapters must enforce the actual lifecycle
+contract, including fresh ownership checks and complete duplicate detection.
+Update adapters must omit unsupported metadata writes. See the
+[Identity guide](kong-identity.md) for inherited and external-parent keys.
 
 ## Stage two: migrate lifecycle authority
 

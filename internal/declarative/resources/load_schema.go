@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"time"
 )
 
 const loadSchemaID = "kongctl://declarative/load"
@@ -71,6 +72,13 @@ func loadSchemaResourceRef(resourceType ResourceType, array bool) *JSONSchema {
 
 func replaceLoadSchemaProperty(schema *JSONSchema, name string, replacement *JSONSchema) {
 	if schema == nil {
+		return
+	}
+	if group, remaining, nested := strings.Cut(name, "."); nested {
+		replaceLoadSchemaProperty(schema.Properties[group], remaining, replacement)
+		for _, branch := range slices.Concat(schema.OneOf, schema.AnyOf) {
+			replaceLoadSchemaProperty(branch, name, replacement)
+		}
 		return
 	}
 	if _, ok := schema.Properties[name]; ok {
@@ -196,6 +204,9 @@ func loadSchemaFieldExistsInEveryBranch(name string, branches []*ExplainNode) bo
 func reflectLoadSchema(typ reflect.Type, stack []reflect.Type) *JSONSchema {
 	nullable := typ.Kind() == reflect.Pointer
 	typ = derefExplainType(typ)
+	if typ == reflect.TypeFor[time.Time]() {
+		return &JSONSchema{}
+	}
 
 	if typ.Kind() == reflect.Struct {
 		if resourceType, ok := registeredResourceType(typ); ok {

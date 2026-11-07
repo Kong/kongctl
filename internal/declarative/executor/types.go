@@ -6,6 +6,7 @@ import (
 
 // ExecutionResult represents the outcome of executing a plan
 type ExecutionResult struct {
+	GeneratedFiles []string `json:"generated_files,omitempty"`
 	// Counts
 	SuccessCount int `json:"success_count"`
 	FailureCount int `json:"failure_count"`

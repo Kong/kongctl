@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"encoding/json"
 	"maps"
 	"reflect"
 
@@ -112,6 +113,11 @@ func resolveDeferredEnvValue(value any) (any, error) {
 func resolveDeferredEnvReflect(value reflect.Value) (any, error) {
 	if !value.IsValid() {
 		return nil, nil
+	}
+
+	// json.Number has string storage but represents numeric payload data.
+	if value.Type() == reflect.TypeFor[json.Number]() {
+		return value.Interface(), nil
 	}
 
 	//exhaustive:ignore

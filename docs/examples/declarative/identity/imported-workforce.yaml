@@ -1,0 +1,20 @@
+_defaults:
+  kongctl:
+    namespace: workforce-access
+
+identity:
+  directories:
+    - ref: default-directory
+      _external:
+        selector:
+          matchFields:
+            name: default
+      principals:
+        - ref: employee
+          _external:
+            id: !env WORKFORCE_PRINCIPAL_ID
+          api_keys:
+            - ref: application-key
+              type: v1
+              name: Employee application key
+              expires_at: null

@@ -226,6 +226,50 @@ application_auth_strategies:
      key: value
 ```
 
+## Kong Identity
+
+Declare directory resources under `identity.directories` and issuers under
+`identity.auth_servers`. Directory children include principals, identities,
+ordinary groups/memberships, basic-auth usernames, generated API keys,
+Trusted IdPs and Token Vault configuration. Auth Servers contain scopes,
+claims and OAuth clients.
+
+Use `kongctl explain identity` to discover accepted fields and
+`kongctl scaffold identity.principals` for a principal starting point. Grouped
+collections support explicit parent refs; examples use nested declarations:
+
+```yaml
+identity:
+  directories:
+    - ref: default-directory
+      _external:
+        selector:
+          matchFields:
+            name: default
+      principals:
+        - ref: support-worker
+          display_name: Support worker
+          type: agent
+```
+
+Principals support `user`, `agent` or an unclassified type. Their namespace/ref
+is persisted remotely because display names are not unique. External principal
+references require UUIDs; declared principal IDs are assertions, not adoption.
+Public `metadata`, public labels and KongCTL ownership serve separate purposes.
+
+Vault is grouped as `vault.enabled`, `vault.keys` and `vault.providers` beneath
+a managed directory. Providers can contain static `shared_credentials`.
+Trusted IdPs use the directory's `trusted_idps` collection. These resources
+inherit directory authority; they do not store independent ownership metadata.
+
+Auth Servers require explicit `name` and `audience`. Scopes and claims inherit
+server authority; OAuth clients have independent label ownership. Generated
+key/client secrets require private execution capture with
+`--secret-output-dir`; dumps do not export secret material.
+
+See [Identity resource behavior][identity-behavior] for lifecycle constraints
+and [workflow examples][identity-examples] for complete manifests.
+
 ## DCR Providers
 
 [API Specification](https://developer.konghq.com/api/konnect/application-auth-strategies/v2/#/operations/create-dcr-provider)
@@ -1621,3 +1665,6 @@ audit-logs:
           matchFields:
             name: foo
 ```
+
+[identity-behavior]: declarative/resource-behavior.md#kong-identity
+[identity-examples]: examples/declarative/identity/README.md

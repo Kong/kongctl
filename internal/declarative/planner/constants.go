@@ -8,11 +8,56 @@ import (
 // Field names used for communication between planner and executor. Internal
 // fields are prefixed with underscore to avoid confusion with resource fields.
 const (
+	FieldSelector                   = "selector"
+	FieldPriority                   = "priority"
+	FieldSecret                     = "secret"
+	FieldProviderName               = "_provider_name"
+	FieldExpectedSelector           = "_expected_selector"
+	FieldExpectedPriority           = "_expected_priority"
+	FieldIssuerURL                  = "issuer_url"
+	FieldJwksURI                    = "jwks_uri"
+	FieldJit                        = "jit"
+	FieldJitProvisioningEnabled     = "jit_provisioning_enabled"
+	FieldVaultAccessEnabled         = "vault_access_enabled"
+	FieldPublicKey                  = "public_key"
+	FieldDirectoryID                = "directory_id"
+	FieldPrincipalID                = "principal_id"
+	FieldIssuer                     = "issuer"
+	FieldClaim                      = "claim"
+	FieldConsumerID                 = "consumer_id"
+	FieldWorkspaceID                = "workspace_id"
+	FieldAudience                   = "audience"
+	FieldAuthServerID               = "auth_server_id"
+	FieldGrantTypes                 = "grant_types"
+	FieldResponseTypes              = "response_types"
+	FieldRedirectURIs               = "redirect_uris"
+	FieldLoginURI                   = "login_uri"
+	FieldAccessTokenDuration        = "access_token_duration"
+	FieldIDTokenDuration            = "id_token_duration" //nolint:gosec // API field name, not credential material.
+	FieldAllowAllScopes             = "allow_all_scopes"
+	FieldAllowScopes                = "allow_scopes"
+	FieldTokenEndpointAuthMethod    = "token_endpoint_auth_method"
+	FieldDefault                    = "default"
+	FieldIncludeInMetadata          = "include_in_metadata"
+	FieldIncludeInToken             = "include_in_token"
+	FieldIncludeInAllScopes         = "include_in_all_scopes"
+	FieldIncludeInScopes            = "include_in_scopes"
+	FieldProtected                  = "protected"
+	FieldDefaultAccessTokenDuration = "default_access_token_duration"
+	FieldDCR                        = "dcr"
+	FieldTrustedOrigins             = "trusted_origins"
+	FieldSigningAlgorithm           = "signing_algorithm"
+	FieldAllowedControlPlanes       = "allowed_control_planes"
+	FieldAllowAllControlPlanes      = "allow_all_control_planes"
+	FieldTTLSecs                    = "ttl_secs"
+	FieldNegativeTTLSecs            = "negative_ttl_secs"
+	FieldVaultEnabled               = "vault_enabled"
 	// FieldID contains a resource ID
 	FieldID = "id"
 
 	// FieldName contains a resource name
-	FieldName = "name"
+	FieldName     = "name"
+	FieldUsername = "username"
 
 	// FieldDescription contains a resource description
 	FieldDescription = fieldcontracts.FieldDescription
@@ -57,47 +102,58 @@ const (
 
 // Common plan field identifiers.
 const (
-	FieldNamespace      = "namespace"
-	FieldContent        = "content"
-	FieldTitle          = "title"
-	FieldStatus         = "status"
-	FieldAttributes     = fieldcontracts.FieldAttributes
-	FieldType           = "type"
-	FieldConfig         = "config"
-	FieldDatastores     = "datastores"
-	FieldCertificates   = "certificates"
-	FieldCACertificates = "ca_certificates"
-	FieldSASLAWSIAM     = "sasl_aws_iam"
-	FieldTokenVault     = "token_vault"
-	FieldConfigStoreID  = "config_store_id"
-	FieldConfigs        = "configs"
-	FieldModel          = "model"
-	FieldRoute          = "route"
-	FieldTools          = "tools"
-	FieldConsumers      = "consumers"
-	FieldEnabled        = "enabled"
-	FieldGlobal         = "global"
-	FieldVersion        = fieldcontracts.FieldVersion
-	FieldSpec           = "spec"
-	FieldSlug           = fieldcontracts.FieldSlug
-	FieldKey            = "key"
-	FieldValue          = "value"
-	FieldAPIKey         = "api_key"
-	FieldClientID       = "client_id"
-	FieldClientSecret   = "client_secret"
-	FieldToken          = "token"
-	FieldMetadata       = "metadata"
-	FieldDataURL        = "data_url"
-	FieldDeckBaseDir    = "deck_base_dir"
-	FieldFlags          = "flags"
-	FieldFiles          = "files"
-	FieldDefinition     = "definition"
-	FieldDomain         = "domain"
-	FieldFoundry        = "foundry"
-	FieldResource       = "resource"
-	FieldDeploymentType = "deployment_type"
-	FieldCertAlt        = "cert_alt"
-	FieldKeyAlt         = "key_alt"
+	FieldNamespace             = "namespace"
+	FieldContent               = "content"
+	FieldTitle                 = "title"
+	FieldStatus                = "status"
+	FieldAttributes            = fieldcontracts.FieldAttributes
+	FieldType                  = "type"
+	FieldExpiresAt             = "expires_at"
+	FieldConfig                = "config"
+	FieldDatastores            = "datastores"
+	FieldCertificates          = "certificates"
+	FieldCACertificates        = "ca_certificates"
+	FieldSASLAWSIAM            = "sasl_aws_iam"
+	FieldTokenVault            = "token_vault"
+	FieldConfigStoreID         = "config_store_id"
+	FieldConfigs               = "configs"
+	FieldModel                 = "model"
+	FieldRoute                 = "route"
+	FieldTools                 = "tools"
+	FieldConsumers             = "consumers"
+	FieldEnabled               = "enabled"
+	FieldActive                = "active"
+	FieldGlobal                = "global"
+	FieldVersion               = fieldcontracts.FieldVersion
+	FieldSpec                  = "spec"
+	FieldSlug                  = fieldcontracts.FieldSlug
+	FieldKey                   = "key"
+	FieldValue                 = "value"
+	FieldAPIKey                = "api_key"
+	FieldClientID              = "client_id"
+	FieldTemplateName          = "template_name"
+	FieldCredentialType        = "credential_type" //nolint:gosec // API field name, not credential material.
+	FieldDCREnabled            = "dcr_enabled"
+	FieldPKCEEnabled           = "pkce_enabled"
+	FieldRefreshBufferSeconds  = "refresh_buffer_seconds"
+	FieldTokenEndpoint         = "token_endpoint"
+	FieldAuthorizationEndpoint = "authorization_endpoint"
+	FieldRegistrationEndpoint  = "registration_endpoint"
+	FieldScopes                = "scopes"
+	FieldClientSecret          = "client_secret"
+	FieldToken                 = "token"
+	FieldMetadata              = "metadata"
+	FieldDataURL               = "data_url"
+	FieldDeckBaseDir           = "deck_base_dir"
+	FieldFlags                 = "flags"
+	FieldFiles                 = "files"
+	FieldDefinition            = "definition"
+	FieldDomain                = "domain"
+	FieldFoundry               = "foundry"
+	FieldResource              = "resource"
+	FieldDeploymentType        = "deployment_type"
+	FieldCertAlt               = "cert_alt"
+	FieldKeyAlt                = "key_alt"
 )
 
 // Common relationship and reference field identifiers.
@@ -218,6 +274,7 @@ const (
 	FieldDestination                                = "destination"
 	FieldDNSLabel                                   = "dns_label"
 	FieldInsecureAllowAnonymousVirtualClusterAuth   = "insecure_allow_anonymous_virtual_cluster_auth"
+	FieldMember                                     = "member"
 	FieldMembers                                    = "members"
 	FieldMetadataUpdateIntervalSeconds              = "metadata_update_interval_seconds"
 	FieldMinRuntimeVersion                          = "min_runtime_version"
@@ -243,6 +300,22 @@ const (
 // the resources package. Keep these only for planner/executor compatibility.
 const (
 	ResourceTypePortal                           = string(resources.ResourceTypePortal)
+	ResourceTypeIdentityAuthServer               = string(resources.ResourceTypeIdentityAuthServer)
+	ResourceTypeIdentityAuthServerScope          = string(resources.ResourceTypeIdentityAuthServerScope)
+	ResourceTypeIdentityAuthServerClaim          = string(resources.ResourceTypeIdentityAuthServerClaim)
+	ResourceTypeIdentityAuthServerClient         = string(resources.ResourceTypeIdentityAuthServerClient)
+	ResourceTypeIdentityDirectory                = string(resources.ResourceTypeIdentityDirectory)
+	ResourceTypeIdentityVaultKey                 = string(resources.ResourceTypeIdentityVaultKey)
+	ResourceTypeIdentityVaultProvider            = string(resources.ResourceTypeIdentityVaultProvider)
+	ResourceTypeIdentityVaultProviderCredential  = string(resources.ResourceTypeIdentityVaultProviderCredential)
+	ResourceTypeIdentityTrustedIDP               = string(resources.ResourceTypeIdentityTrustedIDP)
+	ResourceTypeIdentityGroupMembership          = string(resources.ResourceTypeIdentityGroupMembership)
+	ResourceTypeIdentityPrincipalAPIKey          = string(resources.ResourceTypeIdentityPrincipalAPIKey)
+	ResourceTypeIdentityGroupAPIKey              = string(resources.ResourceTypeIdentityGroupAPIKey)
+	ResourceTypeIdentityBasicAuth                = string(resources.ResourceTypeIdentityBasicAuth)
+	ResourceTypeIdentityGroup                    = string(resources.ResourceTypeIdentityGroup)
+	ResourceTypeIdentityPrincipal                = string(resources.ResourceTypeIdentityPrincipal)
+	ResourceTypeIdentityPrincipalIdentity        = string(resources.ResourceTypeIdentityPrincipalIdentity)
 	ResourceTypeApplicationAuthStrategy          = string(resources.ResourceTypeApplicationAuthStrategy)
 	ResourceTypeDCRProvider                      = string(resources.ResourceTypeDCRProvider)
 	ResourceTypeControlPlane                     = string(resources.ResourceTypeControlPlane)

@@ -11,8 +11,9 @@ import (
 	"github.com/kong/kongctl/test/e2e/harness"
 )
 
+//go:fix inline
 func intPtr(v int) *int {
-	return &v
+	return new(v)
 }
 
 func TestMaybeRecordVarTemplatesResponsePath(t *testing.T) {
@@ -323,9 +324,9 @@ func TestParseMaxConcurrencyValuesRejectsInvalid(t *testing.T) {
 func TestCommandMaxConcurrencyPrecedence(t *testing.T) {
 	suite := 2
 	cli := &harness.CLI{}
-	sc := Scenario{Defaults: Defaults{MaxConcurrency: intPtr(3)}}
-	st := Step{MaxConcurrency: intPtr(4)}
-	cmd := Command{MaxConcurrency: intPtr(6)}
+	sc := Scenario{Defaults: Defaults{MaxConcurrency: new(3)}}
+	st := Step{MaxConcurrency: new(4)}
+	cmd := Command{MaxConcurrency: new(6)}
 
 	got, ok, err := commandMaxConcurrency(cli, sc, st, cmd, nil, &suite)
 	if err != nil {
@@ -398,7 +399,7 @@ func TestCommandMaxConcurrencyYAMLOverridesConfiguredEnv(t *testing.T) {
 	cli := &harness.CLI{
 		Env: []string{maxConcurrencyEnvName + "=9"},
 	}
-	cmd := Command{MaxConcurrency: intPtr(7)}
+	cmd := Command{MaxConcurrency: new(7)}
 
 	got, ok, err := commandMaxConcurrency(cli, Scenario{}, Step{}, cmd, nil, &suite)
 	if err != nil {
@@ -414,7 +415,7 @@ func TestCommandMaxConcurrencyRejectsInvalidYAML(t *testing.T) {
 		t.Run(strconv.Itoa(value), func(t *testing.T) {
 			_, _, err := commandMaxConcurrency(
 				&harness.CLI{},
-				Scenario{Defaults: Defaults{MaxConcurrency: intPtr(value)}},
+				Scenario{Defaults: Defaults{MaxConcurrency: new(value)}},
 				Step{},
 				Command{},
 				nil,

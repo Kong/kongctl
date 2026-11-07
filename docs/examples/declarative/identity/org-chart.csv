@@ -1,0 +1,4 @@
+external_id,email,given_name,family_name,manager_external_id,cost_center
+orders-ceo,alex@example.test,Alex,Morgan,,EXEC
+orders-manager,blair@example.test,Blair,Lee,orders-ceo,OPS
+orders-worker,casey@example.test,Casey,Rao,orders-manager,FULFILL

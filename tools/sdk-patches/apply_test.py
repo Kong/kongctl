@@ -29,6 +29,20 @@ class PatchTests(unittest.TestCase):
             self.assertEqual(result.count("./kongctl-patches/overlays/" + name), 1)
         self.assertEqual(patches.configure_workflow(result, self.manifest), result)
 
+    def test_preserves_multiline_speakeasy_overlay_entries(self):
+        workflow = (
+            "speakeasyVersion: latest\nsources:\n    konnect:\n"
+            "        overlays:\n            -\n                location: ./upstream.yaml\n"
+            "            -\n                location: ./kongctl-patches/overlays/update-portal-patch-defaults.yaml\n"
+            "        registry:\n                location: registry\n"
+        )
+        result = patches.configure_workflow(workflow, self.manifest)
+        self.assertIn("            -\n                location: ./upstream.yaml\n", result)
+        for name in self.manifest["overlays"]:
+            self.assertEqual(result.count("./kongctl-patches/overlays/" + name), 1)
+        self.assertIn("        registry:\n                location: registry\n", result)
+        self.assertEqual(patches.configure_workflow(result, self.manifest), result)
+
     def test_installs_overlays_in_upstream_workflow(self):
         result = patches.configure_workflow(
             "speakeasyVersion: latest\nsources:\n    konnect:\n        registry:\n"
@@ -74,6 +88,60 @@ class PatchTests(unittest.TestCase):
             target.write_text(patch["before"])
             patches.post_generate(sdk, {"post_generation": [patch]})
             self.assertEqual(target.read_text(), patch["after"])
+
+    def test_multiple_replacements_in_one_file_accumulate_and_fail_atomically(self):
+        with tempfile.TemporaryDirectory() as directory:
+            sdk = Path(directory)
+            target = sdk / "request.go"
+            target.write_text("first second")
+            manifest = {"post_generation": [
+                {"file": "request.go", "before": "first", "after": "FIRST"},
+                {"file": "request.go", "before": "second", "after": "SECOND"},
+            ]}
+            patches.post_generate(sdk, manifest)
+            self.assertEqual(target.read_text(), "FIRST SECOND")
+            patches.post_generate(sdk, manifest)
+            self.assertEqual(target.read_text(), "FIRST SECOND")
+            target.write_text("first drift")
+            with self.assertRaises(ValueError):
+                patches.post_generate(sdk, manifest)
+            self.assertEqual(target.read_text(), "first drift")
+
+    def test_documentation_replacements_are_scoped_and_idempotent(self):
+        for declaration in ["import (", "import("]:
+            example = declaration + '\n\t"context"\n)\nExpiresAt: timestamp,\n'
+            source = "## First\n" + example + "## Second\n" + example
+            patch = {
+                "file": "README.md", "section": "Second",
+                "before": "ExpiresAt: timestamp,", "after": "ExpiresAt: nullable(timestamp),",
+                "imports": ["example/nullable"],
+            }
+            result = patches.replace_doc_section(source, patch)
+            self.assertEqual(result.split("## Second")[0], source.split("## Second")[0])
+            self.assertEqual(result.count('"example/nullable"'), 1)
+            self.assertIn("ExpiresAt: nullable(timestamp),", result)
+            self.assertEqual(patches.replace_doc_section(result, patch), result)
+
+    def test_documentation_drift_does_not_partially_write_models(self):
+        with tempfile.TemporaryDirectory() as directory:
+            sdk = Path(directory)
+            model, document = sdk / "request.go", sdk / "README.md"
+            model.write_text("before")
+            document.write_text("## Changed\nexample\n")
+            manifest = {
+                "post_generation": [{"file": "request.go", "before": "before", "after": "after"}],
+                "post_generation_doc_sections": [{
+                    "file": "README.md", "section": "Expected", "before": "example",
+                    "after": "updated", "imports": [], "optional_file": True,
+                }],
+            }
+            with self.assertRaises(ValueError):
+                patches.post_generate(sdk, manifest)
+            self.assertEqual(model.read_text(), "before")
+            self.assertEqual(document.read_text(), "## Changed\nexample\n")
+            document.unlink()
+            patches.post_generate(sdk, manifest)
+            self.assertEqual(model.read_text(), "after")
 
 
 if __name__ == "__main__":

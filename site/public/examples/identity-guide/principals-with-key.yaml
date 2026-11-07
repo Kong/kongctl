@@ -1,0 +1,40 @@
+_defaults:
+  kongctl:
+    namespace: identity-guide
+
+identity:
+  directories:
+    - ref: default-directory
+      _external:
+        selector:
+          matchFields:
+            name: default
+      principals:
+        - ref: support-worker
+          type: agent
+          display_name: Guide support automation
+          description: Automation principal for the Identity guide
+          api_keys:
+            - ref: support-worker-primary
+              type: v1
+              name: Guide support automation key
+              expires_at: null
+          metadata:
+            department: support
+            role: assistant
+          labels:
+            application: identity-guide
+          identities:
+            - ref: support-worker-number
+              type: custom
+              key: employee_id
+              value: identity-guide-worker-001
+        - ref: support-operator
+          type: user
+          display_name: Guide support operator
+          description: Human principal for the Identity guide
+          metadata:
+            department: support
+            role: operator
+          labels:
+            application: identity-guide

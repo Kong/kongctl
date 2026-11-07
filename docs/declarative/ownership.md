@@ -10,8 +10,10 @@ The `kongctl` section provides metadata for resource management. Namespace and
 protection metadata are supported on namespace-bearing resources. Most parent
 resources store this metadata in Konnect labels. Participating AI Gateway
 children own their metadata independently, even when nested under a gateway.
-Other children follow their parent's lifecycle. Confirm support for each
-resource with `kongctl explain`.
+Kong Identity uses both independent `managed_by` ownership and inherited
+lifecycles; Auth Servers/clients use labels. Confirm the resource-specific
+contract with `kongctl explain` and the
+[Identity behavior](resource-behavior.md#kong-identity).
 
 ## Protected Resources
 

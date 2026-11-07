@@ -1,0 +1,57 @@
+defaults:
+  retry:
+    attempts: 1
+log-level: trace
+test:
+  privateTempDirVar: secret_dir
+  cleanupResources:
+    - resource: identity_directory
+      useDefaultDirectory: true
+      nameVar: directory_name
+      nameEnv: KONGCTL_E2E_PASSWORD_DIRECTORY_NAME
+  info: Explicit generated/imported password capture, expiration, material replacement and single/all deletion under declaratively managed username records. Verify private files, preserved management metadata, wrong-parent rejection, two occupied slots, deletion guards and unchanged declarative plans. Runtime password authentication requires a separate integration context.
+steps:
+  - name: 001-password-lifecycle
+    skipInputs: true
+    commands:
+      - name: create-directory
+        create:
+          resource: identity_directory
+          useDefaultDirectory: true
+          payload:
+            inline:
+              name: '{{ .vars.directory_name }}'
+              allow_all_control_planes: true
+              vault_enabled: false
+          recordVar:
+            name: directory_id
+            responsePath: id
+      - name: verify-password-lifecycle
+        timeout: 5m
+        exec:
+          - python3
+          - '{{ .scenario_dir }}/lifecycle.py'
+          - '{{ .bin }}'
+          - '{{ .vars.secret_dir }}'
+          - '{{ .workdir }}'
+          - '{{ .vars.directory_id }}'
+          - '{{ .vars.directory_name }}'
+        env:
+          KONGCTL_PROFILE: e2e
+        parseAs: json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                generated_and_imported: true
+                expiration_and_replacement: true
+                metadata_preserved: true
+                occupied_slots_checked: true
+                wrong_parent_rejected: true
+                declarative_deletion_guards: true
+                declarative_plan_unchanged: true
+                single_and_all_deletion: true
+                output_formats: 3
+                captures_private: true
+                artifacts_clean: true
+                fixtures_removed: true

@@ -6,6 +6,7 @@ import (
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/identity"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/mesh"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/meta"
@@ -22,8 +23,8 @@ func NewInspectCmd() (*cobra.Command, error) {
 	cmd := &cobra.Command{
 		Use:   Verb.String(),
 		Short: "Inspect computed configuration and runtime state",
-		Long: "Inspect resource relationships, computed configuration, and runtime state. " +
-			"Currently supports Kong Mesh.",
+		Long: `Inspect resource relationships, computed configuration, and runtime state.
+Supports Kong Mesh and local Kong Identity principal CSV validation.`,
 		Example:           fmt.Sprintf("  %s inspect mesh dataplanes", meta.CLIName),
 		PersistentPreRunE: verbs.KonnectFirstPreRunE(Verb, konnectCmd),
 		RunE:              cmdpkg.RequireSubcommand,
@@ -42,6 +43,10 @@ func NewInspectCmd() (*cobra.Command, error) {
 	if err != nil {
 		return nil, err
 	}
-	cmd.AddCommand(konnectCmd, meshCmd)
+	identityCmd, err := identity.NewIdentityCmd(Verb, nil, konnectCmd.PersistentPreRunE)
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(konnectCmd, meshCmd, identityCmd)
 	return cmd, nil
 }

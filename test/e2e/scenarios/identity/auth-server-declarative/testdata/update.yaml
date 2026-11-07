@@ -1,0 +1,35 @@
+_defaults:
+  kongctl: {namespace: identity-auth-decl-e2e}
+identity:
+  auth_servers:
+    - ref: issuer
+      name: !env KONGCTL_E2E_AUTH_DECL_SERVER_NAME
+      audience: https://api.example.test
+      scopes:
+        - ref: read-scope
+          name: !env KONGCTL_E2E_AUTH_DECL_READ_NAME
+          description: ""
+          default: false
+          include_in_metadata: false
+          enabled: true
+        - ref: write-scope
+          name: !env KONGCTL_E2E_AUTH_DECL_WRITE_NAME
+          description: Updated write scope
+          default: true
+          include_in_metadata: true
+          enabled: false
+      claims:
+        - ref: department
+          name: !env KONGCTL_E2E_AUTH_DECL_DEPARTMENT_NAME
+          value: '{"team":"platform","tier":2}'
+          include_in_token: false
+          include_in_all_scopes: true
+          include_in_scopes: []
+          enabled: false
+        - ref: request-id
+          name: !env KONGCTL_E2E_AUTH_DECL_REQUEST_NAME
+          value: '${ uuidv4 }'
+          include_in_token: false
+          include_in_all_scopes: false
+          include_in_scopes: [!ref read-scope#id]
+          enabled: true

@@ -1,0 +1,53 @@
+defaults:
+  retry:
+    attempts: 1
+log-level: trace
+test:
+  cleanupResources:
+    - resource: identity_directory
+      useDefaultDirectory: true
+      nameVar: directory_name
+      nameEnv: KONGCTL_E2E_VAULT_CREDENTIALS_DECLARATIVE_DIRECTORY_NAME
+      requireEmptyVaultDependencies: true
+  info: Requires Token Vault availability and the shared default directory. Verify static shared default/priority slots, directory-inherited authority, deferred sources and explicit material replacement, encryption-key dependencies, saved routing/ownership guards, scoped sync/delete and public dump. OAuth enrollment and runtime stored-material recovery are outside this administrative lifecycle.
+steps:
+  - name: 001-static-credential-lifecycle
+    skipInputs: true
+    commands:
+      - name: create-directory
+        create:
+          resource: identity_directory
+          useDefaultDirectory: true
+          payload:
+            inline:
+              name: '{{ .vars.directory_name }}'
+              allow_all_control_planes: true
+              vault_enabled: true
+          recordVar:
+            name: directory_id
+            responsePath: id
+      - name: verify-static-credential-lifecycle
+        timeout: 4m
+        exec:
+          - python3
+          - '{{ .scenario_dir }}/lifecycle.py'
+          - '{{ .bin }}'
+          - '{{ .workdir }}'
+          - '{{ .vars.directory_id }}'
+          - '{{ .vars.directory_name }}'
+        env:
+          KONGCTL_PROFILE: e2e
+        parseAs: json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                static_shared_slots: 3
+                deferred_sources_and_explicit_replacement: true
+                inherited_parent_authority: true
+                saved_routing_and_key_guards: true
+                scoped_sync_and_retirement: true
+                dump_without_material: true
+
+                fixtures_removed: true
+                private_workspace_removed: true

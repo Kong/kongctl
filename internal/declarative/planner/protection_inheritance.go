@@ -26,7 +26,12 @@ func (p *Planner) applyInheritedProtection(ctx context.Context, plan *Plan) erro
 
 	for i := range plan.Changes {
 		change := &plan.Changes[i]
-		if resources.HasIndependentChildOwnership(resources.ResourceType(change.ResourceType)) {
+		// Memberships check their independently owned, directory-scoped group in
+		// their planner and executor, rather than inheriting directory protection.
+		if change.ResourceType == ResourceTypeIdentityGroupMembership ||
+			change.ResourceType == ResourceTypeIdentityPrincipalAPIKey ||
+			change.ResourceType == ResourceTypeIdentityGroupAPIKey ||
+			resources.HasIndependentChildOwnership(resources.ResourceType(change.ResourceType)) {
 			continue
 		}
 		if change.Parent == nil || change.Parent.Ref == "" {

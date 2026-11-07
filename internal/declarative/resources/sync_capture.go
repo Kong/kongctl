@@ -175,10 +175,19 @@ func (s *SyncScope) captureRootChild(raw map[string]any, collection SyncCollecti
 }
 
 func (s *SyncScope) captureNestedPath(raw map[string]any, path []string, parentType, resourceType ResourceType) {
+	s.captureNestedPathWithParent(raw, path, parentType, resourceType, "")
+}
+
+func (s *SyncScope) captureNestedPathWithParent(raw map[string]any, path []string,
+	parentType, resourceType ResourceType, parentRef string,
+) {
+	if ref, ok := raw[SchemaFieldRef].(string); ok && ref != "" {
+		parentRef = ref
+	}
 	if len(path) == 1 {
-		if ref, ok := raw[SchemaFieldRef].(string); ok && ref != "" {
+		if parentRef != "" {
 			if _, present := raw[path[0]]; present {
-				s.addNestedChild(parentType, ref, resourceType)
+				s.addNestedChild(parentType, parentRef, resourceType)
 			}
 		}
 		return
@@ -186,11 +195,11 @@ func (s *SyncScope) captureNestedPath(raw map[string]any, path []string, parentT
 	// Grouping objects retain their map shape; resource collections are arrays.
 	switch value := raw[path[0]].(type) {
 	case map[string]any:
-		s.captureNestedPath(value, path[1:], parentType, resourceType)
+		s.captureNestedPathWithParent(value, path[1:], parentType, resourceType, parentRef)
 	case []any:
 		for _, item := range value {
 			if parent, ok := item.(map[string]any); ok {
-				s.captureNestedPath(parent, path[1:], parentType, resourceType)
+				s.captureNestedPathWithParent(parent, path[1:], parentType, resourceType, parentRef)
 			}
 		}
 	}

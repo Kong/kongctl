@@ -18,6 +18,33 @@ const (
 // "github.com/Kong/sdk-konnect-go" SDK struct
 // allowing for easier testing and mocking
 type SDKAPI interface {
+	GetIdentityAuthServersAPI() IdentityAuthServersAPI
+	GetIdentityAuthServerScopesAPI() IdentityAuthServerScopesAPI
+	GetIdentityAuthServerClaimsAPI() IdentityAuthServerClaimsAPI
+	GetIdentityAuthServerClientsReader() IdentityAuthServerClientsReader
+	GetIdentityAuthServerClientsAPI() IdentityAuthServerClientsAPI
+	GetIdentityDirectoriesAPI() IdentityDirectoriesAPI
+	GetIdentityDirectoryDependenciesAPI() IdentityDirectoryDependenciesAPI
+	GetIdentityPrincipalsAPI() IdentityPrincipalsAPI
+	GetIdentityPrincipalIdentitiesAPI() IdentityPrincipalIdentitiesAPI
+	GetIdentityPrincipalKeysReader() IdentityPrincipalKeysReader
+	GetIdentityPrincipalKeysAPI() IdentityPrincipalKeysAPI
+	GetIdentityGroupKeysAPI() IdentityGroupKeysAPI
+	GetIdentityBasicAuthAPI() IdentityBasicAuthAPI
+	GetIdentityPasswordWritesAPI() IdentityPasswordWritesAPI
+	GetIdentityGroupsAPI() IdentityGroupsAPI
+	GetIdentityTrustedIDPsAPI() IdentityTrustedIDPsAPI
+	GetIdentityVaultKeysAPI() IdentityVaultKeysAPI
+	GetIdentityVaultProvidersReader() IdentityVaultProvidersReader
+	GetIdentityVaultProvidersAPI() IdentityVaultProvidersAPI
+	GetIdentityVaultProviderCredentialsReader() IdentityVaultProviderCredentialsReader
+	GetIdentityStaticVaultCredentialsAPI() IdentityStaticVaultCredentialsAPI
+	GetIdentityVaultEnrollmentAPI() IdentityVaultEnrollmentAPI
+	GetIdentityOrgChartImportAPI() IdentityOrgChartImportAPI
+	GetIdentityPrincipalVaultCredentialsReader() IdentityPrincipalVaultCredentialsReader
+	GetIdentityGroupsReader() IdentityGroupsReader
+	GetIdentityPrincipalGroupsReader() IdentityPrincipalGroupsReader
+	GetIdentityGroupMembershipsReader() IdentityGroupMembershipsReader
 	GetControlPlaneAPI() ControlPlaneAPI
 	GetControlPlaneGroupsAPI() ControlPlaneGroupsAPI
 	GetPortalAPI() PortalAPI
@@ -102,6 +129,160 @@ type KonnectSDK struct {
 	TokenSource apiutil.TokenSource
 	HTTPClient  kkSDK.HTTPClient
 	portalImpl  *PortalAPIImpl
+}
+
+func (k *KonnectSDK) GetIdentityDirectoryDependenciesAPI() IdentityDirectoryDependenciesAPI {
+	if k.SDK == nil || k.SDK.TokenVaultKeys == nil || k.SDK.TokenVaultProviders == nil || k.SDK.TrustedIDPs == nil {
+		return nil
+	}
+	return &identityDirectoryDependenciesAPI{sdk: k.SDK}
+}
+
+func (k *KonnectSDK) GetIdentityDirectoriesAPI() IdentityDirectoriesAPI {
+	if k.SDK == nil || k.SDK.KongIdentityDirectories == nil {
+		return nil
+	}
+	return k.SDK.KongIdentityDirectories
+}
+
+func (k *KonnectSDK) GetIdentityPrincipalsAPI() IdentityPrincipalsAPI {
+	if k.SDK == nil || k.SDK.KongPrincipal == nil {
+		return nil
+	}
+	return k.SDK.KongPrincipal
+}
+
+func (k *KonnectSDK) GetIdentityPrincipalIdentitiesAPI() IdentityPrincipalIdentitiesAPI {
+	if k.SDK == nil || k.SDK.KongPrincipalIdentity == nil {
+		return nil
+	}
+	return k.SDK.KongPrincipalIdentity
+}
+
+func (k *KonnectSDK) GetIdentityPrincipalKeysReader() IdentityPrincipalKeysReader {
+	if k.SDK == nil || k.SDK.KongPrincipalCredential == nil {
+		return nil
+	}
+	return k.SDK.KongPrincipalCredential
+}
+
+func (k *KonnectSDK) GetIdentityPrincipalKeysAPI() IdentityPrincipalKeysAPI {
+	if k.SDK == nil || k.SDK.KongPrincipalCredential == nil {
+		return nil
+	}
+	return k.SDK.KongPrincipalCredential
+}
+
+func (k *KonnectSDK) GetIdentityGroupKeysAPI() IdentityGroupKeysAPI {
+	if k.SDK == nil || k.SDK.PrincipalGroup == nil {
+		return nil
+	}
+	return k.SDK.PrincipalGroup
+}
+
+func (k *KonnectSDK) GetIdentityBasicAuthAPI() IdentityBasicAuthAPI {
+	if k.SDK == nil || k.SDK.KongPrincipalCredential == nil {
+		return nil
+	}
+	return k.SDK.KongPrincipalCredential
+}
+
+func (k *KonnectSDK) GetIdentityPasswordWritesAPI() IdentityPasswordWritesAPI {
+	if k.SDK == nil || k.SDK.KongPrincipalCredential == nil {
+		return nil
+	}
+	return k.SDK.KongPrincipalCredential
+}
+
+func (k *KonnectSDK) GetIdentityGroupsAPI() IdentityGroupsAPI {
+	if k.SDK == nil || k.SDK.PrincipalGroup == nil {
+		return nil
+	}
+	return k.SDK.PrincipalGroup
+}
+
+func (k *KonnectSDK) GetIdentityTrustedIDPsAPI() IdentityTrustedIDPsAPI {
+	if k.SDK == nil || k.SDK.TrustedIDPs == nil {
+		return nil
+	}
+	return k.SDK.TrustedIDPs
+}
+
+func (k *KonnectSDK) GetIdentityVaultKeysAPI() IdentityVaultKeysAPI {
+	if k.SDK == nil || k.SDK.TokenVaultKeys == nil {
+		return nil
+	}
+	return k.SDK.TokenVaultKeys
+}
+
+func (k *KonnectSDK) GetIdentityVaultProvidersReader() IdentityVaultProvidersReader {
+	if k.SDK == nil || k.SDK.TokenVaultProviders == nil {
+		return nil
+	}
+	return k.SDK.TokenVaultProviders
+}
+
+func (k *KonnectSDK) GetIdentityVaultProviderCredentialsReader() IdentityVaultProviderCredentialsReader {
+	if k.SDK == nil || k.SDK.TokenVaultProviders == nil {
+		return nil
+	}
+	return k.SDK.TokenVaultProviders
+}
+
+func (k *KonnectSDK) GetIdentityPrincipalVaultCredentialsReader() IdentityPrincipalVaultCredentialsReader {
+	if k.SDK == nil || k.SDK.TokenVaultCredentials == nil {
+		return nil
+	}
+	return k.SDK.TokenVaultCredentials
+}
+
+func (k *KonnectSDK) GetIdentityStaticVaultCredentialsAPI() IdentityStaticVaultCredentialsAPI {
+	if k == nil || k.SDK == nil || k.SDK.TokenVaultProviders == nil {
+		return nil
+	}
+	return k.SDK.TokenVaultProviders
+}
+
+func (k *KonnectSDK) GetIdentityVaultEnrollmentAPI() IdentityVaultEnrollmentAPI {
+	if k == nil || k.SDK == nil || k.SDK.TokenVaultProviders == nil {
+		return nil
+	}
+	return k.SDK.TokenVaultProviders
+}
+
+func (k *KonnectSDK) GetIdentityOrgChartImportAPI() IdentityOrgChartImportAPI {
+	if k == nil || k.SDK == nil || k.SDK.KongPrincipal == nil {
+		return nil
+	}
+	return k.SDK.KongPrincipal
+}
+
+func (k *KonnectSDK) GetIdentityVaultProvidersAPI() IdentityVaultProvidersAPI {
+	if k == nil || k.SDK == nil || k.SDK.TokenVaultProviders == nil {
+		return nil
+	}
+	return k.SDK.TokenVaultProviders
+}
+
+func (k *KonnectSDK) GetIdentityGroupsReader() IdentityGroupsReader {
+	if k.SDK == nil || k.SDK.PrincipalGroup == nil {
+		return nil
+	}
+	return k.SDK.PrincipalGroup
+}
+
+func (k *KonnectSDK) GetIdentityPrincipalGroupsReader() IdentityPrincipalGroupsReader {
+	if k == nil || k.SDK == nil || k.SDK.KongPrincipal == nil {
+		return nil
+	}
+	return k.SDK.KongPrincipal
+}
+
+func (k *KonnectSDK) GetIdentityGroupMembershipsReader() IdentityGroupMembershipsReader {
+	if k.SDK == nil || k.SDK.PrincipalGroup == nil {
+		return nil
+	}
+	return k.SDK.PrincipalGroup
 }
 
 // Returns the real implementation of the GetControlPlaneAPI
@@ -766,4 +947,39 @@ func (k *KonnectSDK) GetAIGatewayCustomPoliciesAPI() AIGatewayCustomPoliciesAPI 
 	}
 
 	return &AIGatewayCustomPoliciesAPIImpl{SDK: k.SDK}
+}
+
+func (k *KonnectSDK) GetIdentityAuthServersAPI() IdentityAuthServersAPI {
+	if k.SDK == nil || k.SDK.AuthServer == nil {
+		return nil
+	}
+	return k.SDK.AuthServer
+}
+
+func (k *KonnectSDK) GetIdentityAuthServerScopesAPI() IdentityAuthServerScopesAPI {
+	if k.SDK == nil || k.SDK.AuthServerScopes == nil {
+		return nil
+	}
+	return k.SDK.AuthServerScopes
+}
+
+func (k *KonnectSDK) GetIdentityAuthServerClaimsAPI() IdentityAuthServerClaimsAPI {
+	if k.SDK == nil || k.SDK.AuthServerClaims == nil {
+		return nil
+	}
+	return k.SDK.AuthServerClaims
+}
+
+func (k *KonnectSDK) GetIdentityAuthServerClientsReader() IdentityAuthServerClientsReader {
+	if k.SDK == nil || k.SDK.AuthServerClients == nil {
+		return nil
+	}
+	return k.SDK.AuthServerClients
+}
+
+func (k *KonnectSDK) GetIdentityAuthServerClientsAPI() IdentityAuthServerClientsAPI {
+	if k.SDK == nil || k.SDK.AuthServerClients == nil {
+		return nil
+	}
+	return k.SDK.AuthServerClients
 }

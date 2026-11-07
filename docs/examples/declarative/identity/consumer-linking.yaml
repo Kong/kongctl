@@ -1,0 +1,28 @@
+_defaults:
+  kongctl:
+    namespace: consumer-link-example
+
+control_planes:
+  - ref: existing-gateway
+    _external:
+      id: !env KONGCTL_IDENTITY_CONTROL_PLANE_ID
+
+identity:
+  directories:
+    - ref: default-directory
+      _external:
+        selector:
+          matchFields:
+            name: default
+      principals:
+        - ref: support-engineer
+          display_name: Support engineer
+          description: Principal linked to an existing Gateway Consumer
+          type: user
+          metadata:
+            department: support
+          identities:
+            - ref: support-gateway-consumer
+              type: control_plane_consumer
+              control_plane_id: !ref existing-gateway#id
+              consumer_id: !env KONGCTL_IDENTITY_CONSUMER_ID

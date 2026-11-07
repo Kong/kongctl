@@ -20,14 +20,30 @@ type Defaults struct {
 }
 
 type ScenarioTest struct {
-	MeshControlPlanes   []string `yaml:"meshControlPlanes"`
-	Enabled             *bool    `yaml:"enabled"`
-	EnabledByEnvVar     string   `yaml:"enabledByEnvVar"`
-	RequiredEnvVars     []string `yaml:"requiredEnvVars"`
-	RequiresPAT         *bool    `yaml:"requiresPAT"`
-	AssignedEnvironment string   `yaml:"assignedEnvironment"`
-	Maturity            string   `yaml:"maturity"`
-	Info                string   `yaml:"info"`
+	PrivateTempDirVar   string            `yaml:"privateTempDirVar"`
+	CleanupResources    []CleanupResource `yaml:"cleanupResources"`
+	MeshControlPlanes   []string          `yaml:"meshControlPlanes"`
+	Enabled             *bool             `yaml:"enabled"`
+	EnabledByEnvVar     string            `yaml:"enabledByEnvVar"`
+	RequiredEnvVars     []string          `yaml:"requiredEnvVars"`
+	RequiresPAT         *bool             `yaml:"requiresPAT"`
+	AssignedEnvironment string            `yaml:"assignedEnvironment"`
+	Maturity            string            `yaml:"maturity"`
+	Info                string            `yaml:"info"`
+}
+
+// CleanupResource reserves a generated resource name for this scenario run.
+type CleanupResource struct {
+	UseDefaultDirectory           bool     `yaml:"useDefaultDirectory,omitempty"`
+	DefaultDirectoryNamespace     string   `yaml:"defaultDirectoryNamespace,omitempty"`
+	Resource                      string   `yaml:"resource"`
+	NameVar                       string   `yaml:"nameVar"`
+	NameEnv                       string   `yaml:"nameEnv"`
+	PrincipalAPIKeys              bool     `yaml:"principalAPIKeys,omitempty"`
+	PrincipalGroups               bool     `yaml:"principalGroups,omitempty"`
+	GroupNamespaces               []string `yaml:"groupNamespaces,omitempty"`
+	RequireEmptyTrustedIDPs       bool     `yaml:"requireEmptyTrustedIdPs,omitempty"`
+	RequireEmptyVaultDependencies bool     `yaml:"requireEmptyVaultDependencies,omitempty"`
 }
 
 type Retry struct {
@@ -91,13 +107,14 @@ type Command struct {
 }
 
 type CreateSpec struct {
-	RecoverTeam    bool              `yaml:"recoverTeam"`
-	Resource       string            `yaml:"resource"`
-	Payload        CreatePayload     `yaml:"payload"`
-	ExpectStatus   int               `yaml:"expectStatus"`
-	RecordVar      *RecordVar        `yaml:"recordVar"`
-	RecordVars     []RecordVar       `yaml:"recordVars"`
-	EndpointParams map[string]string `yaml:"endpointParams"`
+	UseDefaultDirectory bool              `yaml:"useDefaultDirectory"`
+	RecoverTeam         bool              `yaml:"recoverTeam"`
+	Resource            string            `yaml:"resource"`
+	Payload             CreatePayload     `yaml:"payload"`
+	ExpectStatus        int               `yaml:"expectStatus"`
+	RecordVar           *RecordVar        `yaml:"recordVar"`
+	RecordVars          []RecordVar       `yaml:"recordVars"`
+	EndpointParams      map[string]string `yaml:"endpointParams"`
 }
 
 type DeleteSpec struct {

@@ -193,7 +193,10 @@ func TestReviewedDeclarativeSecretCatalogIsCoveredByHTTPRedaction(t *testing.T) 
 
 	for _, capability := range secrets.Capabilities() {
 		t.Run(string(capability.ResourceType)+capability.PathPattern, func(t *testing.T) {
-			payload := secretCatalogPatternValue(strings.Split(strings.Trim(capability.PathPattern, "/"), "/"), sentinel)
+			payload := secretCatalogPatternValue(
+				strings.Split(strings.Trim(capability.PathPattern, "/"), "/"),
+				sentinel,
+			)
 			redacted := RedactSensitiveFields(payload)
 			exactKeysByResourceType := map[resources.ResourceType][]string{
 				resources.ResourceTypeAIGatewayConfigStoreSecret: {"value"},
@@ -226,6 +229,71 @@ func TestRedactMeshCredentialBodies(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, redactedValue, redactBodyForURL([]byte("private-material"), "text/plain", parsedURL))
 		})
+	}
+}
+
+func TestIdentitySecretBodiesRedactEvenErrorDetailsOrPlaintext(t *testing.T) {
+	for _, path := range []string{
+		"/v1/auth-servers/server/clients",
+		"/v1/auth-servers/server/clients/client/secrets",
+		"/v1/auth-servers/server/clients/client/secrets/id",
+		"/v2/directories/directory/principals/principal/basic-auths/basic/passwords",
+		"/v2/directories/directory/principals/principal/basic-auths/basic/passwords/id",
+		"/v2/directories/directory/vault/providers/provider/credentials",
+		"/v2/directories/directory/vault/providers/provider/credentials/id",
+		"/v2/directories/directory/org-chart/import",
+		"/v2/directories/directory/org-chart/import/",
+		"/v2/directories/directory/principals/principal/api-keys",
+		"/v2/directories/directory/principals/principal/api-keys/key",
+		"/v2/directories/directory/groups/group/api-keys",
+		"/v2/directories/directory/groups/group/api-keys/key",
+	} {
+		parsedURL, err := url.Parse("https://example.test" + path)
+		require.NoError(t, err)
+		assert.Equal(t, redactedValue,
+			redactBodyForURL([]byte(`{"detail":"private-material"}`), "application/json", parsedURL))
+		assert.Equal(t, redactedValue, redactBodyForURL([]byte("private-material"), "text/plain", parsedURL))
+	}
+	other, err := url.Parse("https://example.test/v1/auth-servers/server/clients/client")
+	require.NoError(t, err)
+	assert.Contains(t, redactBodyForURL([]byte(`{"name":"public-name"}`), "application/json", other), "public-name")
+}
+
+func TestOrgChartImportBodyReadAndTransportDiagnosticsArePrivate(t *testing.T) {
+	var output bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&output, &slog.HandlerOptions{Level: log.LevelTrace}))
+	client := NewLoggingHTTPClientWithClient(&http.Client{}, logger)
+	request, err := http.NewRequest(http.MethodPost, "https://example.test/v2/directories/d/org-chart/import", nil)
+	require.NoError(t, err)
+	diagnostic := errors.New("private-employee@example.test")
+	client.logRequest(t.Context(), request, "request", true, nil, diagnostic)
+	client.logRequestError(t.Context(), request, "request", 0, diagnostic)
+	client.logResponse(t.Context(), &http.Response{Request: request, Header: http.Header{}, StatusCode: 400},
+		"request", 0, true, nil, diagnostic)
+	require.NotContains(t, output.String(), "private-employee")
+	require.Contains(t, output.String(), redactedValue)
+	publicURL, err := url.Parse("https://example.test/v2/directories/d")
+	require.NoError(t, err)
+	require.Equal(t, diagnostic.Error(), redactHTTPDiagnostic(diagnostic, publicURL))
+}
+
+func TestIdentityAPIKeyReadAndTransportDiagnosticsArePrivate(t *testing.T) {
+	for _, path := range []string{
+		"/v2/directories/d/principals/p/api-keys",
+		"/v2/directories/d/groups/g/api-keys/id",
+	} {
+		var output bytes.Buffer
+		logger := slog.New(slog.NewJSONHandler(&output, &slog.HandlerOptions{Level: log.LevelTrace}))
+		client := NewLoggingHTTPClientWithClient(&http.Client{}, logger)
+		request, err := http.NewRequest(http.MethodPost, "https://example.test"+path, nil)
+		require.NoError(t, err)
+		diagnostic := errors.New("private-key-value")
+		client.logRequest(t.Context(), request, "request", true, nil, diagnostic)
+		client.logRequestError(t.Context(), request, "request", 0, diagnostic)
+		client.logResponse(t.Context(), &http.Response{Request: request, Header: http.Header{}, StatusCode: 400},
+			"request", 0, true, nil, diagnostic)
+		require.NotContains(t, output.String(), "private-key-value")
+		require.Contains(t, output.String(), redactedValue)
 	}
 }
 

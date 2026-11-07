@@ -1,0 +1,74 @@
+_defaults:
+  kongctl:
+    namespace: identity-auth-example
+
+identity:
+  auth_servers:
+    - ref: application-issuer
+      name: kongctl-example-issuer
+      description: Authorization server for an example application
+      audience: https://api.example.com
+      signing_algorithm: RS256
+      trusted_origins:
+        - https://app.example.com
+      dcr:
+        default_access_token_duration: 600
+      labels:
+        team: identity
+      scopes:
+        - ref: read-data
+          name: read:data
+          description: Read application data
+          default: true
+          enabled: true
+          include_in_metadata: true
+        - ref: write-data
+          name: write:data
+          description: Write application data
+          default: false
+          enabled: true
+          include_in_metadata: true
+      claims:
+        - ref: team-claim
+          name: team
+          value: '{"team":"identity"}'
+          include_in_token: true
+          include_in_all_scopes: false
+          include_in_scopes: [!ref read-data#id, !ref write-data#id]
+          enabled: true
+        - ref: request-id-claim
+          name: request_id
+          value: '${ uuidv4 }'
+          include_in_token: false
+          include_in_all_scopes: true
+          enabled: true
+      clients:
+        - ref: background-worker
+          name: example-background-worker
+          grant_types: [client_credentials]
+          response_types: []
+          redirect_uris: []
+          login_uri: https://app.example.com/login
+          access_token_duration: 600
+          id_token_duration: 900
+          allow_all_scopes: false
+          allow_scopes: [!ref read-data#id]
+          token_endpoint_auth_method: client_secret_basic
+          labels:
+            team: identity
+
+  directories:
+    - ref: default-directory
+      _external:
+        selector:
+          matchFields:
+            name: default
+      principals:
+        - ref: background-service
+          display_name: Background order service
+          type: agent
+          identities:
+            - ref: background-service-oauth
+              type: auth_server_client
+              auth_server_id: !ref application-issuer#id
+              client_id: !ref background-worker#id

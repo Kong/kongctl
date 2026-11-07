@@ -38,6 +38,22 @@ func IsManagedResourceProtected(
 	}
 
 	switch resourceType {
+	case resources.ResourceTypeIdentityAuthServer:
+		return fetchProtection(resourceName, "auth server", func() (map[string]string, error) {
+			value, err := client.GetIdentityAuthServerByName(ctx, resourceName)
+			if value == nil {
+				return nil, err
+			}
+			return value.NormalizedLabels, err
+		})
+	case resources.ResourceTypeIdentityDirectory:
+		return fetchProtection(resourceName, "directory", func() (map[string]string, error) {
+			r, err := client.GetIdentityDirectoryByName(ctx, resourceName)
+			if r == nil {
+				return nil, err
+			}
+			return r.NormalizedLabels, err
+		})
 	case resources.ResourceTypePortal:
 		return fetchProtection(resourceName, "portal", func() (map[string]string, error) {
 			r, err := client.GetPortalByName(ctx, resourceName)
@@ -110,7 +126,15 @@ func IsManagedResourceProtected(
 			}
 			return r.NormalizedLabels, err
 		})
-	case resources.ResourceTypeAPIVersion,
+	case resources.ResourceTypeIdentityPrincipal, resources.ResourceTypeIdentityPrincipalIdentity,
+		resources.ResourceTypeIdentityPrincipalAPIKey, resources.ResourceTypeIdentityGroupAPIKey,
+		resources.ResourceTypeIdentityGroup, resources.ResourceTypeIdentityGroupMembership,
+		resources.ResourceTypeIdentityBasicAuth,
+		resources.ResourceTypeIdentityVaultKey,
+		resources.ResourceTypeIdentityVaultProvider,
+		resources.ResourceTypeIdentityVaultProviderCredential,
+		resources.ResourceTypeIdentityTrustedIDP,
+		resources.ResourceTypeAPIVersion,
 		resources.ResourceTypeAPIPublication,
 		resources.ResourceTypeAPIImplementation,
 		resources.ResourceTypeAPIDocument,
@@ -171,7 +195,10 @@ func IsManagedResourceProtected(
 		resources.ResourceTypeAIGatewayDataPlaneCertificate,
 		resources.ResourceTypeAIGatewayCertificate,
 		resources.ResourceTypeAIGatewayCACertificate,
-		resources.ResourceTypeAIGatewaySNI:
+		resources.ResourceTypeAIGatewaySNI,
+		resources.ResourceTypeIdentityAuthServerScope,
+		resources.ResourceTypeIdentityAuthServerClient,
+		resources.ResourceTypeIdentityAuthServerClaim:
 		return false, nil
 	}
 

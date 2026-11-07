@@ -2013,6 +2013,82 @@ resources:
     defaults: []
     overrides: []
     exclusions: []
+  - resource_type: identity_auth_server
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: identity_auth_server_claim
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: identity_auth_server_client
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: identity_auth_server_scope
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: identity_basic_auth
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: identity_directory
+    defaults:
+      - path: allow_all_control_planes
+        type: boolean
+        value: false
+        source: sdk
+      - path: negative_ttl_secs
+        type: integer
+        value: 600
+        source: sdk
+      - path: ttl_secs
+        type: integer
+        value: 600
+        source: sdk
+    overrides: []
+    exclusions: []
+  - resource_type: identity_group
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: identity_group_api_key
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: identity_group_membership
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: identity_principal
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: identity_principal_api_key
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: identity_principal_identity
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: identity_trusted_idp
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: identity_vault_key
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: identity_vault_provider
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: identity_vault_provider_credential
+    defaults: []
+    overrides: []
+    exclusions: []
   - resource_type: organization_system_account_role
     defaults: []
     overrides: []
