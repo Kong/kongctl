@@ -341,4 +341,4 @@ probed by the principal-only write test.
 [client-dump]: ../../internal/cmd/root/verbs/dump/declarative_identity.go#L106
 [client-metadata]: ../../internal/declarative/resources/identity_principal.go#L372
 [client-ref]: ../../internal/declarative/resources/validation.go#L21
-[csv-guide]: ../examples/declarative/identity/principal-csv.md
+[csv-guide]: ../examples/declarative/identity/README.md

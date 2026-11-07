@@ -1238,7 +1238,7 @@ The tracker records removal criteria and the production/test locations to
 revisit when the team answers. These are temporary deployment compatibility
 choices, not claims that the API will permanently require them.
 
-`docs/examples/declarative/identity/principals.yaml` groups user, agent, and
+`docs/examples/declarative/identity/principals-and-access.yaml` groups user, agent, and
 unclassified examples under an existing directory. The live directory scenario
 also covers principal creation, no-op planning, field/metadata updates,
 omission, type/null/active rejection, dump/reload, protection, adoption,
@@ -1266,7 +1266,7 @@ The branch now manages `identity.auth_servers`, with explicit name/audience,
 description, signing algorithm, trusted origins, public labels, and the public
 DCR token-duration setting. Get/list, adoption, explain/scaffold, plan/diff,
 saved apply, dump/reload, protection, delete, and scoped sync are implemented.
-Examples are in `docs/examples/declarative/identity/auth-servers.yaml`.
+Examples are in `docs/examples/declarative/identity/service-authentication.yaml`.
 
 Direct US `.com` HTTP probes verified name uniqueness, create/GET/list/PATCH,
 omission preservation, individual label removal, array clearing, signing
@@ -1430,7 +1430,7 @@ parent; execution still reads fresh state. The complete live scenario passes
 again after that cache integration. Enabled replay coverage and recordings
 are unchanged.
 
-The grouped example is `docs/examples/declarative/identity/auth-servers.yaml`.
+The grouped example is `docs/examples/declarative/identity/service-authentication.yaml`.
 The new scenario is `test/e2e/scenarios/identity/auth-server-declarative`.
 Issues #1402/#1403 remain In Progress until merge, with no implementation PR.
 OAuth clients and secret lifecycle remain the next auth-server work. Directory
@@ -1503,7 +1503,8 @@ zero-issue lint, unit/integration/harness race tests and scenario inventory.
 inventory is empty after fixture cleanup.
 
 Commands and boundaries are documented in
-`docs/examples/declarative/identity/auth-server-clients.md`. #1401 and #1404
+`docs/examples/declarative/identity/README.md`.
+#1401 and #1404
 remain open/In Progress; their declarative and rotation acceptance criteria
 are not complete. API questions and metadata findings are in the running logs.
 
@@ -1647,7 +1648,7 @@ and refresh-token grant enums remain excluded from this preview; Q17 records
 the deployed authorization-code denial. Unsupported internal client fields and
 independent secret-slot declarations remain outside the implemented contract.
 
-Examples: `docs/examples/declarative/identity/auth-server-clients.yaml` and its
+Examples: `docs/examples/declarative/identity/service-authentication.yaml` and its
 companion tutorial. Metadata: client labels; secret records still have no
 remote ownership store. Issues #1401/#1404 remain In Progress until merge; no
 implementation PR has been opened.
@@ -1816,7 +1817,7 @@ Further direct probes verify AI-to-API Gateway consumer retargeting and
 management-map retention. All disposable probe fixtures were removed.
 The SDK pin remains `6ca9d1f8b309`; this increment changes no generated models.
 
-The example is `docs/examples/declarative/identity/principal-identities.yaml`,
+The example is `docs/examples/declarative/identity/principals-and-access.yaml`,
 with a short companion tutorial. The new live scenario
 `identity/declarative-identities` covers all four types under a protected
 principal, independent namespaces, same-plan client dependencies, no-op
@@ -1883,7 +1884,7 @@ schema is read-only, unlike the canonical directory input. That must be
 corrected before write enrollment; direct API expiration support is verified.
 
 The example tutorial is
-`docs/examples/declarative/identity/principal-api-keys.md`. The live inspection
+`docs/examples/declarative/identity/README.md`. The live inspection
 scenario covers generated key metadata under agent/unclassified principals,
 all output formats, explicit product selection, empty collections, wrong-parent
 refusal, actual three-page traversal and artifact scans. Test material remains
@@ -2009,7 +2010,7 @@ member scopes are checked before deletion, then freshly rechecked before
 removing entries/groups/parents. Existing scenarios gain no group permission
 requirement. This fixture authority does not authorize production group-key or
 importer-managed relationship mutation. The tutorial is
-`docs/examples/declarative/identity/groups.md`.
+`docs/examples/declarative/identity/README.md#principals-and-access`.
 
 Final validation passes: modernization, clean formatting, CGO-disabled build,
 zero-issue lint, unit/integration/harness race tests, weighted inventory,
@@ -2424,7 +2425,7 @@ Verification:
 - Early stops after clearing labels, attaching a membership, and protecting
   a group all pass automatic teardown. Evidence is under group-stop-cleared,
   group-stop-membership and group-stop-protected in the same cache root.
-- A read-only plan of docs/examples/declarative/identity/groups.yaml against
+- A read-only plan of docs/examples/declarative/identity/principals-and-access.yaml against
   restored default produces exactly two group creations and no directory
   mutations. The example was not applied.
 
@@ -2685,7 +2686,7 @@ and auxiliary check logs are basic-auth-foundation-integration.log and
 basic-auth-foundation-other-gates.log in that cache. The pre-commit executable
 is not installed in this environment. Replay membership/cassettes are
 unchanged. Examples are documented in
-docs/examples/declarative/identity/basic-auth.md; compatibility restrictions
+docs/examples/declarative/identity/README.md; compatibility restrictions
 and the metadata storage ledger are updated. No new API discrepancy was
 found; Q35 still records the password metadata-update question.
 
@@ -4488,8 +4489,8 @@ declarative-key lifecycle proof is still required before exposing those kinds.
 Both generated key kinds are integrated through registration, nested/top-level
 loading, namespace selection, reference/sync scope, planning, state, saved
 execution, dump and explain/scaffold. The example and tutorial are
-docs/examples/declarative/identity/generated-api-keys.yaml and
-generated-api-keys.md. They use an external lookup for the existing default
+docs/examples/declarative/identity/principals-and-access.yaml and
+the shared examples README. They use an external lookup for the existing default
 directory and manage the principal/group parents.
 
 Required type:v1 records generated creation intent. The key's canonical map

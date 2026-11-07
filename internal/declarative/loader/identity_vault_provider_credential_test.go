@@ -2,8 +2,6 @@ package loader
 
 import (
 	"encoding/json"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -118,26 +116,12 @@ func TestVaultCredentialCollectionPresenceAndLocalRefIdentity(t *testing.T) {
 }
 
 func TestVaultCredentialPublishedExampleDefersMaterial(t *testing.T) {
-	directory := t.TempDir()
-	for _, name := range []string{"vault-shared-credentials.yaml", "vault-public-key.pem"} {
-		data, err := os.ReadFile(filepath.Join("../../../docs/examples/declarative/identity", name))
-		require.NoError(t, err)
-		require.NoError(t, os.WriteFile(filepath.Join(directory, name), data, 0o600))
-	}
-	require.NoError(t, os.Mkdir(filepath.Join(directory, "secrets"), 0o700))
-	require.NoError(
-		t,
-		os.WriteFile(
-			filepath.Join(directory, "secrets/billing-priority-token.txt"),
-			[]byte("private-example-test-fixture"),
-			0o600,
-		),
-	)
-	rs, err := New().LoadFile(filepath.Join(directory, "vault-shared-credentials.yaml"))
+	t.Setenv("IDENTITY_WORKFORCE_ISSUER", "https://issuer.example.test/auth")
+	t.Setenv("BILLING_SHARED_SECRET", "private-example-test-fixture")
+	rs, err := New().LoadFile("../../../docs/examples/declarative/identity/token-vault.yaml")
 	require.NoError(t, err)
-	require.Len(t, rs.Identity.VaultProviderCredentials, 2)
+	require.Len(t, rs.Identity.VaultProviderCredentials, 1)
 	require.Contains(t, rs.SecretSources["default-token"], "/secret")
-	require.Contains(t, rs.SecretSources["preferred-token"], "/secret")
 	data, err := json.Marshal(rs)
 	require.NoError(t, err)
 	require.NotContains(t, string(data), "private-example-test-fixture")

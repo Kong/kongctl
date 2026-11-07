@@ -123,7 +123,7 @@ deletions. Dump exports keys beneath enabled managed parents only. Directory
 deletion can plan exact authorized key removals, then requires fresh empty
 key/provider/IdP inventories at execution. Q6 asks about future API ownership
 fields; Q37's native cascade/visibility and atomicity limitations still apply.
-See [the key tutorial](../examples/declarative/identity/vault-keys.md), #2661.
+See [the key tutorial][identity-workflows], #2661.
 
 Credential Providers now inherit explicit managed-directory authority for
 declarative create/PATCH, saved plans, scoped sync/delete and dump. Matching
@@ -144,7 +144,7 @@ deletion. Deferred client_secret sources use explicit write selection after
 creation and never become ownership metadata. Q30 bounds runtime verification;
 Q39/Q40/Q42 track replacement, initial enablement and clearing; Q43 separates
 static-secret setting persistence from unverified runtime effects. See #2660
-and the [provider guide](../examples/declarative/identity/vault-providers.md).
+and the [provider guide][identity-workflows].
 
 Inherited ownership is not metadata persisted on a child. Scopes and claims
 require a declared managed server; its namespace and update/delete protection
@@ -469,3 +469,5 @@ temporary implementation restrictions and their removal criteria.
   only an explicitly selected collection permits sync pruning. Group adoption
   preserves existing links and grants collection authority, without stamping
   entries. External groups and importer/team/nested mutations are excluded.
+
+[identity-workflows]: ../examples/declarative/identity/README.md

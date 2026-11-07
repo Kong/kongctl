@@ -42,3 +42,33 @@ identity:
           include_in_token: false
           include_in_all_scopes: true
           enabled: true
+      clients:
+        - ref: background-worker
+          name: example-background-worker
+          grant_types: [client_credentials]
+          response_types: []
+          redirect_uris: []
+          login_uri: https://app.example.com/login
+          access_token_duration: 600
+          id_token_duration: 900
+          allow_all_scopes: false
+          allow_scopes: [!ref read-data#id]
+          token_endpoint_auth_method: client_secret_basic
+          labels:
+            team: identity
+
+  directories:
+    - ref: default-directory
+      _external:
+        selector:
+          matchFields:
+            name: default
+      principals:
+        - ref: background-service
+          display_name: Background order service
+          type: agent
+          identities:
+            - ref: background-service-oauth
+              type: auth_server_client
+              auth_server_id: !ref application-issuer#id
+              client_id: !ref background-worker#id

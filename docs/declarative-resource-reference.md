@@ -270,7 +270,7 @@ explain/scaffold and get/list are supported. Directory deletion orders selected
 key removals before fresh empty-dependency checks. Public export requires a
 managed, enabled parent. See the [Vault key tutorial][identity-vault-keys].
 
-[identity-vault-keys]: examples/declarative/identity/vault-keys.md
+[identity-vault-keys]: examples/declarative/identity/README.md#token-vault
 
 ## Kong Identity directory Trusted IdPs
 
@@ -295,7 +295,7 @@ associations after any independently authorized OIDC detachments. Trust
 configuration never grants principal/identity ownership or executes runtime
 JIT provisioning. Directory deletion orders selected retirements before fresh
 empty checks. See the
-[trust tutorial](examples/declarative/identity/trusted-idps.md).
+[trust tutorial][identity-workflows].
 
 ## Kong Identity principals
 
@@ -357,9 +357,8 @@ retirement. API failures block deletion. Runtime authentication continuity
 needs a supported integration context (Q30); password metadata-only updates
 remain constrained by Q35 and incomplete SDK write models.
 
-See the [username example](examples/declarative/identity/basic-auth.md),
-including default-directory lookup, read commands, adoption, protection and
-safe dump/delete boundaries.
+See the [grouped access example][identity-workflows] for username records
+alongside principals, groups and generated keys.
 
 ## Kong Identity authorization servers
 
@@ -1810,3 +1809,5 @@ audit-logs:
           matchFields:
             name: foo
 ```
+
+[identity-workflows]: examples/declarative/identity/README.md

@@ -123,7 +123,7 @@ this contract with four immutable entries: tool, creator version, persisted
 ref and `kongctl-create-type: v1`. Their full implementation verifies current
 parent authority on saved writes, hydrates omitted expiration, captures each
 new key privately and orders replacement capture before old-key retirement.
-The [generated-key tutorial](../examples/declarative/identity/generated-api-keys.md)
+The [grouped access example][identity-workflows]
 and [compatibility tracker](kong-identity-compatibility.md) describe supported
 updates, explicit collection authority and imported/legacy boundaries.
 
@@ -177,3 +177,5 @@ See the [Identity compatibility tracker](kong-identity-compatibility.md) for
 Q9–Q11 restrictions and the criteria for removing them.
 
 [migration]: https://github.com/Kong/kongctl/issues/2521
+
+[identity-workflows]: ../examples/declarative/identity/README.md

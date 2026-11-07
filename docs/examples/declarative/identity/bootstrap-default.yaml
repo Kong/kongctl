@@ -18,4 +18,4 @@ identity:
         enabled: false
       labels: {}
       kongctl:
-        protected: true
+        protected: false

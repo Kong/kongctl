@@ -123,21 +123,15 @@ func TestVaultProviderCollectionPresenceAndDeferredSecret(t *testing.T) {
 	require.Contains(t, rs.SecretSources["github"], "/client_secret")
 }
 
-func TestVaultProviderPublishedExampleLoadsWithoutReadingSecret(t *testing.T) {
+func TestOAuthIntegrationsExampleLoadsWithoutReadingSecrets(t *testing.T) {
 	t.Setenv("VAULT_GITHUB_CLIENT_ID", "public-upstream-client")
 	t.Setenv("VAULT_GITHUB_CLIENT_SECRET", "")
-	rs, err := New().LoadFile("../../../docs/examples/declarative/identity/vault-providers.yaml")
+	rs, err := New().LoadFile("../../../docs/examples/declarative/identity/oauth-integrations.yaml")
 	require.NoError(t, err)
 	require.Len(t, rs.Identity.VaultProviders, 3)
 	require.Contains(t, rs.SecretSources["github"], "/client_secret")
-	require.Equal(t, "identity-directory", resources.GetNamespace(rs.Identity.Directories[0].Kongctl))
-}
-
-func TestSharedOAuthProviderExampleLoadsWithoutReadingApplicationSecret(t *testing.T) {
-	t.Setenv("VAULT_SHARED_GITHUB_CLIENT_ID", "public-upstream-client")
-	rs, err := New().LoadFile("../../../docs/examples/declarative/identity/vault-oauth-enrollment.yaml")
-	require.NoError(t, err)
-	require.Len(t, rs.Identity.VaultProviders, 1)
 	require.Contains(t, rs.SecretSources["shared-github"], "/client_secret")
-	require.Equal(t, "shared", *rs.Identity.VaultProviders[0].CredentialType)
+	require.Equal(t, "identity-directory", resources.GetNamespace(rs.Identity.Directories[0].Kongctl))
+	require.Equal(t, "shared-github", rs.Identity.VaultProviders[2].Ref)
+	require.Equal(t, "shared", *rs.Identity.VaultProviders[2].CredentialType)
 }

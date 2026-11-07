@@ -127,7 +127,7 @@ func TestTrustedIDPCollectionOmissionAndSharedDisplayNames(t *testing.T) {
 
 func TestTrustedIDPPublishedExampleLoads(t *testing.T) {
 	t.Setenv("IDENTITY_WORKFORCE_ISSUER", "https://issuer.example.test/auth")
-	rs, err := New().LoadFile("../../../docs/examples/declarative/identity/trusted-idps.yaml")
+	rs, err := New().LoadFile("../../../docs/examples/declarative/identity/token-vault.yaml")
 	require.NoError(t, err)
 	require.Len(t, rs.Identity.TrustedIDPs, 1)
 	require.True(t, rs.Identity.TrustedIDPs[0].JwksURIDeclared())

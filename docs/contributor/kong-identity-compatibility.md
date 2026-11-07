@@ -1531,4 +1531,4 @@ key adoption remain unavailable because immutable metadata cannot represent
 those transitions. See [the example][external-key-example] and
 [the API investigation](kong-identity-import-adoption.md).
 
-[external-key-example]: ../examples/declarative/identity/external-principal-api-keys.md
+[external-key-example]: ../examples/declarative/identity/README.md
