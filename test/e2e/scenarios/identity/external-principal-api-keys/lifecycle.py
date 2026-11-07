@@ -111,7 +111,6 @@ def main():
             parent_path = root + "/principals/" + principal
             key_path = parent_path + "/api-keys"
             before = request("GET", parent_path)
-            identities = request("GET", parent_path + "/identities")
             assert before["provisioned_by"] == "imported" and before["managed_by"] == {}
             assert principals[0]["type"] == "user" and principals[0]["active"] is True
             assert principals[0]["display_name"] == "Synthetic Employee"
