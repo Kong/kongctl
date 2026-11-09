@@ -2,6 +2,7 @@ package lint
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -107,7 +108,7 @@ func Bytes(
 	failSeverity string,
 	onlyFailures bool,
 	fileName string,
-) *Output {
+) (*Output, error) {
 	ruleSetResults := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 		RuleSet:           ruleSet,
 		Spec:              fileBytes,
@@ -115,6 +116,9 @@ func Bytes(
 		AllowLookup:       true,
 		SilenceLogs:       true,
 	})
+	if err := errors.Join(ruleSetResults.Errors...); err != nil {
+		return nil, fmt.Errorf("cannot lint %q: %w", fileName, err)
+	}
 
 	var (
 		failingCount int
@@ -174,7 +178,7 @@ func Bytes(
 		TotalCount: totalCount,
 		FailCount:  failingCount,
 		Results:    results,
-	}
+	}, nil
 }
 
 // Content lints raw content bytes against a ruleset provided as bytes.
@@ -190,7 +194,7 @@ func Content(
 	if err != nil {
 		return nil, err
 	}
-	return Bytes(content, ruleSet, failSeverity, onlyFailures, sourceName), nil
+	return Bytes(content, ruleSet, failSeverity, onlyFailures, sourceName)
 }
 
 // File reads a file from disk and lints it against the provided ruleset.
@@ -210,7 +214,10 @@ func File(
 		return nil, fmt.Errorf("failed to read input file %q: %w", filePath, err)
 	}
 
-	out := Bytes(fileBytes, ruleSet, failSeverity, onlyFailures, filePath)
+	out, err := Bytes(fileBytes, ruleSet, failSeverity, onlyFailures, filePath)
+	if err != nil {
+		return nil, err
+	}
 	sortResults(out.Results)
 	return out, nil
 }
@@ -238,7 +245,10 @@ func Files(
 			return nil, fmt.Errorf("failed to read input file %q: %w", fp, err)
 		}
 
-		result := Bytes(fileBytes, ruleSet, failSeverity, onlyFailures, fp)
+		result, err := Bytes(fileBytes, ruleSet, failSeverity, onlyFailures, fp)
+		if err != nil {
+			return nil, err
+		}
 		aggregated.TotalCount += result.TotalCount
 		aggregated.FailCount += result.FailCount
 		aggregated.Results = append(aggregated.Results, result.Results...)

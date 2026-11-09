@@ -1,0 +1,7 @@
+rules:
+  require-force-delete:
+    given: '$.portals[*]'
+    severity: error
+    then:
+      field: force_delete
+      function: truthy
