@@ -54,6 +54,14 @@ apis:
             content: |
               ## Child Section
               Updated details for version 2.0.0
+            children:
+              - ref: api-nested-doc-grandchild
+                title: "Grandchild Document"
+                slug: grandchild-document
+                status: "published"
+                content: |
+                  ### Grandchild Section
+                  Deep nesting test.
           - ref: api-nested-doc-new
             title: "New Document"
             status: "unpublished"
@@ -66,6 +74,11 @@ portals:
     name: "Portal Nested"
     display_name: "Portal Nested"
     description: "Portal used for nested API publications"
+
+  - ref: portal-nested-secondary
+    name: "Portal Nested Secondary"
+    display_name: "Portal Nested Secondary"
+    description: "Second portal for multi-portal publications"
 
 application_auth_strategies:
   - ref: auth-strategy-nested
