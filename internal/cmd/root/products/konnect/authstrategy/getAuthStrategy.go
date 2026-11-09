@@ -2,7 +2,7 @@ package authstrategy
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -129,7 +129,7 @@ func summarizeLabels(labels map[string]string, missing string) string {
 		for k, v := range labels {
 			pairs = append(pairs, fmt.Sprintf("%s=%s", k, v))
 		}
-		sort.Strings(pairs)
+		slices.Sort(pairs)
 		return strings.Join(pairs, ", ")
 	}
 }
@@ -523,10 +523,6 @@ func (c *getAuthStrategyCmd) runE(cobraCmd *cobra.Command, args []string) error 
 	strategies, err := runList(c.strategyType, sdk.GetAppAuthStrategiesAPI(), helper, cfg)
 	if err != nil {
 		return err
-	}
-	displayRecords := make([]textDisplayRecord, len(strategies))
-	for i := range strategies {
-		displayRecords[i] = authStrategyToDisplayRecord(strategies[i])
 	}
 	return renderAuthStrategyList(helper, helper.GetCmd().Name(), outType, printer, strategies)
 }

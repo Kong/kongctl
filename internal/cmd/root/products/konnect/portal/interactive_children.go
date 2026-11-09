@@ -698,32 +698,23 @@ func portalIDFromParent(parent any) (string, error) {
 		return "", fmt.Errorf("portal parent is nil")
 	}
 
+	var raw string
 	switch p := parent.(type) {
 	case *kkComps.APIRegistrationPortal:
-		id := strings.TrimSpace(p.ID)
-		if id == "" {
-			return "", fmt.Errorf("portal identifier is missing")
-		}
-		return id, nil
+		raw = p.ID
 	case *kkComps.PortalResponse:
-		id := strings.TrimSpace(p.ID)
-		if id == "" {
-			return "", fmt.Errorf("portal identifier is missing")
-		}
-		return id, nil
+		raw = p.ID
 	case *kkComps.ListPortalsResponsePortal:
-		id := strings.TrimSpace(p.GetID())
-		if id == "" {
-			return "", fmt.Errorf("portal identifier is missing")
-		}
-		return id, nil
+		raw = p.GetID()
 	case kkComps.ListPortalsResponsePortal:
-		id := strings.TrimSpace(p.GetID())
-		if id == "" {
-			return "", fmt.Errorf("portal identifier is missing")
-		}
-		return id, nil
+		raw = p.GetID()
 	default:
 		return "", fmt.Errorf("unexpected parent type %T", parent)
 	}
+
+	id := strings.TrimSpace(raw)
+	if id == "" {
+		return "", fmt.Errorf("portal identifier is missing")
+	}
+	return id, nil
 }
