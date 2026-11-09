@@ -1,0 +1,73 @@
+test:
+  requiresPAT: false
+
+steps:
+  - name: 000-invalid-selector-file
+    skipInputs: true
+    commands:
+      - name: 000-json-error
+        run:
+          - lint
+          - -f
+          - "{{ .scenario_dir }}/inputs/apis.yaml"
+          - -r
+          - "{{ .scenario_dir }}/rules/invalid.yaml"
+          - -o
+          - json
+          - --fail-severity
+          - error
+          - --display-only-failures
+        expectFailure:
+          exitCode: 1
+          contains: "require-force-delete lookup failed for given $.apis["
+
+  - name: 001-invalid-selector-stdin
+    skipInputs: true
+    commands:
+      - name: 000-yaml-error
+        stdinFile: "{{ .scenario_dir }}/inputs/apis.yaml"
+        run:
+          - lint
+          - -f
+          - "-"
+          - -r
+          - "{{ .scenario_dir }}/rules/invalid.yaml"
+          - -o
+          - yaml
+        expectFailure:
+          exitCode: 1
+          contains: 'cannot lint "<stdin>"'
+
+  - name: 002-invalid-selector-directory
+    skipInputs: true
+    commands:
+      - name: 000-text-error
+        outputFormat: text
+        run:
+          - lint
+          - -f
+          - "{{ .scenario_dir }}/inputs"
+          - -r
+          - "{{ .scenario_dir }}/rules/invalid.yaml"
+        expectFailure:
+          exitCode: 1
+          contains: "require-force-delete lookup failed for given $.apis["
+
+  - name: 003-valid-selector-no-matches
+    skipInputs: true
+    commands:
+      - name: 000-empty-success
+        run:
+          - lint
+          - -f
+          - "{{ .scenario_dir }}/inputs/apis.yaml"
+          - -r
+          - "{{ .scenario_dir }}/rules/no-matches.yaml"
+          - -o
+          - json
+        assertions:
+          - expect:
+              fields:
+                total_count: 0
+                fail_count: 0
+                "length(results)": 0

@@ -61,7 +61,8 @@ rules:
 	rs, err := getRuleSet(ruleset)
 	require.NoError(t, err)
 
-	output := Bytes(input, rs, "error", false, "test.yaml")
+	output, err := Bytes(input, rs, "error", false, "test.yaml")
+	require.NoError(t, err)
 	assert.Equal(t, 0, output.FailCount)
 }
 
@@ -84,7 +85,8 @@ rules:
 	rs, err := getRuleSet(ruleset)
 	require.NoError(t, err)
 
-	output := Bytes(input, rs, "error", false, "test.yaml")
+	output, err := Bytes(input, rs, "error", false, "test.yaml")
+	require.NoError(t, err)
 	assert.Greater(t, output.TotalCount, 0)
 	assert.Greater(t, output.FailCount, 0)
 	assert.NotEmpty(t, output.Results)
@@ -121,10 +123,12 @@ rules:
 	require.NoError(t, err)
 
 	// Without onlyFailures, should include both
-	outputAll := Bytes(input, rs, "error", false, "test.yaml")
+	outputAll, err := Bytes(input, rs, "error", false, "test.yaml")
+	require.NoError(t, err)
 
 	// With onlyFailures and fail-severity=error, should exclude info; only the error-level result remains
-	outputFailOnly := Bytes(input, rs, "error", true, "test.yaml")
+	outputFailOnly, err := Bytes(input, rs, "error", true, "test.yaml")
+	require.NoError(t, err)
 
 	assert.Equal(t, 1, outputFailOnly.TotalCount)
 	assert.Greater(t, outputAll.TotalCount, outputFailOnly.TotalCount)

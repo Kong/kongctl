@@ -1,0 +1,7 @@
+rules:
+  require-force-delete:
+    given: '$.apis['
+    severity: hint
+    then:
+      field: force_delete
+      function: truthy

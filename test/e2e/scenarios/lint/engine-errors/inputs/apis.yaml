@@ -1,0 +1,3 @@
+apis:
+  - ref: bookings-dev
+    force_delete: false

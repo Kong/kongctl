@@ -25,9 +25,12 @@ Use `kongctl lint --help` for input, output, and severity options. The default
 failure threshold is `error`; violations at or above the selected threshold
 produce a nonzero exit code.
 
-Engine errors returned separately from vacuum's rule results are currently
-not propagated by kongctl. An empty result set can therefore exit successfully
-even when the engine reports such an error.
+If the lint engine cannot execute a rule, the command fails and reports the
+input and engine diagnostic on stderr. For example, an invalid JSONPath
+selector fails even when the rule's severity is below `--fail-severity` or
+`--display-only-failures` is enabled. Engine failures produce no lint result
+on stdout, including with JSON or YAML output. A valid selector that finds
+no matching values still succeeds.
 
 ## Spectral compatibility limits
 
