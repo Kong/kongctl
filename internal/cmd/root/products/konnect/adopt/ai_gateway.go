@@ -105,11 +105,14 @@ func adoptAIGateway(
 	}
 
 	updateReq := kkComps.UpdateAIGatewayRequest{
-		DisplayName: gateway.DisplayName,
-		Name:        gateway.Name,
-		Description: gateway.Description,
-		ProxyUrls:   gateway.ProxyUrls,
-		Labels:      adoptCommon.StringLabelMap(gateway.Labels, namespace),
+		MinRuntimeVersion:  gateway.MinRuntimeVersion,
+		RuntimeAutoUpgrade: gateway.RuntimeAutoUpgrade,
+		DisplayName:        gateway.DisplayName,
+		Name:               gateway.Name,
+		Description:        gateway.Description,
+		ProxyUrls:          gateway.ProxyUrls,
+		Labels:             adoptCommon.StringLabelMap(gateway.Labels, namespace),
+		ManagedBy:          gateway.ManagedBy,
 	}
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
