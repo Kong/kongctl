@@ -41,7 +41,7 @@ func TestRootAdoptionDeclarativeExports(t *testing.T) {
 			resources.ResourceTypeControlPlane,
 			func(t *testing.T, s adoptCommon.AdoptRunSetup) (*adoptCommon.AdoptResult, error) {
 				api := &controlPlaneAPIStub{t: t, control: &kkComps.ControlPlane{ID: adoptionChildID, Name: "cp"}}
-				return adoptControlPlane(s.Helper, api, "team-a", false, adoptionChildID)
+				return adoptControlPlane(s.Helper, api, "team-a", false, adoptionChildID, nil)
 			},
 		},
 		{
@@ -112,7 +112,10 @@ func TestRootAdoptionDeclarativeExports(t *testing.T) {
 				setup, export := childExportTestSetup(t, dryRun, "")
 				result, err := tc.adopt(t, setup)
 				require.NoError(t, err)
+				require.Len(t, export.Completed, 1)
+				require.NoError(t, export.File.Close())
 				require.NoError(t, adoptCommon.PrintAdoptResult(setup.Helper, setup.OutType, result, "resource"))
+				require.Len(t, export.Completed, 1)
 				content, err := os.ReadFile(export.Path)
 				require.NoError(t, err)
 				require.NotContains(t, string(content), "never-export-this")
@@ -135,10 +138,10 @@ func TestRootExportFileFailureStillPrintsReceipt(t *testing.T) {
 	api := &adoptAIGatewayAPIStub{
 		t: t, gateways: []kkComps.AIGateway{{ID: adoptionChildID, Name: "ai", DisplayName: "AI"}},
 	}
-	result, err := adoptAIGateway(setup.Helper, api, stubConfig{pageSize: 100}, "team-a", false, adoptionChildID)
-	require.NoError(t, err)
 	require.NoError(t, export.File.Close())
-	err = adoptCommon.PrintAdoptResult(setup.Helper, setup.OutType, result, "AI Gateway")
+	result, err := adoptAIGateway(setup.Helper, api, stubConfig{pageSize: 100}, "team-a", false, adoptionChildID)
+	require.NotNil(t, result)
+	err = adoptCommon.PrintAdoptionOutcome(setup.Helper, setup.OutType, result, err, "AI Gateway")
 	require.ErrorContains(t, err, "was adopted but declarative output")
 	require.Contains(t, setup.Helper.GetStreams().Out.(*strings.Builder).String(), adoptionChildID)
 }

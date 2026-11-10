@@ -125,7 +125,7 @@ func adoptIdentityPrincipal(
 		ctx, string(resources.ResourceTypeIdentityPrincipal), id, ref, namespace,
 		map[string]string{"directory_id": directoryID}, "managed_by", current.ManagedBy, request.ManagedBy,
 	); dryRun {
-		return adoptCommon.FinishDeclarativeChild(ctx, result)
+		return adoptCommon.FinishAdoption(ctx, result)
 	}
 	response, err := api.ReplacePrincipal(
 		ctx,
@@ -139,7 +139,7 @@ func adoptIdentityPrincipal(
 		response.KongPrincipal.ManagedBy[resources.ChildNamespaceKey] != namespace {
 		return nil, fmt.Errorf("principal API did not retain adoption identity")
 	}
-	return adoptCommon.FinishDeclarativeChild(ctx, &adoptCommon.AdoptResult{
+	return adoptCommon.FinishAdoption(ctx, &adoptCommon.AdoptResult{
 		ResourceType: string(resources.ResourceTypeIdentityPrincipal),
 		ID:           id,
 		Name:         ref,

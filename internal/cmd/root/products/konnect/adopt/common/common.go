@@ -146,9 +146,8 @@ func PrintAdoptResult(
 	result *AdoptResult,
 	resourceDisplayName string,
 ) error {
-	_, exportErr := FinishDeclarativeChild(helper.GetContext(), result)
 	if handled, err := PrintDryRun(helper, outType); handled {
-		return errors.Join(err, exportErr)
+		return err
 	}
 	streams := helper.GetStreams()
 	if outType == cmdCommon.TEXT {
@@ -158,16 +157,16 @@ func PrintAdoptResult(
 		}
 		fmt.Fprintf(streams.Out, "Adopted %s %q (%s) into namespace %q\n",
 			resourceDisplayName, name, result.ID, result.Namespace)
-		return exportErr
+		return nil
 	}
 
 	printer, err := cli.Format(outType.String(), streams.Out)
 	if err != nil {
-		return errors.Join(err, exportErr)
+		return err
 	}
 	defer printer.Flush()
 	printer.Print(result)
-	return exportErr
+	return nil
 }
 
 func StringLabelMap(existing map[string]string, namespace string) map[string]string {
@@ -182,4 +181,14 @@ func EnsureContext(ctx context.Context) context.Context {
 		return context.Background()
 	}
 	return ctx
+}
+
+// PrintAdoptionOutcome retains a confirmed receipt when exporting it failed.
+func PrintAdoptionOutcome(helper cmdpkg.Helper, outType cmdCommon.OutputFormat,
+	result *AdoptResult, adoptionErr error, description string,
+) error {
+	if result == nil {
+		return adoptionErr
+	}
+	return errors.Join(adoptionErr, PrintAdoptResult(helper, outType, result, description))
 }

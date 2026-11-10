@@ -72,7 +72,7 @@ func NewIdentityAuthServerClientCmd(verb verbs.VerbValue, addParentFlags func(ve
 func adoptIdentityAuthServerClient(ctx context.Context, api helpers.IdentityAuthServerClientsAPI,
 	parent, identifier string, byName bool, namespace string, overwrite bool,
 ) (*adoptCommon.AdoptResult, error) {
-	write, err := prepareAdoptIdentityAuthServerClient(ctx, api, parent, identifier, byName, namespace, overwrite)
+	write, err := prepareAdoptIdentityAuthServerClient(ctx, api, parent, identifier, byName, namespace, overwrite, "")
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func adoptIdentityAuthServerClient(ctx context.Context, api helpers.IdentityAuth
 }
 
 func prepareAdoptIdentityAuthServerClient(ctx context.Context, api helpers.IdentityAuthServerClientsAPI,
-	parent, identifier string, byName bool, namespace string, overwrite bool, expectedName ...string,
+	parent, identifier string, byName bool, namespace string, overwrite bool, expectedName string,
 ) (preparedChildAdoption, error) {
 	if !util.IsValidUUID(parent) || namespace == "" {
 		return nil, fmt.Errorf("valid auth-server UUID and namespace are required")
@@ -90,7 +90,7 @@ func prepareAdoptIdentityAuthServerClient(ctx context.Context, api helpers.Ident
 	if err != nil {
 		return nil, err
 	}
-	if len(expectedName) != 0 && expectedName[0] != current.Name {
+	if expectedName != "" && expectedName != current.Name {
 		return nil, fmt.Errorf("child name changed after selection; retry adoption")
 	}
 	if owner := current.Labels[labels.NamespaceKey]; owner != "" && !overwrite {
@@ -118,7 +118,7 @@ func prepareAdoptIdentityAuthServerClient(ctx context.Context, api helpers.Ident
 			map[string]string{"auth_server_id": parent}, "labels", current.Labels,
 			map[string]string{labels.NamespaceKey: namespace, labels.ProtectedKey: protected},
 		); dryRun {
-			return adoptCommon.FinishDeclarativeChild(ctx, result)
+			return adoptCommon.FinishAdoption(ctx, result)
 		}
 		fresh, err := helpers.ResolveIdentityAuthServerClient(ctx, api, parent, current.ID, false, 100)
 		if err != nil {
@@ -146,7 +146,7 @@ func prepareAdoptIdentityAuthServerClient(ctx context.Context, api helpers.Ident
 			*response.Client.TokenEndpointAuthMethod != *current.TokenEndpointAuthMethod {
 			return nil, fmt.Errorf("client API did not retain adoption labels or authentication method")
 		}
-		return adoptCommon.FinishDeclarativeChild(ctx, &adoptCommon.AdoptResult{
+		return adoptCommon.FinishAdoption(ctx, &adoptCommon.AdoptResult{
 			ResourceType: string(resources.ResourceTypeIdentityAuthServerClient),
 			ID:           current.ID, Name: current.Name, Namespace: namespace,
 		})

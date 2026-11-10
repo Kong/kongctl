@@ -81,6 +81,10 @@ func TestIdentityAdoptionExportsOnlySelectedChildren(t *testing.T) {
 			require.NotContains(t, string(data), "managed_by:")
 			require.NotContains(t, string(data), "passwords:")
 			require.NotContains(t, string(data), "client_secret:")
+			if kind == resources.ResourceTypeIdentityAuthServerClient {
+				require.Contains(t, string(data), "labels: {}")
+				require.Contains(t, string(data), "redirect_uris: []")
+			}
 			loaded, err := loader.New().LoadFile(export.Path)
 			require.NoError(t, err)
 			children := loaded.AllResourcesByType(kind)

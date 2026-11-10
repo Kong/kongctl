@@ -263,8 +263,7 @@ func TestAdoptTeamExportsDeclaration(t *testing.T) {
 	}}
 	result, err := adoptTeam(helper, api, nil, "team-alpha", false, testTeamID)
 	require.NoError(t, err)
-	_, err = adoptCommon.FinishDeclarativeChild(ctx, result)
-	require.NoError(t, err)
+	require.Equal(t, testTeamID, result.ID)
 	loaded, err := loader.New().LoadFile(path)
 	require.NoError(t, err)
 	require.Len(t, loaded.OrganizationTeams, 1)

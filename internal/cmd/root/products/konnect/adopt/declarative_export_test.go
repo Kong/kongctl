@@ -60,8 +60,12 @@ func TestAdoptionDeclarativeExportLoadsEveryAIFamily(t *testing.T) {
 			write, err := aiChildFamilies(client)[index].prepare(setup.Helper.GetContext(), adoptionGatewayID,
 				childCandidate{adoptionChildID, "team-child"}, "team-a", false)
 			require.NoError(t, err)
-			_, err = write()
+			result, err := write()
 			require.NoError(t, err)
+			require.Len(t, export.Completed, 1)
+			require.NoError(t, export.File.Close())
+			require.NoError(t, adoptCommon.PrintAdoptResult(setup.Helper, setup.OutType, result, "child"))
+			require.Len(t, export.Completed, 1)
 			content, err := os.ReadFile(export.Path)
 			require.NoError(t, err)
 			require.Contains(t, string(content), "!ref ")
@@ -344,6 +348,6 @@ var (
 	addDeclarativeExportFlags = adoptCommon.AddDeclarativeExportFlags
 	openAdoptionExport        = adoptCommon.OpenAdoptionExport
 	prepareDeclarativeChild   = adoptCommon.PrepareDeclarativeChild
-	finishDeclarativeChild    = adoptCommon.FinishDeclarativeChild
+	finishDeclarativeChild    = adoptCommon.FinishAdoption
 	adoptionExportShape       = declexport.DeclarationShape
 )

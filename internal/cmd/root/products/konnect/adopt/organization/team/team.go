@@ -68,11 +68,7 @@ func NewTeamCmd(
 			s.AdoptFlags.OverwriteNamespace,
 			strings.TrimSpace(args[0]),
 		)
-		if err != nil {
-			return err
-		}
-
-		return adoptCommon.PrintAdoptResult(s.Helper, s.OutType, result, "organization_team")
+		return adoptCommon.PrintAdoptionOutcome(s.Helper, s.OutType, result, err, "organization_team")
 	}
 
 	return cmd, nil
@@ -107,17 +103,18 @@ func adoptTeam(
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
 
-	if err := adoptCommon.PrepareDeclarativeRoot(ctx, resources.ResourceTypeOrganizationTeam, team.ID, namespace,
-		*team, labels.IsProtectedResource(team.Labels)); err != nil {
-		return nil, err
-	}
-	if result, dryRun := adoptCommon.PreviewAdoption(
-
-		ctx, string(resources.ResourceTypeOrganizationTeam), team.ID, team.Name, namespace, nil, "labels",
-
-		team.Labels, adoptCommon.StringLabelMap(team.Labels, namespace),
-	); dryRun {
-		return result, nil
+	if result, dryRun, err := adoptCommon.PrepareRootAdoption(ctx, adoptCommon.AdoptionChange{
+		AdoptResult: adoptCommon.AdoptResult{
+			ResourceType: string(resources.ResourceTypeOrganizationTeam),
+			ID:           team.ID,
+			Name:         team.Name,
+			Namespace:    namespace,
+		},
+		MetadataLocation: resources.SchemaFieldLabels,
+		Before:           team.Labels,
+		After:            adoptCommon.StringLabelMap(team.Labels, namespace),
+	}, *team, labels.IsProtectedResource(team.Labels)); err != nil || dryRun {
+		return result, err
 	}
 	resp, err := teamAPI.UpdateOrganizationTeam(ctx, identifier, &updateReq)
 	if err != nil {
@@ -137,12 +134,12 @@ func adoptTeam(
 		}
 	}
 
-	return &adoptCommon.AdoptResult{
+	return adoptCommon.FinishAdoption(ctx, &adoptCommon.AdoptResult{
 		ResourceType: "organization_team",
 		ID:           updated.ID,
 		Name:         updated.Name,
 		Namespace:    ns,
-	}, nil
+	})
 }
 
 func resolveTeam(

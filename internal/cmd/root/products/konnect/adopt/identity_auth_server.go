@@ -35,10 +35,7 @@ func NewIdentityAuthServerCmd(verb verbs.VerbValue, addParentFlags func(verbs.Ve
 			setup.Helper.GetContext(), setup.SDK.GetIdentityAuthServersAPI(), args[0],
 			setup.AdoptFlags.Namespace, setup.AdoptFlags.OverwriteNamespace,
 		)
-		if err != nil {
-			return err
-		}
-		return adoptCommon.PrintAdoptResult(setup.Helper, setup.OutType, result, "Kong Identity auth server")
+		return adoptCommon.PrintAdoptionOutcome(setup.Helper, setup.OutType, result, err, "Kong Identity auth server")
 	}
 	return command, nil
 }
@@ -64,15 +61,22 @@ func adoptIdentityAuthServer(ctx context.Context, api helpers.IdentityAuthServer
 	request := kkComps.UpdateAuthServer{
 		Labels: map[string]*string{labels.NamespaceKey: &namespace, labels.ProtectedKey: &protected},
 	}
-	if err := adoptCommon.PrepareDeclarativeRoot(ctx, resources.ResourceTypeIdentityAuthServer, current.ID, namespace,
-		*current, labels.IsProtectedResource(current.Labels)); err != nil {
-		return nil, err
-	}
-	if result, dryRun := adoptCommon.PreviewAdoption(
-		ctx, string(resources.ResourceTypeIdentityAuthServer), current.ID, current.Name, namespace, nil, "labels",
-		current.Labels, map[string]string{labels.NamespaceKey: namespace, labels.ProtectedKey: protected},
-	); dryRun {
-		return result, nil
+
+	if result, dryRun, err := adoptCommon.PrepareRootAdoption(ctx, adoptCommon.AdoptionChange{
+		AdoptResult: adoptCommon.AdoptResult{
+			ResourceType: string(resources.ResourceTypeIdentityAuthServer),
+			ID:           current.ID,
+			Name:         current.Name,
+			Namespace:    namespace,
+		},
+		MetadataLocation: resources.SchemaFieldLabels,
+		Before:           current.Labels,
+		After: map[string]string{
+			labels.NamespaceKey: namespace,
+			labels.ProtectedKey: protected,
+		},
+	}, *current, labels.IsProtectedResource(current.Labels)); err != nil || dryRun {
+		return result, err
 	}
 	response, err := api.UpdateAuthServer(ctx, current.ID, request)
 	if err != nil {
@@ -81,8 +85,8 @@ func adoptIdentityAuthServer(ctx context.Context, api helpers.IdentityAuthServer
 	if response == nil || response.AuthServer == nil || response.AuthServer.Labels[labels.NamespaceKey] != namespace {
 		return nil, fmt.Errorf("auth-server API did not retain adoption labels")
 	}
-	return &adoptCommon.AdoptResult{
+	return adoptCommon.FinishAdoption(ctx, &adoptCommon.AdoptResult{
 		ResourceType: string(resources.ResourceTypeIdentityAuthServer),
 		ID:           current.ID, Name: current.Name, Namespace: namespace,
-	}, nil
+	})
 }

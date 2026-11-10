@@ -69,11 +69,7 @@ func NewDashboardCmd(
 			s.AdoptFlags.OverwriteNamespace,
 			strings.TrimSpace(args[0]),
 		)
-		if err != nil {
-			return err
-		}
-
-		return adoptCommon.PrintAdoptResult(s.Helper, s.OutType, result, "dashboard")
+		return adoptCommon.PrintAdoptionOutcome(s.Helper, s.OutType, result, err, "dashboard")
 	}
 
 	return cmd, nil
@@ -112,15 +108,19 @@ func adoptDashboard(
 	}
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
-	if err := adoptCommon.PrepareDeclarativeRoot(ctx, resources.ResourceTypeDashboard, *dashboard.ID, namespace,
-		*dashboard, labels.IsProtectedResource(dashboard.Labels)); err != nil {
-		return nil, err
-	}
-	if result, dryRun := adoptCommon.PreviewAdoption(
-		ctx, string(resources.ResourceTypeDashboard), id, dashboard.Name, namespace, nil, "labels",
-		dashboard.Labels, updateReq.Labels,
-	); dryRun {
-		return result, nil
+
+	if result, dryRun, err := adoptCommon.PrepareRootAdoption(ctx, adoptCommon.AdoptionChange{
+		AdoptResult: adoptCommon.AdoptResult{
+			ResourceType: string(resources.ResourceTypeDashboard),
+			ID:           id,
+			Name:         dashboard.Name,
+			Namespace:    namespace,
+		},
+		MetadataLocation: resources.SchemaFieldLabels,
+		Before:           dashboard.Labels,
+		After:            updateReq.Labels,
+	}, *dashboard, labels.IsProtectedResource(dashboard.Labels)); err != nil || dryRun {
+		return result, err
 	}
 	resp, err := api.DashboardsUpdate(ctx, id, updateReq)
 	if err != nil {
@@ -140,12 +140,12 @@ func adoptDashboard(
 		}
 	}
 
-	return &adoptCommon.AdoptResult{
+	return adoptCommon.FinishAdoption(ctx, &adoptCommon.AdoptResult{
 		ResourceType: "dashboard",
 		ID:           getDashboardID(updated),
 		Name:         updated.Name,
 		Namespace:    ns,
-	}, nil
+	})
 }
 
 func resolveDashboard(

@@ -69,11 +69,7 @@ func NewAuthStrategyCmd(
 			s.AdoptFlags.OverwriteNamespace,
 			strings.TrimSpace(args[0]),
 		)
-		if err != nil {
-			return err
-		}
-
-		return adoptCommon.PrintAdoptResult(s.Helper, s.OutType, result, "auth strategy")
+		return adoptCommon.PrintAdoptionOutcome(s.Helper, s.OutType, result, err, "auth strategy")
 	}
 
 	return cmd, nil
@@ -116,27 +112,31 @@ func adoptAuthStrategy(
 	}
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
-	if err := adoptCommon.PrepareDeclarativeRoot(ctx, resources.ResourceTypeApplicationAuthStrategy, id, namespace,
-		*strategy, labels.IsProtectedResource(existingLabels)); err != nil {
-		return nil, err
-	}
-	if result, dryRun := adoptCommon.PreviewAdoption(
-		ctx, string(resources.ResourceTypeApplicationAuthStrategy), id, name, namespace, nil, "labels",
-		existingLabels, adoptCommon.StringLabelMap(existingLabels, namespace),
-	); dryRun {
-		return result, nil
+
+	if result, dryRun, err := adoptCommon.PrepareRootAdoption(ctx, adoptCommon.AdoptionChange{
+		AdoptResult: adoptCommon.AdoptResult{
+			ResourceType: string(resources.ResourceTypeApplicationAuthStrategy),
+			ID:           id,
+			Name:         name,
+			Namespace:    namespace,
+		},
+		MetadataLocation: resources.SchemaFieldLabels,
+		Before:           existingLabels,
+		After:            adoptCommon.StringLabelMap(existingLabels, namespace),
+	}, *strategy, labels.IsProtectedResource(existingLabels)); err != nil || dryRun {
+		return result, err
 	}
 	if _, err := api.UpdateAppAuthStrategy(ctx, id, updateReq); err != nil {
 		attrs := cmdpkg.TryConvertErrorToAttrs(err)
 		return nil, cmdpkg.PrepareExecutionError("failed to update auth strategy", err, helper.GetCmd(), attrs...)
 	}
 
-	return &adoptCommon.AdoptResult{
+	return adoptCommon.FinishAdoption(ctx, &adoptCommon.AdoptResult{
 		ResourceType: "auth_strategy",
 		ID:           id,
 		Name:         name,
 		Namespace:    namespace,
-	}, nil
+	})
 }
 
 func resolveAuthStrategy(

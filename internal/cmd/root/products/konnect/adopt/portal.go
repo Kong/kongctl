@@ -69,11 +69,7 @@ func NewPortalCmd(
 			adoptFlags.OverwriteNamespace,
 			strings.TrimSpace(args[0]),
 		)
-		if err != nil {
-			return err
-		}
-
-		return adoptCommon.PrintAdoptResult(helper, outType, result, "portal")
+		return adoptCommon.PrintAdoptionOutcome(helper, outType, result, err, "portal")
 	}
 
 	return cmd, nil
@@ -106,17 +102,18 @@ func adoptPortal(
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
 
-	if err := adoptCommon.PrepareDeclarativeRoot(ctx, resources.ResourceTypePortal, portal.ID, namespace,
-		*portal, labels.IsProtectedResource(portal.Labels)); err != nil {
-		return nil, err
-	}
-	if result, dryRun := adoptCommon.PreviewAdoption(
-
-		ctx, string(resources.ResourceTypePortal), portal.ID, portal.Name, namespace, nil, "labels",
-
-		portal.Labels, adoptCommon.StringLabelMap(portal.Labels, namespace),
-	); dryRun {
-		return result, nil
+	if result, dryRun, err := adoptCommon.PrepareRootAdoption(ctx, adoptCommon.AdoptionChange{
+		AdoptResult: adoptCommon.AdoptResult{
+			ResourceType: string(resources.ResourceTypePortal),
+			ID:           portal.ID,
+			Name:         portal.Name,
+			Namespace:    namespace,
+		},
+		MetadataLocation: resources.SchemaFieldLabels,
+		Before:           portal.Labels,
+		After:            adoptCommon.StringLabelMap(portal.Labels, namespace),
+	}, *portal, labels.IsProtectedResource(portal.Labels)); err != nil || dryRun {
+		return result, err
 	}
 	resp, err := portalAPI.UpdatePortal(ctx, portal.ID, updateReq)
 	if err != nil {
@@ -136,12 +133,12 @@ func adoptPortal(
 		}
 	}
 
-	return &adoptCommon.AdoptResult{
+	return adoptCommon.FinishAdoption(ctx, &adoptCommon.AdoptResult{
 		ResourceType: "portal",
 		ID:           updated.ID,
 		Name:         updated.Name,
 		Namespace:    ns,
-	}, nil
+	})
 }
 
 func resolvePortal(

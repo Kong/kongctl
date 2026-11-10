@@ -2,6 +2,7 @@ package adopt
 
 import (
 	"fmt"
+	"path"
 	"testing"
 
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
@@ -118,4 +119,60 @@ func TestLabelDryRunPreservesUnchangedReservedLabels(t *testing.T) {
 	require.Equal(t, "true", preview.Changes[0].After["KONGCTL-protected"])
 	require.NotContains(t, output.String(), "exclude")
 	require.NotContains(t, before, "KONGCTL-namespace")
+}
+
+func TestChildNamePatternsTreatSlashAsOrdinaryCharacter(t *testing.T) {
+	for _, tc := range []struct{ pattern, name string }{
+		{"*", "domain/user"},
+		{"team-*", "team-a/model"},
+		{"domain?user", "domain/user"},
+		{"team/[ab]*", "team/alpha"},
+		{"[^x]*", "domain/user"},
+		{"*", "line\nbreak"},
+		{"[/-0]*", "/name"},
+		{`domain\/user`, "domain/user"},
+		{"?", "界"},
+	} {
+		t.Run(tc.pattern+"/"+tc.name, func(t *testing.T) {
+			selected, err := selectChildren([]childCandidate{{id: "id", name: tc.name}}, childSelection{pattern: tc.pattern})
+			require.NoError(t, err)
+			require.Len(t, selected, 1)
+		})
+	}
+}
+
+func TestChildAdoptionConfirmedOutputFailureIsNotReportedAsUncertain(t *testing.T) {
+	setup, out := childTestSetup(t, false, cmdCommon.JSON)
+	values := []childCandidate{{id: "first", name: "first"}, {id: "second", name: "second"}, {id: "third", name: "third"}}
+	writes := 0
+	err := runChildAdoptions(setup, values, func(value childCandidate) (preparedChildAdoption, error) {
+		return func() (*adoptCommon.AdoptResult, error) {
+			writes++
+			result := &adoptCommon.AdoptResult{ID: value.id, Name: value.name, Namespace: "team-a"}
+			if value.id == "second" {
+				return result, fmt.Errorf("declarative output could not be saved")
+			}
+			return result, nil
+		}, nil
+	})
+	require.ErrorContains(t, err, "after 2 of 3 children adopted")
+	require.NotContains(t, err.Error(), "may have reached the API")
+	require.Contains(t, out.String(), "second")
+	require.Equal(t, 2, writes)
+}
+
+func TestNamePatternsPreserveGlobSyntax(t *testing.T) {
+	for _, pattern := range []string{
+		"*", "?", "team-*", "[a-z]", "[^a]*", `[\-a]`, `[\^a]`, `[[]`, `[\]]`, "é?", `\*`, "a.b",
+	} {
+		matcher, err := compileNamePattern(pattern)
+		require.NoError(t, err, pattern)
+		for _, name := range []string{
+			"a", "b", "é", "é界", "-", "^", "[", "]", "*", "a.b", "axb", "team-test", "line\nbreak",
+		} {
+			expected, err := path.Match(pattern, name)
+			require.NoError(t, err)
+			require.Equal(t, expected, matcher.MatchString(name), "pattern %q name %q", pattern, name)
+		}
+	}
 }

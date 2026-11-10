@@ -352,6 +352,9 @@ func Root(payload any) (declresources.Resource, error) {
 		r := MapOrganizationTeamToDeclarativeResource(value)
 		return &r, nil
 	case kkComps.ControlPlane:
+		if value.Config.ClusterType == kkComps.ControlPlaneClusterTypeClusterTypeControlPlaneGroup {
+			return nil, fmt.Errorf("control plane group export requires a declaration with verified memberships")
+		}
 		r := MapControlPlaneToDeclarativeResource(value, nil)
 		return &r, nil
 	case kkComps.AppAuthStrategy:

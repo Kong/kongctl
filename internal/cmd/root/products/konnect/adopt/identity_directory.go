@@ -34,10 +34,7 @@ func NewIdentityDirectoryCmd(verb verbs.VerbValue,
 
 		result, err := adoptIdentityDirectory(setup.Helper.GetContext(), setup.SDK.GetIdentityDirectoriesAPI(),
 			args[0], setup.AdoptFlags.Namespace, setup.AdoptFlags.OverwriteNamespace)
-		if err != nil {
-			return err
-		}
-		return adoptCommon.PrintAdoptResult(setup.Helper, setup.OutType, result, "Kong Identity directory")
+		return adoptCommon.PrintAdoptionOutcome(setup.Helper, setup.OutType, result, err, "Kong Identity directory")
 	}
 	return command, nil
 }
@@ -61,15 +58,19 @@ func adoptIdentityDirectory(ctx context.Context, api helpers.IdentityDirectories
 	request.ManagedBy = resources.BuildChildManagedBy(
 		namespace, resources.IsChildProtected(directory.ManagedBy), build.Version(ctx),
 	)
-	if err := adoptCommon.PrepareDeclarativeRoot(ctx, resources.ResourceTypeIdentityDirectory, directory.ID, namespace,
-		*directory, resources.IsChildProtected(directory.ManagedBy)); err != nil {
-		return nil, err
-	}
-	if result, dryRun := adoptCommon.PreviewAdoption(
-		ctx, string(resources.ResourceTypeIdentityDirectory), directory.ID, directory.Name, namespace, nil,
-		"managed_by", directory.ManagedBy, request.ManagedBy,
-	); dryRun {
-		return result, nil
+
+	if result, dryRun, err := adoptCommon.PrepareRootAdoption(ctx, adoptCommon.AdoptionChange{
+		AdoptResult: adoptCommon.AdoptResult{
+			ResourceType: string(resources.ResourceTypeIdentityDirectory),
+			ID:           directory.ID,
+			Name:         directory.Name,
+			Namespace:    namespace,
+		},
+		MetadataLocation: resources.SchemaFieldManagedBy,
+		Before:           directory.ManagedBy,
+		After:            request.ManagedBy,
+	}, *directory, resources.IsChildProtected(directory.ManagedBy)); err != nil || dryRun {
+		return result, err
 	}
 	response, err := api.ReplaceDirectory(ctx, directory.ID, request)
 	if err != nil {
@@ -78,8 +79,8 @@ func adoptIdentityDirectory(ctx context.Context, api helpers.IdentityDirectories
 	if response == nil || response.KongDirectory == nil {
 		return nil, fmt.Errorf("missing adopted Kong Identity directory response")
 	}
-	return &adoptCommon.AdoptResult{
+	return adoptCommon.FinishAdoption(ctx, &adoptCommon.AdoptResult{
 		ResourceType: string(resources.ResourceTypeIdentityDirectory),
 		ID:           directory.ID, Name: directory.Name, Namespace: namespace,
-	}, nil
+	})
 }

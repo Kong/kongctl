@@ -127,12 +127,12 @@ func adoptPrincipalIdentity(ctx context.Context, api helpers.IdentityPrincipalId
 		map[string]string{"directory_id": directoryID, "principal_id": principalID}, "managed_by",
 		previousManagedBy, current.ManagedBy,
 	); dryRun {
-		return adoptCommon.FinishDeclarativeChild(ctx, result)
+		return adoptCommon.FinishAdoption(ctx, result)
 	}
 	if _, err := helpers.ReplacePrincipalIdentity(ctx, api, directoryID, principalID, id, body); err != nil {
 		return nil, err
 	}
-	return adoptCommon.FinishDeclarativeChild(ctx, &adoptCommon.AdoptResult{
+	return adoptCommon.FinishAdoption(ctx, &adoptCommon.AdoptResult{
 		ResourceType: string(resources.ResourceTypeIdentityPrincipalIdentity),
 		ID:           id,
 		Name:         ref,

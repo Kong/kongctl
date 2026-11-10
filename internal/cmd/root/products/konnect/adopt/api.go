@@ -69,11 +69,7 @@ func NewAPICmd(
 			s.AdoptFlags.OverwriteNamespace,
 			strings.TrimSpace(args[0]),
 		)
-		if err != nil {
-			return err
-		}
-
-		return adoptCommon.PrintAdoptResult(s.Helper, s.OutType, result, "API")
+		return adoptCommon.PrintAdoptionOutcome(s.Helper, s.OutType, result, err, "API")
 	}
 
 	return cmd, nil
@@ -106,17 +102,18 @@ func adoptAPI(
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
 
-	if err := adoptCommon.PrepareDeclarativeRoot(ctx, resources.ResourceTypeAPI, api.ID, namespace,
-		*api, labels.IsProtectedResource(api.Labels)); err != nil {
-		return nil, err
-	}
-	if result, dryRun := adoptCommon.PreviewAdoption(
-
-		ctx, string(resources.ResourceTypeAPI), api.ID, api.Name, namespace, nil, "labels", api.Labels,
-
-		adoptCommon.StringLabelMap(api.Labels, namespace),
-	); dryRun {
-		return result, nil
+	if result, dryRun, err := adoptCommon.PrepareRootAdoption(ctx, adoptCommon.AdoptionChange{
+		AdoptResult: adoptCommon.AdoptResult{
+			ResourceType: string(resources.ResourceTypeAPI),
+			ID:           api.ID,
+			Name:         api.Name,
+			Namespace:    namespace,
+		},
+		MetadataLocation: resources.SchemaFieldLabels,
+		Before:           api.Labels,
+		After:            adoptCommon.StringLabelMap(api.Labels, namespace),
+	}, *api, labels.IsProtectedResource(api.Labels)); err != nil || dryRun {
+		return result, err
 	}
 	resp, err := apiClient.UpdateAPI(ctx, api.ID, updateReq, false)
 	if err != nil {
@@ -136,12 +133,12 @@ func adoptAPI(
 		}
 	}
 
-	return &adoptCommon.AdoptResult{
+	return adoptCommon.FinishAdoption(ctx, &adoptCommon.AdoptResult{
 		ResourceType: "api",
 		ID:           updated.ID,
 		Name:         updated.Name,
 		Namespace:    ns,
-	}, nil
+	})
 }
 
 func resolveAPI(

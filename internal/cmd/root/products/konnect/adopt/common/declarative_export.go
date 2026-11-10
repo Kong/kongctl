@@ -141,8 +141,14 @@ func PrepareDeclarativeChild(ctx context.Context, kind resources.ResourceType, i
 	if export == nil {
 		return nil
 	}
-	if client, ok := payload.(kkComps.Client); ok {
+	switch client := payload.(type) {
+	case kkComps.Client:
 		payload = declexport.MapIdentityClient(client, client.AllowScopes)
+	case *kkComps.Client:
+		if client == nil {
+			return fmt.Errorf("cannot export a nil auth-server client")
+		}
+		payload = declexport.MapIdentityClient(*client, client.AllowScopes)
 	}
 	fields, err := declexport.PublicFields(payload)
 	if err != nil {
@@ -165,8 +171,11 @@ func PrepareDeclarativeChild(ctx context.Context, kind resources.ResourceType, i
 	} else if export.parentRef != "" {
 		return fmt.Errorf("--parent-ref is only supported for child resources")
 	}
-	fields["kongctl"] = map[string]any{"namespace": namespace, "protected": protected}
-	if raw, ok := fields["labels"].(map[string]any); ok &&
+	fields[resources.SchemaFieldKongctl] = map[string]any{
+		resources.SchemaFieldNamespace: namespace,
+		resources.SchemaFieldProtected: protected,
+	}
+	if raw, ok := fields[resources.SchemaFieldLabels].(map[string]any); ok &&
 		(parent.Kind == "" || kind == resources.ResourceTypeIdentityAuthServerClient) {
 		for key := range raw {
 			if labels.IsKongctlLabel(key) {
@@ -174,6 +183,7 @@ func PrepareDeclarativeChild(ctx context.Context, kind resources.ResourceType, i
 			}
 		}
 	}
+	declexport.OmitSecrets(kind, fields, "")
 	shape, err = declexport.Project(kind, fields)
 	if err != nil {
 		return err
@@ -198,7 +208,7 @@ func PrepareDeclarativeChild(ctx context.Context, kind resources.ResourceType, i
 	return err
 }
 
-func FinishDeclarativeChild(ctx context.Context, result *AdoptResult) (*AdoptResult, error) {
+func FinishAdoption(ctx context.Context, result *AdoptResult) (*AdoptResult, error) {
 	export := AdoptionExportFromContext(ctx)
 	if export == nil {
 		return result, nil
@@ -207,11 +217,7 @@ func FinishDeclarativeChild(ctx context.Context, result *AdoptResult) (*AdoptRes
 	if !ok {
 		return result, fmt.Errorf("resource %s was adopted but no declarative snapshot was prepared", result.ID)
 	}
-	for _, completed := range export.Completed {
-		if completed.fields[resources.SchemaFieldRef] == declaration.fields[resources.SchemaFieldRef] {
-			return result, nil
-		}
-	}
+
 	export.Completed = append(export.Completed, declaration)
 	data, err := export.render(export.Completed)
 	if err == nil {
@@ -282,23 +288,23 @@ func (e *AdoptionExport) externalParent(parent AdoptionParent) (string, error) {
 	if ref, ok := e.parentIDs[key]; ok {
 		return ref, nil
 	}
-	var collection []string
+	shape, err := declexport.DeclarationShape(parent.Kind)
+	if err != nil {
+		return "", err
+	}
+	collection := shape.Collection
 	var prefix, parentField, directoryRef string
 	//exhaustive:ignore
 	switch parent.Kind {
 	case resources.ResourceTypeAIGateway:
-		collection = []string{"ai_gateways"}
 		prefix = "adopt-gateway-"
 	case resources.ResourceTypeIdentityDirectory:
-		collection = []string{"identity", "directories"}
 		prefix = "adopt-directory-"
 	case resources.ResourceTypeIdentityAuthServer:
-		collection = []string{"identity", "auth_servers"}
 		prefix = "adopt-auth-server-"
 	case resources.ResourceTypeIdentityPrincipal:
-		collection = []string{"identity", "principals"}
 		prefix = "adopt-principal-"
-		parentField = "directory"
+		parentField = resources.SchemaFieldDirectory
 		var err error
 		directoryRef,
 			err = e.externalParent(AdoptionParent{
@@ -318,7 +324,7 @@ func (e *AdoptionExport) externalParent(parent AdoptionParent) (string, error) {
 	if _, exists := e.refs[ref]; exists {
 		return "", fmt.Errorf("generated parent ref %q collides with selected resource", ref)
 	}
-	fields := map[string]any{"ref": ref, "_external": map[string]any{"id": parent.ID}}
+	fields := map[string]any{resources.SchemaFieldRef: ref, resources.SchemaFieldExternal: map[string]any{"id": parent.ID}}
 	if parentField != "" {
 		fields[parentField] = tags.RefPlaceholderPrefix + directoryRef + "#id"
 	}
@@ -405,4 +411,22 @@ func PrepareDeclarativeRoot(ctx context.Context, kind resources.ResourceType, id
 
 func AddDeclarativeRootExportFlag(cmd *cobra.Command) {
 	cmd.Flags().String(declarativeOutputFlag, "", "Write the adopted resource as declarative YAML to a new file")
+}
+
+// PrepareRootAdoption validates the declaration and handles the no-write path.
+// Successful writes finish through FinishAdoption before reporting their outcome.
+func PrepareRootAdoption(
+	ctx context.Context, change AdoptionChange, payload any, protected bool,
+) (*AdoptResult, bool, error) {
+	if err := PrepareDeclarativeRoot(ctx, resources.ResourceType(change.ResourceType), change.ID,
+		change.Namespace, payload, protected); err != nil {
+		return nil, false, err
+	}
+	result, dryRun := PreviewAdoption(ctx, change.ResourceType, change.ID, change.Name, change.Namespace,
+		change.Parent, change.MetadataLocation, change.Before, change.After)
+	if dryRun {
+		result, err := FinishAdoption(ctx, result)
+		return result, true, err
+	}
+	return nil, false, nil
 }

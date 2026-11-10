@@ -64,7 +64,7 @@ func NewIdentityGroupCmd(verb verbs.VerbValue,
 func adoptIdentityGroup(ctx context.Context, api helpers.IdentityGroupsAPI,
 	directoryID, identifier, namespace string, overwrite bool,
 ) (*adoptCommon.AdoptResult, error) {
-	write, err := prepareAdoptIdentityGroup(ctx, api, directoryID, identifier, namespace, overwrite)
+	write, err := prepareAdoptIdentityGroup(ctx, api, directoryID, identifier, namespace, overwrite, "")
 	if err != nil {
 		return nil, err
 	}
@@ -72,14 +72,20 @@ func adoptIdentityGroup(ctx context.Context, api helpers.IdentityGroupsAPI,
 }
 
 func prepareAdoptIdentityGroup(ctx context.Context, api helpers.IdentityGroupsAPI,
-	directoryID, identifier, namespace string, overwrite bool, expectedName ...string,
+	directoryID, identifier, namespace string, overwrite bool, expectedName string,
 ) (preparedChildAdoption, error) {
 	ctx = adoptCommon.EnsureContext(ctx)
-	group, err := helpers.ResolveIdentityGroup(ctx, api, directoryID, identifier, 100)
+	var group *helpers.IdentityGroup
+	var err error
+	if expectedName == "" {
+		group, err = helpers.ResolveIdentityGroup(ctx, api, directoryID, identifier, 100)
+	} else {
+		group, err = helpers.GetIdentityGroup(ctx, api, directoryID, identifier)
+	}
 	if err != nil {
 		return nil, err
 	}
-	if len(expectedName) != 0 && expectedName[0] != group.Name {
+	if expectedName != "" && expectedName != group.Name {
 		return nil, fmt.Errorf("child name changed after selection; retry adoption")
 	}
 	metadata, err := adoptionManagedBy(group.ManagedBy, namespace, overwrite, build.Version(ctx))
@@ -103,9 +109,9 @@ func prepareAdoptIdentityGroup(ctx context.Context, api helpers.IdentityGroupsAP
 			ctx, string(resources.ResourceTypeIdentityGroup), group.ID, group.Name, namespace,
 			map[string]string{"directory_id": directoryID}, "managed_by", group.ManagedBy, request.ManagedBy,
 		); dryRun {
-			return adoptCommon.FinishDeclarativeChild(ctx, result)
+			return adoptCommon.FinishAdoption(ctx, result)
 		}
-		fresh, err := helpers.ResolveIdentityGroup(ctx, api, directoryID, group.ID, 100)
+		fresh, err := helpers.GetIdentityGroup(ctx, api, directoryID, group.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -123,7 +129,7 @@ func prepareAdoptIdentityGroup(ctx context.Context, api helpers.IdentityGroupsAP
 			!maps.Equal(response.KongGroup.ManagedBy, request.ManagedBy) {
 			return nil, fmt.Errorf("group API did not retain adopted ownership")
 		}
-		return adoptCommon.FinishDeclarativeChild(ctx, &adoptCommon.AdoptResult{
+		return adoptCommon.FinishAdoption(ctx, &adoptCommon.AdoptResult{
 			ResourceType: string(resources.ResourceTypeIdentityGroup), ID: group.ID,
 			Name: group.Name, Namespace: namespace,
 		})

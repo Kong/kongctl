@@ -26,7 +26,7 @@ func TestRootAdoptionDryRunsNeverWrite(t *testing.T) {
 	require.NoError(t, err)
 	require.Zero(t, api.updateCalls)
 	cp := &controlPlaneAPIStub{t: t, control: &kkComps.ControlPlane{ID: adoptionChildID, Name: "cp"}}
-	_, err = adoptControlPlane(helper, cp, "team-a", false, adoptionChildID)
+	_, err = adoptControlPlane(helper, cp, "team-a", false, adoptionChildID, nil)
 	require.NoError(t, err)
 	require.Zero(t, cp.updateCall)
 	egw := &egwControlPlaneAPIStub{t: t, fetchResponse: &kkComps.EventGatewayInfo{ID: adoptionChildID, Name: "egw"}}

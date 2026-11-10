@@ -67,11 +67,7 @@ func NewControlPlaneCmd(
 			strings.TrimSpace(args[0]),
 			s.SDK.GetControlPlaneGroupsAPI(),
 		)
-		if err != nil {
-			return err
-		}
-
-		return adoptCommon.PrintAdoptResult(s.Helper, s.OutType, result, "control plane")
+		return adoptCommon.PrintAdoptionOutcome(s.Helper, s.OutType, result, err, "control plane")
 	}
 
 	return cmd, nil
@@ -83,7 +79,7 @@ func adoptControlPlane(
 	namespace string,
 	overwriteNamespace bool,
 	identifier string,
-	groupsAPIs ...helpers.ControlPlaneGroupsAPI,
+	groupsAPI helpers.ControlPlaneGroupsAPI,
 ) (*adoptCommon.AdoptResult, error) {
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
 
@@ -119,32 +115,36 @@ func adoptControlPlane(
 		Labels: adoptCommon.StringLabelMap(cp.Labels, namespace),
 	}
 
+	var exportPayload any = *cp
 	if adoptCommon.AdoptionExportFromContext(ctx) != nil {
 		var members []string
 		if cp.Config.ClusterType == kkComps.ControlPlaneClusterTypeClusterTypeControlPlaneGroup {
-			if len(groupsAPIs) == 0 || groupsAPIs[0] == nil {
+			if groupsAPI == nil {
 				return nil, fmt.Errorf("control plane group membership API is required for declarative export")
 			}
-			members, err = declexport.FetchControlPlaneGroupMembers(ctx, groupsAPIs[0], cp.ID)
+			members, err = declexport.FetchControlPlaneGroupMembers(ctx, groupsAPI, cp.ID)
 			if err != nil {
 				return nil, err
 			}
 		}
 		resource := declexport.MapControlPlaneToDeclarativeResource(*cp, members)
-		if err := adoptCommon.PrepareDeclarativeRoot(ctx, resources.ResourceTypeControlPlane, cp.ID, namespace,
-			&resource, labels.IsProtectedResource(cp.Labels)); err != nil {
-			return nil, err
-		}
+		exportPayload = &resource
 	}
 
-	if result, dryRun := adoptCommon.PreviewAdoption(
-
-		ctx, string(resources.ResourceTypeControlPlane), cp.ID, cp.Name, namespace, nil, "labels", cp.Labels,
-
-		updateReq.Labels,
-	); dryRun {
-		return result, nil
+	if result, dryRun, err := adoptCommon.PrepareRootAdoption(ctx, adoptCommon.AdoptionChange{
+		AdoptResult: adoptCommon.AdoptResult{
+			ResourceType: string(resources.ResourceTypeControlPlane),
+			ID:           cp.ID,
+			Name:         cp.Name,
+			Namespace:    namespace,
+		},
+		MetadataLocation: resources.SchemaFieldLabels,
+		Before:           cp.Labels,
+		After:            updateReq.Labels,
+	}, exportPayload, labels.IsProtectedResource(cp.Labels)); err != nil || dryRun {
+		return result, err
 	}
+
 	updateRes, err := controlPlaneAPI.UpdateControlPlane(ctx, id, updateReq)
 	if err != nil {
 		attrs := cmdpkg.TryConvertErrorToAttrs(err)
@@ -163,10 +163,10 @@ func adoptControlPlane(
 		}
 	}
 
-	return &adoptCommon.AdoptResult{
+	return adoptCommon.FinishAdoption(ctx, &adoptCommon.AdoptResult{
 		ResourceType: "control_plane",
 		ID:           updated.ID,
 		Name:         updated.Name,
 		Namespace:    ns,
-	}, nil
+	})
 }

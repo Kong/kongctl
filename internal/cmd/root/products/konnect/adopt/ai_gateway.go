@@ -69,11 +69,7 @@ func NewAIGatewayCmd(
 			s.AdoptFlags.OverwriteNamespace,
 			strings.TrimSpace(args[0]),
 		)
-		if err != nil {
-			return err
-		}
-
-		return adoptCommon.PrintAdoptResult(s.Helper, s.OutType, result, "AI Gateway")
+		return adoptCommon.PrintAdoptionOutcome(s.Helper, s.OutType, result, err, "AI Gateway")
 	}
 
 	cmd.AddCommand(newAIGatewayChildCommands(verb, addParentFlags, parentPreRun)...)
@@ -88,7 +84,7 @@ func adoptAIGateway(
 	overwriteNamespace bool,
 	identifier string,
 ) (*adoptCommon.AdoptResult, error) {
-	gateway, err := resolveAIGateway(helper, api, cfg, identifier)
+	gateway, err := resolveAIGateway(helper, api, cfg, identifier, false)
 	if err != nil {
 		return nil, err
 	}
@@ -116,15 +112,19 @@ func adoptAIGateway(
 	}
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
-	if err := adoptCommon.PrepareDeclarativeRoot(ctx, resources.ResourceTypeAIGateway, gateway.ID, namespace,
-		*gateway, labels.IsProtectedResource(gateway.Labels)); err != nil {
-		return nil, err
-	}
-	if result, dryRun := adoptCommon.PreviewAdoption(
-		ctx, string(resources.ResourceTypeAIGateway), gateway.ID, gateway.DisplayName, namespace, nil, "labels",
-		gateway.Labels, updateReq.Labels,
-	); dryRun {
-		return result, nil
+
+	if result, dryRun, err := adoptCommon.PrepareRootAdoption(ctx, adoptCommon.AdoptionChange{
+		AdoptResult: adoptCommon.AdoptResult{
+			ResourceType: string(resources.ResourceTypeAIGateway),
+			ID:           gateway.ID,
+			Name:         gateway.DisplayName,
+			Namespace:    namespace,
+		},
+		MetadataLocation: resources.SchemaFieldLabels,
+		Before:           gateway.Labels,
+		After:            updateReq.Labels,
+	}, *gateway, labels.IsProtectedResource(gateway.Labels)); err != nil || dryRun {
+		return result, err
 	}
 	resp, err := api.UpdateAiGateway(ctx, gateway.ID, updateReq)
 	if err != nil {
@@ -144,12 +144,12 @@ func adoptAIGateway(
 		}
 	}
 
-	return &adoptCommon.AdoptResult{
+	return adoptCommon.FinishAdoption(ctx, &adoptCommon.AdoptResult{
 		ResourceType: string(resources.ResourceTypeAIGateway),
 		ID:           updated.ID,
 		Name:         updated.DisplayName,
 		Namespace:    ns,
-	}, nil
+	})
 }
 
 func resolveAIGateway(
@@ -157,7 +157,7 @@ func resolveAIGateway(
 	api helpers.AIGatewayAPI,
 	cfg config.Hook,
 	identifier string,
-	byName ...bool,
+	byName bool,
 ) (*kkComps.AIGateway, error) {
 	if api == nil {
 		return nil, fmt.Errorf("AI Gateway API client is not configured")
@@ -165,7 +165,7 @@ func resolveAIGateway(
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
 
-	if util.IsValidUUID(identifier) && (len(byName) == 0 || !byName[0]) {
+	if util.IsValidUUID(identifier) && !byName {
 		resp, err := api.GetAiGateway(ctx, identifier)
 		if err != nil {
 			attrs := cmdpkg.TryConvertErrorToAttrs(err)

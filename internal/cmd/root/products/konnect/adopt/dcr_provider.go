@@ -74,11 +74,7 @@ func NewDCRProviderCmd(
 			s.AdoptFlags.OverwriteNamespace,
 			strings.TrimSpace(args[0]),
 		)
-		if err != nil {
-			return err
-		}
-
-		return adoptCommon.PrintAdoptResult(s.Helper, s.OutType, result, "DCR provider")
+		return adoptCommon.PrintAdoptionOutcome(s.Helper, s.OutType, result, err, "DCR provider")
 	}
 
 	return cmd, nil
@@ -120,27 +116,31 @@ func adoptDCRProvider(
 	}
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
-	if err := adoptCommon.PrepareDeclarativeRoot(ctx, resources.ResourceTypeDCRProvider, provider.ID, namespace,
-		*provider, labels.IsProtectedResource(provider.Labels)); err != nil {
-		return nil, err
-	}
-	if result, dryRun := adoptCommon.PreviewAdoption(
-		ctx, string(resources.ResourceTypeDCRProvider), provider.ID, provider.Name, namespace, nil, "labels",
-		provider.Labels, adoptCommon.StringLabelMap(provider.Labels, namespace),
-	); dryRun {
-		return result, nil
+
+	if result, dryRun, err := adoptCommon.PrepareRootAdoption(ctx, adoptCommon.AdoptionChange{
+		AdoptResult: adoptCommon.AdoptResult{
+			ResourceType: string(resources.ResourceTypeDCRProvider),
+			ID:           provider.ID,
+			Name:         provider.Name,
+			Namespace:    namespace,
+		},
+		MetadataLocation: resources.SchemaFieldLabels,
+		Before:           provider.Labels,
+		After:            adoptCommon.StringLabelMap(provider.Labels, namespace),
+	}, *provider, labels.IsProtectedResource(provider.Labels)); err != nil || dryRun {
+		return result, err
 	}
 	if _, err := api.UpdateDcrProvider(ctx, provider.ID, updateReq); err != nil {
 		attrs := cmdpkg.TryConvertErrorToAttrs(err)
 		return nil, cmdpkg.PrepareExecutionError("failed to update DCR provider", err, helper.GetCmd(), attrs...)
 	}
 
-	return &adoptCommon.AdoptResult{
+	return adoptCommon.FinishAdoption(ctx, &adoptCommon.AdoptResult{
 		ResourceType: dcrProviderResourceType,
 		ID:           provider.ID,
 		Name:         provider.Name,
 		Namespace:    namespace,
-	}, nil
+	})
 }
 
 func resolveDCRProvider(

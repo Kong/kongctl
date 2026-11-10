@@ -77,7 +77,7 @@ func NewIdentityBasicAuthCmd(verb verbs.VerbValue, addParentFlags func(verbs.Ver
 func adoptIdentityBasicAuth(ctx context.Context, api helpers.IdentityBasicAuthAPI,
 	directory, principal, id, username, namespace string, overwrite bool,
 ) (*adoptCommon.AdoptResult, error) {
-	write, err := prepareAdoptIdentityBasicAuth(ctx, api, directory, principal, id, username, namespace, overwrite)
+	write, err := prepareAdoptIdentityBasicAuth(ctx, api, directory, principal, id, username, namespace, overwrite, "")
 	if err != nil {
 		return nil, err
 	}
@@ -85,24 +85,31 @@ func adoptIdentityBasicAuth(ctx context.Context, api helpers.IdentityBasicAuthAP
 }
 
 func prepareAdoptIdentityBasicAuth(ctx context.Context, api helpers.IdentityBasicAuthAPI,
-	directory, principal, id, username, namespace string, overwrite bool, expectedName ...string,
+	directory, principal, id, username, namespace string, overwrite bool, expectedName string,
 ) (preparedChildAdoption, error) {
 	ctx = adoptCommon.EnsureContext(ctx)
-	if id != "" {
-		value, err := helpers.GetIdentityBasicAuth(ctx, api, directory, principal, id)
-		if err != nil {
-			return nil, err
+	var value *helpers.IdentityBasicAuth
+	var err error
+	if expectedName != "" {
+		value, err = helpers.GetIdentityBasicAuth(ctx, api, directory, principal, id)
+	} else {
+		if id != "" {
+			observed, readErr := helpers.GetIdentityBasicAuth(ctx, api, directory, principal, id)
+			if readErr != nil {
+				return nil, readErr
+			}
+			username = observed.Username
 		}
-		username = value.Username
+		value, err = helpers.ResolveIdentityBasicAuthUsername(ctx, api, directory, principal, username, 100)
 	}
-	value, err := helpers.ResolveIdentityBasicAuthUsername(ctx, api, directory, principal, username, 100)
 	if err != nil {
 		return nil, err
 	}
+
 	if id != "" && value.ID != id {
 		return nil, fmt.Errorf("basic-auth identity changed during adoption")
 	}
-	if len(expectedName) != 0 && expectedName[0] != value.Username {
+	if expectedName != "" && expectedName != value.Username {
 		return nil, fmt.Errorf("child name changed after selection; retry adoption")
 	}
 	metadata, err := adoptionManagedBy(value.ManagedBy, namespace, overwrite, build.Version(ctx))
@@ -124,7 +131,7 @@ func prepareAdoptIdentityBasicAuth(ctx context.Context, api helpers.IdentityBasi
 			map[string]string{"directory_id": directory, "principal_id": principal}, "managed_by", value.ManagedBy,
 			request.ManagedBy,
 		); dryRun {
-			return adoptCommon.FinishDeclarativeChild(ctx, result)
+			return adoptCommon.FinishAdoption(ctx, result)
 		}
 		fresh, err := helpers.GetIdentityBasicAuth(ctx, api, directory, principal, value.ID)
 		if err != nil {
@@ -136,7 +143,7 @@ func prepareAdoptIdentityBasicAuth(ctx context.Context, api helpers.IdentityBasi
 		if _, err := helpers.ReplaceIdentityBasicAuth(ctx, api, directory, principal, value.ID, request); err != nil {
 			return nil, err
 		}
-		return adoptCommon.FinishDeclarativeChild(ctx, &adoptCommon.AdoptResult{
+		return adoptCommon.FinishAdoption(ctx, &adoptCommon.AdoptResult{
 			ResourceType: string(
 				resources.ResourceTypeIdentityBasicAuth,
 			), ID: value.ID, Name: value.Username, Namespace: namespace,

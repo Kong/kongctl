@@ -3,6 +3,7 @@ package adopt
 import (
 	"fmt"
 	"path"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -43,7 +44,7 @@ func readChildSelection(cmd *cobra.Command, args []string, idFlag, nameFlag stri
 		if selection.pattern == "" {
 			return selection, fmt.Errorf("--name-pattern cannot be empty")
 		}
-		if _, err := path.Match(selection.pattern, ""); err != nil {
+		if _, err := compileNamePattern(selection.pattern); err != nil {
 			return selection, fmt.Errorf("invalid name pattern: %w", err)
 		}
 	}
@@ -72,15 +73,19 @@ func readChildSelection(cmd *cobra.Command, args []string, idFlag, nameFlag stri
 
 func selectChildren(values []childCandidate, selection childSelection) ([]childCandidate, error) {
 	var selected []childCandidate
+	var pattern *regexp.Regexp
+	if selection.pattern != "" {
+		var err error
+		pattern, err = compileNamePattern(selection.pattern)
+		if err != nil {
+			return nil, fmt.Errorf("invalid name pattern: %w", err)
+		}
+	}
 	seen := make(map[string]bool)
 	for _, value := range values {
 		matches := selection.all
-		if selection.pattern != "" {
-			var err error
-			matches, err = path.Match(selection.pattern, value.name)
-			if err != nil {
-				return nil, fmt.Errorf("invalid name pattern: %w", err)
-			}
+		if pattern != nil {
+			matches = pattern.MatchString(value.name)
 		} else if !selection.all {
 			matches = (!selection.nameOnly && value.id == selection.identifier) ||
 				(!selection.idOnly && value.name == selection.identifier)
@@ -153,6 +158,15 @@ func runChildAdoptions(setup adoptCommon.AdoptRunSetup, values []childCandidate,
 					printErr,
 					err)
 			}
+			if result != nil {
+				action := "adopted"
+				if setup.AdoptFlags.DryRun {
+					action = "previewed"
+				}
+				return fmt.Errorf("adoption stopped at %q (%s) after %d of %d children %s; "+
+					"the resource was %s but post-adoption processing failed: %w",
+					child.candidate.name, child.candidate.id, len(results), len(values), action, action, err)
+			}
 			return fmt.Errorf("adoption stopped at %q (%s) after %d of %d children completed; the failing write"+
 				" may have reached the API: %w", child.candidate.name, child.candidate.id, len(results), len(values), err)
 		}
@@ -191,13 +205,51 @@ func printChildAdoptions(setup adoptCommon.AdoptRunSetup, results []*adoptCommon
 func printSingleChildAdoption(setup adoptCommon.AdoptRunSetup, result *adoptCommon.AdoptResult,
 	adoptionErr error, description string,
 ) error {
-	if result != nil {
-		if err := adoptCommon.PrintAdoptResult(setup.Helper, setup.OutType, result, description); err != nil {
-			if adoptionErr != nil {
-				return fmt.Errorf("%w; adoption output failed: %w", adoptionErr, err)
+	return adoptCommon.PrintAdoptionOutcome(setup.Helper, setup.OutType, result, adoptionErr, description)
+}
+
+// Resource names are opaque strings, so wildcards also match slashes. Retain
+// Go glob syntax while translating to an anchored, rune-aware regexp.
+func compileNamePattern(pattern string) (*regexp.Regexp, error) {
+	if _, err := path.Match(pattern, ""); err != nil {
+		return nil, err
+	}
+	var expression strings.Builder
+	expression.WriteString(`(?s)\A`)
+	chars := []rune(pattern)
+	for i := 0; i < len(chars); i++ {
+		switch char := chars[i]; char {
+		case '*':
+			expression.WriteString(".*")
+		case '?':
+			expression.WriteByte('.')
+		case '\\':
+			i++
+			expression.WriteString(regexp.QuoteMeta(string(chars[i])))
+		case '[':
+			expression.WriteByte('[')
+			i++
+			if chars[i] == '^' {
+				expression.WriteByte('^')
+				i++
 			}
-			return err
+			for ; chars[i] != ']'; i++ {
+				char := chars[i]
+				escaped := char == '\\'
+				if escaped {
+					i++
+					char = chars[i]
+				}
+				if char == '[' || char == ']' || char == '^' || char == '\\' || char == '-' && escaped {
+					expression.WriteByte('\\')
+				}
+				expression.WriteRune(char)
+			}
+			expression.WriteByte(']')
+		default:
+			expression.WriteString(regexp.QuoteMeta(string(char)))
 		}
 	}
-	return adoptionErr
+	expression.WriteString(`\z`)
+	return regexp.Compile(expression.String())
 }

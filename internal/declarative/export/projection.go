@@ -44,7 +44,7 @@ func DeclarationShape(kind resources.ResourceType) (Shape, error) {
 
 func declarationPath(container, element reflect.Type) []string {
 	for field := range container.Fields() {
-		key := strings.Split(field.Tag.Get("json"), ",")[0]
+		key, _, _ := strings.Cut(field.Tag.Get("json"), ",")
 		if key == "" || key == "-" {
 			continue
 		}
@@ -61,7 +61,8 @@ func declarationPath(container, element reflect.Type) []string {
 }
 
 // Project decodes public API fields into the registered declaration, excluding
-// server metadata and secrets while retaining declaration fields.
+// server metadata while retaining declaration fields. Callers choose whether
+// to omit secrets according to their export contract.
 func Project(kind resources.ResourceType, payload any) (Shape, error) {
 	shape, err := DeclarationShape(kind)
 	if err != nil {
@@ -73,11 +74,10 @@ func Project(kind resources.ResourceType, payload any) (Shape, error) {
 	}
 	for _, key := range []string{
 		resources.SchemaFieldID, resources.SchemaFieldCreatedAt,
-		resources.SchemaFieldUpdatedAt, "managed_by", "konnect_managed",
+		resources.SchemaFieldUpdatedAt, resources.SchemaFieldManagedBy, resources.SchemaFieldKonnectManaged,
 	} {
 		delete(fields, key)
 	}
-	OmitSecrets(kind, fields, "")
 	if kind == resources.ResourceTypeAIGatewayModel {
 		resources.OmitAIGatewayModelDatastoreConnections(fields)
 	}

@@ -8,6 +8,7 @@ import (
 	"maps"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 
@@ -421,4 +422,14 @@ func TestAIChildAdoptionRejectsChangesAfterPreflight(t *testing.T) {
 	current[planner.FieldManagedBy] = map[string]any{resources.ChildProtectedKey: "invalid"}
 	_, err = family.prepare(t.Context(), adoptionGatewayID, childCandidate{adoptionChildID, "team-child"}, "team-a", false)
 	require.ErrorContains(t, err, "invalid protection")
+}
+
+func TestAIFamilyBindingUsesIdentityAcrossReorderingAndFiltering(t *testing.T) {
+	families := aiChildFamilies(state.NewClient(state.ClientConfig{}))
+	slices.Reverse(families)
+	family, err := findAIChildFamily(families, "models")
+	require.NoError(t, err)
+	require.Equal(t, "model", family.selector)
+	_, err = findAIChildFamily([]aiChildFamily{family}, "model-providers")
+	require.ErrorContains(t, err, "unavailable")
 }

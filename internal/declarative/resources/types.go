@@ -106,6 +106,13 @@ const (
 )
 
 const (
+	SchemaFieldExternal             = "_external"
+	SchemaFieldLabels               = "labels"
+	SchemaFieldManagedBy            = "managed_by"
+	SchemaFieldKonnectManaged       = "konnect_managed"
+	SchemaFieldNamespace            = "namespace"
+	SchemaFieldProtected            = "protected"
+	SchemaFieldAuthServer           = "auth_server"
 	SchemaFieldDirectory            = "directory"
 	SchemaFieldRef                  = "ref"
 	SchemaFieldName                 = "name"

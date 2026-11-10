@@ -120,6 +120,15 @@ func runIdentityBasicAuthAdoptions(cmd *cobra.Command, args []string,
 	if err != nil {
 		return err
 	}
+	counts := make(map[string]int)
+	for _, value := range values {
+		counts[value.Username]++
+	}
+	for _, value := range selected {
+		if counts[value.name] != 1 {
+			return fmt.Errorf("multiple basic-auth credentials match the username in the selected principal")
+		}
+	}
 	return runChildAdoptions(setup, selected, func(value childCandidate) (preparedChildAdoption, error) {
 		write, err := prepareAdoptIdentityBasicAuth(
 			ctx,

@@ -221,7 +221,8 @@ func buildAIGatewayProviders(
 
 		resource, err := declexport.ProjectAs[declresources.AIGatewayProviderResource](provider.Raw)
 		if err != nil {
-			return nil, err
+			logWarn(logger, "AI Gateway Model Provider cannot be projected", gatewayID, gatewayDisplayName, nil)
+			continue
 		}
 		resource.Ref, resource.Kongctl = ref, kongctl
 		results = append(results, resource)
@@ -283,7 +284,8 @@ func buildAIGatewayAuthStrategies(
 		}
 		resource, err := declexport.ProjectAs[declresources.AIGatewayAuthStrategyResource](provider.Raw)
 		if err != nil {
-			return nil, err
+			logWarn(logger, "AI Gateway Auth Strategy cannot be projected", gatewayID, gatewayDisplayName, nil)
+			continue
 		}
 		resource.Ref, resource.Kongctl = ref, kongctl
 		results = append(results, resource)

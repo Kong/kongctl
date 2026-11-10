@@ -42,7 +42,7 @@ func PreviewAdoption(ctx context.Context, kind, id, name, namespace string, pare
 	}
 	// Label adoption merges reserved entries; existing labels are not removed.
 	if location == "labels" {
-		preserved := make(map[string]string, len(before)+len(after))
+		preserved := make(map[string]string)
 		maps.Copy(preserved, before)
 		maps.Copy(preserved, after)
 		after = preserved
@@ -59,7 +59,8 @@ func PreviewAdoption(ctx context.Context, kind, id, name, namespace string, pare
 	result := AdoptResult{ResourceType: kind, ID: id, Name: name, Namespace: namespace}
 	preview.Changes = append(preview.Changes, AdoptionChange{
 		AdoptResult: result, Parent: maps.Clone(parent), MetadataLocation: location,
-		Before: filter(before), After: filter(after),
+		Before: filter(before),
+		After:  filter(after),
 	})
 	return &result, true
 }

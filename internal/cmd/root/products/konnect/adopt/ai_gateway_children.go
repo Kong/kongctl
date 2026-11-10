@@ -114,7 +114,7 @@ func aiChildAdapter[T, Request any](name, alias, selector string, kind resources
 					ctx, string(kind), selected.id, selected.name, namespace, map[string]string{"gateway_id": parent},
 					"managed_by", metadata, desired,
 				); dryRun {
-					return adoptCommon.FinishDeclarativeChild(ctx, result)
+					return adoptCommon.FinishAdoption(ctx, result)
 				}
 				fresh, err := read(ctx, parent, selected.id)
 				if err != nil {
@@ -141,7 +141,7 @@ func aiChildAdapter[T, Request any](name, alias, selector string, kind resources
 				if updated.name != selected.name || !maps.Equal(retained, desired) {
 					return nil, fmt.Errorf("adoption API did not retain the child identity or ownership metadata")
 				}
-				return adoptCommon.FinishDeclarativeChild(ctx, &adoptCommon.AdoptResult{
+				return adoptCommon.FinishAdoption(ctx, &adoptCommon.AdoptResult{
 					ResourceType: string(kind),
 					ID:           selected.id,
 					Name:         selected.name,
@@ -351,7 +351,7 @@ func newAIGatewayChildCommands(verb verbs.VerbValue,
 ) []*cobra.Command {
 	var commands []*cobra.Command
 	// Metadata and typed callbacks share one inventory; APIs are supplied per run.
-	for index, family := range aiChildFamilies(state.NewClient(state.ClientConfig{})) {
+	for _, family := range aiChildFamilies(state.NewClient(state.ClientConfig{})) {
 		command := &cobra.Command{
 			Use: family.name + " [name|id]", Aliases: []string{family.alias},
 			Short: "Adopt existing AI Gateway " + family.name + " into a namespace", PreRunE: preRun,
@@ -433,7 +433,10 @@ func newAIGatewayChildCommands(verb verbs.VerbValue,
 				AIGatewayCACertificatesAPI: setup.SDK.GetAIGatewayCACertificatesAPI(),
 				AIGatewaySNIsAPI:           setup.SDK.GetAIGatewaySNIsAPI(),
 			})
-			adapter := aiChildFamilies(client)[index]
+			adapter, err := findAIChildFamily(aiChildFamilies(client), family.name)
+			if err != nil {
+				return err
+			}
 			ctx := adoptCommon.EnsureContext(setup.Helper.GetContext())
 			values, err := adapter.list(ctx, gateway.ID)
 			if err != nil {
@@ -450,4 +453,13 @@ func newAIGatewayChildCommands(verb verbs.VerbValue,
 		commands = append(commands, command)
 	}
 	return commands
+}
+
+func findAIChildFamily(families []aiChildFamily, name string) (aiChildFamily, error) {
+	for _, family := range families {
+		if family.name == name {
+			return family, nil
+		}
+	}
+	return aiChildFamily{}, fmt.Errorf("AI Gateway adoption family %q is unavailable", name)
 }

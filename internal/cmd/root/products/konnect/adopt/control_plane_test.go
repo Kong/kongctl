@@ -90,7 +90,7 @@ func TestAdoptControlPlaneAssignsNamespaceLabel(t *testing.T) {
 		},
 	}
 
-	result, err := adoptControlPlane(helper, stub, "team-alpha", false, stub.control.ID)
+	result, err := adoptControlPlane(helper, stub, "team-alpha", false, stub.control.ID, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, "control_plane", result.ResourceType)
 	assert.Equal(t, stub.control.ID, result.ID)
@@ -117,7 +117,7 @@ func TestAdoptControlPlaneRejectsExistingNamespace(t *testing.T) {
 		},
 	}
 
-	_, err := adoptControlPlane(helper, stub, "team-alpha", false, stub.control.ID)
+	_, err := adoptControlPlane(helper, stub, "team-alpha", false, stub.control.ID, nil)
 	assert.Error(t, err)
 	var cfgErr *cmd.ConfigurationError
 	assert.ErrorAs(t, err, &cfgErr)
@@ -142,7 +142,7 @@ func TestAdoptControlPlaneOverwritesExistingNamespace(t *testing.T) {
 		},
 	}
 
-	result, err := adoptControlPlane(helper, stub, "team-alpha", true, stub.control.ID)
+	result, err := adoptControlPlane(helper, stub, "team-alpha", true, stub.control.ID, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, "team-alpha", result.Namespace)
 	assert.Equal(t, 1, stub.updateCall)
