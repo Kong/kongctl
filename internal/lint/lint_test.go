@@ -262,6 +262,19 @@ func TestFormatPlain_NoViolations(t *testing.T) {
 	assert.Empty(t, buf.String())
 }
 
+func TestFormatPlain_ExpandedKeepsParseableLocation(t *testing.T) {
+	var output bytes.Buffer
+	err := FormatPlain(&output, &Output{
+		TotalCount: 1, FailCount: 1,
+		Results: []Result{{
+			File: "config.yaml", Line: 7, Column: 3, Severity: "error",
+			Message: "requires authentication", Expanded: true,
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, output.String(), "config.yaml:7:3: [error] requires authentication (expanded)\n")
+}
+
 func TestFormatJSON(t *testing.T) {
 	output := &Output{
 		TotalCount: 1,

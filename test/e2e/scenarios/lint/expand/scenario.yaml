@@ -1,0 +1,112 @@
+test:
+  requiresPAT: false
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+steps:
+  # Step 000: without --expand, lint checks the team file as written. The
+  # template sets authentication_enabled, but lint does not see it, so
+  # portal-auth-required fails. This is the existing raw-file behavior.
+  - name: 000-lint-without-expand
+    skipInputs: true
+    commands:
+      - name: 000-raw-file-fails
+        run:
+          - lint
+          - -f
+          - "{{ .scenario_dir }}/testdata/templates"
+          - -f
+          - "{{ .scenario_dir }}/testdata/team"
+          - -r
+          - "{{ .scenario_dir }}/testdata/ruleset.yaml"
+          - -o
+          - json
+        expectFailure:
+          exitCode: 1
+          contains: "linting violation"
+
+  # Step 001: with --expand, the template from another input is expanded into
+  # the team file, so the rule passes. The templates-only file is not linted
+  # on its own.
+  - name: 001-lint-expand-passes
+    skipInputs: true
+    commands:
+      - name: 000-expanded-file-passes
+        run:
+          - lint
+          - -f
+          - "{{ .scenario_dir }}/testdata/templates"
+          - -f
+          - "{{ .scenario_dir }}/testdata/team"
+          - -r
+          - "{{ .scenario_dir }}/testdata/ruleset.yaml"
+          - --expand
+          - -o
+          - json
+        assertions:
+          - expect:
+              fields:
+                fail_count: 0
+                total_count: 0
+
+  # Step 002: an _extends override that sets authentication_enabled to false
+  # is reported after expansion.
+  - name: 002-lint-expand-override-fails
+    skipInputs: true
+    commands:
+      - name: 000-override-violation
+        outputFormat: text
+        run:
+          - lint
+          - -f
+          - "{{ .scenario_dir }}/testdata/templates"
+          - -f
+          - "{{ .scenario_dir }}/testdata/override"
+          - -r
+          - "{{ .scenario_dir }}/testdata/ruleset.yaml"
+          - --expand
+        expectFailure:
+          exitCode: 1
+          contains: "(expanded)"
+
+  # Step 003: a template used without its definition fails expansion with
+  # the source file and position.
+  - name: 003-lint-expand-unknown-template
+    skipInputs: true
+    commands:
+      - name: 000-missing-template
+        run:
+          - lint
+          - -f
+          - "{{ .scenario_dir }}/testdata/team"
+          - -r
+          - "{{ .scenario_dir }}/testdata/ruleset.yaml"
+          - --expand
+          - -o
+          - json
+        expectFailure:
+          exitCode: 1
+          contains: 'unknown template "standard-portal"'
+
+  # Step 004: a team-local !file fragment (inside the -f source root) sets
+  # authentication_enabled to false. Recursive discovery selects the scalar
+  # fragment too, but must still report the violation in its consuming file.
+  - name: 004-lint-expand-file-fragment
+    skipInputs: true
+    commands:
+      - name: 000-fragment-violation
+        outputFormat: text
+        run:
+          - lint
+          - -f
+          - "{{ .scenario_dir }}/testdata/templates"
+          - -f
+          - "{{ .scenario_dir }}/testdata/fragment-team"
+          - -r
+          - "{{ .scenario_dir }}/testdata/ruleset.yaml"
+          - --expand
+          - -R
+        expectFailure:
+          exitCode: 1
+          contains: "fragment-team/portals.yaml:"

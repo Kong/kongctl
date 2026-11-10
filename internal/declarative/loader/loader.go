@@ -31,7 +31,21 @@ type Loader struct {
 	tagRootDir string
 	// urlFetchOptions controls remote URL source fetching
 	urlFetchOptions URLFetchOptions
+	stdin           io.Reader
 }
+
+// WithStdin supplies the reader for stdin sources. Without it, the loader uses os.Stdin.
+func (l *Loader) WithStdin(reader io.Reader) *Loader {
+	l.stdin = reader
+	return l
+}
+
+type preparationMode uint8
+
+const (
+	prepareForLoad preparationMode = iota
+	prepareForLint
+)
 
 // New creates a new configuration loader
 func New() *Loader {
@@ -96,31 +110,11 @@ func (l *Loader) LoadFromSourcesWithContext(ctx context.Context, sources []Sourc
 	var allResources resources.ResourceSet
 	refIndex := make(map[string]resources.ResourceType)
 
-	documents, err := l.readSourceDocuments(ctx, sources, recursive)
+	preparedDocuments, err := l.prepareSourceDocuments(ctx, sources, recursive, prepareForLoad)
 	if err != nil {
 		return nil, err
 	}
-	preparedDocuments := make([]*preparedYAML, 0, len(documents))
-	templateDocuments := make([]*configTemplateDocument, 0, len(documents))
-	for i, document := range documents {
-		prepared, err := l.prepareYAML(document.content, document.sourcePath, document.rootDir)
-		if err != nil {
-			return nil, err
-		}
-		preparedDocuments = append(preparedDocuments, prepared)
-		templateDocuments = append(templateDocuments, &configTemplateDocument{
-			content: prepared.content, sourcePath: prepared.sourcePath,
-		})
-		prepared.content = nil
-		documents[i].content = nil
-	}
-	if err := expandConfigTemplateDocuments(templateDocuments); err != nil {
-		return nil, fmt.Errorf("failed to expand templates: %w", err)
-	}
 	for i, prepared := range preparedDocuments {
-		prepared.content = templateDocuments[i].content
-		prepared.templateDefinitions = templateDocuments[i].usedTemplates
-		templateDocuments[i] = nil
 		prepared.hasEnvTags = prepared.hasEnvTags ||
 			strings.Contains(string(prepared.content), tags.EnvPlaceholderPrefix)
 		rs, err := l.parsePreparedYAML(prepared)
@@ -153,6 +147,48 @@ func (l *Loader) LoadFromSourcesWithContext(ctx context.Context, sources []Sourc
 	}
 
 	return &allResources, nil
+}
+
+// prepareSourceDocuments reads the sources, converts tags to placeholders and
+// expands templates across all documents.
+func (l *Loader) prepareSourceDocuments(
+	ctx context.Context,
+	sources []Source,
+	recursive bool,
+	mode preparationMode,
+) ([]*preparedYAML, error) {
+	documents, err := l.readSourceDocuments(ctx, sources, recursive)
+	if err != nil {
+		return nil, err
+	}
+	preparedDocuments := make([]*preparedYAML, 0, len(documents))
+	templateDocuments := make([]*configTemplateDocument, 0, len(documents))
+	for i, document := range documents {
+		if mode == prepareForLint {
+			if err := validateExpansionDocument(document.content, document.sourcePath); err != nil {
+				return nil, err
+			}
+		}
+		prepared, err := l.prepareYAMLWithMode(document.content, document.sourcePath, document.rootDir, mode)
+		if err != nil {
+			return nil, err
+		}
+		preparedDocuments = append(preparedDocuments, prepared)
+		templateDocuments = append(templateDocuments, &configTemplateDocument{
+			content: prepared.content, sourcePath: prepared.sourcePath, allowFragment: mode == prepareForLint,
+		})
+		prepared.content = nil
+		documents[i].content = nil
+	}
+	if err := expandConfigTemplateDocuments(templateDocuments); err != nil {
+		return nil, fmt.Errorf("failed to expand templates: %w", err)
+	}
+	for i, prepared := range preparedDocuments {
+		prepared.content = templateDocuments[i].content
+		prepared.templateDefinitions = templateDocuments[i].usedTemplates
+		templateDocuments[i] = nil
+	}
+	return preparedDocuments, nil
 }
 
 // Load loads configuration from the default current directory (deprecated)
@@ -241,8 +277,14 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*res
 }
 
 func (l *Loader) prepareYAML(rawContent []byte, sourcePath string, rootDir string) (*preparedYAML, error) {
+	return l.prepareYAMLWithMode(rawContent, sourcePath, rootDir, prepareForLoad)
+}
+
+func (l *Loader) prepareYAMLWithMode(
+	rawContent []byte, sourcePath string, rootDir string, mode preparationMode,
+) (*preparedYAML, error) {
 	hasEnvTags := strings.Contains(string(rawContent), "!env")
-	if hasEnvTags {
+	if hasEnvTags && mode == prepareForLoad {
 		if err := validateEnvTagStringFields(rawContent); err != nil {
 			return nil, fmt.Errorf("failed to parse deferred !env tags in %s: %w", sourcePath, err)
 		}

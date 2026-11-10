@@ -1,0 +1,3 @@
+_templates:
+  standard-portal:
+    authentication_enabled: true

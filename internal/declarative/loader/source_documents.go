@@ -38,6 +38,14 @@ func (l *Loader) readSourceDocuments(
 			}
 			documents = append(documents, directoryDocuments...)
 		case SourceTypeSTDIN:
+			if l.stdin != nil {
+				content, err := io.ReadAll(l.stdin)
+				if err != nil {
+					return nil, fmt.Errorf("failed to read stdin: %w", err)
+				}
+				documents = append(documents, sourceDocument{content: content, sourcePath: "stdin", rootDir: rootDir})
+				continue
+			}
 			document, err := readSTDINSourceDocument(rootDir)
 			if err != nil {
 				return nil, err

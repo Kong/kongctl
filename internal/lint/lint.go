@@ -52,6 +52,17 @@ type Result struct {
 	Line     int    `json:"line"           yaml:"line"`
 	Column   int    `json:"column"         yaml:"column"`
 	File     string `json:"file,omitempty" yaml:"file,omitempty"`
+	// Expanded is true when Line and Column refer to the expanded document
+	// (lint --expand), not to the original source file.
+	Expanded bool `json:"expanded,omitempty" yaml:"expanded,omitempty"`
+}
+
+// Input is in-memory content to lint, such as an expanded declarative document.
+type Input struct {
+	Name    string
+	Content []byte
+	// Expanded marks findings as referring to expanded content.
+	Expanded bool
 }
 
 // Output contains the aggregated linting results across all files.
@@ -260,6 +271,38 @@ func Files(
 	return aggregated, nil
 }
 
+// Inputs lints in-memory inputs against the same ruleset, returning
+// aggregated results.
+func Inputs(
+	inputs []Input,
+	ruleSetBytes []byte,
+	failSeverity string,
+	onlyFailures bool,
+) (*Output, error) {
+	ruleSet, err := getRuleSet(ruleSetBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	aggregated := &Output{Results: []Result{}}
+	for _, in := range inputs {
+		result, err := Bytes(in.Content, ruleSet, failSeverity, onlyFailures, in.Name)
+		if err != nil {
+			return nil, err
+		}
+		if in.Expanded {
+			for i := range result.Results {
+				result.Results[i].Expanded = true
+			}
+		}
+		aggregated.TotalCount += result.TotalCount
+		aggregated.FailCount += result.FailCount
+		aggregated.Results = append(aggregated.Results, result.Results...)
+	}
+	sortResults(aggregated.Results)
+	return aggregated, nil
+}
+
 // sortResults sorts linting results by file, then line, then column for
 // deterministic output.
 func sortResults(results []Result) {
@@ -294,9 +337,13 @@ func FormatPlain(w io.Writer, output *Output) error {
 		} else {
 			prefix = fmt.Sprintf("%d:%d: ", v.Line, v.Column)
 		}
+		message := v.Message
+		if v.Expanded {
+			message += " (expanded)"
+		}
 		if _, err := fmt.Fprintf(
 			w, "%s[%s] %s\n",
-			prefix, v.Severity, v.Message,
+			prefix, v.Severity, message,
 		); err != nil {
 			return err
 		}
