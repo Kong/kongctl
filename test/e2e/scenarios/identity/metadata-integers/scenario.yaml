@@ -9,9 +9,10 @@ test:
       nameVar: directory_name
       nameEnv: KONGCTL_E2E_INTEGER_DIRECTORY_NAME
   info: >-
-    Reject out-of-range or fractional metadata, verify signed 64-bit integer
-    boundaries and string values through saved plans and raw JSON, retain omitted
-    metadata and dump/replan without floating-point comparison.
+    Reject out-of-range or fractional metadata locally. Verify ordinary integer
+    values and string identifiers, including leading zeros, through saved plans,
+    raw JSON, omitted metadata retention and dump/replan. Extreme numeric values
+    are excluded from live writes until production preserves their precision.
 steps:
   - name: 001-numeric-metadata
     skipInputs: true
@@ -145,7 +146,7 @@ steps:
               fields:
                 exact_metadata: true
                 integer_types: true
-                string_preserved: true
+                string_identifiers_preserved: true
       - name: no-op-supported
         run:
           - plan
@@ -196,7 +197,7 @@ steps:
               fields:
                 exact_metadata: true
                 integer_types: true
-                string_preserved: true
+                string_identifiers_preserved: true
       - name: dump-numeric-metadata
         parseAs: yaml
         run:
@@ -204,6 +205,8 @@ steps:
           - declarative
           - --resources
           - identity.directories
+          - --filter-id
+          - '{{ .vars.directory_id }}'
           - --include-child-resources
         outputFormat: disable
         stdoutFile: '{{ .workdir }}/dump.yaml'

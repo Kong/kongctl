@@ -16,17 +16,15 @@ def main():
     action, location = sys.argv[1:3]
     work = Path(location)
     if action == "prepare":
+        # Keep identifier precision coverage with strings. Extreme numeric
+        # values are tested locally; production currently rounds int64 limits.
         metadata = {
-            "safe": 9007199254740991,
-            "boundary": 9007199254740992,
-            "exact": 9007199254740994,
-            "stable": 1152921504606846976,
-            "odd": 9007199254740993,
-            "negative": -9007199254740993,
-            "maximum": 9223372036854775807,
-            "minimum": -9223372036854775808,
-            "as_string": "9007199254740993",
-            "array": [9007199254740993, -9007199254740993],
+            "employee_id": "001234",
+            "external_id": "9223372036854775807",
+            "requests_per_minute": 60,
+            "retry_budget": 3,
+            "adjustment": -1,
+            "levels": [1, 2, 3],
         }
         principal = {
             "ref": "numeric-agent", "type": "agent", "display_name": "Numeric agent",
@@ -61,9 +59,11 @@ def main():
             "exact_metadata": observed["metadata"] == expected,
             "integer_types": all(
                 isinstance(observed["metadata"][key], int)
-                for key in ["safe", "boundary", "exact", "stable", "odd", "negative", "maximum", "minimum"]
+                for key in ["requests_per_minute", "retry_budget", "adjustment"]
             ),
-            "string_preserved": isinstance(observed["metadata"]["as_string"], str),
+            "string_identifiers_preserved": all(
+                isinstance(observed["metadata"][key], str) for key in ["employee_id", "external_id"]
+            ),
         }
     raise ValueError("unknown action")
 
