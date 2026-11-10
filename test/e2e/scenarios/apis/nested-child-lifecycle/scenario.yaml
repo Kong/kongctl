@@ -62,12 +62,12 @@ steps:
           - select: plan.summary
             expect:
               fields:
-                total_changes: 8
-                by_action.CREATE: 8
+                total_changes: 11
+                by_action.CREATE: 11
           - select: summary
             expect:
               fields:
-                applied: 8
+                applied: 11
                 failed: 0
                 status: success
           - select: "plan.changes[?resource_ref=='api-nested'] | [0]"
@@ -89,6 +89,22 @@ steps:
                 fields.visibility: "private"
                 fields.auto_approve_registrations: false
                 "length(fields.auth_strategy_ids)": 1
+          - select: "plan.changes[?resource_ref=='api-nested-pub2'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+                fields.visibility: public
+                fields.auto_approve_registrations: true
+          - select: "plan.changes[?resource_ref=='api-nested-doc-grandchild'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+                fields.title: "Grandchild Document"
+                fields.slug: grandchild-document
+          - select: "plan.changes[?resource_ref=='portal-nested-secondary'] | [0]"
+            expect:
+              fields:
+                action: CREATE
           - select: "plan.changes[?resource_ref=='api-nested-impl1'] | [0]"
             expect:
               fields:
@@ -165,9 +181,13 @@ steps:
           contains: "not found"
       - name: 006-get-documents
         run: ["get", "api", "documents", "--api-name", "API Nested", "-o", "json"]
-        recordVar:
-          name: rootDocID
-          responsePath: "[?title=='Root Document'] | [0].id"
+        recordVars:
+          - name: rootDocID
+            responsePath: "[?title=='Root Document'] | [0].id"
+          - name: childDocID
+            responsePath: "[?title=='Child Document'] | [0].id"
+          - name: grandchildDocID
+            responsePath: "[?title=='Grandchild Document'] | [0].id"
         assertions:
           - select: "[?title=='Root Document'] | [0]"
             expect:
@@ -181,6 +201,13 @@ steps:
               fields:
                 title: "Child Document"
                 status: "unpublished"
+          - select: "[?title=='Grandchild Document'] | [0]"
+            expect:
+              fields:
+                title: "Grandchild Document"
+                slug: grandchild-document
+                status: published
+                parent_document_id: "{{ .vars.childDocID }}"
       - name: 007-get-document-by-title
         run: ["get", "api", "documents", "--api-name", "API Nested", "Root Document", "-o", "json"]
         assertions:
@@ -275,6 +302,46 @@ steps:
               fields:
                 "@": 1
 
+      - name: 016-get-portals
+        run: [get, portals]
+        recordVars:
+          - name: primaryPortalID
+            responsePath: "[?name=='Portal Nested'] | [0].id"
+          - name: secondaryPortalID
+            responsePath: "[?name=='Portal Nested Secondary'] | [0].id"
+        assertions:
+          - expect:
+              fields:
+                "length([?name=='Portal Nested'])": 1
+                "length([?name=='Portal Nested Secondary'])": 1
+      - name: 017-get-publications
+        run: [get, api, publications, --api-name, API Nested]
+        assertions:
+          - expect:
+              fields:
+                "length(@)": 2
+          - select: "[?portal_id=='{{ .vars.primaryPortalID }}'] | [0]"
+            expect:
+              fields:
+                visibility: private
+                auto_approve_registrations: false
+                "length(auth_strategy_ids)": 1
+                "auth_strategy_ids[0]": "{{ .vars.originalAuthStrategyID }}"
+          - select: "[?portal_id=='{{ .vars.secondaryPortalID }}'] | [0]"
+            expect:
+              fields:
+                visibility: public
+                auto_approve_registrations: true
+                "length(auth_strategy_ids || `[]`)": 0
+      - name: 018-plan-create-noop
+        outputFormat: disable
+        run: [plan, -f, "{{ .workdir }}/apis.yaml", --mode, apply]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
   - name: 003-apply-update
     inputOverlayDirs:
       - overlays/002-update
@@ -334,6 +401,10 @@ steps:
                 "changed_fields.auth_strategy_ids.new[0]": "__REF__:auth-strategy-nested-replacement#id"
                 "references.auth_strategy_ids.refs[0]": "__REF__:auth-strategy-nested-replacement#id"
                 references.auth_strategy_ids.is_array: true
+          - select: "changes[?resource_type=='api_publication']"
+            expect:
+              fields:
+                "length(@)": 1
           # Implementations are never planned on implementation_url: matching and
           # CREATE both use service id + control plane id only, so changing
           # implementation_url alone plans no change for the implementation.
@@ -409,6 +480,13 @@ steps:
               fields:
                 title: "Child Document"
                 status: "published"
+          - select: "[?title=='Grandchild Document'] | [0]"
+            expect:
+              fields:
+                id: "{{ .vars.grandchildDocID }}"
+                parent_document_id: "{{ .vars.childDocID }}"
+                slug: grandchild-document
+                status: published
       - name: 005-get-replacement-auth-strategy
         run: ["get", "auth-strategies", "-o", "json"]
         recordVar:
@@ -426,7 +504,10 @@ steps:
       - name: 006-get-publications
         run: ["get", "api", "publications", "--api-name", "API Nested", "-o", "json"]
         assertions:
-          - select: "[0]"
+          - expect:
+              fields:
+                "length(@)": 2
+          - select: "[?portal_id=='{{ .vars.primaryPortalID }}'] | [0]"
             expect:
               fields:
                 visibility: "public"
@@ -434,6 +515,12 @@ steps:
                 "length(auth_strategy_ids)": 1
                 "auth_strategy_ids[0]": "{{ .vars.replacementAuthStrategyID }}"
                 "contains(auth_strategy_ids, '{{ .vars.originalAuthStrategyID }}')": false
+          - select: "[?portal_id=='{{ .vars.secondaryPortalID }}'] | [0]"
+            expect:
+              fields:
+                visibility: public
+                auto_approve_registrations: true
+                "length(auth_strategy_ids || `[]`)": 0
       # The update plans no implementation change, so the implementation created
       # in 002-apply-create must survive the update with the same id and service.
       # implementation_url is not returned by the list response, so the service
@@ -536,10 +623,11 @@ steps:
         assertions:
           - expect:
               fields:
-                "length(@)": 4
+                "length(@)": 5
                 "[?title=='Root Document'] | [0].id": "{{ .vars.rootDocID }}"
                 "[?title=='Child Document'] | [0].status": published
                 "[?title=='New Document'] | [0].status": unpublished
+                "[?title=='Grandchild Document'] | [0].parent_document_id": "{{ .vars.childDocID }}"
           - select: "[?slug=='standalone-document'] | [0]"
             expect:
               fields:
@@ -691,10 +779,11 @@ steps:
         assertions:
           - expect:
               fields:
-                "length(@)": 3
+                "length(@)": 4
                 "[?title=='Root Document'] | [0].id": "{{ .vars.rootDocID }}"
                 "[?title=='Child Document'] | [0].status": published
                 "[?title=='New Document'] | [0].status": unpublished
+                "[?title=='Grandchild Document'] | [0].parent_document_id": "{{ .vars.childDocID }}"
                 "length([?slug=='standalone-document'])": 0
       - name: 004-plan-sync-pruned-noop
         outputFormat: disable
@@ -736,12 +825,32 @@ steps:
                 "documents[?title=='Root Document'] | [0].children[?title=='New Document'] | length(@)": 1
                 "documents[?title=='Root Document'] | [0].children[?title=='Child Document'] | [0].status": published
                 "documents[?title=='Root Document'] | [0].children[?title=='New Document'] | [0].status": unpublished
-                "length(publications)": 1
-                "publications[0].visibility": "public"
+                "length(publications)": 2
                 "length(implementations)": 1
                 "implementations[0].type": "service"
                 "implementations[0].service.control_plane_id != null": true
                 "implementations[0].service.id != null": true
+          - select: "apis[?name=='API Nested'] | [0].publications[?portal_id=='{{ .vars.primaryPortalID }}'] | [0]"
+            expect:
+              fields:
+                visibility: public
+                auto_approve_registrations: true
+                "auth_strategy_ids[0]": "{{ .vars.replacementAuthStrategyID }}"
+          - select: "apis[?name=='API Nested'] | [0].publications[?portal_id=='{{ .vars.secondaryPortalID }}'] | [0]"
+            expect:
+              fields:
+                visibility: public
+                auto_approve_registrations: true
+                "length(auth_strategy_ids || `[]`)": 0
+          - select: >-
+              apis[?name=='API Nested'] | [0].documents[?title=='Root Document'] |
+              [0].children[?title=='Child Document'] | [0].children
+            expect:
+              fields:
+                "length(@)": 1
+                "[0].title": "Grandchild Document"
+                "[0].slug": grandchild-document
+                "[0].status": published
       - name: 001-plan-from-dump
         outputFormat: disable
         run:
@@ -756,9 +865,66 @@ steps:
               fields:
                 total_changes: 0
 
+  - name: 003c-sync-delete-secondary-publication
+    inputOverlayDirs:
+      - overlays/002-update
+    inputOverlayOpsFiles:
+      - overlays/003-sync-delete-publication/ops.yaml
+    commands:
+      - name: 000-sync-delete-publication
+        run: [sync, -f, "{{ .workdir }}/apis.yaml", --auto-approve]
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: "plan.changes[0]"
+            expect:
+              fields:
+                resource_type: api_publication
+                action: DELETE
+                references.portal_id.id: "{{ .vars.secondaryPortalID }}"
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: 001-get-surviving-publication
+        run: [get, api, publications, --api-name, API Nested]
+        assertions:
+          - expect:
+              fields:
+                "length(@)": 1
+                "[0].portal_id": "{{ .vars.primaryPortalID }}"
+                "[0].visibility": public
+                "[0].auto_approve_registrations": true
+                "length([0].auth_strategy_ids)": 1
+                "[0].auth_strategy_ids[0]": "{{ .vars.replacementAuthStrategyID }}"
+      - name: 002-get-portals-intact
+        run: [get, portals]
+        assertions:
+          - expect:
+              fields:
+                "[?name=='Portal Nested'] | [0].id": "{{ .vars.primaryPortalID }}"
+                "[?name=='Portal Nested Secondary'] | [0].id": "{{ .vars.secondaryPortalID }}"
+      - name: 003-plan-pruned-noop
+        outputFormat: disable
+        run: [plan, -f, "{{ .workdir }}/apis.yaml", --mode, sync]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  # Continue from 003c's pruned publication state; this step deletes only v1.
   - name: 004-sync-delete-one-version
     inputOverlayDirs:
-      - overlays/003-sync-delete-v1
+      - overlays/002-update
+    inputOverlayOpsFiles:
+      - overlays/003-sync-delete-publication/ops.yaml
+      - overlays/003-sync-delete-v1/ops.yaml
     commands:
       - name: 000-sync-delete-v1
         run:
@@ -821,12 +987,12 @@ steps:
           - select: summary
             expect:
               fields:
-                total_changes: 4
-                by_action.DELETE: 4
+                total_changes: 5
+                by_action.DELETE: 5
           - expect:
               fields:
                 "length(changes[?resource_type=='api'])": 1
-                "length(changes[?resource_type=='portal'])": 1
+                "length(changes[?resource_type=='portal'])": 2
                 "length(changes[?resource_type=='application_auth_strategy'])": 2
       - name: 001-sync-delete
         run:
@@ -856,7 +1022,7 @@ steps:
                 "@": 0
           - source:
               get: "portals"
-            select: "length([?name=='Portal Nested'])"
+            select: "length([?name=='Portal Nested' || name=='Portal Nested Secondary'])"
             expect:
               fields:
                 "@": 0

@@ -33,6 +33,9 @@ steps:
 
       - name: 001-get-portals
         run: ["get", "portals"]
+        recordVar:
+          name: portalID
+          responsePath: "[?name=='My First Portal'] | [0].id"
         assertions:
           - select: "[?name=='My First Portal'] | [0]"
             expect:
@@ -46,6 +49,24 @@ steps:
             expect:
               fields:
                 version: "3.2.0"
+
+      - name: 003-get-sms-publications
+        run: [get, api, publications, --api-name, "SMS API"]
+        assertions:
+          - expect:
+              fields:
+                "length(@)": 1
+                "[0].portal_id": "{{ .vars.portalID }}"
+                "[0].visibility": public
+
+      - name: 004-get-voice-publications
+        run: [get, api, publications, --api-name, "Voice API"]
+        assertions:
+          - expect:
+              fields:
+                "length(@)": 1
+                "[0].portal_id": "{{ .vars.portalID }}"
+                "[0].visibility": public
 
   - name: 002-apply-preserves-publication
     inputOverlayDirs:
@@ -129,6 +150,22 @@ steps:
               fields:
                 total_changes: 0
 
+      - name: 003-get-voice-publication-intact
+        run: [get, api, publications, --api-name, "Voice API"]
+        assertions:
+          - expect:
+              fields:
+                "length(@)": 1
+                "[0].portal_id": "{{ .vars.portalID }}"
+                "[0].visibility": public
+
+      - name: 004-get-sms-publications-empty
+        run: [get, api, publications, --api-name, "SMS API"]
+        assertions:
+          - expect:
+              fields:
+                "length(@)": 0
+
   - name: 004-dump-and-plan-round-trip
     skipInputs: true
     commands:
@@ -168,6 +205,68 @@ steps:
           - apply
         assertions:
           - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 004a-re-add-sms-publication
+    commands:
+      - name: 000-sync-re-add-publication
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: "plan.changes[0]"
+            expect:
+              fields:
+                resource_type: api_publication
+                resource_ref: sms-api-to-getting-started
+                action: CREATE
+                fields.visibility: public
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+
+      - name: 001-get-re-added-publication
+        run: [get, api, publications, --api-name, "SMS API"]
+        assertions:
+          - expect:
+              fields:
+                "length(@)": 1
+                "[0].portal_id": "{{ .vars.portalID }}"
+                "[0].visibility": public
+
+      - name: 002-get-voice-publication-intact
+        run: [get, api, publications, --api-name, "Voice API"]
+        assertions:
+          - expect:
+              fields:
+                "length(@)": 1
+                "[0].portal_id": "{{ .vars.portalID }}"
+                "[0].visibility": public
+
+      - name: 003-idempotency-after-re-add
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
             expect:
               fields:
                 total_changes: 0

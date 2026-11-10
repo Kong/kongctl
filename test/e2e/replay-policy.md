@@ -44,8 +44,8 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 [sync-replay]: https://github.com/Kong/kongctl/actions/runs/39670010464
 [consume-record]: https://github.com/Kong/kongctl/actions/runs/41658862645
 [consume-replay]: https://github.com/Kong/kongctl/actions/runs/41661424390
-[portal-record]: https://github.com/Kong/kongctl/actions/runs/41902496945
-[portal-replay]: https://github.com/Kong/kongctl/actions/runs/41906264892
+[portal-record]: https://github.com/Kong/kongctl/actions/runs/42733116346
+[portal-replay]: https://github.com/Kong/kongctl/actions/runs/42735053013
 [visibility-record]: https://github.com/Kong/kongctl/actions/runs/41902506032
 [visibility-replay]: https://github.com/Kong/kongctl/actions/runs/41906275369
 [docs-record]: https://github.com/Kong/kongctl/actions/runs/41902468557
@@ -359,14 +359,15 @@ Its scenario-local replay README records provenance, phase boundaries and
 measurement limitations. The cassette retains the live source provenance;
 the isolated job's validated artifact adds only the reviewed annotations.
 
-`portal/sync` is enabled after its complete live scenario and three isolated
-replays passed (293 HTTP interactions each), followed by three isolated
-replays of the packed cassette. No scenario assertions were
-removed to obtain a successful recording. The isolated wrappers took
-3.68–4.26 seconds across both validations, compared with 18.82 seconds for the
-same-source normal live scenario and a 22.72-second historical median.
-Recording's own 47.37-second
-scenario duration includes proxy overhead and is not the live baseline.
+`portal/sync` passed its expanded live recording and three isolated replays
+of the committed packed cassette (374 HTTP interactions each). All scenario
+assertions remain intact, including direct empty-publications readback after
+SMS publication removal. The isolated wrappers took 7.549–7.711 seconds;
+scenario execution took 7.012–7.136 seconds. Recording's 111.381-second
+scenario duration includes proxy overhead and is not a live baseline. Older
+live timings cover a smaller scenario and are not a same-source comparison
+or a measured workflow speedup. The scenario-local replay README records the
+recording and validation provenance and reviewed phase boundaries.
 
 Group scenarios have exhibited nondeterministic independent request ordering
 and stay live pending reviewed phase annotations and isolated validation.

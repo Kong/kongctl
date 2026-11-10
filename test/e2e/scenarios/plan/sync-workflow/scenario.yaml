@@ -174,11 +174,14 @@ steps:
                 "contains(@, 'api \"plan-sync-orders\" will be updated')": true
                 "contains(@, 'api \"plan-sync-legacy\" will be deleted')": true
       - name: 002-sync-plan
+        outputFormat: json
         run:
           - sync
           - --plan
           - "{{ .workdir }}/plan-sync.json"
           - --auto-approve
+          - --execution-report-file
+          - "{{ .workdir }}/execution-report-sync.json"
         assertions:
           - select: plan.summary
             expect:
@@ -191,6 +194,29 @@ steps:
               fields:
                 applied: 4
                 failed: 0
+          - name: execution-report-sync
+            source:
+              artifact:
+                path: "{{ .workdir }}/execution-report-sync.json"
+                parseAs: json
+            select: "@"
+            expect:
+              fields:
+                plan.metadata.mode: sync
+                plan.summary.total_changes: 4
+                plan.summary.by_action.CREATE: 1
+                plan.summary.by_action.UPDATE: 2
+                plan.summary.by_action.DELETE: 1
+                execution.dry_run: false
+                "length(execution.applied_changes)": 4
+                "length(execution.applied_changes[?action=='CREATE'])": 1
+                "length(execution.applied_changes[?action=='UPDATE'])": 2
+                "length(execution.applied_changes[?action=='DELETE'])": 1
+                summary.total_changes: 4
+                summary.applied: 4
+                summary.failed: 0
+                summary.status: success
+
       - name: 003-get-portal
         run: ["get", "portals", "-o", "json"]
         assertions:
@@ -252,6 +278,8 @@ steps:
           - -f
           - "{{ .workdir }}/config.yaml"
           - --auto-approve
+          - --execution-report-file
+          - "{{ .workdir }}/execution-report-delete.json"
         assertions:
           - select: plan.metadata
             expect:
@@ -267,3 +295,21 @@ steps:
               fields:
                 failed: 0
                 status: success
+          - name: execution-report-delete
+            source:
+              artifact:
+                path: "{{ .workdir }}/execution-report-delete.json"
+                parseAs: json
+            select: "@"
+            expect:
+              fields:
+                plan.metadata.mode: delete
+                plan.summary.total_changes: 3
+                plan.summary.by_action.DELETE: 3
+                execution.dry_run: false
+                "length(execution.applied_changes)": 3
+                summary.total_changes: 3
+                summary.applied: 3
+                summary.failed: 0
+                summary.status: success
+                "length(execution.applied_changes[?action!='DELETE'])": 0
