@@ -582,7 +582,8 @@ func TestLintCmd_ExpandReportsOverrideViolation(t *testing.T) {
 
 	out, err := runLintForTest(t, "-f", templates, "-f", team, "-r", ruleset, "--expand")
 	require.Error(t, err)
-	assert.Contains(t, out, team+" (expanded):")
+	assert.Contains(t, out, team+":")
+	assert.Contains(t, out, "(expanded)")
 }
 
 func TestLintCmd_ExpandJSONMarksExpandedResults(t *testing.T) {
@@ -625,7 +626,8 @@ func TestLintCmd_ExpandReportsViolationFromFileFragment(t *testing.T) {
 	out, err := runLintForTest(t, "-f", team, "-f", filepath.Join(filepath.Dir(team), "templates.yaml"),
 		"-r", ruleset, "--expand")
 	require.Error(t, err)
-	assert.Contains(t, out, team+" (expanded):")
+	assert.Contains(t, out, team+":")
+	assert.Contains(t, out, "(expanded)")
 }
 
 func TestLintCmd_ExpandMissingFileFragmentFails(t *testing.T) {

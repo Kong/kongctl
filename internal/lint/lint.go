@@ -332,17 +332,18 @@ func FormatPlain(w io.Writer, output *Output) error {
 
 	for _, v := range output.Results {
 		var prefix string
-		switch {
-		case v.File != "" && v.Expanded:
-			prefix = fmt.Sprintf("%s (expanded):%d:%d: ", v.File, v.Line, v.Column)
-		case v.File != "":
+		if v.File != "" {
 			prefix = fmt.Sprintf("%s:%d:%d: ", v.File, v.Line, v.Column)
-		default:
+		} else {
 			prefix = fmt.Sprintf("%d:%d: ", v.Line, v.Column)
+		}
+		message := v.Message
+		if v.Expanded {
+			message += " (expanded)"
 		}
 		if _, err := fmt.Fprintf(
 			w, "%s[%s] %s\n",
-			prefix, v.Severity, v.Message,
+			prefix, v.Severity, message,
 		); err != nil {
 			return err
 		}

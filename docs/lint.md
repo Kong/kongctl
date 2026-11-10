@@ -67,7 +67,7 @@ To lint the expanded configuration, use `--expand`.
 
 ### Linting expanded declarative configuration
 
-Use `--expand` to lint declarative configuration as `plan` and `apply` read it:
+Use `--expand` to lint configuration after declarative preprocessing:
 
 ```shell
 kongctl lint -f ./templates/ -f ./team/ -r rules/team.yaml --expand
@@ -75,17 +75,20 @@ kongctl lint -f ./templates/ -f ./team/ -r rules/team.yaml --expand
 
 With `--expand`:
 
-- All inputs are read as one configuration, so a template defined in one file
-  can be used by `_extends` in another. Pass the template files as well as the
-  files that use them.
+- All inputs share template definitions, so a template defined in one file can
+  be used by `_extends` in another. Pass the template files as well as the files
+  that use them. Resources are not combined into one lint document.
 - Local `!file` content is included, and `_templates` and `_extends` overrides
   are expanded with the same rules as `plan` and `apply`.
 - `!env`, `!ref`, `!secret` and lookup tags stay unresolved placeholders. Lint
   does not read environment values, fetch secrets or contact Konnect, so rules
-  cannot check the values behind those tags.
+  cannot check the values behind those tags. This includes `!env` declarations
+  with `store: true`. Rules expecting concrete values, such as a name pattern,
+  need to account for unresolved values.
 - Defaults are not applied and `plan` validation does not run. A passing lint
   means the selected rules passed, not that the configuration is ready to
-  apply.
+  apply. YAML syntax, tag declarations and template syntax are still checked;
+  resource schemas and the types of fields containing `!env` are not validated.
 - Each input is linted on its own after expansion. Inputs that are empty
   after expansion, such as files that only define `_templates`, are skipped;
   their templates are checked through the resources that extend them. Rules
@@ -93,15 +96,31 @@ With `--expand`:
   duplicate across files.
 - A file included with `!file` is checked inside the file that includes it.
   If the same file is also selected as an input, for example in the same
-  directory, it is also linted on its own.
+  directory, it is also linted on its own. List and scalar fragments are passed
+  to the lint engine as separate inputs too. The engine may report an
+  `index-failure` for a standalone scalar, just as in raw lint mode. Keep
+  fragments outside selected inputs to check them only through their consumers.
 - Line and column numbers refer to the expanded document, not the original
-  file. Text output marks them as `file (expanded):line:column`; JSON and YAML
-  output set `expanded: true`.
+  file. Text output keeps `file:line:column` and appends `(expanded)` to each
+  finding; JSON and YAML output set `expanded: true`. Expansion happens in
+  memory; the expanded document is not saved. These coordinates cannot be
+  opened directly in the original source file.
 - `!file` paths must stay inside each `-f` source root (file: its parent
   directory; directory: the directory itself), the default boundary of `plan`.
-- Files, directories, `-R` and stdin (`-f -`) work as they do for `plan`. URL
-  inputs are not supported. Expansion errors, such as an unknown template,
-  fail the command and name the source file and position.
+- Inputs can be individual YAML files, directories, or stdin (`-f -`). Use
+  `-R` to include subdirectories. URL inputs are not supported. Explicit file
+  inputs must use `.yaml` or `.yml`.
+  Stdin includes resolve from the working directory, which is also their
+  allowed boundary. Relative paths inside templates use the file that defines
+  the template, even when another file extends it.
+- Each input must contain one YAML document. Multiple documents separated by
+  `---` are rejected rather than silently linting only the first document.
+  Split them into separate files. Expansion errors, such as an unknown template
+  or a missing include, fail the command and name the source; template errors
+  also provide a position.
+- Like the loader, preprocessing also expands local principal `!csv` inputs.
+  It does not fetch URL sources. Existing OpenAPI reference resolution and
+  ruleset inheritance may still access the network.
 
 ### Ruleset paths and inheritance
 

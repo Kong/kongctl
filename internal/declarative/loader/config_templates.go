@@ -35,6 +35,12 @@ type configTemplateDocument struct {
 	sourcePath    string
 	document      yaml.Node
 	usedTemplates map[string]configTemplate
+	allowFragment bool
+}
+
+func (d *configTemplateDocument) isFragment() bool {
+	return d.allowFragment && d.document.Kind == yaml.DocumentNode && len(d.document.Content) == 1 &&
+		d.document.Content[0].Kind != yaml.MappingNode
 }
 
 func newConfigTemplateRegistry() *configTemplateRegistry {
@@ -52,8 +58,10 @@ func expandConfigTemplateDocuments(documents []*configTemplateDocument) error {
 		if err := yaml.Unmarshal(document.content, &document.document); err != nil {
 			return fmt.Errorf("failed to parse YAML for template expansion in %s: %w", document.sourcePath, err)
 		}
-		if err := registry.collect(&document.document, document.sourcePath); err != nil {
-			return err
+		if !document.isFragment() {
+			if err := registry.collect(&document.document, document.sourcePath); err != nil {
+				return err
+			}
 		}
 		document.document = yaml.Node{}
 	}
@@ -65,8 +73,10 @@ func expandConfigTemplateDocuments(documents []*configTemplateDocument) error {
 		if err := yaml.Unmarshal(document.content, &document.document); err != nil {
 			return fmt.Errorf("failed to parse YAML for template expansion in %s: %w", document.sourcePath, err)
 		}
-		if err := stripTemplateDefinitions(&document.document, document.sourcePath); err != nil {
-			return err
+		if !document.isFragment() {
+			if err := stripTemplateDefinitions(&document.document, document.sourcePath); err != nil {
+				return err
+			}
 		}
 		if isEmptyYAMLDocument(&document.document) {
 			document.document = yaml.Node{}
@@ -74,7 +84,13 @@ func expandConfigTemplateDocuments(documents []*configTemplateDocument) error {
 		}
 		document.usedTemplates = make(map[string]configTemplate)
 		registry.currentUses = document.usedTemplates
-		if err := registry.expandDocument(&document.document, document.sourcePath); err != nil {
+		var err error
+		if document.isFragment() {
+			err = registry.expandNode(&document.document, document.sourcePath, nil)
+		} else {
+			err = registry.expandDocument(&document.document, document.sourcePath)
+		}
+		if err != nil {
 			return err
 		}
 		registry.currentUses = nil

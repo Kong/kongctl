@@ -90,8 +90,8 @@ steps:
           contains: 'unknown template "standard-portal"'
 
   # Step 004: a team-local !file fragment (inside the -f source root) sets
-  # authentication_enabled to false. The violation is reported on the file
-  # that includes it, and the fragment itself is not linted as an input.
+  # authentication_enabled to false. Recursive discovery selects the scalar
+  # fragment too, but must still report the violation in its consuming file.
   - name: 004-lint-expand-file-fragment
     skipInputs: true
     commands:
@@ -106,6 +106,7 @@ steps:
           - -r
           - "{{ .scenario_dir }}/testdata/ruleset.yaml"
           - --expand
+          - -R
         expectFailure:
           exitCode: 1
-          contains: "fragment-team/portals.yaml (expanded)"
+          contains: "fragment-team/portals.yaml:"

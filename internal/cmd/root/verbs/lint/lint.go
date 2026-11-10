@@ -317,7 +317,7 @@ func lintExpanded(
 		}
 	}
 
-	documents, err := loader.New().ExpandSources(command.Context(), sources, recursive)
+	documents, err := loader.New().WithStdin(command.InOrStdin()).ExpandSources(command.Context(), sources, recursive)
 	if err != nil {
 		return nil, cmd.PrepareExecutionError(
 			"failed to expand declarative configuration", err, command,
@@ -336,7 +336,7 @@ func lintExpanded(
 	if len(inputs) == 0 {
 		return nil, cmd.PrepareExecutionError(
 			"nothing to lint after expansion",
-			errors.New("the inputs only define _templates; add the files that extend them"),
+			errors.New("the inputs are empty or only define _templates; add configuration or files that extend them"),
 			command,
 		)
 	}
