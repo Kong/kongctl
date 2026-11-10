@@ -41,7 +41,9 @@ Actions:
 - Check field patterns in `references/resources.md`.
 - If uncertain, generate live examples with `dump declarative`.
 - Fix common typos like `lables` vs `labels`.
-- Ensure `kongctl` metadata is only on parent resources.
+- Confirm `kongctl` metadata support with `kongctl explain`. Parent resources
+  and participating AI Gateway children support ownership metadata; Portal
+  and API children follow their parent's ownership.
 
 ### `!file` Resolution Errors
 

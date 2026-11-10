@@ -86,8 +86,22 @@ variants.
   - `application_auth_strategies`
   - `control_planes`
   - `event_gateways`
-- Child resources do not support `kongctl` metadata.
+- Portal and API children follow parent ownership. Participating AI Gateway
+  children own their namespace and protection independently, including when
+  nested under a gateway. Their explicit metadata overrides file defaults;
+  they do not inherit the gateway's explicit namespace.
+- Confirm metadata support for each resource with `kongctl explain`.
 - Put ownership defaults in `_defaults.kongctl`.
+
+Read the [ownership guide][ownership] when setting namespace boundaries or
+guardrails, and the [AI Gateway federation guide][federation] when managing
+children of a shared gateway. Use the [topic index][declarative] to load
+detailed reference, template, environment-value, and secret behavior only as
+needed for the task.
+
+[ownership]: https://developer.konghq.com/kongctl/declarative/ownership/
+[federation]: https://github.com/Kong/kongctl/blob/main/docs/ai-gateway-federation.md
+[declarative]: https://developer.konghq.com/kongctl/declarative/
 
 ## `_defaults` and Ownership
 

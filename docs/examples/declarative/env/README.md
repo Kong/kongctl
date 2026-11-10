@@ -46,7 +46,7 @@ See the [conversion contract][stored-env]
 for numeric limits, empty/unset values, parsing rules, and restrictions.
 
 [stored-env]:
-  ../../../declarative.md#storing-typed-environment-values-in-plans
+  ../../../declarative/environment-values.md#storing-typed-environment-values-in-plans
 
 ## Deferred strings
 
