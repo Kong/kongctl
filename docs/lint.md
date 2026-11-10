@@ -47,80 +47,59 @@ See the [vacuum function reference](https://quobix.com/vacuum/functions/).
 
 ### Declarative tags and templates
 
-Each input is read independently of the declarative loader used by `plan` and
-`apply`. Lint does not resolve `!file`, `!ref`, or `!env`, or expand
-`_templates` and `_extends`. OpenAPI `$ref` resolution is separate and may
-read and check referenced content, including through network requests.
-This is not declarative tag expansion.
+By default, lint checks each input as written, including template definitions.
+It does not expand declarative tags or templates, so rules cannot inspect
+included or inherited values, or environment variable contents. Files selected
+individually or through directory discovery are checked separately.
 
-Rules can inspect fields present in the raw file, including template
-definitions, but cannot inspect values that would appear only after expansion.
-For example, selecting fields inside a resource referenced by `!file` does not
-load or check the referenced content. Selecting an `!env` value does not check
-the environment variable's contents.
-
-Passing a fragment as another `-f` input checks it separately. Directory input
-also checks matching files separately; it does not assemble a combined
-configuration. A successful lint run does not establish that the expanded
-configuration satisfies the same rules or passes declarative validation.
-To lint the expanded configuration, use `--expand`.
+OpenAPI `$ref` resolution is separate from declarative expansion and may read
+local files or access the network.
 
 ### Linting expanded declarative configuration
 
-Use `--expand` to lint configuration after declarative preprocessing:
+Use `--expand` to include local `!file` content and principal `!csv` inputs,
+then expand `_templates` and `_extends` overrides as `plan` and `apply` do:
 
 ```shell
 kongctl lint -f ./templates/ -f ./team/ -r rules/team.yaml --expand
 ```
 
-With `--expand`:
+Inputs share template definitions but are linted separately: pass template
+files as well as the files that use them. Rules cannot detect duplicates
+across files.
+Empty inputs, including template-only files, are skipped; their templates are
+checked where used. If nothing remains to lint, the command fails.
 
-- All inputs share template definitions, so a template defined in one file can
-  be used by `_extends` in another. Pass the template files as well as the files
-  that use them. Resources are not combined into one lint document.
-- Local `!file` content is included, and `_templates` and `_extends` overrides
-  are expanded with the same rules as `plan` and `apply`.
-- `!env`, `!ref`, `!secret` and lookup tags stay unresolved placeholders. Lint
-  does not read environment values, fetch secrets or contact Konnect, so rules
-  cannot check the values behind those tags. This includes `!env` declarations
-  with `store: true`. Rules expecting concrete values, such as a name pattern,
-  need to account for unresolved values.
-- Defaults are not applied and `plan` validation does not run. A passing lint
-  means the selected rules passed, not that the configuration is ready to
-  apply. YAML syntax, tag declarations and template syntax are still checked;
-  resource schemas and the types of fields containing `!env` are not validated.
-- Each input is linted on its own after expansion. Inputs that are empty
-  after expansion, such as files that only define `_templates`, are skipped;
-  their templates are checked through the resources that extend them. Rules
-  do not see resources from other inputs, so a rule cannot detect a
-  duplicate across files.
-- A file included with `!file` is checked inside the file that includes it.
-  If the same file is also selected as an input, for example in the same
-  directory, it is also linted on its own. List and scalar fragments are passed
-  to the lint engine as separate inputs too. The engine may report an
-  `index-failure` for a standalone scalar, just as in raw lint mode. Keep
-  fragments outside selected inputs to check them only through their consumers.
-- Line and column numbers refer to the expanded document, not the original
-  file. Text output keeps `file:line:column` and appends `(expanded)` to each
-  finding; JSON and YAML output set `expanded: true`. Expansion happens in
-  memory; the expanded document is not saved. These coordinates cannot be
-  opened directly in the original source file.
-- `!file` paths must stay inside each `-f` source root (file: its parent
-  directory; directory: the directory itself), the default boundary of `plan`.
-- Inputs can be individual YAML files, directories, or stdin (`-f -`). Use
-  `-R` to include subdirectories. URL inputs are not supported. Explicit file
-  inputs must use `.yaml` or `.yml`.
-  Stdin includes resolve from the working directory, which is also their
-  allowed boundary. Relative paths inside templates use the file that defines
-  the template, even when another file extends it.
-- Each input must contain one YAML document. Multiple documents separated by
-  `---` are rejected rather than silently linting only the first document.
-  Split them into separate files. Expansion errors, such as an unknown template
-  or a missing include, fail the command and name the source; template errors
-  also provide a position.
-- Like the loader, preprocessing also expands local principal `!csv` inputs.
-  It does not fetch URL sources. Existing OpenAPI reference resolution and
-  ruleset inheritance may still access the network.
+`!env` (including `store: true`), `!ref`, `!secret` and lookup tags stay
+unresolved. Lint does not read their environment values, fetch secrets or
+contact Konnect. Rules expecting concrete values, such as name patterns, must
+account for placeholders.
+
+Expansion checks YAML, tag and template syntax. It does not apply defaults,
+validate resource schemas or check the types of fields containing `!env`.
+Passing lint does not establish that configuration is ready to apply; use
+`plan` for that validation.
+
+- **Inputs:** use `.yaml`/`.yml` files, directories (`-R` for subdirectories),
+  or stdin (`-f -`). URLs are unsupported. Each selected input must contain one
+  YAML document; split documents separated by `---` into separate files.
+- **Paths:** includes resolve from the file containing the tag, even when
+  inherited through a template. `!file` paths must stay within the source's
+  root: the parent directory for a file, the directory for a directory input,
+  or the working directory for stdin (also used to resolve its includes).
+  These are the loader's default boundaries.
+- **Fragments:** included content is checked in the file that includes it.
+  A fragment also selected as an input is checked independently, including
+  lists and scalars. Vacuum may report `index-failure` for standalone scalars
+  in either mode. Keep fragments outside selected inputs to avoid independent
+  checks.
+- **Findings:** filenames identify inputs; line/column numbers refer to
+  expanded content, which is held in memory and not saved. They may not match
+  original source locations. Text appends `(expanded)` after the message;
+  JSON/YAML sets `expanded: true`. Text retains `file:line:column` formatting.
+- **Failures:** expansion errors fail the command and identify the source;
+  template errors also report a position. Existing OpenAPI reference and
+  ruleset network access is unchanged.
 
 ### Ruleset paths and inheritance
 
@@ -150,4 +129,3 @@ these path constraints do not make lint an offline command.
 Proposed extensions are tracked separately from current behavior:
 
 - [Custom JavaScript functions](https://github.com/Kong/kongctl/issues/2585)
-- [Lint expanded declarative input](https://github.com/Kong/kongctl/issues/2584)
