@@ -1051,6 +1051,9 @@ YAML
   pass_current
 }
 
+# shellcheck source=scripts/smoke/adoption.sh
+source "$script_dir/smoke/adoption.sh"
+
 check_list_presence() {
   local presence="$1"
   start_check "list-${resource_key}-${presence}" "$resource_key" "read"
@@ -1124,6 +1127,7 @@ smoke_resource() {
   check_updated_children
 
   check_zero_plans "$resource_updated" "updated"
+  check_adoption
 
   if [[ "$key" != "identity_principal" ]]; then
     start_check "dump-${key}" "$key" "dump"

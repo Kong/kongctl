@@ -110,6 +110,7 @@ test_quick_uses_explain_and_scaffold() {
     assert_not_contains "$RUN_DIR/fixtures/$key/updated.yaml" "_defaults:" \
       "$key update namespace cannot fall back to a file default"
   done
+  assert_not_contains "$FAKE_LOG" "adopt " "quick does not adopt"
   assert_not_contains "$FAKE_LOG" "apply --plan" "quick does not apply"
   assert_not_contains "$FAKE_LOG" "delete " "quick does not delete"
   assert_json "$RUN_DIR/report.json" "value['status'] == 'passed' and value['mode'] == 'quick'" \
@@ -122,6 +123,10 @@ test_full_lifecycle() {
   KONGCTL_SMOKE_NAMESPACE_API=unrelated-operator-namespace run_smoke --yes
   [[ "$STATUS" -eq 0 ]] || fail "full smoke succeeds" "$OUTPUT"
   assert_json "$FAKE_STATE" "value == {}" "full run cleans every resource"
+  assert_contains "$FAKE_LOG" "adopt portal" "full run adopts a root"
+  assert_contains "$FAKE_LOG" "adopt ai-gateway models" "full run adopts children"
+  assert_contains "$FAKE_LOG" "--name-pattern smoke-*" "preview uses filtered children"
+  assert_contains "$FAKE_LOG" "--all --overwrite-namespace" "adoption uses all children"
   assert_contains "$FAKE_LOG" "delete --plan" "full run executes delete plans"
   assert_contains "$FAKE_LOG" "list ai-gateways -o json" "full run exercises imperative list"
   assert_contains "$FAKE_LOG" "get gateway control-plane" "full run exercises imperative get"
@@ -395,6 +400,7 @@ test_cleanup_failure_is_reported
 test_prompt_refusal_is_non_mutating
 test_scaffold_contract_failure_is_safe
 test_default_ai_gateway_23_lifecycle
+test_fault_is_rejected bad-adoption-preview adopt-preview-portal --yes portal
 test_fault_is_rejected bad-list list-api-quick --quick
 test_fault_is_rejected lost-tags patch-preserves-tags --quick
 test_fault_is_rejected false-zero plan-zero-api-updated-apply

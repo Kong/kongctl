@@ -359,7 +359,19 @@ elif args[:2] == ["patch", "file"]:
     print(text.replace("name: before", "name: after"))
 elif args[:1] == ["plan"]:
     fixture = option("-f")
-    key, desired = parse_fixture(fixture)
+    if pathlib.Path(fixture).name == "adopted.yaml" and "/ai_gateway/" in fixture:
+        exported = json.loads(pathlib.Path(fixture).read_text())
+        assert exported["ai_gateways"][0]["_external"]["id"] == "ai_gateway-id"
+        models = exported["ai_gateway_models"]
+        assert len(models) == len(state["ai_gateway"]["models"])
+        for model, original in zip(models, state["ai_gateway"]["models"]):
+            assert model["ai_gateway"] == "gateway"
+            assert model["kongctl"]["namespace"] == state["ai_gateway"]["_namespace"]
+            assert {k: v for k, v in model.items() if k not in ("ai_gateway", "kongctl")} == {
+                k: v for k, v in original.items() if k != "kongctl"}
+        key, desired = "ai_gateway", state["ai_gateway"]
+    else:
+        key, desired = parse_fixture(fixture)
     mode = option("--mode", "sync")
     plan = make_plan(key, desired, mode)
     pathlib.Path(option("--output-file")).write_text(json.dumps(plan), encoding="utf-8")
@@ -376,6 +388,38 @@ elif args[:1] in (["apply"], ["sync"]):
     state[key] = desired
     save_state()
     print_execution(len(plan["changes"]))
+elif args[:1] == ["adopt"]:
+    key = "portal" if args[1] == "portal" else "ai_gateway"
+    item = state[key]
+    child = key == "ai_gateway"
+    namespace = option("--namespace")
+    namespace_key = "kongctl-namespace" if child else "KONGCTL-namespace"
+    change = {"resource_type": "ai_gateway_model" if child else "portal",
+              "id": "model-id" if child else "portal-id",
+              "name": "smoke-model" if child else item["name"], "namespace": namespace}
+    dry_run = "--dry-run" in args
+    if dry_run:
+        change.update(before={namespace_key: item["_namespace"]}, after={namespace_key: namespace})
+        if child:
+            change["parent"] = {"gateway_id": "ai_gateway-id"}
+    output = pathlib.Path(option("--declarative-output"))
+    if child:
+        models = json.loads(json.dumps(item["models"]))
+        for model in models:
+            model["ai_gateway"] = "gateway"
+            model["kongctl"] = {"namespace": namespace, "protected": False}
+        text = json.dumps({"ai_gateways": [{"ref": "gateway", "_external": {"id": "ai_gateway-id"}}],
+                           "ai_gateway_models": models})
+    else:
+        text = item["_fixture"]
+        match = namespace_field(text)
+        text = text[:match.start(1)] + json.dumps(namespace) + text[match.end(1):]
+    output.write_text(("# DRY RUN: proposed configuration\n" if dry_run else "") + text)
+    if not dry_run:
+        assert namespace == item["_namespace"]
+    if os.environ.get("FAKE_FAULT") == "bad-adoption-preview" and dry_run:
+        change["after"][namespace_key] = "wrong-namespace"
+    print(json.dumps({"dry_run": True, "changes": [change]} if dry_run else [change] if child else change))
 elif args[:2] == ["dump", "declarative"]:
     keys = {"apis": "api", "portals": "portal", "control_planes": "control_plane",
             "ai_gateways": "ai_gateway", "event_gateways": "event_gateway", "identity.directories": "identity_principal", "identity.auth_servers": "identity_auth_server"}
