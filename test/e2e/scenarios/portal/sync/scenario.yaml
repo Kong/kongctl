@@ -159,6 +159,13 @@ steps:
                 "[0].portal_id": "{{ .vars.portalID }}"
                 "[0].visibility": public
 
+      - name: 004-get-sms-publications-empty
+        run: [get, api, publications, --api-name, "SMS API"]
+        assertions:
+          - expect:
+              fields:
+                "length(@)": 0
+
   - name: 004-dump-and-plan-round-trip
     skipInputs: true
     commands:

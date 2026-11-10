@@ -186,6 +186,8 @@ steps:
             responsePath: "[?title=='Root Document'] | [0].id"
           - name: childDocID
             responsePath: "[?title=='Child Document'] | [0].id"
+          - name: grandchildDocID
+            responsePath: "[?title=='Grandchild Document'] | [0].id"
         assertions:
           - select: "[?title=='Root Document'] | [0]"
             expect:
@@ -478,6 +480,13 @@ steps:
               fields:
                 title: "Child Document"
                 status: "published"
+          - select: "[?title=='Grandchild Document'] | [0]"
+            expect:
+              fields:
+                id: "{{ .vars.grandchildDocID }}"
+                parent_document_id: "{{ .vars.childDocID }}"
+                slug: grandchild-document
+                status: published
       - name: 005-get-replacement-auth-strategy
         run: ["get", "auth-strategies", "-o", "json"]
         recordVar:
@@ -858,7 +867,9 @@ steps:
 
   - name: 003c-sync-delete-secondary-publication
     inputOverlayDirs:
-      - overlays/003-sync-delete-publication
+      - overlays/002-update
+    inputOverlayOpsFiles:
+      - overlays/003-sync-delete-publication/ops.yaml
     commands:
       - name: 000-sync-delete-publication
         run: [sync, -f, "{{ .workdir }}/apis.yaml", --auto-approve]
@@ -907,9 +918,13 @@ steps:
               fields:
                 total_changes: 0
 
+  # Continue from 003c's pruned publication state; this step deletes only v1.
   - name: 004-sync-delete-one-version
     inputOverlayDirs:
-      - overlays/003-sync-delete-v1
+      - overlays/002-update
+    inputOverlayOpsFiles:
+      - overlays/003-sync-delete-publication/ops.yaml
+      - overlays/003-sync-delete-v1/ops.yaml
     commands:
       - name: 000-sync-delete-v1
         run:

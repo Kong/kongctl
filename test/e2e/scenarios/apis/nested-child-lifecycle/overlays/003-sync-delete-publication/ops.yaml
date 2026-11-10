@@ -1,0 +1,11 @@
+ops:
+  - file: apis.yaml
+    match: "apis[?ref=='api-nested'] | [0]"
+    set:
+      publications:
+        - ref: api-nested-pub1
+          portal_id: "{{ .vars.primaryPortalID }}"
+          visibility: public
+          auth_strategy_ids:
+            - "{{ .vars.replacementAuthStrategyID }}"
+          auto_approve_registrations: true

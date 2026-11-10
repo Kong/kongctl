@@ -359,14 +359,14 @@ Its scenario-local replay README records provenance, phase boundaries and
 measurement limitations. The cassette retains the live source provenance;
 the isolated job's validated artifact adds only the reviewed annotations.
 
-`portal/sync` is enabled after its complete live scenario and three isolated
-replays passed (293 HTTP interactions each), followed by three isolated
-replays of the packed cassette. No scenario assertions were
-removed to obtain a successful recording. The isolated wrappers took
-3.68–4.26 seconds across both validations, compared with 18.82 seconds for the
-same-source normal live scenario and a 22.72-second historical median.
-Recording's own 47.37-second
-scenario duration includes proxy overhead and is not the live baseline.
+`portal/sync` passed its expanded live recording and three isolated replays
+of the committed packed cassette (372 HTTP interactions each). All scenario
+assertions remain intact. The isolated wrappers took 7.117–7.313 seconds;
+scenario execution took 6.583–6.768 seconds. Recording's 147.367-second
+scenario duration includes proxy overhead and is not a live baseline.
+Older live timings cover a smaller scenario and are not a same-source
+comparison or a measured workflow speedup. The scenario-local replay README
+records the recording and validation provenance and reviewed phase boundaries.
 
 Group scenarios have exhibited nondeterministic independent request ordering
 and stay live pending reviewed phase annotations and isolated validation.
