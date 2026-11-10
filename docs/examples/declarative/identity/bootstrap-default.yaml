@@ -1,0 +1,21 @@
+# Bootstrap a missing default directory under KongCTL management.
+# For an existing unowned default, adopt it explicitly before using this file.
+_defaults:
+  kongctl:
+    namespace: identity-directory
+
+identity:
+  directories:
+    - ref: default-directory
+      name: default
+      description: ""
+      # Organizations with a one-directory quota require this to be true.
+      allow_all_control_planes: true
+      allowed_control_planes: []
+      ttl_secs: 600
+      negative_ttl_secs: 600
+      vault:
+        enabled: false
+      labels: {}
+      kongctl:
+        protected: false

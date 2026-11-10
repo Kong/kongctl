@@ -85,6 +85,10 @@ Registering a declaration does not complete those steps automatically.
   certificates, and SNIs are intentional exceptions: `WithNamespace` supplies
   independent ownership and protection using reserved lowercase `managed_by`
   keys. Nested namespace groups must visit original slices before extraction.
+  Kong Identity combines independently owned principals/credentials with
+  children that inherit authority from a directory or Auth Server. Use the
+  [Identity contributor guide](kong-identity.md) for these boundaries and
+  compatibility constraints; do not assume one policy applies to every child.
   Model namespace scope is captured per source, separately from gateway scope;
   parent linkage never authorizes model mutation. See
   [model ownership](../ai-gateway-model-ownership.md) for migration and API
@@ -153,6 +157,9 @@ For write-only enrollment and the later migration of label ownership, use
 on each verified resource with its own `ManagedByPolicy`, and use the shared
 state request stamper. This capability alone does not change label behavior
 or enable independent ownership.
+For APIs with immutable maps, the same guide documents create-only provenance,
+inherited persisted refs and the required execution-time parent checks. Do not
+send metadata on an unsupported update or treat provenance as child authority.
 
 Call `CaptureOwnedChildCollection` per source after defaults and before nested
 extraction. Supply actual key presence and each child's independent namespace.

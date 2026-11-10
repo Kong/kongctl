@@ -51,6 +51,8 @@ type Executor struct {
 	planBaseDir        string
 	secretMu           sync.Mutex
 	resolvedSecrets    map[string]map[string]string
+	secretOutputDir    string
+	generatedOutputs   map[string]*generatedClientOutput
 }
 
 // DefaultMaxConcurrency is the default --max-concurrency value.
@@ -67,6 +69,7 @@ const MinConcurrency = 1
 
 // Options configures executor behavior.
 type Options struct {
+	SecretOutputDir    string
 	DeckRunner         deck.Runner
 	KonnectToken       string
 	KonnectTokenSource deck.KonnectTokenSource
@@ -106,6 +109,7 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 		executionMode:               opts.Mode,
 		planBaseDir:                 strings.TrimSpace(opts.PlanBaseDir),
 		resolvedSecrets:             make(map[string]map[string]string),
+		secretOutputDir:             strings.TrimSpace(opts.SecretOutputDir),
 	}
 
 	e.concurrency = DefaultMaxConcurrency
@@ -120,6 +124,20 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 	e.registerAPIExecutor()
 	e.registerAuthStrategyExecutor()
 	e.registerDCRProviderExecutor()
+	e.registerIdentityAuthServerExecutor()
+	e.registerIdentityAuthServerChildExecutors()
+	e.registerIdentityAuthServerClientExecutor()
+	e.registerIdentityDirectoryExecutor()
+	e.registerIdentityVaultKeyExecutor()
+	e.registerIdentityVaultProviderExecutor()
+	e.registerIdentityVaultProviderCredentialExecutor()
+	e.registerIdentityTrustedIDPExecutor()
+	e.registerIdentityPrincipalExecutor()
+	e.registerIdentityBasicAuthExecutor()
+	e.registerIdentityGroupExecutor()
+	e.registerIdentityGroupMembershipExecutor()
+	e.registerIdentityAPIKeyExecutors()
+	e.registerIdentityPrincipalIdentityExecutor()
 	e.registerCatalogServiceExecutor()
 	e.registerAIGatewayExecutors()
 	e.registerDashboardExecutor()
@@ -209,6 +227,14 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) *ExecutionRe
 		return result
 	}
 	defer e.clearResolvedSecrets()
+	if err := e.prepareClientSecretOutputs(plan); err != nil {
+		result.Errors = append(result.Errors, ExecutionError{Error: err.Error()})
+		result.FailureCount = 1
+		if e.reporter != nil {
+			e.reporter.FinishExecution(result)
+		}
+		return result
+	}
 
 	// Choose execution strategy.
 	// Planner is the source of truth for dependency ordering and concurrency groups.
@@ -245,6 +271,7 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) *ExecutionRe
 		}
 	}
 
+	e.finishClientSecretOutputs(result)
 	// Notify reporter of execution completion
 	if e.reporter != nil {
 		e.reporter.FinishExecution(result)
@@ -2258,6 +2285,9 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 
 func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedChange) error {
 	if resource := e.resourceExecutors[change.ResourceType]; resource.remove != nil {
+		if err := e.validateIdentityReferenceScopes(ctx, change); err != nil {
+			return err
+		}
 		return resource.remove(ctx, change)
 	}
 

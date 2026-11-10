@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
@@ -135,7 +136,7 @@ func TestRunRoutesOrganizationPATsGlobally(t *testing.T) {
 func TestParseAssignmentsTyped(t *testing.T) {
 	payload, err := parseAssignments([]string{"count:=2", "enabled:=true", "meta:={\"name\":\"test\"}"})
 	require.NoError(t, err)
-	require.Equal(t, float64(2), payload["count"])
+	require.Equal(t, json.Number("2"), payload["count"])
 	require.Equal(t, true, payload["enabled"])
 	require.Equal(t, map[string]any{"name": "test"}, payload["meta"])
 }
@@ -167,7 +168,7 @@ func TestParseAssignmentsNested(t *testing.T) {
 
 	plugin1Config, ok := plugin1["config"].(map[string]any)
 	require.True(t, ok)
-	require.Equal(t, float64(10), plugin1Config["limit"])
+	require.Equal(t, json.Number("10"), plugin1Config["limit"])
 }
 
 func TestParseAssignmentsNestedConflicts(t *testing.T) {
@@ -1439,4 +1440,16 @@ func TestRunRejectsUnexpectedPayload(t *testing.T) {
 	var execErr *cmdpkg.ExecutionError
 	require.True(t, errors.As(err, &execErr))
 	require.Contains(t, err.Error(), "data fields may only be supplied with POST, PUT, or PATCH")
+}
+
+func TestAPIPreservesExactIntegerRequestsAndResponses(t *testing.T) {
+	const number = "9007199254740993"
+	payload, err := parseAssignments([]string{"metadata.identifier:=" + number})
+	require.NoError(t, err)
+	data, err := json.Marshal(payload)
+	require.NoError(t, err)
+	require.Contains(t, string(data), number)
+	const response = `{"identifier":9007199254740993,"negative":-9007199254740993,"max":9223372036854775807}`
+	require.Contains(t, bodyToPrintable([]byte(response)), number)
+	require.Contains(t, bodyToPrintable([]byte(`{"max":9223372036854775807}`)), "9223372036854775807")
 }

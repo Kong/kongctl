@@ -135,3 +135,26 @@ unformatted in titles, navigation labels, URLs, and command blocks.
 The site cannot observe the learner's terminal. “Mark complete and continue”
 is therefore an explicit learner confirmation, not automated command
 verification.
+
+## Identity learning path
+
+Kong Identity precedes Quickstarts; Extensions remains last. The Identity
+chapter covers administrative resources and explains directory ownership.
+The first two quickstarts then demonstrate principal authentication against a
+mock model and actual Token Vault upstream credential use, respectively.
+The existing Config Store quickstart uses Gateway secret references, which
+are distinct from Identity Token Vault.
+
+Downloadable examples live in `public/examples/identity-guide/`. Keep their
+resource names and settings aligned with the corresponding lesson code
+blocks. `complete.yaml` is the final combined state: its directory has an
+explicit namespace override so consolidation preserves ownership. It expects
+public local files and environment variables; it does not include private
+keys or captured credentials. The runtime helper and local upstream verifier
+are also included for reuse.
+
+Content validation should include KongCTL loader checks of extracted YAML,
+Bash/Python syntax checks, and a check that built internal links and download
+targets resolve. Site unit and browser tests do not call Konnect. A fresh live
+walkthrough requires an explicitly selected development organization; do not
+run tutorial applies against an arbitrary configured profile as a docs check.

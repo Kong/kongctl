@@ -1,0 +1,55 @@
+defaults:
+  retry:
+    attempts: 1
+log-level: trace
+test:
+  cleanupResources:
+    - resource: identity_directory
+      useDefaultDirectory: true
+      nameVar: directory_name
+      nameEnv: KONGCTL_E2E_PRINCIPAL_GROUPS_DIRECTORY_NAME
+      requireEmptyVaultDependencies: true
+  info: Verify principal-scoped direct/inherited group inspection, group versus entry IDs, manager/provisioning fields, complete cursor pagination, scope isolation, text/JSON/YAML and read-only behavior. Imported employee values and CLI outputs stay in a removed private workspace.
+steps:
+  - name: 001-principal-group-inspection
+    skipInputs: true
+    commands:
+      - name: create-directory
+        create:
+          resource: identity_directory
+          useDefaultDirectory: true
+          payload:
+            inline:
+              name: '{{ .vars.directory_name }}'
+              allow_all_control_planes: true
+              vault_enabled: true
+          recordVar:
+            name: directory_id
+            responsePath: id
+      - name: verify-principal-groups
+        timeout: 4m
+        exec:
+          - python3
+          - '{{ .scenario_dir }}/lifecycle.py'
+          - '{{ .bin }}'
+          - '{{ .vars.directory_id }}'
+          - '{{ .vars.directory_name }}'
+          - '{{ .workdir }}'
+        env:
+          KONGCTL_PROFILE: e2e
+        parseAs: json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                ordinary_direct_groups: true
+                imported_direct_and_inherited: true
+                group_and_entry_ids_distinct: true
+                manager_and_provisioning_fields: true
+                complete_two_page_sdk_reads: true
+                scope_and_missing_guards: true
+                reads_preserve_state_and_ownership: true
+                output_formats: 3
+                private_sources_and_outputs_not_copied: true
+                private_workspace_removed: true
+                fixtures_removed: true

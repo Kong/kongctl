@@ -320,7 +320,7 @@ func syncDeclarationPaths(
 			continue
 		}
 		for _, parentPath := range parentPaths {
-			paths = append(paths, append(slices.Clone(parentPath), field.name))
+			paths = append(paths, append(slices.Clone(parentPath), strings.Split(field.name, ".")...))
 		}
 	}
 	return paths

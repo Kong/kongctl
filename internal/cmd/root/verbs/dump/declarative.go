@@ -205,6 +205,22 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			PortalAPI:                           sdk.GetPortalAPI(),
 			APIAPI:                              sdk.GetAPIAPI(),
 			AppAuthAPI:                          sdk.GetAppAuthStrategiesAPI(),
+			IdentityDirectoriesAPI:              sdk.GetIdentityDirectoriesAPI(),
+			IdentityVaultKeysAPI:                sdk.GetIdentityVaultKeysAPI(),
+			IdentityVaultProvidersAPI:           sdk.GetIdentityVaultProvidersAPI(),
+			IdentityStaticVaultCredentialsAPI:   sdk.GetIdentityStaticVaultCredentialsAPI(),
+			IdentityTrustedIDPsAPI:              sdk.GetIdentityTrustedIDPsAPI(),
+			IdentityAuthServersAPI:              sdk.GetIdentityAuthServersAPI(),
+			IdentityAuthServerScopesAPI:         sdk.GetIdentityAuthServerScopesAPI(),
+			IdentityAuthServerClaimsAPI:         sdk.GetIdentityAuthServerClaimsAPI(),
+			IdentityAuthServerClientsAPI:        sdk.GetIdentityAuthServerClientsReader(),
+			IdentityBasicAuthAPI:                sdk.GetIdentityBasicAuthAPI(),
+			IdentityPrincipalKeysReader:         sdk.GetIdentityPrincipalKeysReader(),
+			IdentityPrincipalKeysAPI:            sdk.GetIdentityPrincipalKeysAPI(),
+			IdentityGroupKeysAPI:                sdk.GetIdentityGroupKeysAPI(),
+			IdentityGroupsAPI:                   sdk.GetIdentityGroupsAPI(),
+			IdentityPrincipalsAPI:               sdk.GetIdentityPrincipalsAPI(),
+			IdentityPrincipalIdentitiesAPI:      sdk.GetIdentityPrincipalIdentitiesAPI(),
 			DCRProviderAPI:                      sdk.GetDCRProvidersAPI(),
 			ControlPlaneAPI:                     sdk.GetControlPlaneAPI(),
 			GatewayServiceAPI:                   sdk.GetGatewayServiceAPI(),
@@ -267,6 +283,32 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			SystemAccountRolesAPI:               sdk.GetSystemAccountRolesAPI(),
 			SystemAccountMembershipAPI:          sdk.GetSystemAccountTeamMembershipAPI(),
 		})
+	}
+
+	needsIdentityClient := slices.Contains(opts.resources, resourceIdentityDirectories) ||
+		slices.Contains(opts.resources, resourceIdentityAuthServers)
+	if stateClient == nil && needsIdentityClient {
+		stateClient = declstate.NewClient(
+			declstate.ClientConfig{
+				IdentityStaticVaultCredentialsAPI: sdk.GetIdentityStaticVaultCredentialsAPI(),
+
+				IdentityDirectoriesAPI:         sdk.GetIdentityDirectoriesAPI(),
+				IdentityVaultKeysAPI:           sdk.GetIdentityVaultKeysAPI(),
+				IdentityVaultProvidersAPI:      sdk.GetIdentityVaultProvidersAPI(),
+				IdentityTrustedIDPsAPI:         sdk.GetIdentityTrustedIDPsAPI(),
+				IdentityAuthServersAPI:         sdk.GetIdentityAuthServersAPI(),
+				IdentityAuthServerScopesAPI:    sdk.GetIdentityAuthServerScopesAPI(),
+				IdentityAuthServerClaimsAPI:    sdk.GetIdentityAuthServerClaimsAPI(),
+				IdentityAuthServerClientsAPI:   sdk.GetIdentityAuthServerClientsReader(),
+				IdentityBasicAuthAPI:           sdk.GetIdentityBasicAuthAPI(),
+				IdentityPrincipalKeysReader:    sdk.GetIdentityPrincipalKeysReader(),
+				IdentityPrincipalKeysAPI:       sdk.GetIdentityPrincipalKeysAPI(),
+				IdentityGroupKeysAPI:           sdk.GetIdentityGroupKeysAPI(),
+				IdentityGroupsAPI:              sdk.GetIdentityGroupsAPI(),
+				IdentityPrincipalsAPI:          sdk.GetIdentityPrincipalsAPI(),
+				IdentityPrincipalIdentitiesAPI: sdk.GetIdentityPrincipalIdentitiesAPI(),
+			},
+		)
 	}
 
 	writer, cleanup, err := getDumpWriter(helper, opts.outputFile)

@@ -11,6 +11,22 @@ type ResourceType string
 
 // Resource type constants
 const (
+	ResourceTypeIdentityAuthServer                      ResourceType = "identity_auth_server"
+	ResourceTypeIdentityAuthServerScope                 ResourceType = "identity_auth_server_scope"
+	ResourceTypeIdentityAuthServerClaim                 ResourceType = "identity_auth_server_claim"
+	ResourceTypeIdentityAuthServerClient                ResourceType = "identity_auth_server_client"
+	ResourceTypeIdentityGroupMembership                 ResourceType = "identity_group_membership"
+	ResourceTypeIdentityPrincipalAPIKey                 ResourceType = "identity_principal_api_key"
+	ResourceTypeIdentityGroupAPIKey                     ResourceType = "identity_group_api_key"
+	ResourceTypeIdentityGroup                           ResourceType = "identity_group"
+	ResourceTypeIdentityBasicAuth                       ResourceType = "identity_basic_auth"
+	ResourceTypeIdentityDirectory                       ResourceType = "identity_directory"
+	ResourceTypeIdentityVaultKey                        ResourceType = "identity_vault_key"
+	ResourceTypeIdentityVaultProvider                   ResourceType = "identity_vault_provider"
+	ResourceTypeIdentityVaultProviderCredential         ResourceType = "identity_vault_provider_credential"
+	ResourceTypeIdentityTrustedIDP                      ResourceType = "identity_trusted_idp"
+	ResourceTypeIdentityPrincipal                       ResourceType = "identity_principal"
+	ResourceTypeIdentityPrincipalIdentity               ResourceType = "identity_principal_identity"
 	ResourceTypePortal                                  ResourceType = "portal"
 	ResourceTypeApplicationAuthStrategy                 ResourceType = "application_auth_strategy"
 	ResourceTypeDCRProvider                             ResourceType = "dcr_provider"
@@ -90,8 +106,12 @@ const (
 )
 
 const (
+	SchemaFieldDirectory            = "directory"
 	SchemaFieldRef                  = "ref"
 	SchemaFieldName                 = "name"
+	SchemaFieldUsername             = "username"
+	SchemaFieldPrincipal            = "principal"
+	SchemaFieldGroup                = "group"
 	SchemaFieldPortal               = "portal"
 	SchemaFieldOrganization         = "organization"
 	SchemaFieldTeam                 = "team"
@@ -140,7 +160,8 @@ func NormalizeResourceRef(value string) string {
 
 // ResourceSet contains all declarative resources from configuration files
 type ResourceSet struct {
-	Portals []PortalResource `yaml:"portals,omitempty"                                        json:"portals,omitempty"`
+	Identity *IdentityResource `yaml:"identity,omitempty" json:"identity,omitempty"`
+	Portals  []PortalResource  `yaml:"portals,omitempty"                                        json:"portals,omitempty"`
 	// AuditLogs contains organization-scoped audit-log resources.
 	AuditLogs *AuditLogsResource `yaml:"audit-logs,omitempty"                                     json:"audit-logs,omitempty"` //nolint:lll
 	// ApplicationAuthStrategies contains auth strategy configurations

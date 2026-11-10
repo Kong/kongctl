@@ -23,6 +23,10 @@ func (p *Planner) rootPlanners() []rootPlanner {
 	base := NewBasePlanner(p)
 	roots := []rootPlanner{
 		{
+			resourceType: resources.ResourceTypeIdentityAuthServer, displayName: "Kong Identity auth server",
+			planner: &identityAuthServerPlanner{BasePlanner: base},
+		},
+		{
 			resourceType: resources.ResourceTypeDCRProvider,
 			displayName:  "DCR provider",
 			planner:      NewDCRProviderPlanner(base),
@@ -73,6 +77,11 @@ func (p *Planner) rootPlanners() []rootPlanner {
 			planner:      NewOrganizationTeamPlanner(base),
 			// Organization assignments can be in scope without a team root.
 			inScope: p.shouldPlanOrganization,
+		},
+		{
+			resourceType: resources.ResourceTypeIdentityDirectory,
+			displayName:  "Kong Identity directory",
+			planner:      &identityDirectoryPlanner{BasePlanner: base},
 		},
 	}
 	kinds := make([]resources.ResourceType, 0, len(roots))

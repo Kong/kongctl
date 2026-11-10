@@ -12,6 +12,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/identity"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/token"
 	profileCmd "github.com/kong/kongctl/internal/cmd/root/profile"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
@@ -127,6 +128,12 @@ Setting this value overrides tokens obtained from the login command.
 		return nil, e
 	}
 	cmd.AddCommand(c)
+
+	identityCmd, err := identity.NewDirectIdentityCmd(Verb)
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(identityCmd)
 
 	patCmd, err := token.NewPATCmd(Verb, nil, nil)
 	if err != nil {

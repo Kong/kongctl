@@ -84,6 +84,79 @@ real overview endpoints and policy matching with no connected dataplanes;
 per-port policy and proxy-admin inspection still require a running zone and
 dataplane. These scenarios have no simulated API or replay cassette.
 
+### Cleanup for scenario resources
+
+Identity child scenarios use `useDefaultDirectory: true` on both their directory
+cleanup specification and directory fixture `create` step. This resets and
+reuses `default` while preserving its UUID, so a quota of one directory is
+sufficient. **Its contents are cleared before and after each scenario.** Use
+dedicated test organizations.
+See [Identity testing](../../docs/contributor/kong-identity.md#testing)
+for the reset baseline, coverage split, and extra-capacity opt-in.
+
+Scenarios that create directories or Gateway control planes can reserve unique
+names and register cleanup before their first command. Directory creation
+alongside `default` requires `KONGCTL_E2E_IDENTITY_MULTI_DIRECTORY=1` and a
+larger organization quota; the shared-directory pattern above is the default
+for Identity child coverage:
+
+```yaml
+test:
+  cleanupResources:
+    - resource: identity_directory
+      nameVar: directory_name
+      nameEnv: KONGCTL_E2E_IDENTITY_DIRECTORY_NAME
+    - resource: control_plane
+      nameVar: gateway_name
+      nameEnv: KONGCTL_E2E_IDENTITY_GATEWAY_NAME
+```
+
+The harness assigns each generated name to the scenario variable and environment
+variable. Do not predefine `nameVar` in `vars`. Manifests use
+`name: !env KONGCTL_E2E_IDENTITY_DIRECTORY_NAME`; commands and assertions use
+`{{ .vars.directory_name }}`. Cleanup runs in declaration order on success,
+failure, or an early stop. Put directories before their control planes.
+
+Cleanup matches only the generated name, rejects ambiguous/incomplete reads,
+and never requests forced directory deletion. It can remove this run's
+protected or not-yet-adopted fixtures through the raw API. Normal
+end-of-scenario
+deletion assertions remain useful; teardown tolerates already-absent resources.
+Principal fixtures must carry the label `e2e-fixture` equal to their directory
+UUID. Identity children must also carry `e2e-fixture` equal to the directory
+UUID and `e2e-principal-id` equal to their principal UUID. Cleanup observes
+every principal/identity collection before deleting anything, rechecks identity
+membership and labels before DELETE (API question Q21), removes identities
+first, and requires an empty fresh collection before deleting a principal.
+Unmarked or incompletely observed descendants stop cleanup.
+
+Trusted IdP fixtures use `requireEmptyTrustedIdPs: true` on their directory
+cleanup entry. This requires an observable empty IdP collection before any
+cleanup writes and again before directory deletion. It never authorizes IdP
+deletion; the fixture must remove its verified records itself. Failed,
+Vault-disabled or incomplete observations stop cleanup. Other scenarios do
+not gain new Vault read requirements. The explicit guard is needed because
+directory `force=false` does not prevent deletion with attached IdPs (Q37).
+
+Fixtures that exercise all Vault dependency families use
+`requireEmptyVaultDependencies: true` instead. It requires empty, terminal,
+unfiltered key/provider/Trusted IdP inventories before any cleanup writes and
+again before directory deletion. It never retires a child or implicitly
+enables Vault. The fixture must explicitly remove its verified children and
+leave Vault observable; unknown or disabled state stops cleanup. This option
+is restricted to directory cleanup entries and adds no permission requirement
+to other scenarios.
+
+Group inspection fixtures explicitly opt into `principalGroups: true` on the
+directory cleanup entry. Only manually provisioned, credential-free groups
+with the generated name prefix, directory fixture label and exact four-entry
+`identity-group-read-e2e` management map participate. Members must be marked
+principals in that directory. All collections are observed before writes;
+fresh group/entry checks and empty collection checks precede parent deletion.
+This test policy does not authorize imported-team or group-key management.
+Other scenarios do not acquire a group permission requirement.
+This is opt-in and does not change shared organization reset or replay routing.
+
 ### Environment Variables
 
 Core harness settings:
@@ -115,7 +188,11 @@ Core harness settings:
   Default: a temp dir.
 - `KONGCTL_E2E_BIN`: Path to an existing `kongctl` binary to skip building.
 - `KONGCTL_E2E_RESET`: Reset the Konnect org before tests. Destructive.
-  Defaults to enabled; set to `0` or `false` to disable.
+- `KONGCTL_E2E_IDENTITY_MULTI_DIRECTORY`: Set to `1` only when another directory
+  fits alongside `default`; enables generated Identity fixtures and directory
+  CRUD coverage. Otherwise child scenarios preserve and reuse `default`.
+  Enabled by default in CI, whose test organizations allow three directories.
+  Local runs require explicit opt-in; set to `0` or `false` to disable.
 - `KONGCTL_E2E_KONNECT_ENV`: Konnect environment selector. Supported values
   are `com` (default) and `tech`; `production` remains accepted as a legacy
   alias for `com`. The harness writes this into the generated CLI profile,

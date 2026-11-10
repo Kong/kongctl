@@ -16,6 +16,8 @@ type Capability struct {
 }
 
 var capabilities = []Capability{
+	{resources.ResourceTypeIdentityVaultProvider, "/client_secret", true, true},
+	{resources.ResourceTypeIdentityVaultProviderCredential, "/secret", true, true},
 	{
 		resources.ResourceTypeAIGatewayMCPServer,
 		"/config/upstream/auth/secret_access_key",

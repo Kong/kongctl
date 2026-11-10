@@ -254,7 +254,7 @@ func (c *LoggingHTTPClient) logRequest(
 			attrs = append(attrs, slog.String("request_content_type", contentType))
 		}
 		if bodyErr != nil {
-			attrs = append(attrs, slog.String("request_body_error", bodyErr.Error()))
+			attrs = append(attrs, slog.String("request_body_error", redactHTTPDiagnostic(bodyErr, req.URL)))
 		} else if len(body) > 0 {
 			attrs = append(attrs, slog.String("request_body", redactBodyForURL(body, contentType, req.URL)))
 		}
@@ -287,7 +287,7 @@ func (c *LoggingHTTPClient) logRequestError(
 		slog.String("method", req.Method),
 		slog.String("route", routeFromURL(req.URL)),
 		slog.Duration("duration", duration),
-		slog.String("error", reqErr.Error()),
+		slog.String("error", redactHTTPDiagnostic(reqErr, req.URL)),
 	}
 	attrs = append(attrs, log.HTTPLogContextAttrs(ctx)...)
 
@@ -348,13 +348,13 @@ func (c *LoggingHTTPClient) logResponse(
 		if headers := sanitizeHeaders(resp.Header); len(headers) > 0 {
 			attrs = append(attrs, slog.Any("response_headers", headers))
 		}
+		var responseURL *url.URL
+		if resp.Request != nil {
+			responseURL = resp.Request.URL
+		}
 		if bodyErr != nil {
-			attrs = append(attrs, slog.String("response_body_error", bodyErr.Error()))
+			attrs = append(attrs, slog.String("response_body_error", redactHTTPDiagnostic(bodyErr, responseURL)))
 		} else if len(body) > 0 {
-			var responseURL *url.URL
-			if resp.Request != nil {
-				responseURL = resp.Request.URL
-			}
 			attrs = append(attrs, slog.String("response_body", redactBodyForURL(body, contentType, responseURL)))
 		}
 	}
@@ -559,10 +559,20 @@ func redactBody(body []byte, contentType string) string {
 	return redactBodyWithExactKeys(body, contentType, nil)
 }
 
+func redactHTTPDiagnostic(err error, parsedURL *url.URL) string {
+	if isIdentityOrgChartImportRoute(routeFromURL(parsedURL)) || isIdentityAPIKeyRoute(routeFromURL(parsedURL)) {
+		return redactedValue
+	}
+	return err.Error()
+}
+
 func redactBodyForURL(body []byte, contentType string, parsedURL *url.URL) string {
 	var exactKeys map[string]struct{}
 	route := routeFromURL(parsedURL)
-	if len(body) > 0 && (isMeshCredentialRoute(route) || isAIGatewayDatastoreRoute(route)) {
+	if len(body) > 0 && (isMeshCredentialRoute(route) || isAIGatewayDatastoreRoute(route) ||
+		isIdentityClientSecretRoute(route) || isIdentityPasswordRoute(route) ||
+		isIdentityVaultProviderCredentialRoute(route) || isIdentityOrgChartImportRoute(route) ||
+		isIdentityAPIKeyRoute(route)) {
 		return redactedValue
 	}
 	if isConfigStoreSecretRoute(route) {
@@ -571,6 +581,41 @@ func redactBodyForURL(body []byte, contentType string, parsedURL *url.URL) strin
 		exactKeys = normalizedKeySet([]string{"key", "key_alt"})
 	}
 	return redactBodyWithExactKeys(body, contentType, exactKeys)
+}
+
+func isIdentityOrgChartImportRoute(route string) bool {
+	parts := strings.Split(strings.Trim(route, "/"), "/")
+	return len(parts) == 5 && parts[0] == "v2" && parts[1] == "directories" && parts[2] != "" &&
+		parts[3] == "org-chart" && parts[4] == "import"
+}
+
+func isIdentityPasswordRoute(route string) bool {
+	parts := strings.Split(strings.Trim(route, "/"), "/")
+	return (len(parts) == 8 || len(parts) == 9) && parts[0] == "v2" && parts[1] == "directories" &&
+		parts[2] != "" && parts[3] == "principals" && parts[4] != "" && parts[5] == "basic-auths" &&
+		parts[6] != "" && parts[7] == "passwords"
+}
+
+func isIdentityAPIKeyRoute(route string) bool {
+	parts := strings.Split(strings.Trim(route, "/"), "/")
+	return (len(parts) == 6 || len(parts) == 7) && parts[0] == "v2" && parts[1] == "directories" &&
+		parts[2] != "" && (parts[3] == "principals" || parts[3] == "groups") && parts[4] != "" && parts[5] == "api-keys"
+}
+
+func isIdentityVaultProviderCredentialRoute(route string) bool {
+	parts := strings.Split(strings.Trim(route, "/"), "/")
+	return (len(parts) == 7 || len(parts) == 8) && parts[0] == "v2" && parts[1] == "directories" &&
+		parts[2] != "" && parts[3] == "vault" && parts[4] == "providers" && parts[5] != "" && parts[6] == "credentials"
+}
+
+func isIdentityClientSecretRoute(route string) bool {
+	parts := strings.Split(strings.Trim(route, "/"), "/")
+	// Client creation issues a generated secret; errors may echo arbitrary text.
+	if len(parts) == 4 && parts[0] == "v1" && parts[1] == "auth-servers" && parts[2] != "" && parts[3] == "clients" {
+		return true
+	}
+	return (len(parts) == 6 || len(parts) == 7) && parts[0] == "v1" && parts[1] == "auth-servers" &&
+		parts[2] != "" && parts[3] == "clients" && parts[4] != "" && parts[5] == "secrets"
 }
 
 // Mesh tokens are returned as bare text, and secrets carry arbitrary payloads.

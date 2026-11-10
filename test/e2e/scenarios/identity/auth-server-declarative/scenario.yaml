@@ -1,0 +1,452 @@
+baseInputsPath: testdata
+env:
+  KONGCTL_LOG_LEVEL: info
+steps:
+- commands:
+  - assertions:
+    - expect:
+        fields:
+          type: object
+      select: '@'
+    name: explain
+    run:
+    - explain
+    - identity.scopes
+    - -o
+    - json
+  - assertions:
+    - expect:
+        fields:
+          contains(stdout, 'claims:'): true
+      select: '@'
+    name: scaffold
+    outputFormat: disable
+    parseAs: raw
+    run:
+    - scaffold
+    - identity.claims
+  - assertions:
+    - expect:
+        fields:
+          total_changes: 5
+      select: summary
+    name: plan-create
+    outputFormat: disable
+    run:
+    - plan
+    - -f
+    - '{{ .workdir }}/initial.yaml'
+    - --mode
+    - apply
+    stdoutFile: '{{ .workdir }}/create.json'
+  - assertions:
+    - expect:
+        fields:
+          total_changes: 5
+      select: summary
+    name: diff
+    run:
+    - diff
+    - --plan
+    - '{{ .workdir }}/create.json'
+    - -o
+    - json
+  - assertions:
+    - expect:
+        fields:
+          applied: 5
+          failed: 0
+      select: summary
+    name: apply-saved
+    run:
+    - apply
+    - --plan
+    - '{{ .workdir }}/create.json'
+    - --auto-approve
+  - assertions:
+    - expect:
+        fields:
+          default: true
+          description: Read scope
+          enabled: false
+          include_in_metadata: true
+      select: '@'
+    name: verify-read
+    recordVar:
+      name: read_id
+      responsePath: id
+    run:
+    - get
+    - identity
+    - auth-server-scope
+    - '{{ .vars.server_name }}-read'
+    - --auth-server-name
+    - '{{ .vars.server_name }}'
+  - assertions:
+    - expect:
+        fields:
+          enabled: true
+          include_in_all_scopes: false
+          include_in_token: true
+          length(include_in_scopes): 2
+          value: '{"team":"identity"}'
+      select: '@'
+    name: verify-department
+    recordVar:
+      name: department_id
+      responsePath: id
+    run:
+    - get
+    - identity
+    - auth-server-claim
+    - '{{ .vars.server_name }}-department'
+    - --auth-server-name
+    - '{{ .vars.server_name }}'
+  - assertions:
+    - expect:
+        fields:
+          total_changes: 0
+      select: summary
+    name: no-op
+    outputFormat: disable
+    run:
+    - plan
+    - -f
+    - '{{ .workdir }}/initial.yaml'
+    - --mode
+    - apply
+  env:
+    KONGCTL_E2E_AUTH_DECL_DEPARTMENT_NAME: '{{ .vars.server_name }}-department'
+    KONGCTL_E2E_AUTH_DECL_READ_NAME: '{{ .vars.server_name }}-read'
+    KONGCTL_E2E_AUTH_DECL_REQUEST_NAME: '{{ .vars.server_name }}-request'
+    KONGCTL_E2E_AUTH_DECL_WRITE_NAME: '{{ .vars.server_name }}-write'
+  name: 001-create
+- commands:
+  - assertions:
+    - expect:
+        fields:
+          total_changes: 4
+      select: summary
+    name: plan-update
+    outputFormat: disable
+    run:
+    - plan
+    - -f
+    - '{{ .workdir }}/update.yaml'
+    - --mode
+    - apply
+    stdoutFile: '{{ .workdir }}/update.json'
+  - assertions:
+    - expect:
+        fields:
+          applied: 4
+          failed: 0
+      select: summary
+    name: apply-saved-update
+    run:
+    - apply
+    - --plan
+    - '{{ .workdir }}/update.json'
+    - --auto-approve
+  - assertions:
+    - expect:
+        fields:
+          default: false
+          description: ""
+          enabled: true
+          include_in_metadata: false
+      select: '@'
+    name: verify-scope-flags
+    run:
+    - get
+    - identity
+    - auth-server-scope
+    - '{{ .vars.read_id }}'
+    - --auth-server-name
+    - '{{ .vars.server_name }}'
+  - assertions:
+    - expect:
+        fields:
+          enabled: false
+          include_in_all_scopes: true
+          include_in_token: false
+          length(include_in_scopes): 0
+          value: '{"team":"platform","tier":2}'
+      select: '@'
+    name: verify-claim-clear
+    run:
+    - get
+    - identity
+    - auth-server-claim
+    - '{{ .vars.department_id }}'
+    - --auth-server-name
+    - '{{ .vars.server_name }}'
+  - assertions:
+    - expect:
+        fields:
+          applied: 2
+          failed: 0
+      select: summary
+    name: partial-update
+    run:
+    - apply
+    - -f
+    - '{{ .workdir }}/partial.yaml'
+    - --auto-approve
+  - assertions:
+    - expect:
+        fields:
+          default: false
+          description: Partial scope
+          enabled: true
+          include_in_metadata: false
+      select: '@'
+    name: verify-scope-omission
+    run:
+    - get
+    - identity
+    - auth-server-scope
+    - '{{ .vars.read_id }}'
+    - --auth-server-name
+    - '{{ .vars.server_name }}'
+  - assertions:
+    - expect:
+        fields:
+          enabled: false
+          include_in_all_scopes: true
+          include_in_token: false
+          length(include_in_scopes): 0
+          value: ${ uuidv4 }
+      select: '@'
+    name: verify-claim-omission
+    run:
+    - get
+    - identity
+    - auth-server-claim
+    - '{{ .vars.department_id }}'
+    - --auth-server-name
+    - '{{ .vars.server_name }}'
+  - assertions:
+    - expect:
+        fields:
+          total_changes: 0
+      select: summary
+    name: partial-no-op
+    outputFormat: disable
+    run:
+    - plan
+    - -f
+    - '{{ .workdir }}/partial.yaml'
+    - --mode
+    - apply
+  env:
+    KONGCTL_E2E_AUTH_DECL_DEPARTMENT_NAME: '{{ .vars.server_name }}-department'
+    KONGCTL_E2E_AUTH_DECL_READ_NAME: '{{ .vars.server_name }}-read'
+    KONGCTL_E2E_AUTH_DECL_REQUEST_NAME: '{{ .vars.server_name }}-request'
+    KONGCTL_E2E_AUTH_DECL_WRITE_NAME: '{{ .vars.server_name }}-write'
+  name: 002-update
+- commands:
+  - assertions:
+    - expect:
+        fields:
+          length(identity.auth_servers[0].claims): 2
+          length(identity.auth_servers[0].scopes): 2
+      select: '@'
+    name: dump
+    outputFormat: disable
+    parseAs: yaml
+    run:
+    - dump
+    - declarative
+    - --resources
+    - identity.auth_servers
+    - --filter-name
+    - '{{ .vars.server_name }}'
+    - --include-child-resources
+    stdoutFile: '{{ .workdir }}/dump.yaml'
+  - assertions:
+    - expect:
+        fields:
+          total_changes: 0
+      select: summary
+    name: dump-no-op
+    outputFormat: disable
+    run:
+    - plan
+    - -f
+    - '{{ .workdir }}/dump.yaml'
+    - --mode
+    - apply
+  - assertions:
+    - expect:
+        fields:
+          namespace: identity-auth-decl-e2e
+      select: '@'
+    name: adopt-parent-with-children
+    run:
+    - adopt
+    - identity
+    - auth-server
+    - '{{ .vars.server_name }}'
+    - --namespace
+    - identity-auth-decl-e2e
+    - --overwrite-namespace
+  - assertions:
+    - expect:
+        fields:
+          total_changes: 0
+      select: summary
+    name: adoption-no-op
+    outputFormat: disable
+    run:
+    - plan
+    - -f
+    - '{{ .workdir }}/partial.yaml'
+    - --mode
+    - apply
+  - assertions:
+    - expect:
+        fields:
+          applied: 1
+          failed: 0
+      select: summary
+    name: protect
+    run:
+    - apply
+    - -f
+    - '{{ .workdir }}/protected.yaml'
+    - --auto-approve
+  - expectFailure:
+      contains: protected
+      exitCode: 1
+    name: block-child-mutation
+    outputFormat: disable
+    run:
+    - plan
+    - -f
+    - '{{ .workdir }}/initial.yaml'
+    - --mode
+    - apply
+  - assertions:
+    - expect:
+        fields:
+          applied: 1
+          failed: 0
+      select: summary
+    name: unprotect
+    run:
+    - apply
+    - -f
+    - '{{ .workdir }}/omitted.yaml'
+    - --auto-approve
+  - assertions:
+    - expect:
+        fields:
+          applied: 0
+          failed: 0
+      select: summary
+    name: omitted-child-sync
+    run:
+    - sync
+    - -f
+    - '{{ .workdir }}/omitted.yaml'
+    - --auto-approve
+  env:
+    KONGCTL_E2E_AUTH_DECL_DEPARTMENT_NAME: '{{ .vars.server_name }}-department'
+    KONGCTL_E2E_AUTH_DECL_READ_NAME: '{{ .vars.server_name }}-read'
+    KONGCTL_E2E_AUTH_DECL_REQUEST_NAME: '{{ .vars.server_name }}-request'
+    KONGCTL_E2E_AUTH_DECL_WRITE_NAME: '{{ .vars.server_name }}-write'
+  name: 003-dump-adoption-protection
+- commands:
+  - expectFailure:
+      contains: still referenced by claim
+      exitCode: 1
+    name: block-retained-claim
+    outputFormat: disable
+    run:
+    - plan
+    - -f
+    - '{{ .workdir }}/scopes-empty.yaml'
+    - --mode
+    - sync
+  - assertions:
+    - expect:
+        fields:
+          applied: 3
+          failed: 0
+      select: summary
+    name: detach-before-scope-prune
+    run:
+    - sync
+    - -f
+    - '{{ .workdir }}/detach.yaml'
+    - --auto-approve
+  - assertions:
+    - expect:
+        fields:
+          length(@): 0
+      select: '@'
+    name: scopes-pruned
+    run:
+    - get
+    - identity
+    - auth-server-scopes
+    - --auth-server-name
+    - '{{ .vars.server_name }}'
+  - assertions:
+    - expect:
+        fields:
+          applied: 2
+          failed: 0
+      select: summary
+    name: claims-pruned
+    run:
+    - sync
+    - -f
+    - '{{ .workdir }}/claims-empty.yaml'
+    - --auto-approve
+  - assertions:
+    - expect:
+        fields:
+          applied: 4
+          failed: 0
+      select: summary
+    name: recreate-children
+    run:
+    - apply
+    - -f
+    - '{{ .workdir }}/initial.yaml'
+    - --auto-approve
+  - assertions:
+    - expect:
+        fields:
+          applied: 5
+          failed: 0
+      select: summary
+    name: delete-all-in-order
+    run:
+    - delete
+    - -f
+    - '{{ .workdir }}/initial.yaml'
+    - --auto-approve
+  - assertions:
+    - expect:
+        fields:
+          length([?name=='{{ .vars.server_name }}']): 0
+      select: '@'
+    name: verify-root-gone
+    run:
+    - get
+    - identity
+    - auth-servers
+  env:
+    KONGCTL_E2E_AUTH_DECL_DEPARTMENT_NAME: '{{ .vars.server_name }}-department'
+    KONGCTL_E2E_AUTH_DECL_READ_NAME: '{{ .vars.server_name }}-read'
+    KONGCTL_E2E_AUTH_DECL_REQUEST_NAME: '{{ .vars.server_name }}-request'
+    KONGCTL_E2E_AUTH_DECL_WRITE_NAME: '{{ .vars.server_name }}-write'
+  name: 004-reference-guards-and-sync
+test:
+  cleanupResources:
+  - nameEnv: KONGCTL_E2E_AUTH_DECL_SERVER_NAME
+    nameVar: server_name
+    resource: identity_auth_server

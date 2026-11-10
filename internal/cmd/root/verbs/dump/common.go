@@ -146,6 +146,8 @@ func validateResourceList(resources string, allowed map[string]struct{}) error {
 
 func mapResourceName(name string) string {
 	switch strings.TrimSpace(strings.ToLower(name)) {
+	case "identity.directory", "directory", "directories", "identity_directories", resourceIdentityDirectories:
+		return resourceIdentityDirectories
 	case "portal", "portals":
 		return "portals"
 	case "api", "apis":

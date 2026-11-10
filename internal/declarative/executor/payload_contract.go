@@ -54,6 +54,23 @@ type payloadContractKey struct {
 // outside the same JSON path in the SDK request. Entries are action-specific so
 // adding a planner field still requires an explicit decision about its execution.
 var translatedPayloadFields = map[payloadContractKey][]string{
+	{planner.ResourceTypeIdentityVaultProviderCredential, planner.ActionCreate}: {
+		planner.FieldProviderName,
+		planner.FieldDirectoryID,
+	},
+	{planner.ResourceTypeIdentityVaultProviderCredential, planner.ActionUpdate}: {
+		planner.FieldProviderName,
+		planner.FieldExpectedSelector,
+		planner.FieldExpectedPriority,
+		planner.FieldDirectoryID,
+	},
+	{planner.ResourceTypeIdentityVaultProvider, planner.ActionCreate}: {planner.FieldEnabled},
+	{planner.ResourceTypeIdentityVaultProvider, planner.ActionUpdate}: {
+		planner.FieldTemplateName, planner.FieldClientID, planner.FieldCredentialType,
+		planner.FieldDCREnabled, planner.FieldRegistrationEndpoint,
+	},
+	// Public material binds an update to its immutable fingerprint; PATCH sends only name.
+	{planner.ResourceTypeIdentityVaultKey, planner.ActionUpdate}:       {planner.FieldPublicKey},
 	{planner.ResourceTypeAPI, planner.ActionUpdate}:                    {planner.FieldCurrentLabels},
 	{planner.ResourceTypeAIGateway, planner.ActionUpdate}:              {planner.FieldCurrentLabels},
 	{planner.ResourceTypeAIGatewayConsumerGroup, planner.ActionCreate}: {planner.FieldConsumers},

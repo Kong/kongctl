@@ -384,12 +384,12 @@ func parseJMESMatch(expr string) ([]pathStep, error) {
 			}
 			cond := strings.TrimSpace(filt[1:])
 			// split on ==
-			idx := strings.Index(cond, "==")
-			if idx < 0 {
+			before, after, ok := strings.Cut(cond, "==")
+			if !ok {
 				return nil, fmt.Errorf("unsupported condition %q", cond)
 			}
-			lk := strings.TrimSpace(cond[:idx])
-			rv := strings.TrimSpace(cond[idx+2:])
+			lk := strings.TrimSpace(before)
+			rv := strings.TrimSpace(after)
 			// strip quotes around rv
 			if strings.HasPrefix(rv, "'") && strings.HasSuffix(rv, "'") {
 				rv = strings.Trim(rv, "'")

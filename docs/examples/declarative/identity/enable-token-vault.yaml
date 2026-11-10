@@ -1,0 +1,11 @@
+# Enable the default directory before planning its Vault children.
+_defaults:
+  kongctl:
+    namespace: identity-directory
+identity:
+  directories:
+    - ref: default-directory
+      name: default
+      allow_all_control_planes: true
+      vault:
+        enabled: true

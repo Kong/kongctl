@@ -1,0 +1,521 @@
+defaults:
+  retry:
+    attempts: 1
+log-level: trace
+test:
+  cleanupResources:
+  - resource: identity_directory
+    useDefaultDirectory: true
+    defaultDirectoryNamespace: identity-membership-directory-e2e
+    nameVar: directory_name
+    nameEnv: KONGCTL_E2E_MEMBERSHIP_DIRECTORY_NAME
+    principalGroups: true
+    groupNamespaces:
+    - identity-group-e2e
+    - identity-group-foreign-e2e
+  info: Direct principal membership lifecycle with independent group authority, new parent/member
+    dependencies, saved plans, add-only apply, scoped sync, omitted/empty collections, dump, group
+    adoption/protection, stale ownership and child-before-parent deletion. Teams and nested groups
+    are deferred.
+steps:
+- name: 001-membership-lifecycle
+  skipInputs: true
+  commands:
+  - name: prepare
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          prepared: true
+    exec:
+    - python3
+    - '{{ .scenario_dir }}/fixtures.py'
+    - prepare
+    - '{{ .workdir }}'
+    - '{{ .vars.directory_name }}'
+    parseAs: json
+    recordVars:
+    - name: group_name
+      responsePath: group_name
+    - name: delete_changes
+      responsePath: delete_changes
+  - name: explain
+    run:
+    - explain
+    - identity.memberships
+    - -o
+    - json
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          type: object
+    outputFormat: disable
+  - name: scaffold
+    run:
+    - scaffold
+    - identity.memberships
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          contains(stdout, 'memberships:'): true
+    parseAs: raw
+    outputFormat: disable
+  - name: plan-new-members
+    run:
+    - plan
+    - --mode
+    - apply
+    - -f
+    - '{{ .workdir }}/initial.yaml'
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          total_changes: 6
+    outputFormat: disable
+    stdoutFile: '{{ .workdir }}/create.json'
+  - name: verify-saved-dependencies
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          verified: true
+    exec:
+    - python3
+    - '{{ .scenario_dir }}/fixtures.py'
+    - verify-plan
+    - '{{ .workdir }}'
+    - '{{ .workdir }}/create.json'
+    parseAs: json
+  - name: apply-saved-create
+    run:
+    - apply
+    - --plan
+    - '{{ .workdir }}/create.json'
+    - --auto-approve
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          applied: 6
+          failed: 0
+  - name: directory-id
+    run:
+    - get
+    - identity
+    - directory
+    - '{{ .vars.directory_name }}'
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          managed_by."kongctl-protected": 'true'
+    recordVar:
+      name: directory_id
+      responsePath: id
+  - name: group-id
+    run:
+    - get
+    - identity
+    - group
+    - '{{ .vars.group_name }}'
+    - --directory-id
+    - '{{ .vars.directory_id }}'
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          length(managed_by): 4
+          managed_by."kongctl-namespace": identity-group-e2e
+    recordVar:
+      name: group_id
+      responsePath: id
+  - name: created-members
+    run:
+    - get
+    - identity
+    - group-memberships
+    - --directory-id
+    - '{{ .vars.directory_id }}'
+    - --group-id
+    - '{{ .vars.group_id }}'
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          length(@): 2
+    stdoutFile: '{{ .workdir }}/members.json'
+  - name: verify-entry-identities
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          verified: true
+    exec:
+    - python3
+    - '{{ .scenario_dir }}/fixtures.py'
+    - verify-members
+    - '{{ .workdir }}'
+    - '{{ .workdir }}/members.json'
+    - '2'
+    parseAs: json
+  - name: initial-no-op
+    run:
+    - plan
+    - --mode
+    - apply
+    - -f
+    - '{{ .workdir }}/initial.yaml'
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          total_changes: 0
+    outputFormat: disable
+  - name: dump
+    run:
+    - dump
+    - declarative
+    - --resources
+    - identity.directories
+    - --filter-id
+    - '{{ .vars.directory_id }}'
+    - --include-child-resources
+    - --default-namespace
+    - identity-group-e2e
+    assertions:
+    - select: identity.directories[0].groups[0]
+      expect:
+        fields:
+          length(memberships): 2
+    outputFormat: none
+    parseAs: yaml
+    stdoutFile: '{{ .workdir }}/dump.yaml'
+  - name: dump-no-op
+    run:
+    - plan
+    - --mode
+    - apply
+    - -f
+    - '{{ .workdir }}/dump.yaml'
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          total_changes: 0
+    outputFormat: disable
+  - name: dump-apply
+    run:
+    - apply
+    - -f
+    - '{{ .workdir }}/dump.yaml'
+    - --auto-approve
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          applied: 0
+          failed: 0
+  - name: omitted-sync-preserves
+    run:
+    - plan
+    - --mode
+    - sync
+    - -f
+    - '{{ .workdir }}/omitted.yaml'
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          total_changes: 0
+    outputFormat: disable
+  - name: add-preserves-undeclared
+    run:
+    - apply
+    - -f
+    - '{{ .workdir }}/add.yaml'
+    - --auto-approve
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          applied: 2
+          failed: 0
+  - name: add-three-members
+    run:
+    - get
+    - identity
+    - group-memberships
+    - --directory-id
+    - '{{ .vars.directory_id }}'
+    - --group-id
+    - '{{ .vars.group_id }}'
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          length(@): 3
+  - name: sync-diff
+    run:
+    - diff
+    - --mode
+    - sync
+    - -f
+    - '{{ .workdir }}/add.yaml'
+    - -o
+    - text
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          contains(stdout, 'identity_group_membership'): true
+    parseAs: raw
+    outputFormat: disable
+  - name: sync-removes-omitted-member
+    run:
+    - plan
+    - --mode
+    - sync
+    - -f
+    - '{{ .workdir }}/add.yaml'
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          total_changes: 1
+    outputFormat: disable
+    stdoutFile: '{{ .workdir }}/prune.json'
+  - name: saved-sync
+    run:
+    - sync
+    - --plan
+    - '{{ .workdir }}/prune.json'
+    - --auto-approve
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          applied: 1
+          failed: 0
+  - name: two-after-sync
+    run:
+    - get
+    - identity
+    - group-memberships
+    - --directory-id
+    - '{{ .vars.directory_id }}'
+    - --group-id
+    - '{{ .vars.group_id }}'
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          length(@): 2
+  - name: protect-group
+    run:
+    - apply
+    - -f
+    - '{{ .workdir }}/protected.yaml'
+    - --auto-approve
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          applied: 1
+          failed: 0
+  - name: reject-protected-removal
+    run:
+    - plan
+    - --mode
+    - sync
+    - -f
+    - '{{ .workdir }}/protected-clear.yaml'
+    expectFailure:
+      exitCode: 1
+      contains: protected
+    outputFormat: disable
+  - name: unprotect-group
+    run:
+    - apply
+    - -f
+    - '{{ .workdir }}/unprotected.yaml'
+    - --auto-approve
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          applied: 1
+          failed: 0
+  - name: saved-clear-plan
+    run:
+    - plan
+    - --mode
+    - sync
+    - -f
+    - '{{ .workdir }}/clear.yaml'
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          total_changes: 2
+    outputFormat: disable
+    stdoutFile: '{{ .workdir }}/clear.json'
+  - name: move-owner
+    run:
+    - adopt
+    - identity
+    - group
+    - '{{ .vars.group_id }}'
+    - --directory-id
+    - '{{ .vars.directory_id }}'
+    - --namespace
+    - identity-group-foreign-e2e
+    - --overwrite-namespace
+  - name: reject-stale-owner
+    run:
+    - sync
+    - --plan
+    - '{{ .workdir }}/clear.json'
+    - --auto-approve
+    expectFailure:
+      exitCode: 1
+      contains: namespace
+  - name: stale-plan-preserved-members
+    run:
+    - get
+    - identity
+    - group-memberships
+    - --directory-id
+    - '{{ .vars.directory_id }}'
+    - --group-id
+    - '{{ .vars.group_id }}'
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          length(@): 2
+  - name: adopt-back-preserves-members
+    run:
+    - adopt
+    - identity
+    - group
+    - '{{ .vars.group_id }}'
+    - --directory-id
+    - '{{ .vars.directory_id }}'
+    - --namespace
+    - identity-group-e2e
+    - --overwrite-namespace
+  - name: apply-saved-clear
+    run:
+    - sync
+    - --plan
+    - '{{ .workdir }}/clear.json'
+    - --auto-approve
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          applied: 2
+          failed: 0
+  - name: cleared-members
+    run:
+    - get
+    - identity
+    - group-memberships
+    - --directory-id
+    - '{{ .vars.directory_id }}'
+    - --group-id
+    - '{{ .vars.group_id }}'
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          length(@): 0
+  - name: recreate-members
+    run:
+    - apply
+    - -f
+    - '{{ .workdir }}/initial.yaml'
+    - --auto-approve
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          applied: 2
+          failed: 0
+  - name: reject-group-cascade
+    run:
+    - plan
+    - --mode
+    - delete
+    - -f
+    - '{{ .workdir }}/group-only.yaml'
+    expectFailure:
+      exitCode: 1
+      contains: memberships
+    outputFormat: disable
+  - name: reject-principal-cascade
+    run:
+    - plan
+    - --mode
+    - delete
+    - -f
+    - '{{ .workdir }}/principal-only.yaml'
+    expectFailure:
+      exitCode: 1
+      contains: direct membership
+    outputFormat: disable
+  - name: unprotect-directory
+    run:
+    - apply
+    - -f
+    - '{{ .workdir }}/unprotect-directory.yaml'
+    - --auto-approve
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          applied: 1
+          failed: 0
+  - name: explicitly-enable-vault-before-directory-delete
+    run:
+    - api
+    - patch
+    - /v2/directories/{{ .vars.directory_id }}
+    - 'vault_enabled:=true'
+  - name: delete-members-before-parents
+    env:
+      KONGCTL_PROFILE: e2e
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          verified: true
+    exec:
+    - python3
+    - '{{ .scenario_dir }}/../declarative-groups/fixtures.py'
+    - remove
+    - '{{ .workdir }}'
+    - '{{ .bin }}'
+    - delete
+    - '{{ .workdir }}/delete.yaml'
+    - '{{ .vars.delete_changes }}'
+    - delete-all
+    parseAs: json
+  - name: repeat-saved-delete-after-directory-removal
+    exec:
+    - python3
+    - '{{ .scenario_dir }}/fixtures.py'
+    - repeat-delete
+    - '{{ .workdir }}'
+    - '{{ .bin }}'
+    env:
+      KONGCTL_PROFILE: e2e
+    parseAs: json
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          verified: true

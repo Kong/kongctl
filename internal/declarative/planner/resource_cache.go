@@ -6,11 +6,23 @@ import (
 	"slices"
 	"strings"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/konnect/helpers"
 )
 
 type planningResourceCache struct {
+	identityBasicAuths             map[string][]state.IdentityBasicAuth
+	identityGroups                 map[string][]state.IdentityGroup
+	identityPrincipalIdentities    map[string][]helpers.PrincipalIdentity
+	identityAuthScopes             map[string][]state.IdentityAuthServerScope
+	identityAuthClaims             map[string][]state.IdentityAuthServerClaim
+	identityAuthClients            map[string][]kkComps.Client
+	identityAuthServers            observationCache[state.IdentityAuthServer]
+	identityPrincipals             map[string][]state.IdentityPrincipal
+	identityDirectories            observationCache[state.IdentityDirectory]
 	ownedChildrenPlanned           map[string]bool
 	aiGatewaySNIs                  map[string][]state.AIGatewaySNI
 	aiGatewayCACertificates        map[string][]state.AIGatewayCACertificate
@@ -50,6 +62,15 @@ type planningResourceCache struct {
 
 func newPlanningResourceCache() *planningResourceCache {
 	return &planningResourceCache{
+		identityBasicAuths:             make(map[string][]state.IdentityBasicAuth),
+		identityGroups:                 make(map[string][]state.IdentityGroup),
+		identityPrincipalIdentities:    make(map[string][]helpers.PrincipalIdentity),
+		identityAuthScopes:             make(map[string][]state.IdentityAuthServerScope),
+		identityAuthClaims:             make(map[string][]state.IdentityAuthServerClaim),
+		identityAuthClients:            make(map[string][]kkComps.Client),
+		identityAuthServers:            newObservationCache[state.IdentityAuthServer](),
+		identityPrincipals:             make(map[string][]state.IdentityPrincipal),
+		identityDirectories:            newObservationCache[state.IdentityDirectory](),
 		ownedChildrenPlanned:           make(map[string]bool),
 		aiGatewaySNIs:                  make(map[string][]state.AIGatewaySNI),
 		aiGatewayCACertificates:        make(map[string][]state.AIGatewayCACertificate),
@@ -85,6 +106,18 @@ func newPlanningResourceCache() *planningResourceCache {
 		portalIdentityProvidersByPortalID: make(map[string][]state.PortalIdentityProvider),
 		portalTeamGroupMappingsByPortalID: make(map[string][]state.PortalTeamGroupMapping),
 	}
+}
+
+func (p *Planner) listIdentityDirectories(ctx context.Context) ([]state.IdentityDirectory, error) {
+	var cache *observationCache[state.IdentityDirectory]
+	if p.resourceCache != nil {
+		cache = &p.resourceCache.identityDirectories
+	}
+	return cache.list(ctx, []string{"*"}, false,
+		func(ctx context.Context, _ []string) ([]state.IdentityDirectory, error) {
+			return p.client.ListIdentityDirectories(ctx)
+		},
+		func(d state.IdentityDirectory) string { return d.NormalizedLabels[labels.NamespaceKey] })
 }
 
 func (p *Planner) listManagedControlPlanes(ctx context.Context, namespaces []string) ([]state.ControlPlane, error) {
@@ -308,4 +341,16 @@ func namespaceCacheKey(normalizedNamespaces []string) string {
 		return ""
 	}
 	return strings.Join(normalizedNamespaces, ",")
+}
+
+func (p *Planner) listIdentityAuthServers(ctx context.Context) ([]state.IdentityAuthServer, error) {
+	var cache *observationCache[state.IdentityAuthServer]
+	if p.resourceCache != nil {
+		cache = &p.resourceCache.identityAuthServers
+	}
+	return cache.list(ctx, []string{"*"}, false,
+		func(ctx context.Context, _ []string) ([]state.IdentityAuthServer, error) {
+			return p.client.ListIdentityAuthServers(ctx)
+		},
+		func(a state.IdentityAuthServer) string { return a.NormalizedLabels[labels.NamespaceKey] })
 }

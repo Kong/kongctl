@@ -18,9 +18,11 @@ import (
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/config"
+	"github.com/kong/kongctl/internal/util"
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -281,9 +283,19 @@ func ApplyToRaw(raw any, outType cmdcommon.OutputFormat, settings Settings, out 
 		return nil, true, nil
 	}
 
+	if outType == cmdcommon.YAML {
+		data, err := yaml.JSONToYAML(filtered)
+		if err != nil {
+			return nil, false, err
+		}
+		_, err = out.Write(data)
+		return nil, true, err
+	}
 	var payload any
 	if len(filtered) > 0 {
-		if err := json.Unmarshal(filtered, &payload); err != nil {
+		var err error
+		payload, err = util.NormalizeJSONValue(json.RawMessage(filtered))
+		if err != nil {
 			payload = strings.TrimRight(BodyToPrintable(filtered), "\n")
 		}
 	}
@@ -319,8 +331,8 @@ func evaluateFilterResults(body []byte, filter string) ([]any, error) {
 		return nil, errors.New("response body is empty, cannot apply jq filter")
 	}
 
-	var payload any
-	if err := json.Unmarshal(body, &payload); err != nil {
+	payload, err := util.NormalizeJSONValue(json.RawMessage(body))
+	if err != nil {
 		return nil, fmt.Errorf("response is not valid JSON: %w", err)
 	}
 
@@ -437,8 +449,8 @@ func normalizeGoJQValue(v any) any {
 }
 
 func BodyToPrintable(body []byte) string {
-	var js any
-	if err := json.Unmarshal(body, &js); err != nil {
+	js, err := util.NormalizeJSONValue(json.RawMessage(body))
+	if err != nil {
 		return string(body)
 	}
 	formatted, err := json.MarshalIndent(js, "", "  ")

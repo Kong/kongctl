@@ -15,7 +15,7 @@ func applyManagedByInputPolicy(node *ExplainNode, kind ResourceType) {
 		applyManagedByInputPolicy(branch, kind)
 	}
 	for _, relation := range explainNestedRelations(kind, registry[kind].explain.typ) {
-		if field, ok := node.property(relation.FieldName); ok && field.Node != nil {
+		if field, ok := node.propertyAtPath(relation.FieldName); ok && field.Node != nil {
 			child := field.Node
 			if relation.FieldArray {
 				child = child.Items

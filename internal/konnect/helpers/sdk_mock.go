@@ -4,50 +4,78 @@ import "testing"
 
 // This is a mock implementation of the SDKAPI interface
 type MockKonnectSDK struct {
-	Token                                 string
-	T                                     *testing.T
-	CPAPIFactory                          func() ControlPlaneAPI
-	ControlPlaneGroupsFactory             func() ControlPlaneGroupsAPI
-	PortalFactory                         func() PortalAPI
-	APIFactory                            func() APIFullAPI
-	AIGatewayFactory                      func() AIGatewayAPI
-	AIGatewayProvidersFactory             func() AIGatewayProvidersAPI
-	AIGatewayAuthStrategiesFactory        func() AIGatewayAuthStrategiesAPI
-	AIGatewayCustomPoliciesFactory        func() AIGatewayCustomPoliciesAPI
-	AIGatewayPoliciesFactory              func() AIGatewayPoliciesAPI
-	AIGatewayAgentsFactory                func() AIGatewayAgentsAPI
-	AIGatewayConsumersFactory             func() AIGatewayConsumersAPI
-	AIGatewayConsumerGroupsFactory        func() AIGatewayConsumerGroupsAPI
-	AIGatewayModelFactory                 func() AIGatewayModelAPI
-	AIGatewayMCPServersFactory            func() AIGatewayMCPServersAPI
-	AIGatewayConfigStoresFactory          func() AIGatewayConfigStoresAPI
-	AIGatewayVaultsFactory                func() AIGatewayVaultsAPI
-	AIGatewayDatastoresFactory            func() AIGatewayDatastoresAPI
-	AIGatewayNodesFactory                 func() AIGatewayNodesAPI
-	AIGatewayDataPlaneCertificatesFactory func() AIGatewayDataPlaneCertificatesAPI
-	AIGatewayCertificatesFactory          func() AIGatewayCertificatesAPI
-	AIGatewayCACertificatesFactory        func() AIGatewayCACertificatesAPI
-	AIGatewaySNIsFactory                  func() AIGatewaySNIsAPI
-	CatalogServicesFactory                func() CatalogServicesAPI
-	DashboardsFactory                     func() DashboardsAPI
-	APIDocumentFactory                    func() APIDocumentAPI
-	APIVersionFactory                     func() APIVersionAPI
-	APIPublicationFactory                 func() APIPublicationAPI
-	APIImplementationFactory              func() APIImplementationAPI
-	AppAuthStrategiesFactory              func() AppAuthStrategiesAPI
-	DCRProvidersFactory                   func() DCRProvidersAPI
-	MeFactory                             func() MeAPI
-	PersonalAccessTokenFactory            func() PersonalAccessTokenAPI
-	SystemAccountAccessTokenFactory       func() SystemAccountAccessTokenAPI
-	GatewayServiceFactory                 func() GatewayServiceAPI
-	DataPlaneCertificateFactory           func() DataPlaneCertificateAPI
-	SystemAccountFactory                  func() SystemAccountAPI
-	SystemAccountRolesFactory             func() SystemAccountRolesAPI
-	SystemAccountTeamMembershipFactory    func() SystemAccountTeamMembershipAPI
-	OrganizationTeamFactory               func() OrganizationTeamAPI
-	OrganizationTeamRolesFactory          func() OrganizationTeamRolesAPI
-	OrganizationUsersFactory              func() OrganizationUsersAPI
-	OrganizationMembershipFactory         func() OrganizationTeamMembershipAPI
+	IdentityPrincipalKeysAPIFactory func() IdentityPrincipalKeysAPI
+	IdentityGroupKeysAPIFactory     func() IdentityGroupKeysAPI
+	IdentityOrgChartImportFactory   func() IdentityOrgChartImportAPI
+
+	IdentityStaticVaultCredentialsFactory func() IdentityStaticVaultCredentialsAPI
+
+	IdentityVaultProviderCredentialsFactory  func() IdentityVaultProviderCredentialsReader
+	IdentityPrincipalVaultCredentialsFactory func() IdentityPrincipalVaultCredentialsReader
+
+	IdentityVaultProvidersFactory           func() IdentityVaultProvidersReader
+	IdentityVaultProvidersAPIFactory        func() IdentityVaultProvidersAPI
+	IdentityVaultKeysAPIFactory             func() IdentityVaultKeysAPI
+	IdentityDirectoryDependenciesAPIFactory func() IdentityDirectoryDependenciesAPI
+	IdentityTrustedIDPsAPIFactory           func() IdentityTrustedIDPsAPI
+	IdentityBasicAuthFactory                func() IdentityBasicAuthAPI
+	IdentityGroupsAPIFactory                func() IdentityGroupsAPI
+	IdentityGroupsFactory                   func() IdentityGroupsReader
+	IdentityPrincipalGroupsFactory          func() IdentityPrincipalGroupsReader
+	IdentityGroupMembershipsFactory         func() IdentityGroupMembershipsReader
+	IdentityPrincipalKeysFactory            func() IdentityPrincipalKeysReader
+	IdentityPrincipalIdentitiesFactory      func() IdentityPrincipalIdentitiesAPI
+	IdentityAuthServerClientsAPIFactory     func() IdentityAuthServerClientsAPI
+	IdentityAuthServerClientsFactory        func() IdentityAuthServerClientsReader
+	IdentityAuthServerScopesFactory         func() IdentityAuthServerScopesAPI
+	IdentityAuthServerClaimsFactory         func() IdentityAuthServerClaimsAPI
+	IdentityAuthServersFactory              func() IdentityAuthServersAPI
+	IdentityPrincipalsFactory               func() IdentityPrincipalsAPI
+	IdentityDirectoriesFactory              func() IdentityDirectoriesAPI
+	Token                                   string
+	T                                       *testing.T
+	CPAPIFactory                            func() ControlPlaneAPI
+	ControlPlaneGroupsFactory               func() ControlPlaneGroupsAPI
+	PortalFactory                           func() PortalAPI
+	APIFactory                              func() APIFullAPI
+	AIGatewayFactory                        func() AIGatewayAPI
+	AIGatewayProvidersFactory               func() AIGatewayProvidersAPI
+	AIGatewayAuthStrategiesFactory          func() AIGatewayAuthStrategiesAPI
+	AIGatewayCustomPoliciesFactory          func() AIGatewayCustomPoliciesAPI
+	AIGatewayPoliciesFactory                func() AIGatewayPoliciesAPI
+	AIGatewayAgentsFactory                  func() AIGatewayAgentsAPI
+	AIGatewayConsumersFactory               func() AIGatewayConsumersAPI
+	AIGatewayConsumerGroupsFactory          func() AIGatewayConsumerGroupsAPI
+	AIGatewayModelFactory                   func() AIGatewayModelAPI
+	AIGatewayMCPServersFactory              func() AIGatewayMCPServersAPI
+	AIGatewayConfigStoresFactory            func() AIGatewayConfigStoresAPI
+	AIGatewayVaultsFactory                  func() AIGatewayVaultsAPI
+	AIGatewayDatastoresFactory              func() AIGatewayDatastoresAPI
+	AIGatewayNodesFactory                   func() AIGatewayNodesAPI
+	AIGatewayDataPlaneCertificatesFactory   func() AIGatewayDataPlaneCertificatesAPI
+	AIGatewayCertificatesFactory            func() AIGatewayCertificatesAPI
+	AIGatewayCACertificatesFactory          func() AIGatewayCACertificatesAPI
+	AIGatewaySNIsFactory                    func() AIGatewaySNIsAPI
+	CatalogServicesFactory                  func() CatalogServicesAPI
+	DashboardsFactory                       func() DashboardsAPI
+	APIDocumentFactory                      func() APIDocumentAPI
+	APIVersionFactory                       func() APIVersionAPI
+	APIPublicationFactory                   func() APIPublicationAPI
+	APIImplementationFactory                func() APIImplementationAPI
+	AppAuthStrategiesFactory                func() AppAuthStrategiesAPI
+	DCRProvidersFactory                     func() DCRProvidersAPI
+	MeFactory                               func() MeAPI
+	PersonalAccessTokenFactory              func() PersonalAccessTokenAPI
+	SystemAccountAccessTokenFactory         func() SystemAccountAccessTokenAPI
+	GatewayServiceFactory                   func() GatewayServiceAPI
+	DataPlaneCertificateFactory             func() DataPlaneCertificateAPI
+	SystemAccountFactory                    func() SystemAccountAPI
+	SystemAccountRolesFactory               func() SystemAccountRolesAPI
+	SystemAccountTeamMembershipFactory      func() SystemAccountTeamMembershipAPI
+	OrganizationTeamFactory                 func() OrganizationTeamAPI
+	OrganizationTeamRolesFactory            func() OrganizationTeamRolesAPI
+	OrganizationUsersFactory                func() OrganizationUsersAPI
+	OrganizationMembershipFactory           func() OrganizationTeamMembershipAPI
 	// Portal child resource factories
 	PortalPageFactory                    func() PortalPageAPI
 	PortalAuthSettingsFactory            func() PortalAuthSettingsAPI
@@ -81,6 +109,177 @@ type MockKonnectSDK struct {
 	EventGatewaySchemaRegistryFactory       func() EventGatewaySchemaRegistryAPI
 	EventGatewayStaticKeyFactory            func() EventGatewayStaticKeyAPI
 	EventGatewayTLSTrustBundleFactory       func() EventGatewayTLSTrustBundleAPI
+}
+
+func (m *MockKonnectSDK) GetIdentityVaultProvidersReader() IdentityVaultProvidersReader {
+	if m.IdentityVaultProvidersFactory == nil {
+		return nil
+	}
+	return m.IdentityVaultProvidersFactory()
+}
+
+func (m *MockKonnectSDK) GetIdentityVaultProvidersAPI() IdentityVaultProvidersAPI {
+	if m.IdentityVaultProvidersAPIFactory == nil {
+		return nil
+	}
+	return m.IdentityVaultProvidersAPIFactory()
+}
+
+func (m *MockKonnectSDK) GetIdentityVaultProviderCredentialsReader() IdentityVaultProviderCredentialsReader {
+	if m.IdentityVaultProviderCredentialsFactory == nil {
+		return nil
+	}
+	return m.IdentityVaultProviderCredentialsFactory()
+}
+
+func (m *MockKonnectSDK) GetIdentityPrincipalVaultCredentialsReader() IdentityPrincipalVaultCredentialsReader {
+	if m.IdentityPrincipalVaultCredentialsFactory == nil {
+		return nil
+	}
+	return m.IdentityPrincipalVaultCredentialsFactory()
+}
+
+func (m *MockKonnectSDK) GetIdentityStaticVaultCredentialsAPI() IdentityStaticVaultCredentialsAPI {
+	if m.IdentityStaticVaultCredentialsFactory == nil {
+		return nil
+	}
+	return m.IdentityStaticVaultCredentialsFactory()
+}
+
+func (m *MockKonnectSDK) GetIdentityOrgChartImportAPI() IdentityOrgChartImportAPI {
+	if m.IdentityOrgChartImportFactory == nil {
+		return nil
+	}
+	return m.IdentityOrgChartImportFactory()
+}
+
+func (m *MockKonnectSDK) GetIdentityVaultKeysAPI() IdentityVaultKeysAPI {
+	if m.IdentityVaultKeysAPIFactory == nil {
+		return nil
+	}
+	return m.IdentityVaultKeysAPIFactory()
+}
+
+func (m *MockKonnectSDK) GetIdentityTrustedIDPsAPI() IdentityTrustedIDPsAPI {
+	if m.IdentityTrustedIDPsAPIFactory == nil {
+		return nil
+	}
+	return m.IdentityTrustedIDPsAPIFactory()
+}
+
+func (m *MockKonnectSDK) GetIdentityBasicAuthAPI() IdentityBasicAuthAPI {
+	if m.IdentityBasicAuthFactory == nil {
+		return nil
+	}
+	return m.IdentityBasicAuthFactory()
+}
+
+func (m *MockKonnectSDK) GetIdentityAuthServerClientsReader() IdentityAuthServerClientsReader {
+	if m.IdentityAuthServerClientsFactory != nil {
+		return m.IdentityAuthServerClientsFactory()
+	}
+	if m.IdentityAuthServerClientsAPIFactory != nil {
+		return m.IdentityAuthServerClientsAPIFactory()
+	}
+	return nil
+}
+
+func (m *MockKonnectSDK) GetIdentityAuthServerClientsAPI() IdentityAuthServerClientsAPI {
+	if m.IdentityAuthServerClientsAPIFactory != nil {
+		return m.IdentityAuthServerClientsAPIFactory()
+	}
+	return nil
+}
+
+func (m *MockKonnectSDK) GetIdentityAuthServerScopesAPI() IdentityAuthServerScopesAPI {
+	if m.IdentityAuthServerScopesFactory != nil {
+		return m.IdentityAuthServerScopesFactory()
+	}
+	return nil
+}
+
+func (m *MockKonnectSDK) GetIdentityAuthServerClaimsAPI() IdentityAuthServerClaimsAPI {
+	if m.IdentityAuthServerClaimsFactory != nil {
+		return m.IdentityAuthServerClaimsFactory()
+	}
+	return nil
+}
+
+func (m *MockKonnectSDK) GetIdentityDirectoryDependenciesAPI() IdentityDirectoryDependenciesAPI {
+	if m.IdentityDirectoryDependenciesAPIFactory == nil {
+		return nil
+	}
+	return m.IdentityDirectoryDependenciesAPIFactory()
+}
+
+func (m *MockKonnectSDK) GetIdentityDirectoriesAPI() IdentityDirectoriesAPI {
+	if m.IdentityDirectoriesFactory == nil {
+		return nil
+	}
+	return m.IdentityDirectoriesFactory()
+}
+
+func (m *MockKonnectSDK) GetIdentityPrincipalsAPI() IdentityPrincipalsAPI {
+	if m.IdentityPrincipalsFactory == nil {
+		return nil
+	}
+	return m.IdentityPrincipalsFactory()
+}
+
+func (m *MockKonnectSDK) GetIdentityGroupsAPI() IdentityGroupsAPI {
+	if m.IdentityGroupsAPIFactory == nil {
+		return nil
+	}
+	return m.IdentityGroupsAPIFactory()
+}
+
+func (m *MockKonnectSDK) GetIdentityGroupsReader() IdentityGroupsReader {
+	if m.IdentityGroupsFactory == nil {
+		return nil
+	}
+	return m.IdentityGroupsFactory()
+}
+
+func (m *MockKonnectSDK) GetIdentityPrincipalGroupsReader() IdentityPrincipalGroupsReader {
+	if m.IdentityPrincipalGroupsFactory == nil {
+		return nil
+	}
+	return m.IdentityPrincipalGroupsFactory()
+}
+
+func (m *MockKonnectSDK) GetIdentityGroupMembershipsReader() IdentityGroupMembershipsReader {
+	if m.IdentityGroupMembershipsFactory == nil {
+		return nil
+	}
+	return m.IdentityGroupMembershipsFactory()
+}
+
+func (m *MockKonnectSDK) GetIdentityPrincipalIdentitiesAPI() IdentityPrincipalIdentitiesAPI {
+	if m.IdentityPrincipalIdentitiesFactory == nil {
+		return nil
+	}
+	return m.IdentityPrincipalIdentitiesFactory()
+}
+
+func (m *MockKonnectSDK) GetIdentityPrincipalKeysReader() IdentityPrincipalKeysReader {
+	if m.IdentityPrincipalKeysFactory == nil {
+		return nil
+	}
+	return m.IdentityPrincipalKeysFactory()
+}
+
+func (m *MockKonnectSDK) GetIdentityPrincipalKeysAPI() IdentityPrincipalKeysAPI {
+	if m.IdentityPrincipalKeysAPIFactory == nil {
+		return nil
+	}
+	return m.IdentityPrincipalKeysAPIFactory()
+}
+
+func (m *MockKonnectSDK) GetIdentityGroupKeysAPI() IdentityGroupKeysAPI {
+	if m.IdentityGroupKeysAPIFactory == nil {
+		return nil
+	}
+	return m.IdentityGroupKeysAPIFactory()
 }
 
 // Returns a mock instance of the ControlPlaneAPI
@@ -655,6 +854,13 @@ func (m *MockKonnectSDKFactory) Build(token string) (SDKAPI, error) {
 func (m *MockKonnectSDK) GetAIGatewayCustomPoliciesAPI() AIGatewayCustomPoliciesAPI {
 	if m.AIGatewayCustomPoliciesFactory != nil {
 		return m.AIGatewayCustomPoliciesFactory()
+	}
+	return nil
+}
+
+func (m *MockKonnectSDK) GetIdentityAuthServersAPI() IdentityAuthServersAPI {
+	if m.IdentityAuthServersFactory != nil {
+		return m.IdentityAuthServersFactory()
 	}
 	return nil
 }
