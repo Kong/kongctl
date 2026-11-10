@@ -96,31 +96,11 @@ func (l *Loader) LoadFromSourcesWithContext(ctx context.Context, sources []Sourc
 	var allResources resources.ResourceSet
 	refIndex := make(map[string]resources.ResourceType)
 
-	documents, err := l.readSourceDocuments(ctx, sources, recursive)
+	preparedDocuments, err := l.prepareSourceDocuments(ctx, sources, recursive)
 	if err != nil {
 		return nil, err
 	}
-	preparedDocuments := make([]*preparedYAML, 0, len(documents))
-	templateDocuments := make([]*configTemplateDocument, 0, len(documents))
-	for i, document := range documents {
-		prepared, err := l.prepareYAML(document.content, document.sourcePath, document.rootDir)
-		if err != nil {
-			return nil, err
-		}
-		preparedDocuments = append(preparedDocuments, prepared)
-		templateDocuments = append(templateDocuments, &configTemplateDocument{
-			content: prepared.content, sourcePath: prepared.sourcePath,
-		})
-		prepared.content = nil
-		documents[i].content = nil
-	}
-	if err := expandConfigTemplateDocuments(templateDocuments); err != nil {
-		return nil, fmt.Errorf("failed to expand templates: %w", err)
-	}
 	for i, prepared := range preparedDocuments {
-		prepared.content = templateDocuments[i].content
-		prepared.templateDefinitions = templateDocuments[i].usedTemplates
-		templateDocuments[i] = nil
 		prepared.hasEnvTags = prepared.hasEnvTags ||
 			strings.Contains(string(prepared.content), tags.EnvPlaceholderPrefix)
 		rs, err := l.parsePreparedYAML(prepared)
@@ -153,6 +133,42 @@ func (l *Loader) LoadFromSourcesWithContext(ctx context.Context, sources []Sourc
 	}
 
 	return &allResources, nil
+}
+
+// prepareSourceDocuments reads the sources, converts tags to placeholders and
+// expands templates across all documents.
+func (l *Loader) prepareSourceDocuments(
+	ctx context.Context,
+	sources []Source,
+	recursive bool,
+) ([]*preparedYAML, error) {
+	documents, err := l.readSourceDocuments(ctx, sources, recursive)
+	if err != nil {
+		return nil, err
+	}
+	preparedDocuments := make([]*preparedYAML, 0, len(documents))
+	templateDocuments := make([]*configTemplateDocument, 0, len(documents))
+	for i, document := range documents {
+		prepared, err := l.prepareYAML(document.content, document.sourcePath, document.rootDir)
+		if err != nil {
+			return nil, err
+		}
+		preparedDocuments = append(preparedDocuments, prepared)
+		templateDocuments = append(templateDocuments, &configTemplateDocument{
+			content: prepared.content, sourcePath: prepared.sourcePath,
+		})
+		prepared.content = nil
+		documents[i].content = nil
+	}
+	if err := expandConfigTemplateDocuments(templateDocuments); err != nil {
+		return nil, fmt.Errorf("failed to expand templates: %w", err)
+	}
+	for i, prepared := range preparedDocuments {
+		prepared.content = templateDocuments[i].content
+		prepared.templateDefinitions = templateDocuments[i].usedTemplates
+		templateDocuments[i] = nil
+	}
+	return preparedDocuments, nil
 }
 
 // Load loads configuration from the default current directory (deprecated)
