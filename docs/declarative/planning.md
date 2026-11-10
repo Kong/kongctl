@@ -134,5 +134,5 @@ from the merged configuration. These are distinct review boundaries. See the
 
 [cicd-quickstart]: https://developer.konghq.com/kongctl/ci-cd/github-actions/
 
-See [adoption](../adoption.md) for child selection, bulk adoption, and
+See [adoption](adoption.md) for child selection, bulk adoption, and
 `--dry-run` reports in text, JSON, and YAML.

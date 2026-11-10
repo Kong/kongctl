@@ -122,7 +122,8 @@ kongctl adopt ai-gateway models existing-model \
 ```
 
 Use `--all` or `--name-pattern 'team-*'` for a selected family within one
-gateway. See [adoption](adoption.md) for selection, dry-run reports, and batch
+gateway. See [adoption](declarative/adoption.md) for selection, dry-run reports,
+and batch
 failure behavior. Omit `managed_by` from manifests and replan with the matching
 model namespace.
 
