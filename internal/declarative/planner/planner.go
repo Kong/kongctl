@@ -269,6 +269,18 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	}
 
 	p.resolveMatchedPayloadIdentities(basePlan, rs)
+	if err := p.resolveIdentityAPIKeyDependencies(basePlan); err != nil {
+		return nil, err
+	}
+	if err := p.resolvePrincipalIdentityDeletes(ctx, basePlan); err != nil {
+		return nil, err
+	}
+	if err := p.resolveIdentityMembershipDeletes(ctx, basePlan); err != nil {
+		return nil, err
+	}
+	if err := p.resolvePrincipalCredentialDeletes(ctx, basePlan); err != nil {
+		return nil, err
+	}
 
 	// Child matching discovers identities during resource planning. If these
 	// make additional payload references concrete, compare again with the new
@@ -290,6 +302,9 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 
 	if err := p.applySecretWriteIntents(ctx, basePlan, rs, opts); err != nil {
 		return nil, fmt.Errorf("failed to plan secret writes: %w", err)
+	}
+	if err := p.prepareIdentityVaultCredentialChanges(ctx, basePlan); err != nil {
+		return nil, err
 	}
 	if err := stampPlanManagedBy(ctx, basePlan); err != nil {
 		return nil, err
@@ -357,12 +372,32 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	applyAPIOperationRemovalAuthorization(basePlan.Changes, rs)
 	adjustAPIVersionTransitionDependencies(basePlan.Changes)
 
+	adjustIdentityDirectoryDeleteDependencies(basePlan.Changes)
+	if err := p.resolveIdentityVaultProviderDeletes(ctx, basePlan); err != nil {
+		return nil, err
+	}
+	if err := p.validateIdentityDirectoryDeletes(ctx, basePlan); err != nil {
+		return nil, err
+	}
+	adjustIdentityAuthServerDependencies(basePlan.Changes)
+	if err := p.resolveIdentityAuthServerDeletes(ctx, basePlan); err != nil {
+		return nil, err
+	}
+	if err := p.resolvePrincipalIdentityTargetDeletes(basePlan); err != nil {
+		return nil, err
+	}
+	if err := p.resolveIdentityTrustedIDPDeletes(ctx, basePlan); err != nil {
+		return nil, err
+	}
 	depResult, err := p.depResolver.ResolveDependenciesWithGroups(basePlan.Changes)
 	if err != nil {
 		var paths []string
 		for _, change := range basePlan.Changes {
 			for _, binding := range change.PayloadReferences {
-				paths = append(paths, fmt.Sprintf("%s %q field %s", change.ResourceType, change.ResourceRef, binding.Path))
+				paths = append(
+					paths,
+					fmt.Sprintf("%s %q field %s", change.ResourceType, change.ResourceRef, binding.Path),
+				)
 			}
 		}
 		if len(paths) > 0 {
@@ -957,6 +992,9 @@ func (p *Planner) resolveResourceIdentities(ctx context.Context, rs *resources.R
 		return fmt.Errorf("failed to resolve Event Gateway identities: %w", err)
 	}
 
+	if err := p.resolveIdentityPayloadIdentities(ctx, rs); err != nil {
+		return err
+	}
 	if err := p.externalResolver.resolveScopedDeclarations(ctx, rs); err != nil {
 		return fmt.Errorf("failed to resolve scoped external declarations: %w", err)
 	}
@@ -2611,6 +2649,24 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 		return nil
 	})
 
+	// Explicit empty independently owned collections still select a namespace
+	// when the source contains only an external parent.
+	if rs.SyncScope != nil {
+		for _, kind := range []resources.ResourceType{
+			resources.ResourceTypeIdentityPrincipal,
+			resources.ResourceTypeIdentityPrincipalAPIKey,
+			resources.ResourceTypeIdentityPrincipalIdentity,
+			resources.ResourceTypeIdentityBasicAuth,
+			resources.ResourceTypeIdentityGroup,
+			resources.ResourceTypeIdentityAuthServerClient,
+		} {
+			for _, scoped := range rs.SyncScope.ChildNamespaces[kind] {
+				for namespace := range scoped {
+					namespaceSet[namespace] = true
+				}
+			}
+		}
+	}
 	// Convert set to sorted slice for consistent ordering
 	namespaces := make([]string, 0, len(namespaceSet))
 	for ns := range namespaceSet {

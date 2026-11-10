@@ -19,16 +19,20 @@ POST_GENERATE = f"\tpython3 {SNAPSHOT}/apply.py post-generate .\n"
 def configure_workflow(text, manifest):
     """Preserve upstream overlays while replacing this bundle's entries."""
     names = set(manifest["overlays"])
-    section = re.search(r"^        overlays:\n(?:            - location: .*\n)*", text, re.M)
+    section = re.search(r"^        overlays:\n(?:(?: {12,}.*|[ \t]*)\n)*", text, re.M)
     entries = []
     if section:
-        for line in section.group().splitlines()[1:]:
-            location = line.split("location: ", 1)[1]
+        blocks = re.findall(r"^            -[^\n]*\n(?: {13,}.*\n)*", section.group(), re.M)
+        for block in blocks:
+            match = re.search(r"^\s*(?:-\s+)?location:\s*(.+?)\s*$", block, re.M)
+            if not match:
+                raise ValueError("expected a location in each SDK overlay entry")
+            location = match.group(1).strip("\"'")
             if location.startswith(f"./{SNAPSHOT}/overlays/"):
                 continue
             if location.startswith("./.speakeasy/overlays/") and Path(location).name in names:
                 continue
-            entries.append(line + "\n")
+            entries.append(block)
     entries.extend(f"            - location: ./{SNAPSHOT}/overlays/{name}\n" for name in manifest["overlays"])
     replacement = "        overlays:\n" + "".join(entries)
     if section:
@@ -50,20 +54,46 @@ def replace_tag(text, patch):
         return text
     if text.count(before) == 1 and after not in text:
         return text.replace(before, after, 1)
-    if before not in text and text.count(after) == 1:
+    if text.count(after) == 1 and before not in text.replace(after, "", 1):
         return text
     raise ValueError(f"{patch['file']}: expected exactly one original or patched field; SDK schema may have changed")
 
 
 def post_generate(sdk, manifest):
-    replacements = []
+    replacements = {}
     for patch in manifest["post_generation"]:
         path = sdk / patch["file"]
         if patch.get("optional_file") and not path.exists():
             continue
-        replacements.append((path, replace_tag(path.read_text(), patch)))
-    for path, text in replacements:
+        text = replacements[path] if path in replacements else path.read_text()
+        replacements[path] = replace_tag(text, patch)
+    for patch in manifest.get("post_generation_doc_sections", []):
+        path = sdk / patch["file"]
+        if patch.get("optional_file") and not path.exists():
+            continue
+        text = replacements[path] if path in replacements else path.read_text()
+        replacements[path] = replace_doc_section(text, patch)
+    for path, text in replacements.items():
         path.write_text(text)
+
+
+def replace_doc_section(text, patch):
+    pattern = r"^## " + re.escape(patch["section"]) + r"\n.*?(?=^## |\Z)"
+    matches = list(re.finditer(pattern, text, re.M | re.S))
+    if len(matches) != 1:
+        raise ValueError(f"{patch['file']}: expected one documentation section {patch['section']}")
+    section = matches[0]
+    updated = replace_tag(section.group(), patch)
+    imports = list(re.finditer(r"^import[ \t]*\(\n.*?^\)", updated, re.M | re.S))
+    if len(imports) != 1:
+        raise ValueError(f"{patch['file']}: expected one Go example import block in {patch['section']}")
+    block = imports[0]
+    new_imports = block.group()
+    for name in patch["imports"]:
+        if f'"{name}"' not in new_imports:
+            new_imports = re.sub(r"^import[ \t]*\(\n", f'import (\n\t"{name}"\n', new_imports, count=1)
+    updated = updated[:block.start()] + new_imports + updated[block.end():]
+    return text[:section.start()] + updated + text[section.end():]
 
 
 def prepare(sdk, manifest):

@@ -3,7 +3,7 @@ title: "AI Gateway: Route OpenAI"
 summary: >-
   Create an AI Gateway and proxy an OpenAI chat request through a local data
   plane.
-order: 1
+order: 3
 related:
   - label: OpenAI LLM declarative example
     url: https://github.com/Kong/kongctl/tree/main/docs/examples/declarative/ai-gateway/openai-llm

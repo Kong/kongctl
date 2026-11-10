@@ -263,10 +263,7 @@ func RetryAfterDelay(err error) (time.Duration, bool) {
 	if parseErr != nil {
 		return 0, false
 	}
-	delay := time.Until(when)
-	if delay < 0 {
-		delay = 0
-	}
+	delay := max(time.Until(when), 0)
 	return delay, true
 }
 

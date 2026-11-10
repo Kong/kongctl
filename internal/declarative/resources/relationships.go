@@ -35,6 +35,98 @@ type RelationshipDescriptor struct {
 }
 
 var relationshipDescriptors = map[ResourceType][]RelationshipDescriptor{
+	ResourceTypeIdentityVaultProviderCredential: {
+		{
+			FieldPath:  "provider",
+			TargetType: ResourceTypeIdentityVaultProvider,
+			Kind:       RelationshipKindKongctlParentSelector,
+			RootOnly:   true,
+		},
+	},
+	ResourceTypeIdentityTrustedIDP: {{
+		FieldPath: SchemaFieldDirectory, TargetType: ResourceTypeIdentityDirectory,
+		Kind: RelationshipKindKongctlParentSelector, RootOnly: true,
+	}},
+	ResourceTypeIdentityVaultProvider: {{
+		FieldPath: SchemaFieldDirectory, TargetType: ResourceTypeIdentityDirectory,
+		Kind: RelationshipKindKongctlParentSelector, RootOnly: true,
+	}},
+	ResourceTypeIdentityVaultKey: {{
+		FieldPath: "directory", TargetType: ResourceTypeIdentityDirectory,
+		Kind: RelationshipKindKongctlParentSelector, RootOnly: true,
+	}},
+	ResourceTypeIdentityGroupMembership: {
+		{
+			FieldPath:  "group",
+			TargetType: ResourceTypeIdentityGroup,
+			Kind:       RelationshipKindKongctlParentSelector,
+			RootOnly:   true,
+		},
+	},
+	ResourceTypeIdentityGroup: {
+		{
+			FieldPath:  "directory",
+			TargetType: ResourceTypeIdentityDirectory,
+			Kind:       RelationshipKindKongctlParentSelector,
+			RootOnly:   true,
+		},
+	},
+	ResourceTypeIdentityPrincipalIdentity: {{
+		FieldPath: "principal", TargetType: ResourceTypeIdentityPrincipal,
+		Kind: RelationshipKindKongctlParentSelector, RootOnly: true,
+	}},
+	ResourceTypeIdentityBasicAuth: {{
+		FieldPath: "principal", TargetType: ResourceTypeIdentityPrincipal,
+		Kind: RelationshipKindKongctlParentSelector, RootOnly: true,
+	}},
+	ResourceTypeIdentityPrincipalAPIKey: {{
+		FieldPath: "principal", TargetType: ResourceTypeIdentityPrincipal,
+		Kind: RelationshipKindKongctlParentSelector, RootOnly: true,
+	}},
+	ResourceTypeIdentityGroupAPIKey: {{
+		FieldPath: "group", TargetType: ResourceTypeIdentityGroup,
+		Kind: RelationshipKindKongctlParentSelector, RootOnly: true,
+	}},
+	ResourceTypeIdentityAuthServerClient: {
+		{
+			FieldPath: "auth_server", TargetType: ResourceTypeIdentityAuthServer,
+			Kind: RelationshipKindKongctlParentSelector, RootOnly: true,
+		},
+		{
+			FieldPath: "allow_scopes", TargetType: ResourceTypeIdentityAuthServerScope,
+			Kind: RelationshipKindAPIForeignKey, Cardinality: RelationshipCardinalityList, ScopeFieldPath: "auth_server",
+		},
+	},
+	ResourceTypeIdentityAuthServerScope: {
+		{
+			FieldPath: "auth_server", TargetType: ResourceTypeIdentityAuthServer,
+			Kind: RelationshipKindKongctlParentSelector, RootOnly: true,
+		},
+	},
+	ResourceTypeIdentityAuthServerClaim: {
+		{
+			FieldPath: "auth_server", TargetType: ResourceTypeIdentityAuthServer,
+			Kind: RelationshipKindKongctlParentSelector, RootOnly: true,
+		},
+		{
+			FieldPath: "include_in_scopes", TargetType: ResourceTypeIdentityAuthServerScope,
+			Kind: RelationshipKindAPIForeignKey, Cardinality: RelationshipCardinalityList, ScopeFieldPath: "auth_server",
+		},
+	},
+	ResourceTypeIdentityPrincipal: {
+		{
+			FieldPath:  "directory",
+			TargetType: ResourceTypeIdentityDirectory,
+			Kind:       RelationshipKindKongctlParentSelector,
+			RootOnly:   true,
+		},
+	},
+	ResourceTypeIdentityDirectory: {
+		{
+			FieldPath: "allowed_control_planes", TargetType: ResourceTypeControlPlane,
+			Kind: RelationshipKindAPIForeignKey, Cardinality: RelationshipCardinalityList,
+		},
+	},
 	ResourceTypeAPIVersion: {
 		{
 			FieldPath:  "api",

@@ -22,6 +22,7 @@ import (
 type resourceOps struct {
 	managedBy                         *ManagedByPolicy
 	independentChildMeta              func(Resource) *KongctlMeta
+	independentChildLabels            bool
 	captureOwnedChildScope            func(*ResourceSet, string)
 	get                               func(rs *ResourceSet) []Resource
 	append                            func(dest, src *ResourceSet)

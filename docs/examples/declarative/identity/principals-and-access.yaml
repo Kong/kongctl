@@ -1,0 +1,59 @@
+_defaults:
+  kongctl:
+    namespace: fulfillment
+
+identity:
+  directories:
+    - ref: default-directory
+      _external:
+        selector:
+          matchFields:
+            name: default
+      principals:
+        - ref: fulfillment-worker
+          display_name: Order fulfillment worker
+          type: agent
+          description: Assigns incoming orders
+          active: true
+          metadata:
+            department: fulfillment
+            roles: [reader, writer]
+          labels:
+            application: orders
+          identities:
+            - ref: worker-employee-number
+              type: custom
+              key: employee_number
+              value: fulfillment-001
+          basic_auths:
+            - ref: worker-login
+              username: kongctl-fulfillment-worker
+          api_keys:
+            - ref: worker-primary-key
+              type: v1
+              name: Worker primary
+              expires_at: null
+        - ref: oncall-engineer
+          display_name: On-call engineer
+          type: user
+          metadata:
+            department: support
+      groups:
+        - ref: fulfillment-workers
+          name: FulfillmentWorkers
+          type: group
+          description: People and automation that process orders
+          memberships:
+            - ref: worker-membership
+              member:
+                type: principal
+                id: !ref fulfillment-worker#id
+            - ref: oncall-membership
+              member:
+                type: principal
+                id: !ref oncall-engineer#id
+          api_keys:
+            - ref: workers-primary-key
+              type: v1
+              name: Workers primary
+              expires_at: "2030-01-01T00:00:00Z"

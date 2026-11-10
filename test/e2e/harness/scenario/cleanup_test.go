@@ -1,0 +1,407 @@
+//go:build e2e
+
+package scenario
+
+import (
+	"encoding/json"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/test/e2e/harness"
+	"github.com/stretchr/testify/require"
+)
+
+func cleanupFixtureCLI(t *testing.T) (*harness.CLI, string) {
+	t.Helper()
+	if _, err := exec.LookPath("python3"); err != nil {
+		t.Skip("python3 is required")
+	}
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "kongctl-fixture")
+	//nolint:gosec // Executable local CLI fixture.
+	require.NoError(t, os.WriteFile(bin, []byte(cleanupFixture), 0o700))
+	return &harness.CLI{
+		BinPath: bin, TestDir: dir, Timeout: 5 * time.Second,
+		Env: append(os.Environ(), "CLEANUP_STATE="+dir),
+	}, dir
+}
+
+func TestResourceCleanupAfterFailedScenario(t *testing.T) {
+	cli, dir := cleanupFixtureCLI(t)
+	var generated string
+	t.Run("interrupted-run", func(t *testing.T) {
+		vars := map[string]any{}
+		specs := []CleanupResource{
+			{
+				Resource: string(resources.ResourceTypeIdentityDirectory),
+				NameVar:  "directory",
+				NameEnv:  "TEST_DIRECTORY",
+			},
+			{Resource: string(resources.ResourceTypeControlPlane), NameVar: "gateway", NameEnv: "TEST_GATEWAY"},
+		}
+		require.NoError(t, registerResourceCleanup(t, cli, specs, vars))
+		generated = vars["directory"].(string)
+		require.True(t, strings.HasPrefix(generated, "kongctl-e2e-identity-directory-"))
+		observed := []map[string]any{
+			{"id": "c0b37b67-06c8-49fb-b51b-2c8f49b20fb1", "name": generated},
+			{"id": "c0b37b67-06c8-49fb-b51b-2c8f49b20fb2", "name": vars["gateway"].(string)},
+			{"id": "c0b37b67-06c8-49fb-b51b-2c8f49b20fb3", "name": "pre-existing-directory"},
+			{
+				"id": "c0b37b67-06c8-49fb-b51b-2c8f49b20fb4", "kind": "principal",
+				"directory_id": "c0b37b67-06c8-49fb-b51b-2c8f49b20fb1",
+				"labels":       map[string]string{"e2e-fixture": "c0b37b67-06c8-49fb-b51b-2c8f49b20fb1"},
+			},
+			{
+				"id": "c0b37b67-06c8-49fb-b51b-2c8f49b20fb5", "name": "foreign-principal",
+				"kind": "principal", "directory_id": "unrelated-directory",
+			},
+		}
+		data, err := json.Marshal(observed)
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "resources.json"), data, 0o600))
+		s := Scenario{Vars: vars, Steps: []Step{{
+			Name: "failure", SkipInputs: true,
+			Commands: []Command{{Name: "fail", Run: []string{"fail"}}},
+		}}}
+		diagnostics := newScenarioDiagnostics(filepath.Join(dir, "diagnostics.json"), "cleanup-test")
+		require.Error(t, executeScenario(t, "cleanup-test", s, cli, diagnostics))
+	})
+	data, err := os.ReadFile(filepath.Join(dir, "resources.json"))
+	require.NoError(t, err)
+	require.NotContains(t, string(data), generated)
+	require.Contains(t, string(data), "pre-existing-directory")
+	require.Contains(t, string(data), "foreign-principal")
+	deleted, err := os.ReadFile(filepath.Join(dir, "deleted"))
+	require.NoError(t, err)
+	require.Equal(t, "/v2/directories/c0b37b67-06c8-49fb-b51b-2c8f49b20fb1/"+
+		"principals/c0b37b67-06c8-49fb-b51b-2c8f49b20fb4\n"+
+		"/v2/directories/c0b37b67-06c8-49fb-b51b-2c8f49b20fb1?force=false\n"+
+		"/v2/control-planes/c0b37b67-06c8-49fb-b51b-2c8f49b20fb2\n", string(deleted))
+}
+
+func TestResourceCleanupRejectsAmbiguousAndIncompleteObservations(t *testing.T) {
+	for _, fault := range []string{"read-error", "duplicate", "missing-id"} {
+		t.Run(fault, func(t *testing.T) {
+			cli, dir := cleanupFixtureCLI(t)
+			cli.WithEnv(map[string]string{"CLEANUP_FAULT": fault})
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "resources.json"),
+				[]byte(`[{"id":"c0b37b67-06c8-49fb-b51b-2c8f49b20fb1","name":"generated"}]`), 0o600))
+			require.Error(t, cleanupResource(t.Context(), cli,
+				cleanupTarget{kind: resources.ResourceTypeIdentityDirectory, name: "generated"}))
+			_, err := os.Stat(filepath.Join(dir, "deleted"))
+			require.True(t, os.IsNotExist(err), "incomplete observations must never authorize deletion")
+		})
+	}
+}
+
+func TestResourceCleanupConfiguration(t *testing.T) {
+	cli, _ := cleanupFixtureCLI(t)
+	for _, specs := range [][]CleanupResource{
+		{{Resource: string(resources.ResourceTypeControlPlane), NameVar: "name", NameEnv: "NAME", RequireEmptyTrustedIDPs: true}},
+		{{
+			Resource: string(resources.ResourceTypeControlPlane), NameVar: "name", NameEnv: "NAME",
+			RequireEmptyVaultDependencies: true,
+		}},
+		{{Resource: string(resources.ResourceTypeControlPlane), NameVar: "name", NameEnv: "NAME", PrincipalAPIKeys: true}},
+		{{Resource: string(resources.ResourceTypeControlPlane), NameVar: "name", NameEnv: "NAME", PrincipalGroups: true}},
+		{{Resource: "portal", NameVar: "name", NameEnv: "NAME"}},
+		{{Resource: string(resources.ResourceTypeIdentityDirectory), NameVar: "", NameEnv: "NAME"}},
+		{{Resource: string(resources.ResourceTypeIdentityDirectory), NameVar: "name", NameEnv: "bad-name"}},
+		{{Resource: string(resources.ResourceTypeIdentityDirectory), NameVar: "taken", NameEnv: "NAME"}},
+	} {
+		require.Error(t, registerResourceCleanup(t, cli, specs, map[string]any{"taken": "existing"}))
+	}
+	require.NoError(t, registerResourceCleanup(t, cli, nil, nil), "unconfigured scenarios remain unchanged")
+}
+
+func TestResourceCleanupPreservesUnmarkedPrincipalInTestDirectory(t *testing.T) {
+	cli, dir := cleanupFixtureCLI(t)
+	data := `[
+        {"id":"c0b37b67-06c8-49fb-b51b-2c8f49b20fb1","name":"generated"},
+        {"id":"c0b37b67-06c8-49fb-b51b-2c8f49b20fb2","kind":"principal",
+         "directory_id":"c0b37b67-06c8-49fb-b51b-2c8f49b20fb1","labels":{}}
+    ]`
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "resources.json"), []byte(data), 0o600))
+	target := cleanupTarget{kind: resources.ResourceTypeIdentityDirectory, name: "generated"}
+	err := cleanupResource(t.Context(), cli, target)
+	require.ErrorContains(t, err, "unmarked principal")
+	_, err = os.Stat(filepath.Join(dir, "deleted"))
+	require.True(t, os.IsNotExist(err), "neither foreign descendants nor the directory may be deleted")
+}
+
+func TestPrincipalIdentityCleanupChecksEveryCollectionAndFreshLabels(t *testing.T) {
+	for _, fault := range []string{"", "unmarked-identity", "identity-read-error", "identity-label-change"} {
+		t.Run(fault, func(t *testing.T) {
+			cli, dir := cleanupFixtureCLI(t)
+			cli.WithEnv(map[string]string{"CLEANUP_FAULT": fault})
+			directory := "c0b37b67-06c8-49fb-b51b-2c8f49b20fb1"
+			principal := "c0b37b67-06c8-49fb-b51b-2c8f49b20fb2"
+			identity := "c0b37b67-06c8-49fb-b51b-2c8f49b20fb3"
+			labels := map[string]string{"e2e-fixture": directory, "e2e-principal-id": principal}
+			observed := []map[string]any{
+				{"id": directory, "name": "generated"},
+				{
+					"id":           principal,
+					"kind":         "principal",
+					"directory_id": directory,
+					"labels":       map[string]string{"e2e-fixture": directory},
+				},
+				{
+					"id":           identity,
+					"kind":         "identity",
+					"directory_id": directory,
+					"principal_id": principal,
+					"labels":       labels,
+				},
+			}
+			if fault == "unmarked-identity" {
+				other := "c0b37b67-06c8-49fb-b51b-2c8f49b20fb4"
+				observed = append(
+					observed,
+					map[string]any{
+						"id": other, "kind": "principal", "directory_id": directory,
+						"labels": map[string]string{"e2e-fixture": directory},
+					},
+					map[string]any{
+						"id": "c0b37b67-06c8-49fb-b51b-2c8f49b20fb5", "kind": "identity",
+						"directory_id": directory, "principal_id": other, "labels": map[string]string{},
+					},
+				)
+			}
+			data, err := json.Marshal(observed)
+			require.NoError(t, err)
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "resources.json"), data, 0o600))
+			err = cleanupResource(
+				t.Context(),
+				cli,
+				cleanupTarget{kind: resources.ResourceTypeIdentityDirectory, name: "generated"},
+			)
+			if fault == "" {
+				require.NoError(t, err)
+				deleted, err := os.ReadFile(filepath.Join(dir, "deleted"))
+				require.NoError(t, err)
+				require.Equal(t, "/v2/directories/"+directory+"/principals/"+principal+"/identities/"+identity+"\n"+
+					"/v2/directories/"+directory+"/principals/"+principal+"\n/v2/directories/"+directory+"?force=false\n", string(deleted))
+			} else {
+				require.Error(t, err)
+				_, err := os.Stat(filepath.Join(dir, "deleted"))
+				require.True(t, os.IsNotExist(err), "incomplete or changed ownership cannot authorize cleanup")
+			}
+		})
+	}
+}
+
+func TestAuthServerCleanupChecksAllChildrenBeforeDeleting(t *testing.T) {
+	for _, fault := range []string{"", "scope", "claim", "client", "marked-client", "missing-client-label"} {
+		t.Run(fault, func(t *testing.T) {
+			cli, dir := cleanupFixtureCLI(t)
+			server := "c0b37b67-06c8-49fb-b51b-2c8f49b20fb1"
+			scopeID := "c0b37b67-06c8-49fb-b51b-2c8f49b20fb2"
+			claimID := "c0b37b67-06c8-49fb-b51b-2c8f49b20fb3"
+			prefix := "kongctl-e2e-" + server + "-"
+			values := []map[string]any{
+				{"id": server, "name": "generated-server"},
+				{"id": scopeID, "name": prefix + "scope", "kind": "scope", "server_id": server},
+				{"id": claimID, "name": prefix + "claim", "kind": "claim", "server_id": server},
+			}
+			switch fault {
+			case "scope":
+				values[1]["name"] = "foreign-scope"
+			case "claim":
+				values[2]["name"] = "foreign-claim"
+			case "client":
+				values = append(values, map[string]any{"id": "opaque-client", "kind": "client", "server_id": server})
+			case "marked-client", "missing-client-label":
+				labels := map[string]string{}
+				if fault == "marked-client" {
+					labels["e2e-fixture"] = server
+				}
+				values = append(values, map[string]any{
+					"id": "opaque-client", "name": prefix + "client", "kind": "client", "server_id": server, "labels": labels,
+				})
+			}
+			data, err := json.Marshal(values)
+			require.NoError(t, err)
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "resources.json"), data, 0o600))
+			err = cleanupResource(t.Context(), cli,
+				cleanupTarget{kind: resources.ResourceTypeIdentityAuthServer, name: "generated-server"})
+			if fault != "" && fault != "marked-client" {
+				require.Error(t, err)
+				_, err = os.Stat(filepath.Join(dir, "deleted"))
+				require.True(t, os.IsNotExist(err), "foreign children must prevent all fixture deletion")
+				return
+			}
+			require.NoError(t, err)
+			deleted, err := os.ReadFile(filepath.Join(dir, "deleted"))
+			require.NoError(t, err)
+			clientDeletion := ""
+			if fault == "marked-client" {
+				clientDeletion = "/v1/auth-servers/" + server + "/clients/opaque-client\n"
+			}
+			require.Equal(t, clientDeletion+"/v1/auth-servers/"+server+"/claims/"+claimID+"\n"+
+				"/v1/auth-servers/"+server+"/scopes/"+scopeID+"\n"+
+				"/v1/auth-servers/"+server+"?force=false\n", string(deleted))
+		})
+	}
+}
+
+const cleanupFixture = `#!/usr/bin/env python3
+import json,os,sys
+from pathlib import Path
+p=Path(os.environ['CLEANUP_STATE'])
+args=sys.argv[1:]
+with (p/'calls.jsonl').open('a') as calls: calls.write(json.dumps(args)+'\n')
+if args[0]=='fail':
+    print('scenario failure',file=sys.stderr)
+    sys.exit(1)
+values=json.loads((p/'resources.json').read_text())
+fault=os.environ.get('CLEANUP_FAULT','')
+if args[0]=='get':
+    if fault=='read-error':
+        print('collection read failed',file=sys.stderr)
+        sys.exit(1)
+    if fault=='duplicate': values=values+values
+    if fault=='missing-id': values[0]['id']=''
+    if args[:3] in [['get','identity','principal-identities'],['get','identity','principal-identity']]:
+        if fault=='identity-read-error':
+            print('identity inventory failed',file=sys.stderr)
+            sys.exit(1)
+        directory=args[args.index('--directory-id')+1]
+        principal=args[args.index('--principal-id')+1]
+        values=[v for v in values if v.get('kind')=='identity' and v.get('directory_id')==directory and v.get('principal_id')==principal]
+        if args[2]=='principal-identity':
+            values=[v for v in values if v['id']==args[3]]
+            if not values: sys.exit(1)
+            values=values[0]
+            if fault=='identity-label-change': values['labels']={}
+    elif args[:3] in [['get','identity','principal-api-keys'],['get','identity','principal-api-key']]:
+        if fault=='key-read-error':
+            print('key inventory failed',file=sys.stderr)
+            sys.exit(1)
+        directory=args[args.index('--directory-id')+1]
+        principal=args[args.index('--principal-id')+1]
+        values=[v for v in values if v.get('kind')=='api-key'
+                and v.get('directory_id')==directory and v.get('principal_id')==principal]
+        if args[2]=='principal-api-key':
+            values=[v for v in values if v['id']==args[3]]
+            if not values: sys.exit(1)
+            values=values[0]
+            if fault=='key-metadata-change': values['managed_by']={}
+            if fault=='key-protection-change': values['managed_by']['kongctl-protected']='true'
+    elif args[:3] in [['get','identity','groups'],['get','identity','group']]:
+        if fault=='group-read-error': sys.exit(1)
+        directory=args[args.index('--directory-id')+1]
+        values=[v for v in values if v.get('kind')=='group' and v.get('directory_id')==directory]
+        if args[2]=='group':
+            values=[v for v in values if v['id']==args[3]]
+            if not values: sys.exit(1)
+            values=values[0]
+            if fault=='group-protection-change': values['managed_by']['kongctl-protected']='true'
+    elif args[:3] in [['get','identity','group-memberships'],['get','identity','group-membership']]:
+        if fault=='membership-read-error': sys.exit(1)
+        directory=args[args.index('--directory-id')+1]
+        group=args[args.index('--group-id')+1]
+        values=[v for v in values if v.get('kind')=='membership'
+                and v.get('directory_id')==directory and v.get('group_id')==group]
+        if args[2]=='group-membership':
+            values=[v for v in values if v['id']==args[3]]
+            if not values: sys.exit(1)
+            values=values[0]
+            if fault=='membership-member-change': values['member']['id']='changed'
+    elif args[:3]==['get','identity','trusted-idps']:
+        if fault=='trusted-idp-read-error': sys.exit(1)
+        directory=args[args.index('--directory-id')+1]
+        values=[v for v in values if v.get('kind')=='trusted-idp' and v.get('directory_id')==directory]
+        if fault=='trusted-idp-missing': values=None
+    elif args[:3]==['get','identity','principals']:
+        if fault=='late-trusted-idp':
+            attached=json.loads((p/'resources.json').read_text())
+            attached.append({'id':'late-idp','kind':'trusted-idp','directory_id':args[args.index('--directory-id')+1]})
+            (p/'resources.json').write_text(json.dumps(attached))
+        directory=args[args.index('--directory-id')+1]
+        values=[v for v in values if v.get('kind')=='principal' and v.get('directory_id')==directory]
+    elif args[2] in ['auth-server-claims','auth-server-scopes','auth-server-clients']:
+        server=args[args.index('--auth-server-id')+1]
+        kind={'auth-server-claims':'claim','auth-server-scopes':'scope','auth-server-clients':'client'}[args[2]]
+        values=[v for v in values if v.get('kind')==kind and v.get('server_id')==server]
+    else:
+        excluded=['principal','scope','claim','client','identity','api-key','group','membership',
+                  'trusted-idp','vault-key','vault-provider']
+        values=[v for v in values if v.get('kind') not in excluded]
+    print(json.dumps(values))
+elif args[:2]==['api','get'] and '/v2/directories/' in args[2]:
+    endpoint=args[2]
+    directory=endpoint.split('/')[3]
+    if fault=='vault-read-error': sys.exit(1)
+    kinds=[('vault/keys','vault-key'),('vault/providers','vault-provider'),('trusted-idps','trusted-idp')]
+    kind=next((kind for suffix,kind in kinds if endpoint.endswith('/'+suffix)),None)
+    if kind is None: raise RuntimeError('unexpected directory API collection')
+    values=[v for v in values if v.get('kind')==kind and v.get('directory_id')==directory]
+    if fault=='vault-missing': values=None
+    page={'size':20,'next':'cursor' if fault=='vault-nonterminal' else None}
+    print(json.dumps({'data':values,'meta':{'page':page}}))
+elif args[:2]==['api','get'] and '/clients?' in args[2]:
+    values=[v for v in values if v.get('kind')=='client']
+    print(json.dumps({'data':values[:1],'meta':{'page':{'total':len(values)}}}))
+elif args[:2]==['api','delete']:
+    endpoint=args[2]
+    ident=endpoint.rsplit('/',1)[1].split('?')[0]
+    values=[v for v in values if v['id']!=ident]
+    (p/'resources.json').write_text(json.dumps(values))
+    with (p/'deleted').open('a') as f: f.write(endpoint+'\n')
+    print('{}')
+else:
+    raise RuntimeError('unexpected command')
+`
+
+func TestDirectoryCleanupDeduplicatesOverlappingGuardsAndRechecksLateAttachments(t *testing.T) {
+	for _, mode := range []string{"vault", "trusted", "both", "late"} {
+		t.Run(mode, func(t *testing.T) {
+			cli, dir := cleanupFixtureCLI(t)
+			const directory = "c0b37b67-06c8-49fb-b51b-2c8f49b20fb1"
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "resources.json"),
+				[]byte(`[{"id":"`+directory+`","name":"generated"}]`), 0o600))
+			if mode == "late" {
+				cli.WithEnv(map[string]string{"CLEANUP_FAULT": "late-trusted-idp"})
+			}
+			err := cleanupResource(t.Context(), cli, cleanupTarget{
+				kind: resources.ResourceTypeIdentityDirectory, name: "generated",
+				requireEmptyVaultDependencies: mode != "trusted", requireEmptyTrustedIDPs: mode != "vault",
+			})
+			if mode == "late" {
+				require.Error(t, err)
+				require.NoFileExists(t, filepath.Join(dir, "deleted"), "fresh attachments must block parent deletion")
+			} else {
+				require.NoError(t, err)
+			}
+			data, err := os.ReadFile(filepath.Join(dir, "calls.jsonl"))
+			require.NoError(t, err)
+			idpReads, vaultReads := 0, 0
+			for line := range strings.SplitSeq(strings.TrimSpace(string(data)), "\n") {
+				var args []string
+				require.NoError(t, json.Unmarshal([]byte(line), &args))
+				if len(args) < 3 {
+					continue
+				}
+				if args[0] == "get" && args[1] == "identity" && args[2] == "trusted-idps" {
+					idpReads++
+				}
+				if args[0] == "api" && args[1] == "get" && strings.HasSuffix(args[2], "/trusted-idps") {
+					vaultReads++
+				}
+			}
+			if mode == "trusted" {
+				require.Equal(t, 2, idpReads)
+				require.Zero(t, vaultReads)
+			} else {
+				require.Zero(t, idpReads, "the Vault dependency guard already checks Trusted IdPs")
+				require.Equal(t, 2, vaultReads, "retain pre-cleanup and fresh pre-delete checks")
+			}
+		})
+	}
+}

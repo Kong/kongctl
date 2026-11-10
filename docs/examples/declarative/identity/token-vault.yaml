@@ -1,0 +1,52 @@
+_defaults:
+  kongctl:
+    namespace: identity-directory
+
+identity:
+  directories:
+    - ref: default-directory
+      name: default
+      allow_all_control_planes: true
+      vault:
+        enabled: true
+        keys:
+          # Replace this sample with your public key; retain its private key.
+          - ref: encryption-key
+            name: billing-encryption
+            public_key: !file vault-public-key.pem
+        providers:
+          - ref: billing-token
+            name: billing-service
+            template_name: static_secret
+            credential_type: shared
+            shared_credentials:
+              # Omitting selector/priority selects the single default slot.
+              - ref: default-token
+                secret: !secret {source: !env BILLING_SHARED_SECRET}
+      trusted_idps:
+        - ref: workforce
+          issuer_url: !env IDENTITY_WORKFORCE_ISSUER
+          display_name: Workforce SSO
+          # Null uses the issuer's OIDC discovery document for its JWKS URI.
+          jwks_uri: null
+          jit_provisioning_enabled: true
+          vault_access_enabled: false
+          jit:
+            mapping:
+              display_name: name
+              email: email
+              groups: groups
+              metadata:
+                department: department
+                team: team
+      principals:
+        - ref: workforce-user
+          display_name: Example workforce user
+          type: user
+          identities:
+            - ref: workforce-login
+              type: oidc
+              issuer: !env IDENTITY_WORKFORCE_ISSUER
+              claim:
+                name: sub
+                value: employee-42

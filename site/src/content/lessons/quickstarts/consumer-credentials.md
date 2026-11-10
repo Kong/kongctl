@@ -3,7 +3,7 @@ title: "AI Gateway: Consumer Credentials"
 summary: >-
   Protect an OpenAI model with an environment-backed API key for an AI Gateway
   Consumer.
-order: 2
+order: 4
 related:
   - label: Declarative configuration documentation
     url: https://developer.konghq.com/kongctl/declarative/

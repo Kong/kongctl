@@ -25,7 +25,25 @@ import (
 
 // ClientConfig contains all the API interfaces needed by the state client
 type ClientConfig struct {
-	// Core APIs
+	IdentityPrincipalKeysAPI          helpers.IdentityPrincipalKeysAPI
+	IdentityGroupKeysAPI              helpers.IdentityGroupKeysAPI
+	IdentityStaticVaultCredentialsAPI helpers.IdentityStaticVaultCredentialsAPI
+
+	IdentityTrustedIDPsAPI            helpers.IdentityTrustedIDPsAPI
+	IdentityVaultKeysAPI              helpers.IdentityVaultKeysAPI
+	IdentityVaultProvidersAPI         helpers.IdentityVaultProvidersAPI
+	IdentityAuthServerClientAPI       helpers.IdentityAuthServerClientsAPI
+	IdentityAuthServersAPI            helpers.IdentityAuthServersAPI
+	IdentityAuthServerScopesAPI       helpers.IdentityAuthServerScopesAPI
+	IdentityAuthServerClaimsAPI       helpers.IdentityAuthServerClaimsAPI
+	IdentityAuthServerClientsAPI      helpers.IdentityAuthServerClientsReader
+	IdentityBasicAuthAPI              helpers.IdentityBasicAuthAPI
+	IdentityPrincipalKeysReader       helpers.IdentityPrincipalKeysReader
+	IdentityGroupsAPI                 helpers.IdentityGroupsAPI
+	IdentityPrincipalsAPI             helpers.IdentityPrincipalsAPI
+	IdentityPrincipalIdentitiesAPI    helpers.IdentityPrincipalIdentitiesAPI
+	IdentityDirectoriesAPI            helpers.IdentityDirectoriesAPI
+	IdentityDirectoryDependenciesAPI  helpers.IdentityDirectoryDependenciesAPI
 	PortalAPI                         helpers.PortalAPI
 	APIAPI                            helpers.APIAPI
 	AppAuthAPI                        helpers.AppAuthStrategiesAPI
@@ -104,7 +122,25 @@ type ClientConfig struct {
 
 // Client wraps Konnect SDK for state management
 type Client struct {
-	// Core APIs
+	identityPrincipalKeysAPI          helpers.IdentityPrincipalKeysAPI
+	identityGroupKeysAPI              helpers.IdentityGroupKeysAPI
+	identityStaticVaultCredentialsAPI helpers.IdentityStaticVaultCredentialsAPI
+
+	identityVaultKeysAPI              helpers.IdentityVaultKeysAPI
+	identityVaultProvidersAPI         helpers.IdentityVaultProvidersAPI
+	identityTrustedIDPsAPI            helpers.IdentityTrustedIDPsAPI
+	identityAuthServersAPI            helpers.IdentityAuthServersAPI
+	identityAuthServerScopesAPI       helpers.IdentityAuthServerScopesAPI
+	identityAuthServerClaimsAPI       helpers.IdentityAuthServerClaimsAPI
+	identityAuthServerClientsAPI      helpers.IdentityAuthServerClientsReader
+	identityAuthServerClientAPI       helpers.IdentityAuthServerClientsAPI
+	identityBasicAuthAPI              helpers.IdentityBasicAuthAPI
+	identityPrincipalKeysReader       helpers.IdentityPrincipalKeysReader
+	identityGroupsAPI                 helpers.IdentityGroupsAPI
+	identityPrincipalsAPI             helpers.IdentityPrincipalsAPI
+	identityPrincipalIdentitiesAPI    helpers.IdentityPrincipalIdentitiesAPI
+	identityDirectoriesAPI            helpers.IdentityDirectoriesAPI
+	identityDirectoryDependenciesAPI  helpers.IdentityDirectoryDependenciesAPI
 	portalAPI                         helpers.PortalAPI
 	apiAPI                            helpers.APIAPI
 	appAuthAPI                        helpers.AppAuthStrategiesAPI
@@ -183,7 +219,29 @@ type Client struct {
 
 // NewClient creates a new state client with the provided configuration
 func NewClient(config ClientConfig) *Client {
+	if config.IdentityAuthServerClientsAPI == nil && config.IdentityAuthServerClientAPI != nil {
+		config.IdentityAuthServerClientsAPI = config.IdentityAuthServerClientAPI
+	}
 	return &Client{
+		identityStaticVaultCredentialsAPI: config.IdentityStaticVaultCredentialsAPI,
+
+		identityAuthServerClientAPI:      config.IdentityAuthServerClientAPI,
+		identityAuthServersAPI:           config.IdentityAuthServersAPI,
+		identityAuthServerScopesAPI:      config.IdentityAuthServerScopesAPI,
+		identityAuthServerClaimsAPI:      config.IdentityAuthServerClaimsAPI,
+		identityAuthServerClientsAPI:     config.IdentityAuthServerClientsAPI,
+		identityDirectoriesAPI:           config.IdentityDirectoriesAPI,
+		identityDirectoryDependenciesAPI: config.IdentityDirectoryDependenciesAPI,
+		identityVaultKeysAPI:             config.IdentityVaultKeysAPI,
+		identityVaultProvidersAPI:        config.IdentityVaultProvidersAPI,
+		identityTrustedIDPsAPI:           config.IdentityTrustedIDPsAPI,
+		identityBasicAuthAPI:             config.IdentityBasicAuthAPI,
+		identityPrincipalKeysReader:      config.IdentityPrincipalKeysReader,
+		identityPrincipalKeysAPI:         config.IdentityPrincipalKeysAPI,
+		identityGroupKeysAPI:             config.IdentityGroupKeysAPI,
+		identityGroupsAPI:                config.IdentityGroupsAPI,
+		identityPrincipalsAPI:            config.IdentityPrincipalsAPI,
+		identityPrincipalIdentitiesAPI:   config.IdentityPrincipalIdentitiesAPI,
 		// Core APIs
 		portalAPI:                         config.PortalAPI,
 		apiAPI:                            config.APIAPI,

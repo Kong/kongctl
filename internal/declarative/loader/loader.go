@@ -269,9 +269,18 @@ func (l *Loader) prepareYAML(rawContent []byte, sourcePath string, rootDir strin
 	// runs against this representation so resolved environment values cannot be
 	// included in validation errors.
 	fileResolver := tags.NewFileTagResolver(baseDir, tagRootDir)
+	var csvParents map[principalCSVLocation]string
+	if strings.Contains(string(rawContent), tags.TagCSV) {
+		var err error
+		csvParents, err = principalCSVLocations(rawContent)
+		if err != nil {
+			return nil, fmt.Errorf("invalid principal CSV source in %s: %w", sourcePath, err)
+		}
+	}
 	refResolver := tags.NewRefTagResolver(baseDir)
 	placeholderRegistry := tags.NewResolverRegistry()
 	placeholderRegistry.Register(fileResolver)
+	placeholderRegistry.Register(&principalCSVResolver{files: fileResolver, parents: csvParents})
 	placeholderRegistry.Register(refResolver)
 	placeholderRegistry.Register(tags.NewExternalTagResolver(tags.TagExternal))
 	placeholderRegistry.Register(tags.NewExternalTagResolver(tags.TagLookup))
@@ -688,6 +697,23 @@ func (l *Loader) applyDefaults(rs *resources.ResourceSet) {
 
 // extractNestedResources extracts nested child resources to root level with parent references
 func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
+	if rs.Identity != nil {
+		for i := range rs.Identity.Directories {
+			rs.ExtractRegisteredChildren(&rs.Identity.Directories[i])
+		}
+		for i := range rs.Identity.Principals {
+			rs.ExtractRegisteredChildren(&rs.Identity.Principals[i])
+		}
+		for i := range rs.Identity.Groups {
+			rs.ExtractRegisteredChildren(&rs.Identity.Groups[i])
+		}
+		for i := range rs.Identity.VaultProviders {
+			rs.ExtractRegisteredChildren(&rs.Identity.VaultProviders[i])
+		}
+		for i := range rs.Identity.AuthServers {
+			rs.ExtractRegisteredChildren(&rs.Identity.AuthServers[i])
+		}
+	}
 	// Extract analytics nested resources.
 	if rs.Analytics != nil {
 		rs.Dashboards = append(rs.Dashboards, rs.Analytics.Dashboards...)

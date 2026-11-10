@@ -114,3 +114,34 @@ apis:
         path: ./specs/products.yaml
         extract: info.contact.email
 ```
+
+<a id="principal-csv"></a>
+
+## Principal collections from CSV
+
+Use `!csv` for a directory's `principals` collection, or grouped
+`identity.principals`. Its mapping requires `path` and an explicit
+`metadata_mode: merge` or `sync`:
+
+```yaml
+identity:
+  directories:
+    - ref: default-directory
+      _external:
+        selector:
+          matchFields:
+            name: default
+      principals: !csv
+        path: principals.csv
+        metadata_mode: merge
+```
+
+CSV rows declare managed principals and supported children using normal
+ownership and sync rules. Paths follow the same boundaries as `!file`. Blank
+cells preserve fields; JSON cells express maps and child collections. Embedded
+YAML tags, templates and deferred sources are rejected. This does not execute
+the platform's org-chart importer or construct its reporting hierarchy.
+Validate locally with `kongctl inspect id principal csv --help`; see the
+[CSV example][identity-csv] for the manifest and input file.
+
+[identity-csv]: ../examples/declarative/identity/principal-csv.yaml

@@ -14,6 +14,55 @@ use flexible auth configs that preserve these arrays in additional properties;
 the legacy config-file patch is skipped when that file is absent. The wire
 regression tests run against both config shapes.
 
+Auth-server PATCH preserves explicit empty `trusted_origins` arrays with
+`omitzero`, while nil arrays remain omitted. The patch skips SDK versions
+without auth-server management and checks actual wire presence when available.
+The same rule preserves explicit empty claim `include_in_scopes` arrays in
+PATCH requests. Both patches are optional on SDKs without those APIs.
+
+OAuth client PATCH has the same nil-versus-empty requirement for grant types,
+response types, redirect URIs and allowed scopes. A targeted request patch
+also removes the automatic endpoint-authentication-method default. An omitted
+method must stay omitted in the serialized request; explicit methods remain
+supported. Writers explicitly preserve the fresh current method; this remains valid
+against the corrected development API. Actual SDK wire tests cover empty, omitted and
+populated fields. These patches skip SDKs without auth-server clients.
+
+Directory, principal, principal-group, principal-identity, principal API-key,
+basic-auth, password, group, group key, group membership, Trusted IdP,
+associated-principal, Vault key, Vault provider, provider credential,
+principal Vault credential and
+credential-provider template lists use bracketed
+`page[size]` and `page[after]` query names. The shared API parameter omits
+`style: deepObject`, so generated form/explode encoding sends flat keys that
+the deployed API ignores (Q22). Targeted request-tag replacements correct
+these seventeen operations without changing unrelated SDK resources. Provider
+credential, principal Vault-credential and group-key lists use the same
+correction; an unfiltered empty-dependency guard does not require page arguments.
+A wire regression verifies the bracketed names and cursor encoding; it fails
+before the patches. Skip SDKs without these operations. Remove replacements
+when upstream generation preserves the documented/deployed cursor shape.
+
+SDK 0.83 includes a dedicated writable nullable expiration schema for the six
+Identity credential requests. No preview-spec correction is needed for that
+schema separation. Generated time pointers still cannot distinguish omitted
+expiration from explicit null, so the targeted Go model corrections below
+remain necessary. SDK 0.83 also splits the key-creation variants into separate
+model files; the replacements follow those files and preserve their generated
+constant discriminators.
+
+For the five optional request fields, targeted replacements use the SDK's
+existing `optionalnullable.OptionalNullable[time.Time]` type. The zero value
+omits expiration, `optionalnullable.From(&expiration)` supplies a timestamp,
+and `optionalnullable.From[time.Time](nil)` sends explicit null. The required
+password replacement field stays `*time.Time` with no `omitempty`; nil sends
+the required null property. This does not enable nullable wrappers globally
+or change existing public SDK fields. Generated examples are updated within
+their affected operation sections. Wire regressions cover all three states
+for principal/group generated/imported keys and password create/update/replace.
+Remove these replacements only when upstream generation preserves those
+states. Backend metadata and expiration omission behavior (Q28/Q35) is separate.
+
 Portal customization patches preserve omitted theme names and Try It UI
 audiences. Explicit audience values remain supported; an unset audience must
 not become `all` in a PATCH request.
@@ -92,3 +141,10 @@ python3 -m unittest discover -s tools/sdk-patches -p '*_test.py'
 
 Live scenarios can create or delete Konnect resources. Use the configured test
 profile and scope cleanup to the scenario's resources.
+
+Development Identity APIs accept `managed_by` when importing principal/group
+keys, and support explicit null for key names on PATCH. Targeted model patches
+add the imported-key map and use `optionalnullable.OptionalNullable[string]`
+for update names. Wire tests verify imported metadata, null-key removal, and
+omitted/null/scalar names. The client retains its existing ownership convention;
+API mutability alone does not authorize adoption or ownership transfer.

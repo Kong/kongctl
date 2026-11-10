@@ -35,6 +35,8 @@ var declarativeCollectors = buildDeclarativeCollectors()
 
 func buildDeclarativeCollectors() map[string]declarativeCollector {
 	registrations := []declarativeCollector{
+		identityDirectoryCollector(),
+		identityAuthServerCollector(),
 		rootCollector(
 			"portals",
 			func(ctx context.Context, d *declarativeDumpContext) ([]declresources.PortalResource, error) {

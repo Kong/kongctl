@@ -2,6 +2,7 @@ package jq
 
 import (
 	"bytes"
+	"encoding/json"
 	"testing"
 
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
@@ -186,7 +187,7 @@ func TestApplyToRawJSON(t *testing.T) {
 	result, handled, err := ApplyToRaw(payload, cmdcommon.JSON, settings, &bytes.Buffer{})
 	require.NoError(t, err)
 	require.False(t, handled)
-	require.Equal(t, float64(42), result)
+	require.Equal(t, json.Number("42"), result)
 }
 
 func TestApplyToRawYAML(t *testing.T) {
@@ -197,10 +198,12 @@ func TestApplyToRawYAML(t *testing.T) {
 		Theme:     DefaultTheme,
 	}
 
-	result, handled, err := ApplyToRaw(payload, cmdcommon.YAML, settings, &bytes.Buffer{})
+	var out bytes.Buffer
+	result, handled, err := ApplyToRaw(payload, cmdcommon.YAML, settings, &out)
 	require.NoError(t, err)
-	require.False(t, handled)
-	require.Equal(t, map[string]any{"bar": "value"}, result)
+	require.True(t, handled)
+	require.Nil(t, result)
+	require.Equal(t, "bar: value\n", out.String())
 }
 
 func TestApplyToRawColorizedJSONWritesDirectly(t *testing.T) {
@@ -301,4 +304,21 @@ func TestApplyToRawEmptySliceIdentityReturnsEmptyArray(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, handled)
 	require.Equal(t, []any{}, result)
+}
+
+func TestJQPreservesExactIntegerValuesAndArithmetic(t *testing.T) {
+	body := []byte(`{"positive":9007199254740993,"negative":-9007199254740993,"max":9223372036854775807}`)
+	for _, expression := range []string{".", ".positive", ".positive + 2"} {
+		result, err := ApplyFilter(body, expression)
+		require.NoError(t, err)
+		expected := "9007199254740993"
+		if expression == ".positive + 2" {
+			expected = "9007199254740995"
+		}
+		require.Contains(t, string(result), expected)
+	}
+	var out bytes.Buffer
+	require.NoError(t, ApplyRawFilter(body, ".max", &out))
+	require.Equal(t, "9223372036854775807\n", out.String())
+	require.Contains(t, BodyToPrintable(body), "-9007199254740993")
 }

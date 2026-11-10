@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/url"
 	"os"
@@ -16,6 +17,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/util"
 	"sigs.k8s.io/yaml"
 )
 
@@ -31,10 +34,11 @@ type Step struct {
 }
 
 type CreateResourceOptions struct {
-	RecoverTeam  bool
-	Slug         string
-	ExpectStatus int
-	PathParams   map[string]string
+	DefaultDirectoryID string
+	RecoverTeam        bool
+	Slug               string
+	ExpectStatus       int
+	PathParams         map[string]string
 }
 
 type CreateResourceResult struct {
@@ -301,13 +305,42 @@ var createResourceEndpoints = map[string]resourceEndpoint{
 		Path:      "/v3/portals/{portalId}/pages",
 		ParamKeys: []string{"portalId"},
 	},
-	"api":           {Method: http.MethodPost, Path: "/v3/apis"},
-	"apis":          {Method: http.MethodPost, Path: "/v3/apis"},
-	"auth-strategy": {Method: http.MethodPost, Path: "/v2/application-auth-strategies"},
-	"auth_strategy": {Method: http.MethodPost, Path: "/v2/application-auth-strategies"},
-	"authstrategy":  {Method: http.MethodPost, Path: "/v2/application-auth-strategies"},
-	"dcr-provider":  {Method: http.MethodPost, Path: "/v2/dcr-providers"},
-	"dcr_provider":  {Method: http.MethodPost, Path: "/v2/dcr-providers"},
+	"api":                  {Method: http.MethodPost, Path: "/v3/apis"},
+	"apis":                 {Method: http.MethodPost, Path: "/v3/apis"},
+	"auth-strategy":        {Method: http.MethodPost, Path: "/v2/application-auth-strategies"},
+	"auth_strategy":        {Method: http.MethodPost, Path: "/v2/application-auth-strategies"},
+	"authstrategy":         {Method: http.MethodPost, Path: "/v2/application-auth-strategies"},
+	"dcr-provider":         {Method: http.MethodPost, Path: "/v2/dcr-providers"},
+	"dcr_provider":         {Method: http.MethodPost, Path: "/v2/dcr-providers"},
+	"identity_auth_server": {Method: http.MethodPost, Path: "/v1/auth-servers"},
+	"identity_auth_server_scope": {
+		Method: http.MethodPost, Path: "/v1/auth-servers/{authServerId}/scopes",
+		ParamKeys: []string{"authServerId"},
+	},
+	"identity_auth_server_claim": {
+		Method: http.MethodPost, Path: "/v1/auth-servers/{authServerId}/claims",
+		ParamKeys: []string{"authServerId"},
+	},
+	"identity_auth_server_client": {
+		Method: http.MethodPost, Path: "/v1/auth-servers/{authServerId}/clients",
+		ParamKeys: []string{"authServerId"},
+	},
+	"identity_auth_server_client_secret": {
+		Method: http.MethodPost, Path: "/v1/auth-servers/{authServerId}/clients/{clientId}/secrets",
+		ParamKeys: []string{"authServerId", "clientId"},
+	},
+	string(resources.ResourceTypeIdentityGroup): {
+		Method: http.MethodPost, Path: "/v2/directories/{directoryId}/groups", ParamKeys: []string{"directoryId"},
+	},
+	string(resources.ResourceTypeIdentityGroupMembership): {
+		Method: http.MethodPost, Path: "/v2/directories/{directoryId}/groups/{groupId}/membership",
+		ParamKeys: []string{"directoryId", "groupId"},
+	},
+	"identity_directory": {Method: http.MethodPost, Path: "/v2/directories"},
+	"identity_principal": {
+		Method: http.MethodPost, Path: "/v2/directories/{directoryId}/principals",
+		ParamKeys: []string{"directoryId"},
+	},
 	"dcrprovider":   {Method: http.MethodPost, Path: "/v2/dcr-providers"},
 	"dashboard":     {Method: http.MethodPost, Path: "/v2/dashboards"},
 	"dashboards":    {Method: http.MethodPost, Path: "/v2/dashboards"},
@@ -515,6 +548,27 @@ func (s *Step) CreateResource(resource string, body []byte, opts CreateResourceO
 	var desired map[string]any
 	var marker string
 	endpoint := createResourceEndpoints[strings.ToLower(strings.TrimSpace(resource))]
+	endpoints := createResourceEndpoints
+	if opts.DefaultDirectoryID != "" {
+		if resource != string(resources.ResourceTypeIdentityDirectory) || !util.IsValidUUID(opts.DefaultDirectoryID) {
+			return CreateResourceResult{}, fmt.Errorf("default directory fixture requires an identity directory UUID")
+		}
+		var configured map[string]any
+		if err := json.Unmarshal(body, &configured); err != nil || configured["name"] != "default" {
+			return CreateResourceResult{}, fmt.Errorf("default directory fixture requires name default")
+		}
+		desired := identityDirectoryBaseline(false)
+		maps.Copy(desired, configured)
+		var err error
+		body, err = json.Marshal(desired)
+		if err != nil {
+			return CreateResourceResult{}, err
+		}
+		endpoints = map[string]resourceEndpoint{resource: {
+			Method: http.MethodPut, Path: "/v2/directories/" + opts.DefaultDirectoryID,
+		}}
+		opts.ExpectStatus = http.StatusOK
+	}
 	if opts.RecoverTeam {
 		if endpoint.Path != "/v3/teams" {
 			return CreateResourceResult{}, fmt.Errorf("recoverTeam is only supported for organization teams")
@@ -529,7 +583,7 @@ func (s *Step) CreateResource(resource string, body []byte, opts CreateResourceO
 	result, err := s.requestResource(
 		resource,
 		body,
-		createResourceEndpoints,
+		endpoints,
 		resourceRequestOptions{
 			Slug:         opts.Slug,
 			ExpectStatus: opts.ExpectStatus,
@@ -724,7 +778,7 @@ func (s *Step) requestResource(
 	if dir != "" {
 		_ = os.WriteFile(
 			filepath.Join(dir, "command.txt"),
-			[]byte(fmt.Sprintf("HTTP %s %s\n", endpoint.Method, fullURL)),
+			fmt.Appendf(nil, "HTTP %s %s\n", endpoint.Method, fullURL),
 			0o644,
 		)
 		if len(body) > 0 {
@@ -1149,7 +1203,7 @@ func (s *Step) ResetOrgForRegions(stage string, regions []string) error {
 	}
 
 	// command.txt
-	_ = os.WriteFile(filepath.Join(dir, "command.txt"), []byte(fmt.Sprintf("RESET ORG (stage=%s)\n", stage)), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "command.txt"), fmt.Appendf(nil, "RESET ORG (stage=%s)\n", stage), 0o600)
 
 	// Check env gating
 	if v := strings.ToLower(strings.TrimSpace(os.Getenv("KONGCTL_E2E_RESET"))); v != "" && v != "1" && v != "true" &&

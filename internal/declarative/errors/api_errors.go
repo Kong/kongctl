@@ -1,10 +1,13 @@
 package decerrors
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+
+	kkErrors "github.com/Kong/sdk-konnect-go/models/sdkerrors"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
 )
@@ -151,6 +154,14 @@ func generateHint(err error, ctx APIErrorContext) string {
 func ExtractStatusCodeFromError(err error) int {
 	if err == nil {
 		return 0
+	}
+	var apiError *kkErrors.SDKError
+	if errors.As(err, &apiError) {
+		return apiError.StatusCode
+	}
+	var notFound *kkErrors.NotFoundError
+	if errors.As(err, &notFound) {
+		return int(notFound.Status)
 	}
 
 	errMsg := err.Error()

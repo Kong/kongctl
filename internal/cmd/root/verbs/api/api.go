@@ -26,11 +26,12 @@ import (
 	apiutil "github.com/kong/kongctl/internal/konnect/apiutil"
 	"github.com/kong/kongctl/internal/konnect/httpclient"
 	"github.com/kong/kongctl/internal/meta"
+	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/mattn/go-isatty"
-	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
+	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -416,19 +417,12 @@ func run(helper cmd.Helper, method string, allowBody bool) error {
 		_, err = fmt.Fprintln(streams.Out, strings.TrimRight(printable, "\n"))
 		return err
 	case cmdcommon.YAML:
-		var payload any
-		if len(bodyToRender) > 0 {
-			if err := json.Unmarshal(bodyToRender, &payload); err != nil {
-				payload = strings.TrimRight(bodyToPrintable(bodyToRender), "\n")
-			}
-		}
-		printer, err := cli.Format(outType.String(), streams.Out)
+		data, err := yaml.JSONToYAML(bodyToRender)
 		if err != nil {
 			return err
 		}
-		defer printer.Flush()
-		printer.Print(payload)
-		return nil
+		_, err = streams.Out.Write(data)
+		return err
 	default:
 		return &cmd.ConfigurationError{
 			Err: fmt.Errorf("unsupported output format %q for %s command", outType.String(),
@@ -653,7 +647,9 @@ func parseAssignments(fields []string) (map[string]any, error) {
 
 		var decoded any
 		if jsonTyped {
-			if err := json.Unmarshal([]byte(value), &decoded); err != nil {
+			var err error
+			decoded, err = util.NormalizeJSONValue(json.RawMessage(value))
+			if err != nil {
 				return nil, fmt.Errorf("failed to parse %s as JSON: %w", key, err)
 			}
 		} else {
@@ -896,8 +892,8 @@ func normalizeGoJQValue(v any) any {
 }
 
 func bodyToPrintable(body []byte) string {
-	var js any
-	if err := json.Unmarshal(body, &js); err != nil {
+	js, err := util.NormalizeJSONValue(json.RawMessage(body))
+	if err != nil {
 		return string(body)
 	}
 	formatted, err := json.MarshalIndent(js, "", "  ")

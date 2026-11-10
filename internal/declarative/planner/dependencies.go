@@ -421,6 +421,20 @@ func (d *DependencyResolver) findParentChange(parentRef, childResourceType strin
 // getParentType determines parent resource type from child type
 func (d *DependencyResolver) getParentType(childType string) string {
 	switch childType {
+	case ResourceTypeIdentityVaultProviderCredential:
+		return ResourceTypeIdentityVaultProvider
+	case ResourceTypeIdentityGroupMembership, ResourceTypeIdentityGroupAPIKey:
+		return ResourceTypeIdentityGroup
+	case ResourceTypeIdentityPrincipalIdentity, ResourceTypeIdentityBasicAuth, ResourceTypeIdentityPrincipalAPIKey:
+		return ResourceTypeIdentityPrincipal
+	case ResourceTypeIdentityPrincipal,
+		ResourceTypeIdentityGroup,
+		ResourceTypeIdentityVaultKey,
+		ResourceTypeIdentityVaultProvider,
+		ResourceTypeIdentityTrustedIDP:
+		return ResourceTypeIdentityDirectory
+	case ResourceTypeIdentityAuthServerClient:
+		return ResourceTypeIdentityAuthServer
 	case ResourceTypeAPIVersion, ResourceTypeAPIPublication, ResourceTypeAPIImplementation, ResourceTypeAPIDocument:
 		return ResourceTypeAPI
 	case ResourceTypePortalPage:

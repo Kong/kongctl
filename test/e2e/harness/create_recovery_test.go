@@ -5,6 +5,7 @@ package harness
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -53,9 +54,7 @@ func TestTeamCreateRecoversWithoutRepeatingPost(t *testing.T) {
 					}
 				}
 				item := map[string]any{}
-				for k, v := range created {
-					item[k] = v
-				}
+				maps.Copy(item, created)
 				if mode == "conflict" {
 					item["name"] = "wrong"
 				}

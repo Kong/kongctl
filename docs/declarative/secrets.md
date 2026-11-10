@@ -26,6 +26,7 @@ them from `get` or `list` responses. Common examples include:
 - Event Gateway backend cluster `authentication.password`
 - Event Gateway schema registry authentication `password`
 - AI Gateway Consumer Credential `api_key`
+- Kong Identity Credential Provider `client_secret` and static shared `secret`
 
 Secret material in write-only fields must use `!secret`. Literal values and
 eager `!file` values are rejected because they could enter a saved plan:
@@ -126,3 +127,12 @@ AI Gateway Consumer Credential `api_key` is create-only. Omit it to let Konnect
 generate a key, or supply it with `!secret` on a new credential. Selecting it on
 an existing credential fails. Rotate it by declaring a new credential and
 deliberately retiring the old one; kongctl never silently recreates it.
+
+Generated Kong Identity API keys and initial OAuth client secrets are captured
+at execution with `--secret-output-dir`, not supplied as declarative material.
+Plans and dumps contain public configuration only. Generated API keys can be
+rotated by declaring replacement keys and retiring the old declarations.
+Client-secret rotation and OAuth enrollment are outside this declarative
+workflow; see the [Identity examples][identity-keys].
+
+[identity-keys]: ../examples/declarative/identity/README.md

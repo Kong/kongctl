@@ -1,0 +1,445 @@
+package executor
+
+import (
+	"encoding/json"
+	"fmt"
+	"testing"
+
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/planner"
+	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/konnect/helpers"
+	fixture "github.com/kong/kongctl/test/konnect"
+	"github.com/stretchr/testify/require"
+)
+
+func TestPrincipalSavedMetadataMergeRetainsFreshKeys(t *testing.T) {
+	a, api, execCtx := principalExecutorFixture()
+	change := execCtx.PlannedChange
+	change.Fields[planner.FieldMetadata] = map[string]any{"team": "fulfillment"}
+	change.MetadataMerge = true
+	encoded, err := json.Marshal(change)
+	require.NoError(t, err)
+	var saved planner.PlannedChange
+	require.NoError(t, json.Unmarshal(encoded, &saved))
+	execCtx = NewExecutionContext(&saved)
+	// Added after planning: a merge must retain it, as well as omitted public fields.
+	api.Directories["directory-id"][0].Metadata["late"] = kkComps.CreateKongIdentityMetadataBoolean(true)
+	var request kkComps.ReplacePrincipalBody
+	require.NoError(t, a.MapUpdateFields(t.Context(), execCtx, saved.Fields, &request, nil))
+	_, err = a.Update(t.Context(), saved.ResourceID, request, saved.Namespace, execCtx)
+	require.NoError(t, err)
+	require.Len(t, api.Writes, 1)
+	data, err := json.Marshal(api.Writes[0])
+	require.NoError(t, err)
+	var body map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(data, &body))
+	require.JSONEq(t, `{"large":9007199254740994,"late":true,"team":"fulfillment"}`, string(body["metadata"]))
+	require.NotContains(t, string(data), "metadata_merge")
+	require.Equal(t, "Fresh description", *api.Writes[0].Description)
+}
+
+func TestPrincipalSavedMetadataReplacementRemovesUnmentionedKeys(t *testing.T) {
+	a, api, execCtx := principalExecutorFixture()
+	execCtx.PlannedChange.Fields[planner.FieldMetadata] = map[string]any{}
+	var request kkComps.ReplacePrincipalBody
+	require.NoError(t, a.MapUpdateFields(t.Context(), execCtx, execCtx.PlannedChange.Fields, &request, nil))
+	_, err := a.Update(t.Context(), "principal-id", request, execCtx.Namespace, execCtx)
+	require.NoError(t, err)
+	require.Len(t, api.Writes, 1)
+	require.Empty(t, api.Writes[0].Metadata)
+	require.Empty(t, api.Directories["directory-id"][0].Metadata)
+}
+
+func principalExecutorFixture() (*IdentityPrincipalAdapter, *fixture.PrincipalAPI, *ExecutionContext) {
+	api := &fixture.PrincipalAPI{Directories: map[string][]kkComps.KongPrincipal{"directory-id": {{
+		ID: "principal-id", DisplayName: new("Current name"), Description: "Fresh description",
+		Type: new(kkComps.KongPrincipalTypeUser), Labels: map[string]string{"owner": "team"},
+		Metadata: map[string]kkComps.KongIdentityMetadata{
+			"large": kkComps.CreateKongIdentityMetadataInteger(9007199254740994),
+		},
+		ManagedBy: resources.BuildPrincipalManagedBy("principal-team", "alice", false, "old"),
+	}}}}
+	change := planner.PlannedChange{
+		ResourceType: planner.ResourceTypeIdentityPrincipal, ResourceRef: "alice", ResourceID: "principal-id",
+		Action: planner.ActionUpdate, Namespace: "principal-team",
+		Parent: &planner.ParentInfo{ID: "directory-id"}, Fields: map[string]any{
+			planner.FieldDisplayName: "Updated name",
+			planner.FieldManagedBy:   resources.BuildPrincipalManagedBy("principal-team", "alice", false, ""),
+		},
+	}
+	return &IdentityPrincipalAdapter{
+			client: state.NewClient(
+				state.ClientConfig{
+					IdentityPrincipalsAPI:       api,
+					IdentityBasicAuthAPI:        &fixture.BasicAuthAPI{},
+					IdentityPrincipalKeysReader: &fixture.BasicAuthAPI{},
+					IdentityGroupsAPI:           &fixture.GroupAPI{},
+				},
+			),
+		}, api, NewExecutionContext(
+			&change,
+		)
+}
+
+func TestPrincipalSavedDeleteRechecksIncomingGroupMemberships(t *testing.T) {
+	const directoryID = "4078f559-063b-4f10-9098-9e6553b21d9b"
+	const principalID = "5078f559-063b-4f10-9098-9e6553b21d9b"
+	for _, kind := range []string{"empty", "unowned", "foreign", "protected", "failed"} {
+		t.Run(kind, func(t *testing.T) {
+			a, principals, execCtx := principalExecutorFixture()
+			current := principals.Directories["directory-id"][0]
+			current.ID = principalID
+			principals.Directories = map[string][]kkComps.KongPrincipal{directoryID: {current}}
+			execCtx.PlannedChange.Action = planner.ActionDelete
+			execCtx.PlannedChange.ResourceID = principalID
+			execCtx.PlannedChange.Parent.ID = directoryID
+			group := fixture.Group("OtherOwnersGroup", "other-team", kind == "protected")
+			if kind == "unowned" {
+				group.ManagedBy = nil
+			}
+			groups := &fixture.GroupAPI{Directories: map[string][]helpers.IdentityGroup{directoryID: {group}}}
+			if kind != "empty" {
+				groups.Memberships = map[string][]kkComps.KongGroupMembershipEntry{group.ID: {{
+					ID:     "6078f559-063b-4f10-9098-9e6553b21d9b",
+					Member: kkComps.KongGroupMember{ID: principalID, Type: kkComps.KongGroupMembershipTypePrincipal},
+				}}}
+			}
+			if kind == "failed" {
+				groups.Failure = "membership"
+			}
+			a.client = state.NewClient(state.ClientConfig{
+				IdentityPrincipalsAPI:          principals,
+				IdentityPrincipalIdentitiesAPI: &fixture.PrincipalIdentitiesAPI{},
+				IdentityBasicAuthAPI:           &fixture.BasicAuthAPI{},
+				IdentityPrincipalKeysReader:    &fixture.BasicAuthAPI{},
+				IdentityGroupsAPI:              groups,
+			})
+			err := a.Delete(t.Context(), principalID, execCtx)
+			if kind == "empty" {
+				require.NoError(t, err)
+				require.Equal(t, 1, principals.Deletes)
+			} else {
+				require.Error(t, err)
+				require.Zero(t, principals.Deletes)
+			}
+		})
+	}
+}
+
+func TestPrincipalSavedDeleteRechecksCredentialChildren(t *testing.T) {
+	const directoryID = "4078f559-063b-4f10-9098-9e6553b21d9b"
+	const principalID = "5078f559-063b-4f10-9098-9e6553b21d9b"
+	for _, mode := range []string{
+		"empty", "unowned-basic", "owned-basic", "foreign-basic", "key",
+		"failed-basic", "failed-key", "unconfigured-basic", "unconfigured-key",
+	} {
+		t.Run(mode, func(t *testing.T) {
+			a, principals, execCtx := principalExecutorFixture()
+			current := principals.Directories["directory-id"][0]
+			current.ID = principalID
+			principals.Directories = map[string][]kkComps.KongPrincipal{directoryID: {current}}
+			execCtx.PlannedChange.Action = planner.ActionDelete
+			execCtx.PlannedChange.ResourceID = principalID
+			execCtx.PlannedChange.Parent.ID = directoryID
+			credentials := &fixture.BasicAuthAPI{}
+			key := directoryID + "/" + principalID
+			switch mode {
+			case "owned-basic", "foreign-basic", "unowned-basic":
+				basic := fixture.BasicAuth("late-username", "principal-team", false)
+				switch mode {
+				case "foreign-basic":
+					basic.ManagedBy[resources.ChildNamespaceKey] = "other"
+				case "unowned-basic":
+					basic.ManagedBy = nil
+				}
+				credentials.Parents = map[string][]helpers.IdentityBasicAuth{key: {basic}}
+			case "key":
+				credentials.Keys = map[string][]string{key: {principalID}}
+			case "failed-basic":
+				credentials.Failure = "list"
+			case "failed-key":
+				credentials.Failure = "keys"
+			}
+			config := state.ClientConfig{
+				IdentityPrincipalsAPI: principals, IdentityGroupsAPI: &fixture.GroupAPI{},
+				IdentityPrincipalIdentitiesAPI: &fixture.PrincipalIdentitiesAPI{},
+			}
+			if mode != "unconfigured-basic" {
+				config.IdentityBasicAuthAPI = credentials
+			}
+			if mode != "unconfigured-key" {
+				config.IdentityPrincipalKeysReader = credentials
+			}
+			a.client = state.NewClient(config)
+			err := a.Delete(t.Context(), principalID, execCtx)
+			if mode == "empty" {
+				require.NoError(t, err)
+				require.Equal(t, 1, principals.Deletes)
+			} else {
+				require.Error(t, err)
+				require.Zero(t, principals.Deletes)
+			}
+		})
+	}
+}
+
+func TestPrincipalSavedPutPreservesFreshOmittedFields(t *testing.T) {
+	a, api, execCtx := principalExecutorFixture()
+	encoded, err := json.Marshal(execCtx.PlannedChange)
+	require.NoError(t, err)
+	var saved planner.PlannedChange
+	require.NoError(t, json.Unmarshal(encoded, &saved))
+	execCtx = NewExecutionContext(&saved)
+	var request kkComps.ReplacePrincipalBody
+	require.NoError(t, a.MapUpdateFields(t.Context(), execCtx, execCtx.PlannedChange.Fields, &request, nil))
+	_, err = a.Update(t.Context(), "principal-id", request, execCtx.Namespace, execCtx)
+	require.NoError(t, err)
+	require.Len(t, api.Writes, 1)
+	require.Equal(t, "Fresh description", *api.Writes[0].Description)
+	require.Equal(t, kkComps.KongPrincipalTypeUser, *api.Writes[0].Type)
+	require.Equal(t, map[string]string{"owner": "team"}, api.Writes[0].Labels)
+	require.Nil(t, api.Writes[0].Active, "Q10: never synthesize false")
+	require.Equal(t, int64(9007199254740994), *api.Writes[0].Metadata["large"].Integer)
+	require.Equal(t, "alice", api.Writes[0].ManagedBy[resources.ManagedByRefKey])
+	for _, field := range []string{planner.FieldLabels, planner.FieldMetadata} {
+		a, api, execCtx := principalExecutorFixture()
+		execCtx.PlannedChange.Fields[field] = map[string]any{}
+		require.NoError(t, a.MapUpdateFields(t.Context(), execCtx, execCtx.PlannedChange.Fields, &request, nil))
+		_, err := a.Update(t.Context(), "principal-id", request, execCtx.Namespace, execCtx)
+		require.NoError(t, err)
+		require.Len(t, api.Writes, 1)
+		if field == planner.FieldLabels {
+			require.Empty(t, api.Writes[0].Labels)
+		} else {
+			require.Empty(t, api.Writes[0].Metadata)
+		}
+	}
+}
+
+func TestPrincipalSavedMutationRejectsNewDuplicate(t *testing.T) {
+	for _, action := range []planner.ActionType{planner.ActionUpdate, planner.ActionDelete} {
+		a, api, execCtx := principalExecutorFixture()
+		duplicate := api.Directories["directory-id"][0]
+		duplicate.ID = "duplicate-id"
+		api.Directories["directory-id"] = append(api.Directories["directory-id"], duplicate)
+		var err error
+		if action == planner.ActionDelete {
+			err = a.Delete(t.Context(), "principal-id", execCtx)
+		} else {
+			var request kkComps.ReplacePrincipalBody
+			require.NoError(t, a.MapUpdateFields(t.Context(), execCtx, execCtx.PlannedChange.Fields, &request, nil))
+			_, err = a.Update(t.Context(), "principal-id", request, execCtx.Namespace, execCtx)
+		}
+		require.ErrorContains(t, err, "multiple principals")
+		require.Empty(t, api.Writes)
+		require.Zero(t, api.Deletes)
+	}
+}
+
+func TestPrincipalSavedWritesRejectLateImporterAdoption(t *testing.T) {
+	for _, action := range []planner.ActionType{planner.ActionUpdate, planner.ActionDelete} {
+		a, api, execCtx := principalExecutorFixture()
+		api.Directories["directory-id"][0].ProvisionedBy = new(kkComps.ProvisionedBy("imported"))
+		execCtx.PlannedChange.Action = action
+		var err error
+		if action == planner.ActionDelete {
+			err = a.Delete(t.Context(), "principal-id", execCtx)
+		} else {
+			var request kkComps.ReplacePrincipalBody
+			require.NoError(t, a.MapUpdateFields(t.Context(), execCtx, execCtx.PlannedChange.Fields, &request, nil))
+			_, err = a.Update(t.Context(), "principal-id", request, execCtx.Namespace, execCtx)
+		}
+		require.ErrorContains(t, err, "organization-chart importer")
+		require.Empty(t, api.Writes)
+		require.Zero(t, api.Deletes)
+	}
+}
+
+func TestPrincipalRejectsChangedOwnershipTypeAndProtection(t *testing.T) {
+	for _, field := range []string{
+		resources.ManagedByToolKey, resources.ChildNamespaceKey,
+		resources.ManagedByRefKey, resources.ChildProtectedKey, planner.FieldType,
+	} {
+		t.Run(field, func(t *testing.T) {
+			a, api, execCtx := principalExecutorFixture()
+			switch field {
+			case planner.FieldType:
+				execCtx.PlannedChange.Fields[field] = "agent"
+			case resources.ChildProtectedKey:
+				api.Directories["directory-id"][0].ManagedBy[field] = "true"
+			default:
+				api.Directories["directory-id"][0].ManagedBy[field] = "other"
+			}
+			var request kkComps.ReplacePrincipalBody
+			require.NoError(t, a.MapUpdateFields(t.Context(), execCtx, execCtx.PlannedChange.Fields, &request, nil))
+			_, err := a.Update(t.Context(), "principal-id", request, execCtx.Namespace, execCtx)
+			require.Error(t, err)
+			require.Empty(t, api.Writes)
+		})
+	}
+	a, _, execCtx := principalExecutorFixture()
+	var request kkComps.ReplacePrincipalBody
+	require.ErrorContains(
+		t,
+		a.MapUpdateFields(t.Context(), execCtx, map[string]any{planner.FieldActive: nil}, &request, nil),
+		"cannot be null",
+	)
+}
+
+func TestPrincipalSavedCreateRetainsIntegerMetadata(t *testing.T) {
+	change := planner.PlannedChange{
+		ResourceType: planner.ResourceTypeIdentityPrincipal,
+		Fields:       map[string]any{planner.FieldMetadata: map[string]any{"large": int64(9007199254740994)}},
+	}
+	encoded, err := json.Marshal(change)
+	require.NoError(t, err)
+	var saved planner.PlannedChange
+	require.NoError(t, json.Unmarshal(encoded, &saved))
+	var request kkComps.CreatePrincipalBody
+	execution, err := cloneChangeForExecution(&saved)
+	require.NoError(t, err)
+	require.NoError(t, (&Executor{}).resolveDeferredEnvPlaceholders(execution))
+	require.NoError(t, mapIdentityPrincipalFields(execution.Fields, &request))
+	require.Equal(t, int64(9007199254740994), *request.Metadata["large"].Integer)
+}
+
+func TestPrincipalSavedWritesPreserveExactMetadataIntegers(t *testing.T) {
+	for _, number := range []string{"9007199254740993", "-9007199254740993", "1152921504606846976"} {
+		change := planner.PlannedChange{
+			ResourceType: planner.ResourceTypeIdentityPrincipal,
+			Fields:       map[string]any{planner.FieldMetadata: map[string]any{"identifier": json.Number(number)}},
+		}
+		encoded, err := json.Marshal(change)
+		require.NoError(t, err)
+		var saved planner.PlannedChange
+		require.NoError(t, json.Unmarshal(encoded, &saved))
+		execution, err := cloneChangeForExecution(&saved)
+		require.NoError(t, err)
+		var create kkComps.CreatePrincipalBody
+		require.NoError(t, mapIdentityPrincipalFields(execution.Fields, &create))
+		require.Equal(t, number, fmt.Sprint(*create.Metadata["identifier"].Integer))
+		var update kkComps.ReplacePrincipalBody
+		require.NoError(t, mapIdentityPrincipalFields(execution.Fields, &update))
+		require.Equal(t, number, fmt.Sprint(*update.Metadata["identifier"].Integer))
+	}
+}
+
+func TestPrincipalSavedDeleteRechecksIdentityChildren(t *testing.T) {
+	for _, mode := range []string{"empty", "unowned", "owned-protected", "foreign", "failed", "unconfigured"} {
+		t.Run(mode, func(t *testing.T) {
+			const directoryID = "731559d3-39bd-48c7-b33c-eb192847eb20"
+			const principalID = "731559d3-39bd-48c7-b33c-eb192847eb21"
+			a, api, execCtx := principalExecutorFixture()
+			current := api.Directories["directory-id"][0]
+			current.ID = principalID
+			api.Directories = map[string][]kkComps.KongPrincipal{directoryID: {current}}
+			execCtx.PlannedChange.Action = planner.ActionDelete
+			execCtx.PlannedChange.ResourceID = principalID
+			execCtx.PlannedChange.Parent.ID = directoryID
+			identities := &fixture.PrincipalIdentitiesAPI{}
+			if mode == "failed" {
+				identities.Error = fmt.Errorf("incomplete identity observation")
+			} else if mode != "empty" && mode != "unconfigured" {
+				var metadata map[string]string
+				if mode != "unowned" {
+					metadata = resources.BuildPrincipalManagedBy("principal-team", "employee", true, "test")
+				}
+				if mode == "foreign" {
+					metadata[resources.ChildNamespaceKey] = "other-team"
+				}
+				identities.Data = []kkComps.KongPrincipalIdentity{
+					kkComps.CreateKongPrincipalIdentityCustom(kkComps.KongPrincipalIdentityCustomResponse{
+						ID: "731559d3-39bd-48c7-b33c-eb192847eb22", Key: "employee", Value: "123", ManagedBy: metadata,
+					}),
+				}
+			}
+			config := state.ClientConfig{
+				IdentityPrincipalsAPI:       api,
+				IdentityBasicAuthAPI:        &fixture.BasicAuthAPI{},
+				IdentityPrincipalKeysReader: &fixture.BasicAuthAPI{},
+				IdentityGroupsAPI:           &fixture.GroupAPI{},
+			}
+			if mode != "unconfigured" {
+				config.IdentityPrincipalIdentitiesAPI = identities
+			}
+			a.client = state.NewClient(config)
+			// This represents a child added after a saved deletion plan. Only a
+			// fresh empty collection permits the final parent mutation.
+			err := a.Delete(t.Context(), principalID, execCtx)
+			if mode == "empty" {
+				require.NoError(t, err)
+				require.Equal(t, 1, api.Deletes)
+			} else {
+				require.Error(t, err)
+				require.Zero(t, api.Deletes)
+				if mode == "failed" || mode == "unconfigured" {
+					require.ErrorContains(t, err, "cannot verify principal identities")
+				} else {
+					require.ErrorContains(t, err, "still has 1 identities")
+				}
+			}
+			if mode != "unconfigured" {
+				require.Len(t, identities.Requests, 1)
+				require.Equal(t, directoryID, identities.Requests[0].DirectoryID)
+				require.Equal(t, principalID, identities.Requests[0].PrincipalID)
+			}
+		})
+	}
+}
+
+func TestPrincipalSavedActiveUpdates(t *testing.T) {
+	for _, desired := range []bool{false, true} {
+		a, api, execCtx := principalExecutorFixture()
+		api.ExposeActive = true
+		api.Directories["directory-id"][0].Active = !desired
+		execCtx.PlannedChange.Fields[planner.FieldActive] = desired
+		data, err := json.Marshal(execCtx.PlannedChange)
+		require.NoError(t, err)
+		var saved planner.PlannedChange
+		require.NoError(t, json.Unmarshal(data, &saved))
+		execCtx = NewExecutionContext(&saved)
+		var request kkComps.ReplacePrincipalBody
+		require.NoError(t, a.MapUpdateFields(t.Context(), execCtx, saved.Fields, &request, nil))
+		_, err = a.Update(t.Context(), "principal-id", request, execCtx.Namespace, execCtx)
+		require.NoError(t, err)
+		require.Len(t, api.Writes, 1)
+		require.Equal(t, new(desired), api.Writes[0].Active)
+		require.Equal(t, desired, api.Directories["directory-id"][0].Active)
+	}
+	for _, absent := range []bool{true, false} {
+		a, api, execCtx := principalExecutorFixture()
+		api.ExposeActive = !absent
+		api.Directories["directory-id"][0].ProvisionedBy = new(kkComps.ProvisionedByDeveloperPortal)
+		execCtx.PlannedChange.Fields[planner.FieldActive] = false
+		var request kkComps.ReplacePrincipalBody
+		require.NoError(t, a.MapUpdateFields(t.Context(), execCtx, execCtx.PlannedChange.Fields, &request, nil))
+		_, err := a.Update(t.Context(), "principal-id", request, execCtx.Namespace, execCtx)
+		require.Error(t, err)
+		require.Empty(t, api.Writes)
+	}
+}
+
+func TestPrincipalActiveProtectionAndOmission(t *testing.T) {
+	a, api, execCtx := principalExecutorFixture()
+	api.ExposeActive = true
+	api.Directories["directory-id"][0].Active = true
+	api.Directories["directory-id"][0].ManagedBy[resources.ChildProtectedKey] = "true"
+	execCtx.PlannedChange.Fields[planner.FieldActive] = false
+	var request kkComps.ReplacePrincipalBody
+	require.NoError(t, a.MapUpdateFields(t.Context(), execCtx, execCtx.PlannedChange.Fields, &request, nil))
+	_, err := a.Update(t.Context(), "principal-id", request, execCtx.Namespace, execCtx)
+	require.ErrorContains(t, err, "protected")
+	require.Empty(t, api.Writes)
+	api.Directories["directory-id"][0].ManagedBy[resources.ChildProtectedKey] = "false"
+	api.Directories["directory-id"][0].Active = false
+	delete(execCtx.PlannedChange.Fields, planner.FieldActive)
+	// Map into a fresh request, as the executor does for each change.
+	request = kkComps.ReplacePrincipalBody{}
+	require.NoError(t, a.MapUpdateFields(t.Context(), execCtx, execCtx.PlannedChange.Fields, &request, nil))
+	_, err = a.Update(t.Context(), "principal-id", request, execCtx.Namespace, execCtx)
+	require.NoError(t, err)
+	require.Nil(t, api.Writes[0].Active)
+	require.False(t, api.Directories["directory-id"][0].Active)
+}

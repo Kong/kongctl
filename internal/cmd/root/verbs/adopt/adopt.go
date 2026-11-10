@@ -7,6 +7,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
 	adoptCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/identity"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
@@ -87,6 +88,12 @@ Setting this value overrides tokens obtained from the login command.
 		return nil, err
 	}
 	cmd.AddCommand(konnectCmd)
+
+	identityCmd, err := identity.NewDirectIdentityCmd(Verb)
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(identityCmd)
 
 	portalCmd, err := NewDirectPortalCmd()
 	if err != nil {

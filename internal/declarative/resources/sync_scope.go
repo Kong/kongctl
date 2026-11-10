@@ -15,6 +15,8 @@ type SyncScope struct {
 	ModelNamespaces map[string]map[string]struct{}
 	// GatewayNamespaces excludes namespaces introduced only by independent models.
 	GatewayNamespaces                map[string]struct{}
+	IdentityAuthServerNamespaces     map[string]struct{}
+	IdentityDirectoryNamespaces      map[string]struct{}
 	RootResourceTypes                map[ResourceType]struct{}
 	ChildResourceTypes               map[ResourceType]map[string]map[ResourceType]struct{}
 	RootChildResourceTypes           map[ResourceType]struct{}
@@ -131,17 +133,23 @@ func (s *SyncScope) RebindChildParent(parentType ResourceType, oldRef, newRef st
 	if s == nil || oldRef == "" || newRef == "" || oldRef == newRef {
 		return
 	}
-	if parentType == ResourceTypeAIGateway {
+	if parentType == ResourceTypeAIGateway || parentType == ResourceTypeIdentityDirectory {
 		for kind, parents := range s.ChildNamespaces {
+			policy := registry[kind].syncScope
+			if policy == nil || policy.parentType != parentType {
+				continue
+			}
 			for namespace := range parents[oldRef] {
 				s.AddChildNamespace(kind, newRef, namespace)
 			}
 			delete(parents, oldRef)
 		}
-		for namespace := range s.ModelNamespaces[oldRef] {
-			s.AddModelNamespace(newRef, namespace)
+		if parentType == ResourceTypeAIGateway {
+			for namespace := range s.ModelNamespaces[oldRef] {
+				s.AddModelNamespace(newRef, namespace)
+			}
+			delete(s.ModelNamespaces, oldRef)
 		}
-		delete(s.ModelNamespaces, oldRef)
 	}
 	byParentRef := s.ChildResourceTypes[parentType]
 	if byParentRef == nil {
@@ -280,6 +288,22 @@ func (s *SyncScope) Merge(other *SyncScope) {
 		}
 		for namespace := range other.GatewayNamespaces {
 			s.GatewayNamespaces[namespace] = struct{}{}
+		}
+	}
+	if other.IdentityAuthServerNamespaces != nil {
+		if s.IdentityAuthServerNamespaces == nil {
+			s.IdentityAuthServerNamespaces = make(map[string]struct{})
+		}
+		for namespace := range other.IdentityAuthServerNamespaces {
+			s.IdentityAuthServerNamespaces[namespace] = struct{}{}
+		}
+	}
+	if other.IdentityDirectoryNamespaces != nil {
+		if s.IdentityDirectoryNamespaces == nil {
+			s.IdentityDirectoryNamespaces = make(map[string]struct{})
+		}
+		for namespace := range other.IdentityDirectoryNamespaces {
+			s.IdentityDirectoryNamespaces[namespace] = struct{}{}
 		}
 	}
 	for kind, parents := range other.ChildNamespaces {

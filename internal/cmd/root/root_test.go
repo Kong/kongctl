@@ -29,6 +29,35 @@ import (
 	"github.com/spf13/viper"
 )
 
+func TestIdentityResourceWritesAreNotRegistered(t *testing.T) {
+	root := newRootCmd()
+	requireNoError(t, addCommandsWithRootForTest(root))
+	for _, verb := range []string{"create", "patch", "delete"} {
+		parent, _, err := root.Find([]string{verb})
+		requireNoError(t, err)
+		for _, scope := range []*cobra.Command{parent, findChildForTest(parent, "konnect")} {
+			if scope == nil {
+				continue
+			}
+			for _, child := range scope.Commands() {
+				if child.Name() == "identity" || child.Name() == "id" ||
+					slices.Contains(child.Aliases, "id") || slices.Contains(child.Aliases, "identity") {
+					t.Fatalf("unexpected imperative Identity writes at %s", child.CommandPath())
+				}
+			}
+		}
+	}
+}
+
+func findChildForTest(parent *cobra.Command, name string) *cobra.Command {
+	for _, child := range parent.Commands() {
+		if child.Name() == name {
+			return child
+		}
+	}
+	return nil
+}
+
 func TestRemovedAICostManagementCommands(t *testing.T) {
 	root := newRootCmd()
 	requireNoError(t, addCommandsWithRootForTest(root))

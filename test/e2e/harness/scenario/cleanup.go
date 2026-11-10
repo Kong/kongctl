@@ -1,0 +1,457 @@
+//go:build e2e
+
+package scenario
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"math"
+	"net/url"
+	"regexp"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/util"
+	"github.com/kong/kongctl/test/e2e/harness"
+)
+
+var cleanupEnvPattern = regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
+
+type cleanupTarget struct {
+	useDefaultDirectory           bool
+	defaultDirectoryNamespace     string
+	defaultDirectoryID            string
+	kind                          resources.ResourceType
+	name                          string
+	principalAPIKeys              bool
+	principalGroups               bool
+	groupNamespaces               []string
+	requireEmptyTrustedIDPs       bool
+	requireEmptyVaultDependencies bool
+}
+
+func registerResourceCleanup(t *testing.T, cli *harness.CLI, specs []CleanupResource, vars map[string]any) error {
+	t.Helper()
+	seenVars, seenEnv := map[string]bool{}, map[string]bool{}
+	sharedDefault := false
+	for _, spec := range specs {
+		if spec.UseDefaultDirectory && resources.ResourceType(spec.Resource) != resources.ResourceTypeIdentityDirectory {
+			return fmt.Errorf("useDefaultDirectory cleanup requires an identity directory")
+		}
+		if spec.DefaultDirectoryNamespace != "" && !spec.UseDefaultDirectory {
+			return fmt.Errorf("defaultDirectoryNamespace requires useDefaultDirectory")
+		}
+		if spec.UseDefaultDirectory {
+			if sharedDefault {
+				return fmt.Errorf("a scenario can declare only one shared default directory")
+			}
+			sharedDefault = true
+		}
+		if spec.RequireEmptyVaultDependencies &&
+			resources.ResourceType(spec.Resource) != resources.ResourceTypeIdentityDirectory {
+			return fmt.Errorf("requireEmptyVaultDependencies cleanup requires an identity directory")
+		}
+		if spec.RequireEmptyTrustedIDPs &&
+			resources.ResourceType(spec.Resource) != resources.ResourceTypeIdentityDirectory {
+			return fmt.Errorf("requireEmptyTrustedIdPs cleanup requires an identity directory")
+		}
+		if spec.PrincipalAPIKeys && resources.ResourceType(spec.Resource) != resources.ResourceTypeIdentityDirectory {
+			return fmt.Errorf("principalAPIKeys cleanup requires an identity directory")
+		}
+		if spec.PrincipalGroups && resources.ResourceType(spec.Resource) != resources.ResourceTypeIdentityDirectory {
+			return fmt.Errorf("principalGroups cleanup requires an identity directory")
+		}
+		if len(spec.GroupNamespaces) != 0 {
+			if !spec.PrincipalGroups {
+				return fmt.Errorf("groupNamespaces cleanup requires principalGroups")
+			}
+			seen := make(map[string]bool)
+			for _, namespace := range spec.GroupNamespaces {
+				if strings.TrimSpace(namespace) == "" || seen[namespace] {
+					return fmt.Errorf("cleanup group namespaces must be nonempty and unique")
+				}
+				seen[namespace] = true
+			}
+		}
+		// Only families with complete list commands and safe raw deletion participate.
+		//nolint:exhaustive
+		switch resources.ResourceType(spec.Resource) {
+		case resources.ResourceTypeIdentityDirectory, resources.ResourceTypeControlPlane,
+			resources.ResourceTypeIdentityAuthServer:
+		default:
+			return fmt.Errorf("unsupported cleanup resource %q", spec.Resource)
+		}
+		if strings.TrimSpace(spec.NameVar) == "" || vars[spec.NameVar] != nil || seenVars[spec.NameVar] {
+			return fmt.Errorf("cleanup name variable %q is empty or already defined", spec.NameVar)
+		}
+		if !cleanupEnvPattern.MatchString(spec.NameEnv) || seenEnv[spec.NameEnv] {
+			return fmt.Errorf("cleanup name environment variable %q is invalid or already defined", spec.NameEnv)
+		}
+		seenVars[spec.NameVar], seenEnv[spec.NameEnv] = true, true
+	}
+	if len(specs) == 0 {
+		return nil
+	}
+	targets := make([]cleanupTarget, 0, len(specs))
+	for _, spec := range specs {
+		name := "kongctl-e2e-" + strings.ReplaceAll(spec.Resource, "_", "-") + "-" + uuid.NewString()
+		useDefault := spec.UseDefaultDirectory && !harness.IdentityAdditionalDirectoryCapacity()
+		if useDefault {
+			name = "default"
+		}
+		vars[spec.NameVar] = name
+		cli.WithEnv(map[string]string{spec.NameEnv: name})
+		targets = append(targets, cleanupTarget{
+			useDefaultDirectory:           useDefault,
+			defaultDirectoryNamespace:     spec.DefaultDirectoryNamespace,
+			kind:                          resources.ResourceType(spec.Resource),
+			name:                          name,
+			principalAPIKeys:              spec.PrincipalAPIKeys,
+			principalGroups:               spec.PrincipalGroups,
+			groupNamespaces:               spec.GroupNamespaces,
+			requireEmptyTrustedIDPs:       spec.RequireEmptyTrustedIDPs,
+			requireEmptyVaultDependencies: spec.RequireEmptyVaultDependencies,
+		})
+	}
+	t.Cleanup(func() {
+		// Preserve teardown evidence separately from finalized scenario diagnostics.
+		cli.ObserveHTTP = nil
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+		defer cancel()
+		for _, target := range targets {
+			var err error
+			for attempt := range 3 {
+				err = cleanupResource(ctx, cli, target)
+				if err == nil || ctx.Err() != nil {
+					break
+				}
+				if attempt < 2 {
+					select {
+					case <-ctx.Done():
+					case <-time.After(time.Second << attempt):
+					}
+				}
+			}
+			if err != nil {
+				t.Errorf("cleanup %s %q: %v", target.kind, target.name, err)
+			}
+		}
+	})
+	for index := range targets {
+		target := &targets[index]
+		if target.useDefaultDirectory {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+			directory, err := harness.ResetDefaultIdentityDirectory(ctx, "")
+			cancel()
+			if err != nil {
+				return fmt.Errorf("prepare shared default directory: %w", err)
+			}
+			vars["identity_default_directory_id"] = directory["id"]
+			target.defaultDirectoryID, _ = directory["id"].(string)
+			if target.defaultDirectoryNamespace != "" {
+				if _, err := cli.Run(context.Background(), "adopt", "identity", "directory", "default",
+					"--namespace", target.defaultDirectoryNamespace); err != nil {
+					return fmt.Errorf("adopt shared default directory fixture: %w", err)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func cleanupResource(ctx context.Context, cli *harness.CLI, target cleanupTarget) error {
+	if target.useDefaultDirectory {
+		directory, err := harness.ResetDefaultIdentityDirectory(ctx, target.defaultDirectoryID)
+		if err != nil {
+			return err
+		}
+		if directory["id"] != target.defaultDirectoryID {
+			return fmt.Errorf("shared default directory ID changed during the scenario")
+		}
+		return nil
+	}
+	var args []string
+	var endpoint string
+	// Only explicitly supported, independently named resources participate.
+	//nolint:exhaustive
+	switch target.kind {
+	case resources.ResourceTypeIdentityAuthServer:
+		args, endpoint = []string{"get", "identity", "auth-servers"}, "/v1/auth-servers/"
+	case resources.ResourceTypeIdentityDirectory:
+		args, endpoint = []string{"get", "identity", "directories"}, "/v2/directories/"
+	case resources.ResourceTypeControlPlane:
+		args, endpoint = []string{"get", "gateway", "control-planes"}, "/v2/control-planes/"
+	default:
+		return fmt.Errorf("unsupported cleanup resource %q", target.kind)
+	}
+	var observed []struct{ ID, Name string }
+	cli.OverrideNextOutput("json")
+	if _, err := cli.RunJSON(ctx, &observed, args...); err != nil {
+		return err
+	}
+	var id string
+	for _, value := range observed {
+		if value.Name != target.name {
+			continue
+		}
+		if id != "" {
+			return fmt.Errorf("multiple resources match the generated cleanup name")
+		}
+		if !util.IsValidUUID(value.ID) {
+			return fmt.Errorf("cleanup resource has no valid ID")
+		}
+		id = value.ID
+	}
+	if id == "" {
+		return nil
+	}
+	if target.kind == resources.ResourceTypeIdentityDirectory {
+		if target.requireEmptyVaultDependencies {
+			if err := requireNoVaultDependencyFixtures(ctx, cli, id); err != nil {
+				return err
+			}
+		}
+		if target.requireEmptyTrustedIDPs && !target.requireEmptyVaultDependencies {
+			if err := requireNoTrustedIDPFixtures(ctx, cli, id); err != nil {
+				return err
+			}
+		}
+		if target.principalGroups {
+			policy := groupCleanupPolicy{
+				namespaces: target.groupNamespaces,
+				namePrefix: "Kongctl" + strings.ReplaceAll(target.name, "-", ""),
+			}
+			if err := cleanupGroupFixtures(ctx, cli, id, policy); err != nil {
+				return err
+			}
+		}
+		if err := cleanupPrincipalFixtures(ctx, cli, id, target.principalAPIKeys); err != nil {
+			return err
+		}
+		if target.requireEmptyTrustedIDPs && !target.requireEmptyVaultDependencies {
+			if err := requireNoTrustedIDPFixtures(ctx, cli, id); err != nil {
+				return err
+			}
+		}
+		endpoint += id + "?force=false"
+		if target.requireEmptyVaultDependencies {
+			if err := requireNoVaultDependencyFixtures(ctx, cli, id); err != nil {
+				return err
+			}
+		}
+	} else if target.kind == resources.ResourceTypeIdentityAuthServer {
+		if err := cleanupAuthServerFixtures(ctx, cli, id, target.name); err != nil {
+			return err
+		}
+		endpoint += id + "?force=false"
+	} else {
+		endpoint += id
+	}
+	cli.OverrideNextOutput("json")
+	_, err := cli.Run(ctx, "api", "delete", endpoint)
+	return err
+}
+
+// Q37: force=false does not stop a directory deletion with attached IdPs.
+// Opted-in fixtures must remove their verified records before parent cleanup;
+// this check never grants authority to delete a remaining IdP.
+func requireNoTrustedIDPFixtures(ctx context.Context, cli *harness.CLI, directoryID string) error {
+	var values []struct{ ID string }
+	cli.OverrideNextOutput("json")
+	if _, err := cli.RunJSON(ctx, &values, "get", "identity", "trusted-idps", "--directory-id", directoryID); err != nil {
+		return err
+	}
+	if values == nil || len(values) != 0 {
+		return fmt.Errorf("trusted IdP fixture inventory is missing or nonempty; refusing directory cleanup")
+	}
+	return nil
+}
+
+func requireNoVaultDependencyFixtures(ctx context.Context, cli *harness.CLI, directoryID string) error {
+	for _, suffix := range []string{"vault/keys", "vault/providers", "trusted-idps"} {
+		var page struct {
+			Data []json.RawMessage `json:"data"`
+			Meta *struct {
+				Page *struct {
+					Size *float64        `json:"size"`
+					Next json.RawMessage `json:"next"`
+				} `json:"page"`
+			} `json:"meta"`
+		}
+		cli.OverrideNextOutput("json")
+		if _, err := cli.RunJSON(ctx, &page, "api", "get", "/v2/directories/"+directoryID+"/"+suffix); err != nil {
+			return err
+		}
+		if page.Data == nil || len(page.Data) != 0 || page.Meta == nil || page.Meta.Page == nil ||
+			page.Meta.Page.Size == nil || *page.Meta.Page.Size < 1 ||
+			math.Trunc(*page.Meta.Page.Size) != *page.Meta.Page.Size || len(page.Meta.Page.Next) == 0 {
+			return fmt.Errorf("missing, nonempty or invalid %s fixture inventory; refusing directory cleanup", suffix)
+		}
+		var next *string
+		if err := json.Unmarshal(page.Meta.Page.Next, &next); err != nil || next != nil && *next != "" {
+			return fmt.Errorf("nonterminal %s fixture inventory; refusing directory cleanup", suffix)
+		}
+	}
+	return nil
+}
+
+// Scopes and claims have no fixture labels. Only names carrying this generated
+// server's UUID or generated name are candidates. Clients must also carry the
+// server's ID in a fixture label. Check all collections before deleting anything.
+func cleanupAuthServerFixtures(ctx context.Context, cli *harness.CLI, serverID, serverName string) error {
+	type fixture struct{ ID, Name string }
+	var claims, scopes []fixture
+	for _, collection := range []struct {
+		command string
+		values  *[]fixture
+	}{{"auth-server-claims", &claims}, {"auth-server-scopes", &scopes}} {
+		cli.OverrideNextOutput("json")
+		if _, err := cli.RunJSON(
+			ctx, collection.values,
+			"get", "identity", collection.command, "--auth-server-id", serverID,
+		); err != nil {
+			return err
+		}
+		for _, value := range *collection.values {
+			marked := strings.HasPrefix(value.Name, "kongctl-e2e-"+serverID+"-") ||
+				strings.HasPrefix(value.Name, serverName+"-")
+			if !marked || !util.IsValidUUID(value.ID) {
+				return fmt.Errorf("auth server contains an unmarked child; refusing fixture cleanup")
+			}
+		}
+	}
+	var clients []struct {
+		ID     string            `json:"id"`
+		Name   string            `json:"name"`
+		Labels map[string]string `json:"labels"`
+	}
+	cli.OverrideNextOutput("json")
+	if _, err := cli.RunJSON(
+		ctx, &clients,
+		"get", "identity", "auth-server-clients", "--auth-server-id", serverID,
+	); err != nil {
+		return err
+	}
+	if clients == nil {
+		return fmt.Errorf("missing auth-server client inventory before fixture cleanup")
+	}
+	clientFixtures := make([]fixture, 0, len(clients))
+	for _, value := range clients {
+		marked := strings.HasPrefix(value.Name, "kongctl-e2e-"+serverID+"-") ||
+			strings.HasPrefix(value.Name, serverName+"-")
+		if value.ID == "" || !marked || value.Labels["e2e-fixture"] != serverID {
+			return fmt.Errorf("auth server contains an unmarked client; refusing fixture cleanup")
+		}
+		clientFixtures = append(clientFixtures, fixture{ID: value.ID, Name: value.Name})
+	}
+	for _, collection := range []struct {
+		path   string
+		values []fixture
+	}{{"clients", clientFixtures}, {"claims", claims}, {"scopes", scopes}} {
+		for _, value := range collection.values {
+			cli.OverrideNextOutput("json")
+			if _, err := cli.Run(
+				ctx,
+				"api", "delete", "/v1/auth-servers/"+serverID+"/"+collection.path+"/"+url.PathEscape(value.ID),
+			); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// Only principals explicitly marked with this test directory's ID are removed.
+// Unmarked descendants cause cleanup to stop before any deletion.
+func cleanupPrincipalFixtures(ctx context.Context, cli *harness.CLI, directoryID string, includeKeys bool) error {
+	var values []struct {
+		ID     string            `json:"id"`
+		Labels map[string]string `json:"labels"`
+	}
+	cli.OverrideNextOutput("json")
+	if _, err := cli.RunJSON(ctx, &values, "get", "identity", "principals", "--directory-id", directoryID); err != nil {
+		return err
+	}
+	for _, value := range values {
+		if value.Labels["e2e-fixture"] != directoryID {
+			return fmt.Errorf("directory contains an unmarked principal; refusing fixture cleanup")
+		}
+		if !util.IsValidUUID(value.ID) {
+			return fmt.Errorf("principal fixture has no valid ID")
+		}
+	}
+	type identityFixture struct {
+		ID     string            `json:"id"`
+		Labels map[string]string `json:"labels"`
+	}
+	identities := make(map[string][]identityFixture)
+	keys := make(map[string][]principalKeyFixture)
+	for _, principal := range values {
+		var children []identityFixture
+		cli.OverrideNextOutput("json")
+		if _, err := cli.RunJSON(ctx, &children, "get", "identity", "principal-identities",
+			"--directory-id", directoryID, "--principal-id", principal.ID); err != nil {
+			return err
+		}
+		if children == nil {
+			return fmt.Errorf("missing principal identity inventory before fixture cleanup")
+		}
+		for _, child := range children {
+			if !util.IsValidUUID(child.ID) || child.Labels["e2e-fixture"] != directoryID ||
+				child.Labels["e2e-principal-id"] != principal.ID {
+				return fmt.Errorf("principal contains an unmarked identity; refusing fixture cleanup")
+			}
+		}
+		identities[principal.ID] = children
+		if includeKeys {
+			observed, err := principalAPIKeyFixtures(ctx, cli, directoryID, principal.ID)
+			if err != nil {
+				return err
+			}
+			keys[principal.ID] = observed
+		}
+	}
+	for _, value := range values {
+		if includeKeys {
+			if err := deletePrincipalAPIKeyFixtures(ctx, cli, directoryID, value.ID, keys[value.ID]); err != nil {
+				return err
+			}
+		}
+		for _, child := range identities[value.ID] {
+			// Q21: raw GET/DELETE do not enforce principal association. The scoped
+			// command proves current collection membership before cleanup writes.
+			var current identityFixture
+			cli.OverrideNextOutput("json")
+			if _, err := cli.RunJSON(ctx, &current, "get", "identity", "principal-identity", child.ID,
+				"--directory-id", directoryID, "--principal-id", value.ID); err != nil {
+				return err
+			}
+			if current.ID != child.ID || current.Labels["e2e-fixture"] != directoryID ||
+				current.Labels["e2e-principal-id"] != value.ID {
+				return fmt.Errorf("identity fixture association or labels changed before cleanup")
+			}
+			cli.OverrideNextOutput("json")
+			if _, err := cli.Run(ctx, "api", "delete", "/v2/directories/"+directoryID+"/principals/"+value.ID+"/identities/"+child.ID); err != nil {
+				return err
+			}
+		}
+		var remaining []identityFixture
+		cli.OverrideNextOutput("json")
+		if _, err := cli.RunJSON(ctx, &remaining, "get", "identity", "principal-identities",
+			"--directory-id", directoryID, "--principal-id", value.ID); err != nil {
+			return err
+		}
+		if remaining == nil || len(remaining) > 0 {
+			return fmt.Errorf("principal still contains identities; refusing parent cleanup")
+		}
+		cli.OverrideNextOutput("json")
+		if _, err := cli.Run(ctx, "api", "delete", "/v2/directories/"+directoryID+"/principals/"+value.ID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
