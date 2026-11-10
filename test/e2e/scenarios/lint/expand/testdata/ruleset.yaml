@@ -1,0 +1,8 @@
+rules:
+  portal-auth-required:
+    description: "portals must enable authentication"
+    given: "$.portals[*]"
+    severity: error
+    then:
+      field: authentication_enabled
+      function: truthy

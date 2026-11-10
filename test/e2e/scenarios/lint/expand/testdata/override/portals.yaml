@@ -1,0 +1,5 @@
+portals:
+  - ref: team-portal
+    name: Team Portal
+    _extends: standard-portal
+    authentication_enabled: false

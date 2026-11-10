@@ -516,3 +516,139 @@ rules:
 	err = root.Execute()
 	assert.NoError(t, err)
 }
+
+const expandTestRuleset = `
+rules:
+  portal-auth-required:
+    description: "portals must enable authentication"
+    given: "$.portals[*]"
+    severity: error
+    then:
+      field: authentication_enabled
+      function: truthy
+`
+
+func writeExpandTestFiles(t *testing.T, teamAuth string) (string, string, string) {
+	t.Helper()
+	tmpDir := t.TempDir()
+	templates := filepath.Join(tmpDir, "templates.yaml")
+	require.NoError(t, os.WriteFile(templates, []byte(`
+_templates:
+  standard-portal:
+    authentication_enabled: true
+`), 0o600))
+	team := filepath.Join(tmpDir, "team.yaml")
+	require.NoError(t, os.WriteFile(team, []byte(`
+portals:
+  - ref: team-portal
+    name: Team Portal
+    _extends: standard-portal
+`+teamAuth), 0o600))
+	ruleset := filepath.Join(tmpDir, "ruleset.yaml")
+	require.NoError(t, os.WriteFile(ruleset, []byte(expandTestRuleset), 0o600))
+	return templates, team, ruleset
+}
+
+func runLintForTest(t *testing.T, args ...string) (string, error) {
+	t.Helper()
+	root := newTestRootWithLint(t)
+	var output bytes.Buffer
+	root.SetOut(&output)
+	root.SetErr(&output)
+	root.SetContext(t.Context())
+	root.SetArgs(append([]string{"lint"}, args...))
+	err := root.Execute()
+	return output.String(), err
+}
+
+func TestLintCmd_WithoutExpandReportsTemplateValuesMissing(t *testing.T) {
+	templates, team, ruleset := writeExpandTestFiles(t, "")
+
+	out, err := runLintForTest(t, "-f", templates, "-f", team, "-r", ruleset)
+	require.Error(t, err, "raw lint does not see template values")
+	assert.Contains(t, out, team+":")
+	assert.NotContains(t, out, "(expanded)")
+}
+
+func TestLintCmd_ExpandSeesTemplateValues(t *testing.T) {
+	templates, team, ruleset := writeExpandTestFiles(t, "")
+
+	out, err := runLintForTest(t, "-f", templates, "-f", team, "-r", ruleset, "--expand")
+	require.NoError(t, err, out)
+}
+
+func TestLintCmd_ExpandReportsOverrideViolation(t *testing.T) {
+	templates, team, ruleset := writeExpandTestFiles(t, "    authentication_enabled: false\n")
+
+	out, err := runLintForTest(t, "-f", templates, "-f", team, "-r", ruleset, "--expand")
+	require.Error(t, err)
+	assert.Contains(t, out, team+" (expanded):")
+}
+
+func TestLintCmd_ExpandJSONMarksExpandedResults(t *testing.T) {
+	templates, team, ruleset := writeExpandTestFiles(t, "    authentication_enabled: false\n")
+
+	out, err := runLintForTest(t, "-f", templates, "-f", team, "-r", ruleset, "--expand", "--output", "json")
+	require.Error(t, err)
+	assert.Contains(t, out, `"expanded": true`)
+}
+
+func TestLintCmd_ExpandTemplatesOnlyFails(t *testing.T) {
+	templates, _, ruleset := writeExpandTestFiles(t, "")
+
+	out, err := runLintForTest(t, "-f", templates, "-r", ruleset, "--expand")
+	require.Error(t, err)
+	assert.Contains(t, err.Error()+out, "only define _templates")
+}
+
+func TestLintCmd_ExpandUnknownTemplateFails(t *testing.T) {
+	_, team, ruleset := writeExpandTestFiles(t, "")
+
+	out, err := runLintForTest(t, "-f", team, "-r", ruleset, "--expand")
+	require.Error(t, err)
+	assert.Contains(t, err.Error()+out, `unknown template "standard-portal"`)
+}
+
+func TestLintCmd_ExpandRejectsURLInputs(t *testing.T) {
+	_, _, ruleset := writeExpandTestFiles(t, "")
+
+	_, err := runLintForTest(t, "-f", "https://example.com/config.yaml", "-r", ruleset, "--expand")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "does not support URL inputs")
+}
+
+func TestLintCmd_ExpandReportsViolationFromFileFragment(t *testing.T) {
+	_, team, ruleset := writeExpandTestFiles(t, "    authentication_enabled: !file ./files/auth.yaml\n")
+	require.NoError(t, os.MkdirAll(filepath.Join(filepath.Dir(team), "files"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(filepath.Dir(team), "files", "auth.yaml"), []byte("false\n"), 0o600))
+
+	out, err := runLintForTest(t, "-f", team, "-f", filepath.Join(filepath.Dir(team), "templates.yaml"),
+		"-r", ruleset, "--expand")
+	require.Error(t, err)
+	assert.Contains(t, out, team+" (expanded):")
+}
+
+func TestLintCmd_ExpandMissingFileFragmentFails(t *testing.T) {
+	templates, team, ruleset := writeExpandTestFiles(t, "    description: !file ./files/missing.md\n")
+
+	out, err := runLintForTest(t, "-f", templates, "-f", team, "-r", ruleset, "--expand")
+	require.Error(t, err)
+	assert.Contains(t, err.Error()+out, "missing.md")
+}
+
+func TestLintCmd_ExpandReportsEngineErrors(t *testing.T) {
+	templates, team, _ := writeExpandTestFiles(t, "")
+	ruleset := filepath.Join(filepath.Dir(team), "invalid-ruleset.yaml")
+	require.NoError(t, os.WriteFile(ruleset, []byte(`
+rules:
+  broken-selector:
+    severity: hint
+    given: '$.portals['
+    then:
+      function: truthy
+`), 0o600))
+
+	_, err := runLintForTest(t, "-f", templates, "-f", team, "-r", ruleset, "--expand")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "broken-selector")
+}

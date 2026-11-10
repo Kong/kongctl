@@ -1,0 +1,4 @@
+portals:
+  - ref: team-portal
+    name: Team Portal
+    _extends: standard-portal
