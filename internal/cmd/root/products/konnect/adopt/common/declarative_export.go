@@ -1,19 +1,18 @@
-package adopt
+package common
 
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
-	adoptCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt/common"
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+
+	declexport "github.com/kong/kongctl/internal/declarative/export"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
-	"github.com/kong/kongctl/internal/declarative/secrets"
 	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/kong/kongctl/internal/util"
 	"github.com/spf13/cobra"
@@ -27,12 +26,12 @@ const (
 	parentRefFlag         = "parent-ref"
 )
 
-type declarativeExportKey struct{}
+type DeclarativeExportKey struct{}
 
-type adoptionParent struct {
-	kind        resources.ResourceType
-	id          string
-	directoryID string
+type AdoptionParent struct {
+	Kind        resources.ResourceType
+	ID          string
+	DirectoryID string
 }
 
 type exportedDeclaration struct {
@@ -41,41 +40,41 @@ type exportedDeclaration struct {
 	parentField string
 }
 
-type adoptionExport struct {
-	file            *os.File
-	path, parentRef string
+type AdoptionExport struct {
+	File            *os.File
+	Path, parentRef string
 	dryRun          bool
 	prepared        map[string]exportedDeclaration
 	parents         []exportedDeclaration
 	parentIDs       map[string]string
 	refs            map[string]string
-	completed       []exportedDeclaration
+	Completed       []exportedDeclaration
 	written         bool
 	identity        os.FileInfo
 }
 
-func addDeclarativeExportFlags(cmd *cobra.Command) {
-	cmd.Flags().String(declarativeOutputFlag, "", "Write selected adopted children as declarative YAML to a new file")
+func AddDeclarativeExportFlags(cmd *cobra.Command) {
+	cmd.Flags().String(declarativeOutputFlag, "", "Write selected adopted resources as declarative YAML to a new file")
 	cmd.Flags().String(parentRefFlag, "", "Existing parent ref for exported !ref links; requires --declarative-output")
 }
 
-func setupChildAdoptRun(cmd *cobra.Command, args []string) (adoptCommon.AdoptRunSetup, func(), error) {
-	setup, err := adoptCommon.SetupAdoptRun(cmd, args)
+func SetupExportRun(cmd *cobra.Command, args []string) (AdoptRunSetup, func(), error) {
+	setup, err := SetupAdoptRun(cmd, args)
 	if err != nil {
 		return setup, func() {}, err
 	}
-	export, err := openAdoptionExport(cmd, setup.AdoptFlags.DryRun)
+	export, err := OpenAdoptionExport(cmd, setup.AdoptFlags.DryRun)
 	if err != nil {
 		return setup, func() {}, err
 	}
 	if export == nil {
 		return setup, func() {}, nil
 	}
-	cmd.SetContext(context.WithValue(adoptCommon.EnsureContext(cmd.Context()), declarativeExportKey{}, export))
-	return setup, export.close, nil
+	cmd.SetContext(context.WithValue(EnsureContext(cmd.Context()), DeclarativeExportKey{}, export))
+	return setup, export.Close, nil
 }
 
-func openAdoptionExport(cmd *cobra.Command, dryRun bool) (*adoptionExport, error) {
+func OpenAdoptionExport(cmd *cobra.Command, dryRun bool) (*AdoptionExport, error) {
 	output, _ := cmd.Flags().GetString(declarativeOutputFlag)
 	parentRef, _ := cmd.Flags().GetString(parentRefFlag)
 	if cmd.Flags().Changed(parentRefFlag) {
@@ -108,8 +107,8 @@ func openAdoptionExport(cmd *cobra.Command, dryRun bool) (*adoptionExport, error
 		_ = os.Remove(absolute)
 		return nil, fmt.Errorf("inspect declarative output: %w", err)
 	}
-	export := &adoptionExport{
-		file: file, identity: identity, path: absolute, parentRef: parentRef, dryRun: dryRun,
+	export := &AdoptionExport{
+		File: file, identity: identity, Path: absolute, parentRef: parentRef, dryRun: dryRun,
 		prepared: make(map[string]exportedDeclaration), parentIDs: make(map[string]string), refs: make(map[string]string),
 	}
 	if parentRef != "" {
@@ -118,101 +117,89 @@ func openAdoptionExport(cmd *cobra.Command, dryRun bool) (*adoptionExport, error
 	return export, nil
 }
 
-func (e *adoptionExport) close() {
-	_ = e.file.Close()
+func (e *AdoptionExport) Close() {
+	_ = e.File.Close()
 	if !e.written {
-		if current, err := os.Lstat(e.path); err == nil && os.SameFile(e.identity, current) {
-			_ = os.Remove(e.path)
+		if current, err := os.Lstat(e.Path); err == nil && os.SameFile(e.identity, current) {
+			_ = os.Remove(e.Path)
 		}
 	}
 }
 
-func adoptionExportFromContext(ctx context.Context) *adoptionExport {
+func AdoptionExportFromContext(ctx context.Context) *AdoptionExport {
 	if ctx == nil {
 		return nil
 	}
-	export, _ := ctx.Value(declarativeExportKey{}).(*adoptionExport)
+	export, _ := ctx.Value(DeclarativeExportKey{}).(*AdoptionExport)
 	return export
 }
 
-func prepareDeclarativeChild(ctx context.Context, kind resources.ResourceType, id, ref, namespace string,
-	protected bool, payload any, parent adoptionParent,
+func PrepareDeclarativeChild(ctx context.Context, kind resources.ResourceType, id, ref, namespace string,
+	protected bool, payload any, parent AdoptionParent,
 ) error {
-	export := adoptionExportFromContext(ctx)
+	export := AdoptionExportFromContext(ctx)
 	if export == nil {
 		return nil
 	}
-	shape, err := adoptionExportShape(kind)
+	if client, ok := payload.(kkComps.Client); ok {
+		payload = declexport.MapIdentityClient(client, client.AllowScopes)
+	}
+	fields, err := declexport.PublicFields(payload)
 	if err != nil {
 		return err
 	}
-	parentRef := export.parentRef
-	if parentRef == "" {
-		parentRef, err = export.externalParent(parent)
-		if err != nil {
-			return err
-		}
-	}
-	fields, err := adoptionPublicFields(payload)
+	shape, err := declexport.DeclarationShape(kind)
 	if err != nil {
 		return err
-	}
-	for _, key := range []string{
-		resources.SchemaFieldID, resources.SchemaFieldCreatedAt,
-		resources.SchemaFieldUpdatedAt, "managed_by", "konnect_managed",
-	} {
-		delete(fields, key)
-	}
-	omitExportSecrets(kind, fields, "")
-	if kind == resources.ResourceTypeAIGatewayModel {
-		resources.OmitAIGatewayModelDatastoreConnections(fields)
 	}
 	fields[resources.SchemaFieldRef] = ref
-	fields[shape.parentField] = tags.RefPlaceholderPrefix + parentRef + "#id"
-	fields["kongctl"] = map[string]any{"namespace": namespace, "protected": protected}
-	if kind == resources.ResourceTypeIdentityAuthServerClient {
-		values := make(map[string]string)
-		if raw, ok := fields["labels"].(map[string]any); ok {
-			for key, value := range raw {
-				if text, ok := value.(string); ok {
-					values[key] = text
-				}
+	if parent.Kind != "" {
+		parentRef := export.parentRef
+		if parentRef == "" {
+			parentRef, err = export.externalParent(parent)
+			if err != nil {
+				return err
 			}
 		}
-		fields["labels"] = labels.GetUserLabels(values)
+		fields[shape.ParentField] = tags.RefPlaceholderPrefix + parentRef + "#id"
+	} else if export.parentRef != "" {
+		return fmt.Errorf("--parent-ref is only supported for child resources")
 	}
-	data, err := json.Marshal(fields)
-	if err != nil {
-		return fmt.Errorf("encode declarative child")
+	fields["kongctl"] = map[string]any{"namespace": namespace, "protected": protected}
+	if raw, ok := fields["labels"].(map[string]any); ok &&
+		(parent.Kind == "" || kind == resources.ResourceTypeIdentityAuthServerClient) {
+		for key := range raw {
+			if labels.IsKongctlLabel(key) {
+				delete(raw, key)
+			}
+		}
 	}
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.UseNumber()
-	if err := decoder.Decode(shape.resource); err != nil {
-		return fmt.Errorf("cannot map selected child to declarative configuration")
-	}
-	if err := shape.resource.Validate(); err != nil {
-		return fmt.Errorf("selected child cannot be exported: %w", err)
-	}
-	// Typed declarations omit read-only fields and independently owned descendants.
-	fields, err = adoptionPublicFields(shape.resource)
+	shape, err = declexport.Project(kind, fields)
 	if err != nil {
 		return err
 	}
-	omitExportSecrets(kind, fields, "")
+	if err := shape.Resource.Validate(); err != nil {
+		return fmt.Errorf("selected resource cannot be exported: %w", err)
+	}
+	fields, err = declexport.PublicFields(shape.Resource)
+	if err != nil {
+		return err
+	}
+	declexport.OmitSecrets(kind, fields, "")
 	if existing, exists := export.refs[ref]; exists && existing != id {
 		return fmt.Errorf("exported ref %q collides with another selected resource or parent; "+
 			"choose another --parent-ref", ref)
 	}
 	export.refs[ref] = id
-	declaration := exportedDeclaration{collection: shape.collection, fields: fields, parentField: shape.parentField}
+	declaration := exportedDeclaration{collection: shape.Collection, fields: fields, parentField: shape.ParentField}
 	export.prepared[id] = declaration
 	// Exercise YAML serialization during preflight rather than after mutation.
 	_, err = export.render([]exportedDeclaration{declaration})
 	return err
 }
 
-func finishDeclarativeChild(ctx context.Context, result *adoptCommon.AdoptResult) (*adoptCommon.AdoptResult, error) {
-	export := adoptionExportFromContext(ctx)
+func FinishDeclarativeChild(ctx context.Context, result *AdoptResult) (*AdoptResult, error) {
+	export := AdoptionExportFromContext(ctx)
 	if export == nil {
 		return result, nil
 	}
@@ -220,8 +207,13 @@ func finishDeclarativeChild(ctx context.Context, result *adoptCommon.AdoptResult
 	if !ok {
 		return result, fmt.Errorf("resource %s was adopted but no declarative snapshot was prepared", result.ID)
 	}
-	export.completed = append(export.completed, declaration)
-	data, err := export.render(export.completed)
+	for _, completed := range export.Completed {
+		if completed.fields[resources.SchemaFieldRef] == declaration.fields[resources.SchemaFieldRef] {
+			return result, nil
+		}
+	}
+	export.Completed = append(export.Completed, declaration)
+	data, err := export.render(export.Completed)
 	if err == nil {
 		err = export.persist(data)
 	}
@@ -231,15 +223,15 @@ func finishDeclarativeChild(ctx context.Context, result *adoptCommon.AdoptResult
 			action = "previewed"
 		}
 		return result, fmt.Errorf("resource %q (%s) was %s but declarative output %q could not be written: %w",
-			result.Name, result.ID, action, export.path, err)
+			result.Name, result.ID, action, export.Path, err)
 	}
 	return result, nil
 }
 
 // Replace only our reserved destination, keeping the last complete snapshot
 // intact if a later export fails. Existing user inputs are never opened here.
-func (e *adoptionExport) persist(data []byte) error {
-	staged, err := os.CreateTemp(filepath.Dir(e.path), ".adopt-export-*.yaml")
+func (e *AdoptionExport) persist(data []byte) error {
+	staged, err := os.CreateTemp(filepath.Dir(e.Path), ".adopt-export-*.yaml")
 	if err != nil {
 		return err
 	}
@@ -256,11 +248,11 @@ func (e *adoptionExport) persist(data []byte) error {
 	if err := staged.Sync(); err != nil {
 		return err
 	}
-	expected, err := e.file.Stat()
+	expected, err := e.File.Stat()
 	if err != nil {
 		return err
 	}
-	current, err := os.Lstat(e.path)
+	current, err := os.Lstat(e.Path)
 	if err != nil {
 		return err
 	}
@@ -271,63 +263,29 @@ func (e *adoptionExport) persist(data []byte) error {
 	if err != nil {
 		return err
 	}
-	if err := os.Rename(staged.Name(), e.path); err != nil {
+	if err := os.Rename(staged.Name(), e.Path); err != nil {
 		return err
 	}
-	_ = e.file.Close()
-	e.file = staged
+	_ = e.File.Close()
+	e.File = staged
 	e.identity = identity
 	e.written = true
 	committed = true
 	return nil
 }
 
-func adoptionPublicFields(value any) (map[string]any, error) {
-	data, err := json.Marshal(value)
-	if err != nil {
-		return nil, fmt.Errorf("cannot encode declarative resource snapshot")
-	}
-	var fields map[string]any
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.UseNumber()
-	if err := decoder.Decode(&fields); err != nil {
-		return nil, fmt.Errorf("cannot decode declarative resource snapshot")
-	}
-	return fields, nil
-}
-
-// The reviewed write-only catalog is shared with loading and execution. Remove
-// values even if a backend happens to return them; retain public array siblings.
-func omitExportSecrets(kind resources.ResourceType, value any, path string) {
-	switch node := value.(type) {
-	case map[string]any:
-		for key, field := range node {
-			pointer := path + "/" + strings.ReplaceAll(strings.ReplaceAll(key, "~", "~0"), "/", "~1")
-			if _, secret := secrets.Match(kind, pointer); secret {
-				delete(node, key)
-				continue
-			}
-			omitExportSecrets(kind, field, pointer)
-		}
-	case []any:
-		for i, field := range node {
-			omitExportSecrets(kind, field, path+"/"+strconv.Itoa(i))
-		}
-	}
-}
-
-func (e *adoptionExport) externalParent(parent adoptionParent) (string, error) {
-	if !util.IsValidUUID(parent.id) {
+func (e *AdoptionExport) externalParent(parent AdoptionParent) (string, error) {
+	if !util.IsValidUUID(parent.ID) {
 		return "", fmt.Errorf("declarative parent ID must be a UUID")
 	}
-	key := string(parent.kind) + "/" + parent.id
+	key := string(parent.Kind) + "/" + parent.ID
 	if ref, ok := e.parentIDs[key]; ok {
 		return ref, nil
 	}
 	var collection []string
 	var prefix, parentField, directoryRef string
 	//exhaustive:ignore
-	switch parent.kind {
+	switch parent.Kind {
 	case resources.ResourceTypeAIGateway:
 		collection = []string{"ai_gateways"}
 		prefix = "adopt-gateway-"
@@ -343,24 +301,24 @@ func (e *adoptionExport) externalParent(parent adoptionParent) (string, error) {
 		parentField = "directory"
 		var err error
 		directoryRef,
-			err = e.externalParent(adoptionParent{
-			kind: resources.ResourceTypeIdentityDirectory,
-			id:   parent.directoryID,
+			err = e.externalParent(AdoptionParent{
+			Kind: resources.ResourceTypeIdentityDirectory,
+			ID:   parent.DirectoryID,
 		})
 		if err != nil {
 			return "", err
 		}
 	default:
-		return "", fmt.Errorf("unsupported declarative adoption parent %s", parent.kind)
+		return "", fmt.Errorf("unsupported declarative adoption parent %s", parent.Kind)
 	}
-	ref := prefix + parent.id
+	ref := prefix + parent.ID
 	if err := resources.ValidateRef(ref); err != nil {
 		return "", fmt.Errorf("cannot export parent ref: %w", err)
 	}
 	if _, exists := e.refs[ref]; exists {
 		return "", fmt.Errorf("generated parent ref %q collides with selected resource", ref)
 	}
-	fields := map[string]any{"ref": ref, "_external": map[string]any{"id": parent.id}}
+	fields := map[string]any{"ref": ref, "_external": map[string]any{"id": parent.ID}}
 	if parentField != "" {
 		fields[parentField] = tags.RefPlaceholderPrefix + directoryRef + "#id"
 	}
@@ -370,7 +328,7 @@ func (e *adoptionExport) externalParent(parent adoptionParent) (string, error) {
 	return ref, nil
 }
 
-func (e *adoptionExport) render(selected []exportedDeclaration) ([]byte, error) {
+func (e *AdoptionExport) render(selected []exportedDeclaration) ([]byte, error) {
 	root := &yamlv3.Node{Kind: yamlv3.MappingNode, Tag: "!!map"}
 	for _, declaration := range append(append([]exportedDeclaration(nil), e.parents...), selected...) {
 		data, err := yaml.Marshal(declaration.fields)
@@ -428,4 +386,23 @@ func (e *adoptionExport) render(selected []exportedDeclaration) ([]byte, error) 
 		return nil, err
 	}
 	return out.Bytes(), nil
+}
+
+// PrepareDeclarativeRoot validates the selected parent's declaration before the
+// ownership write. Nothing is fetched or projected when export is disabled.
+func PrepareDeclarativeRoot(ctx context.Context, kind resources.ResourceType, id, namespace string,
+	payload any, protected bool,
+) error {
+	if AdoptionExportFromContext(ctx) == nil {
+		return nil
+	}
+	resource, err := declexport.Root(payload)
+	if err != nil {
+		return err
+	}
+	return PrepareDeclarativeChild(ctx, kind, id, id, namespace, protected, resource, AdoptionParent{})
+}
+
+func AddDeclarativeRootExportFlag(cmd *cobra.Command) {
+	cmd.Flags().String(declarativeOutputFlag, "", "Write the adopted resource as declarative YAML to a new file")
 }

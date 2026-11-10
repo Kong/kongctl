@@ -23,7 +23,7 @@ func NewIdentityPrincipalCmd(verb verbs.VerbValue,
 		Short: "Adopt a principal by UUID with a local ref",
 		Args:  cobra.ExactArgs(1), PreRunE: parentPreRun,
 	}
-	addDeclarativeExportFlags(command)
+	adoptCommon.AddDeclarativeExportFlags(command)
 	common.AddIdentityDirectoryFlags(command)
 	command.Flags().String("ref", "", "Declarative ref to persist on this principal")
 	if err := command.MarkFlagRequired("ref"); err != nil {
@@ -33,7 +33,7 @@ func NewIdentityPrincipalCmd(verb verbs.VerbValue,
 		addParentFlags(verb, command)
 	}
 	command.RunE = func(cmd *cobra.Command, args []string) error {
-		setup, cleanup, err := setupChildAdoptRun(cmd, args)
+		setup, cleanup, err := adoptCommon.SetupExportRun(cmd, args)
 		if err != nil {
 			return err
 		}
@@ -114,10 +114,10 @@ func adoptIdentityPrincipal(
 		resources.IsChildProtected(current.ManagedBy),
 		build.Version(ctx),
 	)
-	if err := prepareDeclarativeChild(
+	if err := adoptCommon.PrepareDeclarativeChild(
 		ctx, resources.ResourceTypeIdentityPrincipal, id, ref, namespace,
 		resources.IsChildProtected(request.ManagedBy), current,
-		adoptionParent{kind: resources.ResourceTypeIdentityDirectory, id: directoryID},
+		adoptCommon.AdoptionParent{Kind: resources.ResourceTypeIdentityDirectory, ID: directoryID},
 	); err != nil {
 		return nil, err
 	}
@@ -125,7 +125,7 @@ func adoptIdentityPrincipal(
 		ctx, string(resources.ResourceTypeIdentityPrincipal), id, ref, namespace,
 		map[string]string{"directory_id": directoryID}, "managed_by", current.ManagedBy, request.ManagedBy,
 	); dryRun {
-		return finishDeclarativeChild(ctx, result)
+		return adoptCommon.FinishDeclarativeChild(ctx, result)
 	}
 	response, err := api.ReplacePrincipal(
 		ctx,
@@ -139,7 +139,7 @@ func adoptIdentityPrincipal(
 		response.KongPrincipal.ManagedBy[resources.ChildNamespaceKey] != namespace {
 		return nil, fmt.Errorf("principal API did not retain adoption identity")
 	}
-	return finishDeclarativeChild(ctx, &adoptCommon.AdoptResult{
+	return adoptCommon.FinishDeclarativeChild(ctx, &adoptCommon.AdoptResult{
 		ResourceType: string(resources.ResourceTypeIdentityPrincipal),
 		ID:           id,
 		Name:         ref,

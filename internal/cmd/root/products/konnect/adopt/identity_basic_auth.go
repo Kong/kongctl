@@ -22,7 +22,7 @@ func NewIdentityBasicAuthCmd(verb verbs.VerbValue, addParentFlags func(verbs.Ver
 		Use: "principal-basic-auth [basic-auth-id]", Aliases: []string{"principal-basic-auths"},
 		Short: "Adopt a basic-auth username record using managed_by ownership", PreRunE: parentPreRun,
 	}
-	addDeclarativeExportFlags(command)
+	adoptCommon.AddDeclarativeExportFlags(command)
 	common.AddIdentityDirectoryFlags(command)
 	command.Flags().String("principal-id", "", "Parent principal UUID")
 	command.Flags().String("username", "", "Exact basic-auth username, including UUID-shaped usernames")
@@ -51,7 +51,7 @@ func NewIdentityBasicAuthCmd(verb verbs.VerbValue, addParentFlags func(verbs.Ver
 		addParentFlags(verb, command)
 	}
 	command.RunE = func(cmd *cobra.Command, args []string) error {
-		setup, cleanup, err := setupChildAdoptRun(cmd, args)
+		setup, cleanup, err := adoptCommon.SetupExportRun(cmd, args)
 		if err != nil {
 			return err
 		}
@@ -111,10 +111,10 @@ func prepareAdoptIdentityBasicAuth(ctx context.Context, api helpers.IdentityBasi
 	}
 	request := helpers.IdentityBasicAuthReplacement(*value)
 	request.ManagedBy = metadata
-	if err := prepareDeclarativeChild(
+	if err := adoptCommon.PrepareDeclarativeChild(
 		ctx, resources.ResourceTypeIdentityBasicAuth, value.ID, value.ID, namespace,
 		resources.IsChildProtected(metadata), value,
-		adoptionParent{kind: resources.ResourceTypeIdentityPrincipal, id: principal, directoryID: directory},
+		adoptCommon.AdoptionParent{Kind: resources.ResourceTypeIdentityPrincipal, ID: principal, DirectoryID: directory},
 	); err != nil {
 		return nil, err
 	}
@@ -124,7 +124,7 @@ func prepareAdoptIdentityBasicAuth(ctx context.Context, api helpers.IdentityBasi
 			map[string]string{"directory_id": directory, "principal_id": principal}, "managed_by", value.ManagedBy,
 			request.ManagedBy,
 		); dryRun {
-			return finishDeclarativeChild(ctx, result)
+			return adoptCommon.FinishDeclarativeChild(ctx, result)
 		}
 		fresh, err := helpers.GetIdentityBasicAuth(ctx, api, directory, principal, value.ID)
 		if err != nil {
@@ -136,7 +136,7 @@ func prepareAdoptIdentityBasicAuth(ctx context.Context, api helpers.IdentityBasi
 		if _, err := helpers.ReplaceIdentityBasicAuth(ctx, api, directory, principal, value.ID, request); err != nil {
 			return nil, err
 		}
-		return finishDeclarativeChild(ctx, &adoptCommon.AdoptResult{
+		return adoptCommon.FinishDeclarativeChild(ctx, &adoptCommon.AdoptResult{
 			ResourceType: string(
 				resources.ResourceTypeIdentityBasicAuth,
 			), ID: value.ID, Name: value.Username, Namespace: namespace,

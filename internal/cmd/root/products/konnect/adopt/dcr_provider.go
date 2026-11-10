@@ -57,11 +57,14 @@ func NewDCRProviderCmd(
 		cmd.PreRunE = parentPreRun
 	}
 
+	adoptCommon.AddDeclarativeRootExportFlag(cmd)
 	cmd.RunE = func(cobraCmd *cobra.Command, args []string) error {
-		s, err := adoptCommon.SetupAdoptRun(cobraCmd, args)
+		s, cleanup, err := adoptCommon.SetupExportRun(cobraCmd, args)
 		if err != nil {
 			return err
 		}
+
+		defer cleanup()
 
 		result, err := adoptDCRProvider(
 			s.Helper,
@@ -117,6 +120,10 @@ func adoptDCRProvider(
 	}
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
+	if err := adoptCommon.PrepareDeclarativeRoot(ctx, resources.ResourceTypeDCRProvider, provider.ID, namespace,
+		*provider, labels.IsProtectedResource(provider.Labels)); err != nil {
+		return nil, err
+	}
 	if result, dryRun := adoptCommon.PreviewAdoption(
 		ctx, string(resources.ResourceTypeDCRProvider), provider.ID, provider.Name, namespace, nil, "labels",
 		provider.Labels, adoptCommon.StringLabelMap(provider.Labels, namespace),

@@ -2,13 +2,17 @@ package team
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/kong/kongctl/internal/cmd"
 	adoptCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt/common"
+	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/declarative/labels"
+	"github.com/kong/kongctl/internal/declarative/loader"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -240,4 +244,34 @@ func TestTeamAdoptionDryRunNeverWrites(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, testTeamID, result.ID)
 	require.Zero(t, api.updateCall)
+}
+
+func TestAdoptTeamExportsDeclaration(t *testing.T) {
+	command, err := NewTeamCmd(verbs.Adopt, nil, nil, nil)
+	require.NoError(t, err)
+	path := filepath.Join(t.TempDir(), "team.yaml")
+	require.NoError(t, command.Flags().Set("declarative-output", path))
+	export, err := adoptCommon.OpenAdoptionExport(command, false)
+	require.NoError(t, err)
+	defer export.Close()
+	ctx := context.WithValue(t.Context(), adoptCommon.DeclarativeExportKey{}, export)
+	helper := new(cmd.MockHelper)
+	helper.EXPECT().GetContext().Return(ctx)
+	api := &teamAPIStub{t: t, team: &kkComps.TeamResponse{
+		ID: testTeamID, Name: testTeamName,
+		Labels: map[string]string{"env": "prod", labels.ProtectedKey: "true"},
+	}}
+	result, err := adoptTeam(helper, api, nil, "team-alpha", false, testTeamID)
+	require.NoError(t, err)
+	_, err = adoptCommon.FinishDeclarativeChild(ctx, result)
+	require.NoError(t, err)
+	loaded, err := loader.New().LoadFile(path)
+	require.NoError(t, err)
+	require.Len(t, loaded.OrganizationTeams, 1)
+	require.Equal(t, testTeamID, loaded.OrganizationTeams[0].Ref)
+	require.True(t, loaded.OrganizationTeams[0].Kongctl.IsProtected())
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Contains(t, string(content), "env: prod")
+	require.Equal(t, 1, api.updateCall)
 }

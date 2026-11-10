@@ -10,6 +10,7 @@ import (
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	adoptCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	declexport "github.com/kong/kongctl/internal/declarative/export"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/util"
@@ -49,11 +50,14 @@ func NewControlPlaneCmd(
 		cmd.PreRunE = parentPreRun
 	}
 
+	adoptCommon.AddDeclarativeRootExportFlag(cmd)
 	cmd.RunE = func(cobraCmd *cobra.Command, args []string) error {
-		s, err := adoptCommon.SetupAdoptRun(cobraCmd, args)
+		s, cleanup, err := adoptCommon.SetupExportRun(cobraCmd, args)
 		if err != nil {
 			return err
 		}
+
+		defer cleanup()
 
 		result, err := adoptControlPlane(
 			s.Helper,
@@ -61,6 +65,7 @@ func NewControlPlaneCmd(
 			s.AdoptFlags.Namespace,
 			s.AdoptFlags.OverwriteNamespace,
 			strings.TrimSpace(args[0]),
+			s.SDK.GetControlPlaneGroupsAPI(),
 		)
 		if err != nil {
 			return err
@@ -78,6 +83,7 @@ func adoptControlPlane(
 	namespace string,
 	overwriteNamespace bool,
 	identifier string,
+	groupsAPIs ...helpers.ControlPlaneGroupsAPI,
 ) (*adoptCommon.AdoptResult, error) {
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
 
@@ -111,6 +117,24 @@ func adoptControlPlane(
 
 	updateReq := kkComps.UpdateControlPlaneRequest{
 		Labels: adoptCommon.StringLabelMap(cp.Labels, namespace),
+	}
+
+	if adoptCommon.AdoptionExportFromContext(ctx) != nil {
+		var members []string
+		if cp.Config.ClusterType == kkComps.ControlPlaneClusterTypeClusterTypeControlPlaneGroup {
+			if len(groupsAPIs) == 0 || groupsAPIs[0] == nil {
+				return nil, fmt.Errorf("control plane group membership API is required for declarative export")
+			}
+			members, err = declexport.FetchControlPlaneGroupMembers(ctx, groupsAPIs[0], cp.ID)
+			if err != nil {
+				return nil, err
+			}
+		}
+		resource := declexport.MapControlPlaneToDeclarativeResource(*cp, members)
+		if err := adoptCommon.PrepareDeclarativeRoot(ctx, resources.ResourceTypeControlPlane, cp.ID, namespace,
+			&resource, labels.IsProtectedResource(cp.Labels)); err != nil {
+			return nil, err
+		}
 	}
 
 	if result, dryRun := adoptCommon.PreviewAdoption(

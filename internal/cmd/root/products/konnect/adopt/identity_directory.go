@@ -24,11 +24,14 @@ func NewIdentityDirectoryCmd(verb verbs.VerbValue,
 	if addParentFlags != nil {
 		addParentFlags(verb, command)
 	}
+	adoptCommon.AddDeclarativeRootExportFlag(command)
 	command.RunE = func(cmd *cobra.Command, args []string) error {
-		setup, err := adoptCommon.SetupAdoptRun(cmd, args)
+		setup, cleanup, err := adoptCommon.SetupExportRun(cmd, args)
 		if err != nil {
 			return err
 		}
+		defer cleanup()
+
 		result, err := adoptIdentityDirectory(setup.Helper.GetContext(), setup.SDK.GetIdentityDirectoriesAPI(),
 			args[0], setup.AdoptFlags.Namespace, setup.AdoptFlags.OverwriteNamespace)
 		if err != nil {
@@ -58,6 +61,10 @@ func adoptIdentityDirectory(ctx context.Context, api helpers.IdentityDirectories
 	request.ManagedBy = resources.BuildChildManagedBy(
 		namespace, resources.IsChildProtected(directory.ManagedBy), build.Version(ctx),
 	)
+	if err := adoptCommon.PrepareDeclarativeRoot(ctx, resources.ResourceTypeIdentityDirectory, directory.ID, namespace,
+		*directory, resources.IsChildProtected(directory.ManagedBy)); err != nil {
+		return nil, err
+	}
 	if result, dryRun := adoptCommon.PreviewAdoption(
 		ctx, string(resources.ResourceTypeIdentityDirectory), directory.ID, directory.Name, namespace, nil,
 		"managed_by", directory.ManagedBy, request.ManagedBy,

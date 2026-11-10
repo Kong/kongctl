@@ -23,7 +23,7 @@ func NewIdentityPrincipalIdentityCmd(verb verbs.VerbValue,
 		Args:    cobra.ExactArgs(1),
 		PreRunE: parentPreRun,
 	}
-	addDeclarativeExportFlags(cmd)
+	adoptCommon.AddDeclarativeExportFlags(cmd)
 	common.AddIdentityDirectoryFlags(cmd)
 	cmd.Flags().String("principal-id", "", "Parent principal UUID")
 	cmd.Flags().String("ref", "", "Declarative ref to persist on this identity")
@@ -36,7 +36,7 @@ func NewIdentityPrincipalIdentityCmd(verb verbs.VerbValue,
 		addParentFlags(verb, cmd)
 	}
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		setup, cleanup, err := setupChildAdoptRun(cmd, args)
+		setup, cleanup, err := adoptCommon.SetupExportRun(cmd, args)
 		if err != nil {
 			return err
 		}
@@ -115,10 +115,10 @@ func adoptPrincipalIdentity(ctx context.Context, api helpers.IdentityPrincipalId
 	if err != nil {
 		return nil, err
 	}
-	if err := prepareDeclarativeChild(
+	if err := adoptCommon.PrepareDeclarativeChild(
 		ctx, resources.ResourceTypeIdentityPrincipalIdentity, id, ref, namespace,
 		resources.IsChildProtected(current.ManagedBy), current,
-		adoptionParent{kind: resources.ResourceTypeIdentityPrincipal, id: principalID, directoryID: directoryID},
+		adoptCommon.AdoptionParent{Kind: resources.ResourceTypeIdentityPrincipal, ID: principalID, DirectoryID: directoryID},
 	); err != nil {
 		return nil, err
 	}
@@ -127,12 +127,12 @@ func adoptPrincipalIdentity(ctx context.Context, api helpers.IdentityPrincipalId
 		map[string]string{"directory_id": directoryID, "principal_id": principalID}, "managed_by",
 		previousManagedBy, current.ManagedBy,
 	); dryRun {
-		return finishDeclarativeChild(ctx, result)
+		return adoptCommon.FinishDeclarativeChild(ctx, result)
 	}
 	if _, err := helpers.ReplacePrincipalIdentity(ctx, api, directoryID, principalID, id, body); err != nil {
 		return nil, err
 	}
-	return finishDeclarativeChild(ctx, &adoptCommon.AdoptResult{
+	return adoptCommon.FinishDeclarativeChild(ctx, &adoptCommon.AdoptResult{
 		ResourceType: string(resources.ResourceTypeIdentityPrincipalIdentity),
 		ID:           id,
 		Name:         ref,

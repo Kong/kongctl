@@ -16,6 +16,7 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkErrors "github.com/Kong/sdk-konnect-go/models/sdkerrors"
 
+	declexport "github.com/kong/kongctl/internal/declarative/export"
 	"github.com/kong/kongctl/internal/declarative/frontmatter"
 	declresources "github.com/kong/kongctl/internal/declarative/resources"
 	declstate "github.com/kong/kongctl/internal/declarative/state"
@@ -218,17 +219,12 @@ func buildAIGatewayProviders(
 			continue
 		}
 
-		results = append(results, declresources.AIGatewayProviderResource{
-			BaseResource: declresources.BaseResource{Ref: ref, Kongctl: kongctl},
-			Name:         provider.Name,
-			Type:         provider.Type,
-			DisplayName:  provider.DisplayName,
-			Labels:       provider.Labels,
-			ManagedBy:    nil,
-			Config:       provider.Config,
-			Datastores:   provider.Datastores,
-			TokenVault:   provider.TokenVault,
-		})
+		resource, err := declexport.ProjectAs[declresources.AIGatewayProviderResource](provider.Raw)
+		if err != nil {
+			return nil, err
+		}
+		resource.Ref, resource.Kongctl = ref, kongctl
+		results = append(results, resource)
 	}
 
 	slices.SortFunc(results, func(a, b declresources.AIGatewayProviderResource) int {
@@ -285,17 +281,12 @@ func buildAIGatewayAuthStrategies(
 		if err != nil {
 			continue
 		}
-		results = append(results, declresources.AIGatewayAuthStrategyResource{
-			BaseResource: declresources.BaseResource{Ref: ref, Kongctl: kongctl},
-			Name:         provider.Name,
-			Type:         provider.Type,
-			DisplayName:  provider.DisplayName,
-			Labels:       provider.Labels,
-			ManagedBy:    nil,
-			Config:       provider.Config,
-			Datastores:   provider.Datastores,
-			TokenVault:   provider.TokenVault,
-		})
+		resource, err := declexport.ProjectAs[declresources.AIGatewayAuthStrategyResource](provider.Raw)
+		if err != nil {
+			return nil, err
+		}
+		resource.Ref, resource.Kongctl = ref, kongctl
+		results = append(results, resource)
 	}
 
 	slices.SortFunc(results, func(a, b declresources.AIGatewayAuthStrategyResource) int {

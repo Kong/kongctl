@@ -28,7 +28,7 @@ func NewIdentityAuthServerClientCmd(verb verbs.VerbValue, addParentFlags func(ve
 	command.Flags().String("client-name", "", "Exact OAuth client name instead of a client ID argument")
 	command.MarkFlagsOneRequired("auth-server-id", "auth-server-name")
 	command.MarkFlagsMutuallyExclusive("auth-server-id", "auth-server-name")
-	addDeclarativeExportFlags(command)
+	adoptCommon.AddDeclarativeExportFlags(command)
 	addChildSelectionFlags(command)
 	command.Args = func(cmd *cobra.Command, args []string) error {
 		_, err := readChildSelection(cmd, args, "", "client-name")
@@ -39,7 +39,7 @@ func NewIdentityAuthServerClientCmd(verb verbs.VerbValue, addParentFlags func(ve
 		addParentFlags(verb, command)
 	}
 	command.RunE = func(cmd *cobra.Command, args []string) error {
-		setup, cleanup, err := setupChildAdoptRun(cmd, args)
+		setup, cleanup, err := adoptCommon.SetupExportRun(cmd, args)
 		if err != nil {
 			return err
 		}
@@ -106,9 +106,9 @@ func prepareAdoptIdentityAuthServerClient(ctx context.Context, api helpers.Ident
 	if protected != "true" && protected != "false" {
 		return nil, fmt.Errorf("client has invalid protection labels")
 	}
-	if err := prepareDeclarativeChild(
+	if err := adoptCommon.PrepareDeclarativeChild(
 		ctx, resources.ResourceTypeIdentityAuthServerClient, current.ID, current.ID, namespace,
-		protected == "true", current, adoptionParent{kind: resources.ResourceTypeIdentityAuthServer, id: parent},
+		protected == "true", current, adoptCommon.AdoptionParent{Kind: resources.ResourceTypeIdentityAuthServer, ID: parent},
 	); err != nil {
 		return nil, err
 	}
@@ -118,7 +118,7 @@ func prepareAdoptIdentityAuthServerClient(ctx context.Context, api helpers.Ident
 			map[string]string{"auth_server_id": parent}, "labels", current.Labels,
 			map[string]string{labels.NamespaceKey: namespace, labels.ProtectedKey: protected},
 		); dryRun {
-			return finishDeclarativeChild(ctx, result)
+			return adoptCommon.FinishDeclarativeChild(ctx, result)
 		}
 		fresh, err := helpers.ResolveIdentityAuthServerClient(ctx, api, parent, current.ID, false, 100)
 		if err != nil {
@@ -146,7 +146,7 @@ func prepareAdoptIdentityAuthServerClient(ctx context.Context, api helpers.Ident
 			*response.Client.TokenEndpointAuthMethod != *current.TokenEndpointAuthMethod {
 			return nil, fmt.Errorf("client API did not retain adoption labels or authentication method")
 		}
-		return finishDeclarativeChild(ctx, &adoptCommon.AdoptResult{
+		return adoptCommon.FinishDeclarativeChild(ctx, &adoptCommon.AdoptResult{
 			ResourceType: string(resources.ResourceTypeIdentityAuthServerClient),
 			ID:           current.ID, Name: current.Name, Namespace: namespace,
 		})

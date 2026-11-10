@@ -52,33 +52,14 @@ func NewPortalCmd(
 		cmd.PreRunE = parentPreRun
 	}
 
+	adoptCommon.AddDeclarativeRootExportFlag(cmd)
 	cmd.RunE = func(cobraCmd *cobra.Command, args []string) error {
-		helper := cmdpkg.BuildHelper(cobraCmd, args)
-
-		adoptFlags, err := adoptCommon.ReadAdoptFlags(cobraCmd)
+		s, cleanup, err := adoptCommon.SetupExportRun(cobraCmd, args)
 		if err != nil {
 			return err
 		}
-
-		outType, err := helper.GetOutputFormat()
-		if err != nil {
-			return err
-		}
-
-		cfg, err := helper.GetConfig()
-		if err != nil {
-			return err
-		}
-
-		logger, err := helper.GetLogger()
-		if err != nil {
-			return err
-		}
-
-		sdk, err := helper.GetKonnectSDK(cfg, logger)
-		if err != nil {
-			return err
-		}
+		defer cleanup()
+		helper, sdk, cfg, adoptFlags, outType := s.Helper, s.SDK, s.Cfg, s.AdoptFlags, s.OutType
 
 		result, err := adoptPortal(
 			helper,
@@ -125,6 +106,10 @@ func adoptPortal(
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
 
+	if err := adoptCommon.PrepareDeclarativeRoot(ctx, resources.ResourceTypePortal, portal.ID, namespace,
+		*portal, labels.IsProtectedResource(portal.Labels)); err != nil {
+		return nil, err
+	}
 	if result, dryRun := adoptCommon.PreviewAdoption(
 
 		ctx, string(resources.ResourceTypePortal), portal.ID, portal.Name, namespace, nil, "labels",

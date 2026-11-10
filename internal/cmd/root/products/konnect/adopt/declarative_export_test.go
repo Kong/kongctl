@@ -16,6 +16,7 @@ import (
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	adoptCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	declexport "github.com/kong/kongctl/internal/declarative/export"
 	"github.com/kong/kongctl/internal/declarative/loader"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -36,7 +37,7 @@ func childExportTestSetup(t *testing.T, dryRun bool, parentRef string) (adoptCom
 	export, err := openAdoptionExport(command, dryRun)
 	require.NoError(t, err)
 	command.SetContext(context.WithValue(setup.Helper.GetContext(), declarativeExportKey{}, export))
-	t.Cleanup(export.close)
+	t.Cleanup(export.Close)
 	return setup, export
 }
 
@@ -61,12 +62,12 @@ func TestAdoptionDeclarativeExportLoadsEveryAIFamily(t *testing.T) {
 			require.NoError(t, err)
 			_, err = write()
 			require.NoError(t, err)
-			content, err := os.ReadFile(export.path)
+			content, err := os.ReadFile(export.Path)
 			require.NoError(t, err)
 			require.Contains(t, string(content), "!ref ")
 			require.NotContains(t, string(content), "managed_by:")
 			require.NotContains(t, string(content), "_defaults:")
-			loaded, err := loader.New().LoadFile(export.path)
+			loaded, err := loader.New().LoadFile(export.Path)
 			require.NoError(t, err)
 			shape, err := adoptionExportShapeForName(descriptor.name)
 			require.NoError(t, err)
@@ -82,8 +83,8 @@ func TestAdoptionDeclarativeExportLoadsEveryAIFamily(t *testing.T) {
 func adoptionExportShapeForName(name string) (resources.ResourceType, error) {
 	for _, kind := range resources.RegisteredTypes() {
 		shape, err := adoptionExportShape(kind)
-		if err == nil && len(shape.collection) == 1 &&
-			shape.collection[0] == "ai_gateway_"+strings.ReplaceAll(name, "-", "_") {
+		if err == nil && len(shape.Collection) == 1 &&
+			shape.Collection[0] == "ai_gateway_"+strings.ReplaceAll(name, "-", "_") {
 			return kind, nil
 		}
 	}
@@ -128,8 +129,8 @@ func TestAdoptionExportReplansAndComposesWithExistingParent(t *testing.T) {
 			require.NoError(t, err)
 			_, err = write()
 			require.NoError(t, err)
-			sources := []loader.Source{{Type: loader.SourceTypeFile, Path: export.path}}
-			content, err := os.ReadFile(export.path)
+			sources := []loader.Source{{Type: loader.SourceTypeFile, Path: export.Path}}
+			content, err := os.ReadFile(export.Path)
 			require.NoError(t, err)
 			if parentRef != "" {
 				require.NotContains(t, string(content), "ai_gateways:")
@@ -159,13 +160,13 @@ func TestAdoptionExportDryRunIsProposedAndOmitsSecrets(t *testing.T) {
 			map[string]any{"name": "Authorization", "value": "must-never-appear"},
 		}}},
 	}
-	parent := adoptionParent{kind: resources.ResourceTypeAIGateway, id: adoptionGatewayID}
+	parent := adoptionParent{Kind: resources.ResourceTypeAIGateway, ID: adoptionGatewayID}
 	require.NoError(t, prepareDeclarativeChild(setup.Helper.GetContext(), resources.ResourceTypeAIGatewayProvider,
 		adoptionChildID, adoptionChildID, "team-a", true, payload, parent))
 	result := &adoptCommon.AdoptResult{ID: adoptionChildID, Name: "provider", Namespace: "team-a"}
 	_, err := finishDeclarativeChild(setup.Helper.GetContext(), result)
 	require.NoError(t, err)
-	content, err := os.ReadFile(export.path)
+	content, err := os.ReadFile(export.Path)
 	require.NoError(t, err)
 	require.Contains(t, string(content), "# DRY RUN:")
 	require.Contains(t, string(content), "Authorization")
@@ -215,7 +216,7 @@ func TestAdoptionExportPartialFailureContainsOnlySuccesses(t *testing.T) {
 		payload := map[string]any{"name": value.name, "display_name": value.name}
 		if err := prepareDeclarativeChild(
 			setup.Helper.GetContext(), resources.ResourceTypeAIGatewayConsumerGroup, value.id, value.id, "team-a",
-			false, payload, adoptionParent{kind: resources.ResourceTypeAIGateway, id: adoptionGatewayID},
+			false, payload, adoptionParent{Kind: resources.ResourceTypeAIGateway, ID: adoptionGatewayID},
 		); err != nil {
 			return nil, err
 		}
@@ -234,7 +235,7 @@ func TestAdoptionExportPartialFailureContainsOnlySuccesses(t *testing.T) {
 	})
 	require.ErrorContains(t, err, "API failure")
 	require.Equal(t, 1, writes)
-	content, err := os.ReadFile(export.path)
+	content, err := os.ReadFile(export.Path)
 	require.NoError(t, err)
 	require.Contains(t, string(content), "first")
 	require.NotContains(t, string(content), "second")
@@ -250,9 +251,9 @@ func TestAdoptionExportFileFailureStillReportsAdoptedResource(t *testing.T) {
 		) {
 			require.NoError(t, prepareDeclarativeChild(setup.Helper.GetContext(), resources.ResourceTypeAIGatewayConsumerGroup,
 				value.id, value.id, "team-a", false, map[string]any{"name": "group", "display_name": "Group"},
-				adoptionParent{kind: resources.ResourceTypeAIGateway, id: adoptionGatewayID}))
+				adoptionParent{Kind: resources.ResourceTypeAIGateway, ID: adoptionGatewayID}))
 			return func() (*adoptCommon.AdoptResult, error) {
-				require.NoError(t, export.file.Close())
+				require.NoError(t, export.File.Close())
 				return finishDeclarativeChild(setup.Helper.GetContext(),
 					&adoptCommon.AdoptResult{
 						ID:        value.id,
@@ -262,13 +263,14 @@ func TestAdoptionExportFileFailureStillReportsAdoptedResource(t *testing.T) {
 			}, nil
 		})
 	require.ErrorContains(t, err, "was adopted but declarative output")
-	require.Len(t, export.completed, 1)
+	require.Len(t, export.Completed, 1)
 }
 
-func TestAdoptionExportFlagsAreChildOnly(t *testing.T) {
+func TestAdoptionExportParentRefIsChildOnly(t *testing.T) {
 	root, err := NewAIGatewayCmd(verbs.Adopt, nil, nil, nil)
 	require.NoError(t, err)
-	require.Nil(t, root.Flags().Lookup(declarativeOutputFlag))
+	require.NotNil(t, root.Flags().Lookup(declarativeOutputFlag))
+	require.Nil(t, root.Flags().Lookup(parentRefFlag))
 	for _, child := range root.Commands() {
 		require.NotNil(t, child.Flags().Lookup(declarativeOutputFlag))
 		require.NotNil(t, child.Flags().Lookup(parentRefFlag))
@@ -278,7 +280,7 @@ func TestAdoptionExportFlagsAreChildOnly(t *testing.T) {
 func TestAdoptionExportKeepsLastSnapshotOnLaterFileFailure(t *testing.T) {
 	setup, export := childExportTestSetup(t, false, "")
 	ctx := setup.Helper.GetContext()
-	parent := adoptionParent{kind: resources.ResourceTypeAIGateway, id: adoptionGatewayID}
+	parent := adoptionParent{Kind: resources.ResourceTypeAIGateway, ID: adoptionGatewayID}
 	add := func(id, name string) error {
 		return prepareDeclarativeChild(ctx, resources.ResourceTypeAIGatewayConsumerGroup,
 			id, id, "team-a", false, map[string]any{"name": name, "display_name": name}, parent)
@@ -292,15 +294,15 @@ func TestAdoptionExportKeepsLastSnapshotOnLaterFileFailure(t *testing.T) {
 			Namespace: "team-a",
 		})
 	require.NoError(t, err)
-	before, err := os.ReadFile(export.path)
+	before, err := os.ReadFile(export.Path)
 	require.NoError(t, err)
 	second := "6078f559-063b-4f10-9098-9e6553b21d9b"
 	require.NoError(t, add(second, "second"))
-	require.NoError(t, export.file.Close())
+	require.NoError(t, export.File.Close())
 	result, err := finishDeclarativeChild(ctx, &adoptCommon.AdoptResult{ID: second, Name: "second", Namespace: "team-a"})
 	require.ErrorContains(t, err, "was adopted but declarative output")
 	require.Equal(t, second, result.ID)
-	after, err := os.ReadFile(export.path)
+	after, err := os.ReadFile(export.Path)
 	require.NoError(t, err)
 	require.Equal(t, string(before), string(after))
 }
@@ -310,9 +312,9 @@ func TestAdoptionExportDoesNotReplaceChangedDestination(t *testing.T) {
 	ctx := setup.Helper.GetContext()
 	require.NoError(t, prepareDeclarativeChild(ctx, resources.ResourceTypeAIGatewayConsumerGroup,
 		adoptionChildID, adoptionChildID, "team-a", false, map[string]any{"name": "group", "display_name": "Group"},
-		adoptionParent{kind: resources.ResourceTypeAIGateway, id: adoptionGatewayID}))
-	require.NoError(t, os.Remove(export.path))
-	require.NoError(t, os.WriteFile(export.path, []byte("user-owned replacement"), 0o600))
+		adoptionParent{Kind: resources.ResourceTypeAIGateway, ID: adoptionGatewayID}))
+	require.NoError(t, os.Remove(export.Path))
+	require.NoError(t, os.WriteFile(export.Path, []byte("user-owned replacement"), 0o600))
 	_,
 		err := finishDeclarativeChild(ctx,
 		&adoptCommon.AdoptResult{
@@ -321,8 +323,27 @@ func TestAdoptionExportDoesNotReplaceChangedDestination(t *testing.T) {
 			Namespace: "team-a",
 		})
 	require.ErrorContains(t, err, "destination changed during adoption")
-	export.close()
-	content, err := os.ReadFile(export.path)
+	export.Close()
+	content, err := os.ReadFile(export.Path)
 	require.NoError(t, err)
 	require.Equal(t, "user-owned replacement", string(content))
 }
+
+type (
+	adoptionExport       = adoptCommon.AdoptionExport
+	declarativeExportKey = adoptCommon.DeclarativeExportKey
+	adoptionParent       = adoptCommon.AdoptionParent
+)
+
+const (
+	declarativeOutputFlag = "declarative-output"
+	parentRefFlag         = "parent-ref"
+)
+
+var (
+	addDeclarativeExportFlags = adoptCommon.AddDeclarativeExportFlags
+	openAdoptionExport        = adoptCommon.OpenAdoptionExport
+	prepareDeclarativeChild   = adoptCommon.PrepareDeclarativeChild
+	finishDeclarativeChild    = adoptCommon.FinishDeclarativeChild
+	adoptionExportShape       = declexport.DeclarationShape
+)

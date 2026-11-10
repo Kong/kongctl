@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"strconv"
@@ -145,8 +146,9 @@ func PrintAdoptResult(
 	result *AdoptResult,
 	resourceDisplayName string,
 ) error {
+	_, exportErr := FinishDeclarativeChild(helper.GetContext(), result)
 	if handled, err := PrintDryRun(helper, outType); handled {
-		return err
+		return errors.Join(err, exportErr)
 	}
 	streams := helper.GetStreams()
 	if outType == cmdCommon.TEXT {
@@ -156,16 +158,16 @@ func PrintAdoptResult(
 		}
 		fmt.Fprintf(streams.Out, "Adopted %s %q (%s) into namespace %q\n",
 			resourceDisplayName, name, result.ID, result.Namespace)
-		return nil
+		return exportErr
 	}
 
 	printer, err := cli.Format(outType.String(), streams.Out)
 	if err != nil {
-		return err
+		return errors.Join(err, exportErr)
 	}
 	defer printer.Flush()
 	printer.Print(result)
-	return nil
+	return exportErr
 }
 
 func StringLabelMap(existing map[string]string, namespace string) map[string]string {

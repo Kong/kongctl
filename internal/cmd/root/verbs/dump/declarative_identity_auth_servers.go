@@ -6,8 +6,7 @@ import (
 	"fmt"
 	"slices"
 
-	kkComps "github.com/Kong/sdk-konnect-go/models/components"
-	"github.com/kong/kongctl/internal/declarative/labels"
+	declexport "github.com/kong/kongctl/internal/declarative/export"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/declarative/tags"
@@ -27,26 +26,7 @@ func identityAuthServerCollector() declarativeCollector {
 			})
 			result := make([]resources.IdentityAuthServerResource, 0, len(values))
 			for _, value := range values {
-				a := resources.IdentityAuthServerResource{
-					BaseResource: resources.BaseResource{
-						Ref:     value.ID,
-						Kongctl: kongctlMetaFromLabels(value.NormalizedLabels),
-					},
-					Name: value.Name, Audience: value.Audience, Description: &value.Description,
-					SigningAlgorithm: value.SigningAlgorithm, TrustedOrigins: slices.Clone(value.TrustedOrigins),
-					Labels: labels.GetUserLabels(value.Labels),
-				}
-				if a.TrustedOrigins == nil {
-					a.TrustedOrigins = []string{}
-				}
-				if a.Labels == nil {
-					a.Labels = map[string]string{}
-				}
-				if value.Dcr != nil {
-					a.DCR = &resources.IdentityAuthServerDCR{
-						DefaultAccessTokenDuration: value.Dcr.DefaultAccessTokenDuration,
-					}
-				}
+				a := declexport.MapIdentityAuthServer(value.AuthServer)
 				result = append(result, a)
 			}
 			slices.SortFunc(
@@ -142,24 +122,4 @@ func collectIdentityAuthServerChildren(ctx context.Context, d *declarativeDumpCo
 	return nil
 }
 
-func identityClientForDump(
-	client kkComps.Client,
-	scopes []string,
-) resources.IdentityAuthServerClientResource {
-	userLabels := labels.GetUserLabels(client.Labels)
-	if userLabels == nil {
-		userLabels = map[string]string{}
-	}
-	redirects := slices.Clone(client.RedirectUris)
-	if redirects == nil {
-		redirects = []string{}
-	}
-	return resources.IdentityAuthServerClientResource{
-		BaseResource: resources.BaseResource{Ref: client.ID, Kongctl: kongctlMetaFromLabels(client.Labels)},
-		Name:         client.Name, GrantTypes: append([]kkComps.GrantType{}, client.GrantTypes...),
-		ResponseTypes: append([]kkComps.ResponseType{}, client.ResponseTypes...), RedirectURIs: redirects,
-		LoginURI: client.LoginURI, AccessTokenDuration: client.AccessTokenDuration, IDTokenDuration: client.IDTokenDuration,
-		AllowAllScopes: client.AllowAllScopes, AllowScopes: scopes, TokenEndpointAuthMethod: client.TokenEndpointAuthMethod,
-		Labels: userLabels,
-	}
-}
+var identityClientForDump = declexport.MapIdentityClient

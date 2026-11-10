@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	declexport "github.com/kong/kongctl/internal/declarative/export"
+
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/fieldcontracts"
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -32,8 +34,8 @@ func TestPortalVisibilityContractExport(t *testing.T) {
 				require.NoError(t, json.Unmarshal(data, &list))
 				require.NoError(t, json.Unmarshal(data, &detail))
 				for _, resource := range []resources.PortalResource{
-					mapPortalToDeclarativeResource(kkComps.ListPortalsResponsePortal(list)),
-					mapPortalResponseToDeclarativeResource(kkComps.PortalResponse(detail)),
+					declexport.MapPortalToDeclarativeResource(kkComps.ListPortalsResponsePortal(list)),
+					declexport.MapPortalResponseToDeclarativeResource(kkComps.PortalResponse(detail)),
 				} {
 					data, err := json.Marshal(portalVisibilityExportProjection(resource.CreatePortal))
 					require.NoError(t, err)

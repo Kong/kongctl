@@ -53,15 +53,32 @@ entries. This report is separate from a declarative plan and cannot be passed
 to `apply` or `sync`. Remove `--dry-run` to perform the adoption, which observes
 and validates the resources again.
 
-## Export the selected children as configuration
+## Export adopted resources as configuration
 
-Child adoption commands accept `--declarative-output PATH` to export precisely
-the selected children as root-level declarative configuration. This supports
-all AI Gateway child families listed below and the supported Identity child
-adoption commands. The file contains explicit namespace/protection metadata
-on each child, with no file-level defaults. It omits generated `managed_by`
-values, write-only credentials, siblings, and independently owned descendants.
+Every adoption command accepts `--declarative-output PATH` to export exactly
+the selected resources as declarative configuration. This includes portals,
+APIs, control planes, AI Gateways, Event Gateway control planes, dashboards,
+application auth strategies, DCR providers, organization teams, Identity
+directories and auth servers, and all supported child adoption commands.
+It uses the same API-to-declaration conversion capabilities as `dump`.
+
+The file contains explicit namespace/protection metadata on each adopted
+resource, with no file-level defaults. It omits generated `managed_by` values,
+write-only credentials, siblings, and independently owned descendants.
 Other referenced resources are not implicitly adopted or declared.
+
+For example, adopt an existing gateway and generate its declaration:
+
+```sh
+kongctl adopt ai-gateway shared-gateway --namespace team-a \
+  --declarative-output adopted-gateway.yaml
+```
+
+This exports the gateway itself. Its models, providers, and other children
+require separate adoption commands. Control-plane group exports preserve the
+current member IDs without adopting those member control planes.
+
+To export a filtered child selection:
 
 ```sh
 kongctl adopt ai-gateway models --name-pattern 'legacy-*' \
@@ -69,8 +86,9 @@ kongctl adopt ai-gateway models --name-pattern 'legacy-*' \
   --declarative-output adopted-models.yaml
 ```
 
-Without `--parent-ref`, the file includes an external parent declaration using
-the selected parent's exact remote ID. The parent is referenced, not adopted
+For child adoption without `--parent-ref`, the file includes an external
+parent declaration using the selected parent's exact remote ID. The parent
+is referenced, not adopted
 or reconciled. For Identity children under principals, the output also includes
 the external directory needed to resolve that principal.
 
@@ -97,7 +115,8 @@ For Identity adoption, `--parent-ref` names the nearest parent: a directory
 for groups/principals, a principal for identities/basic-auth usernames, or an
 Auth Server for OAuth clients. Persisted principal and identity refs retain
 the explicitly supplied `--ref`. Other child refs use the existing remote IDs.
-Do not duplicate those child declarations across your inputs.
+`--parent-ref` is available only on child adoption commands. Do not duplicate
+declarations across your inputs.
 
 The destination must be a new file in an existing directory. Existing files
 and symlinks are rejected before resource mutation, including during dry runs.

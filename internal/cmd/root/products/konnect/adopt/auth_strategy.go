@@ -52,11 +52,14 @@ func NewAuthStrategyCmd(
 		cmd.PreRunE = parentPreRun
 	}
 
+	adoptCommon.AddDeclarativeRootExportFlag(cmd)
 	cmd.RunE = func(cobraCmd *cobra.Command, args []string) error {
-		s, err := adoptCommon.SetupAdoptRun(cobraCmd, args)
+		s, cleanup, err := adoptCommon.SetupExportRun(cobraCmd, args)
 		if err != nil {
 			return err
 		}
+
+		defer cleanup()
 
 		result, err := adoptAuthStrategy(
 			s.Helper,
@@ -113,6 +116,10 @@ func adoptAuthStrategy(
 	}
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
+	if err := adoptCommon.PrepareDeclarativeRoot(ctx, resources.ResourceTypeApplicationAuthStrategy, id, namespace,
+		*strategy, labels.IsProtectedResource(existingLabels)); err != nil {
+		return nil, err
+	}
 	if result, dryRun := adoptCommon.PreviewAdoption(
 		ctx, string(resources.ResourceTypeApplicationAuthStrategy), id, name, namespace, nil, "labels",
 		existingLabels, adoptCommon.StringLabelMap(existingLabels, namespace),

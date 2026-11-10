@@ -52,11 +52,14 @@ func NewAIGatewayCmd(
 		cmd.PreRunE = parentPreRun
 	}
 
+	adoptCommon.AddDeclarativeRootExportFlag(cmd)
 	cmd.RunE = func(cobraCmd *cobra.Command, args []string) error {
-		s, err := adoptCommon.SetupAdoptRun(cobraCmd, args)
+		s, cleanup, err := adoptCommon.SetupExportRun(cobraCmd, args)
 		if err != nil {
 			return err
 		}
+
+		defer cleanup()
 
 		result, err := adoptAIGateway(
 			s.Helper,
@@ -110,6 +113,10 @@ func adoptAIGateway(
 	}
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
+	if err := adoptCommon.PrepareDeclarativeRoot(ctx, resources.ResourceTypeAIGateway, gateway.ID, namespace,
+		*gateway, labels.IsProtectedResource(gateway.Labels)); err != nil {
+		return nil, err
+	}
 	if result, dryRun := adoptCommon.PreviewAdoption(
 		ctx, string(resources.ResourceTypeAIGateway), gateway.ID, gateway.DisplayName, namespace, nil, "labels",
 		gateway.Labels, updateReq.Labels,

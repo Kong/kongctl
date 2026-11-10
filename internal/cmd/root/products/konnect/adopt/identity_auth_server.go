@@ -23,11 +23,14 @@ func NewIdentityAuthServerCmd(verb verbs.VerbValue, addParentFlags func(verbs.Ve
 	if addParentFlags != nil {
 		addParentFlags(verb, command)
 	}
+	adoptCommon.AddDeclarativeRootExportFlag(command)
 	command.RunE = func(cmd *cobra.Command, args []string) error {
-		setup, err := adoptCommon.SetupAdoptRun(cmd, args)
+		setup, cleanup, err := adoptCommon.SetupExportRun(cmd, args)
 		if err != nil {
 			return err
 		}
+		defer cleanup()
+
 		result, err := adoptIdentityAuthServer(
 			setup.Helper.GetContext(), setup.SDK.GetIdentityAuthServersAPI(), args[0],
 			setup.AdoptFlags.Namespace, setup.AdoptFlags.OverwriteNamespace,
@@ -60,6 +63,10 @@ func adoptIdentityAuthServer(ctx context.Context, api helpers.IdentityAuthServer
 	}
 	request := kkComps.UpdateAuthServer{
 		Labels: map[string]*string{labels.NamespaceKey: &namespace, labels.ProtectedKey: &protected},
+	}
+	if err := adoptCommon.PrepareDeclarativeRoot(ctx, resources.ResourceTypeIdentityAuthServer, current.ID, namespace,
+		*current, labels.IsProtectedResource(current.Labels)); err != nil {
+		return nil, err
 	}
 	if result, dryRun := adoptCommon.PreviewAdoption(
 		ctx, string(resources.ResourceTypeIdentityAuthServer), current.ID, current.Name, namespace, nil, "labels",

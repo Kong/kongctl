@@ -103,9 +103,9 @@ func aiChildAdapter[T, Request any](name, alias, selector string, kind resources
 			if err := mapChildAdoptionRequest(payload, &request); err != nil {
 				return nil, err
 			}
-			if err := prepareDeclarativeChild(
+			if err := adoptCommon.PrepareDeclarativeChild(
 				ctx, kind, selected.id, selected.id, namespace, resources.IsChildProtected(desired), payload,
-				adoptionParent{kind: resources.ResourceTypeAIGateway, id: parent},
+				adoptCommon.AdoptionParent{Kind: resources.ResourceTypeAIGateway, ID: parent},
 			); err != nil {
 				return nil, err
 			}
@@ -114,7 +114,7 @@ func aiChildAdapter[T, Request any](name, alias, selector string, kind resources
 					ctx, string(kind), selected.id, selected.name, namespace, map[string]string{"gateway_id": parent},
 					"managed_by", metadata, desired,
 				); dryRun {
-					return finishDeclarativeChild(ctx, result)
+					return adoptCommon.FinishDeclarativeChild(ctx, result)
 				}
 				fresh, err := read(ctx, parent, selected.id)
 				if err != nil {
@@ -141,7 +141,7 @@ func aiChildAdapter[T, Request any](name, alias, selector string, kind resources
 				if updated.name != selected.name || !maps.Equal(retained, desired) {
 					return nil, fmt.Errorf("adoption API did not retain the child identity or ownership metadata")
 				}
-				return finishDeclarativeChild(ctx, &adoptCommon.AdoptResult{
+				return adoptCommon.FinishDeclarativeChild(ctx, &adoptCommon.AdoptResult{
 					ResourceType: string(kind),
 					ID:           selected.id,
 					Name:         selected.name,
@@ -367,7 +367,7 @@ func newAIGatewayChildCommands(verb verbs.VerbValue,
 		command.Flags().String(family.selector+"-id", "", "Exact child UUID")
 		command.Flags().String(family.selector+"-name", "", "Exact child name (including UUID-shaped names)")
 		addChildSelectionFlags(command)
-		addDeclarativeExportFlags(command)
+		adoptCommon.AddDeclarativeExportFlags(command)
 		command.Args = func(cmd *cobra.Command, args []string) error {
 			selection, err := readChildSelection(cmd, args, family.selector+"-id", family.selector+"-name")
 			if err == nil && selection.idOnly && !util.IsValidUUID(selection.identifier) {
@@ -388,7 +388,7 @@ func newAIGatewayChildCommands(verb verbs.VerbValue,
 			" --parent-ref shared-gateway --declarative-output adopted.yaml"
 
 		command.RunE = func(cmd *cobra.Command, args []string) error {
-			setup, cleanup, err := setupChildAdoptRun(cmd, args)
+			setup, cleanup, err := adoptCommon.SetupExportRun(cmd, args)
 			if err != nil {
 				return err
 			}

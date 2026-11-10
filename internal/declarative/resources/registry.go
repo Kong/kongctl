@@ -20,6 +20,7 @@ import (
 
 // resourceOps provides operations for a specific resource type within a ResourceSet.
 type resourceOps struct {
+	newDeclaration                    func() Resource
 	managedBy                         *ManagedByPolicy
 	independentChildMeta              func(Resource) *KongctlMeta
 	independentChildLabels            bool
@@ -296,6 +297,7 @@ func registerResourceTypeWithSliceAccessors[R any, RPtr interface {
 	options ...ResourceRegistrationOption,
 ) {
 	ops := resourceOps{
+		newDeclaration: func() Resource { return RPtr(new(R)) },
 		get: func(rs *ResourceSet) []Resource {
 			slicePtr := getSlicePtr(rs)
 			if slicePtr == nil {
@@ -522,4 +524,13 @@ func ExternalResolvableTypesByScope(scoped bool) []ResourceType {
 		}
 	}
 	return result
+}
+
+// NewDeclaration constructs the registered declaration type without API state.
+func NewDeclaration(kind ResourceType) (Resource, error) {
+	ops, ok := registry[kind]
+	if !ok {
+		return nil, fmt.Errorf("unknown resource type %s", kind)
+	}
+	return ops.newDeclaration(), nil
 }

@@ -67,10 +67,12 @@ Kong Identity groups, OAuth clients, and basic-auth usernames also support
 bulk selection within their parents. Principals and identities retain
 individual UUID and explicit `--ref` requirements.
 
-## Export exactly the adopted children
+## Export exactly the adopted resources
 
-When adopting children, `--declarative-output` writes the selected resources
-as declarative YAML. This avoids exporting unrelated siblings and manually
+Every adoption command supports `--declarative-output`, which writes only the
+selected resources as declarative YAML using the same conversion capabilities
+as `dump`. Parent adoption exports the parent itself; child adoption exports
+the selection. This avoids exporting unrelated siblings and manually
 reconstructing the adoption selection from a whole-gateway dump.
 
 ```shell label="Run this..."
@@ -89,7 +91,7 @@ external gateway declaration using its exact ID, so the file stands alone.
 Referenced providers and other independently owned children are not adopted
 or exported automatically.
 
-Each exported child has explicit namespace/protection settings; no file-level
+Each adopted resource has explicit namespace/protection settings; no file-level
 default is added. Write-only credentials and generated `managed_by` entries
 are omitted. Your selected stdout format still applies to adoption results;
 the output file is YAML and must not already exist.

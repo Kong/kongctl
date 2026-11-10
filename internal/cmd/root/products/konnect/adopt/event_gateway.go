@@ -53,11 +53,14 @@ func NewEventGatewayControlPlaneCmd(
 		cmd.PreRunE = parentPreRun
 	}
 
+	adoptCommon.AddDeclarativeRootExportFlag(cmd)
 	cmd.RunE = func(cobraCmd *cobra.Command, args []string) error {
-		s, err := adoptCommon.SetupAdoptRun(cobraCmd, args)
+		s, cleanup, err := adoptCommon.SetupExportRun(cobraCmd, args)
 		if err != nil {
 			return err
 		}
+
+		defer cleanup()
 
 		result, err := adoptEventGatewayControlPlane(
 			s.Helper,
@@ -110,6 +113,10 @@ func adoptEventGatewayControlPlane(
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
 
+	if err := adoptCommon.PrepareDeclarativeRoot(ctx, resources.ResourceTypeEventGatewayControlPlane, egw.ID, namespace,
+		*egw, labels.IsProtectedResource(egw.Labels)); err != nil {
+		return nil, err
+	}
 	if result, dryRun := adoptCommon.PreviewAdoption(
 
 		ctx, string(resources.ResourceTypeEventGatewayControlPlane), egw.ID, egw.Name, namespace, nil, "labels",

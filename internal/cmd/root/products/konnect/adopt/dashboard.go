@@ -52,11 +52,14 @@ func NewDashboardCmd(
 		cmd.PreRunE = parentPreRun
 	}
 
+	adoptCommon.AddDeclarativeRootExportFlag(cmd)
 	cmd.RunE = func(cobraCmd *cobra.Command, args []string) error {
-		s, err := adoptCommon.SetupAdoptRun(cobraCmd, args)
+		s, cleanup, err := adoptCommon.SetupExportRun(cobraCmd, args)
 		if err != nil {
 			return err
 		}
+
+		defer cleanup()
 
 		result, err := adoptDashboard(
 			s.Helper,
@@ -109,6 +112,10 @@ func adoptDashboard(
 	}
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
+	if err := adoptCommon.PrepareDeclarativeRoot(ctx, resources.ResourceTypeDashboard, *dashboard.ID, namespace,
+		*dashboard, labels.IsProtectedResource(dashboard.Labels)); err != nil {
+		return nil, err
+	}
 	if result, dryRun := adoptCommon.PreviewAdoption(
 		ctx, string(resources.ResourceTypeDashboard), id, dashboard.Name, namespace, nil, "labels",
 		dashboard.Labels, updateReq.Labels,

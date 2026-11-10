@@ -76,12 +76,12 @@ func TestIdentityAdoptionExportsOnlySelectedChildren(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.NotNil(t, result)
-			data, err := os.ReadFile(export.path)
+			data, err := os.ReadFile(export.Path)
 			require.NoError(t, err)
 			require.NotContains(t, string(data), "managed_by:")
 			require.NotContains(t, string(data), "passwords:")
 			require.NotContains(t, string(data), "client_secret:")
-			loaded, err := loader.New().LoadFile(export.path)
+			loaded, err := loader.New().LoadFile(export.Path)
 			require.NoError(t, err)
 			children := loaded.AllResourcesByType(kind)
 			require.Len(t, children, 1)
@@ -107,10 +107,10 @@ func TestExportPreflightFailureRemovesEmptyOutput(t *testing.T) {
 	setup, export := childExportTestSetup(t, false, "known-parent")
 	err := prepareDeclarativeChild(setup.Helper.GetContext(), resources.ResourceTypeAIGatewayModel,
 		adoptionChildID, adoptionChildID, "team-a", false, map[string]any{"name": "invalid"},
-		adoptionParent{kind: resources.ResourceTypeAIGateway, id: adoptionGatewayID})
+		adoptionParent{Kind: resources.ResourceTypeAIGateway, ID: adoptionGatewayID})
 	require.Error(t, err)
-	export.close()
-	_, err = os.Stat(export.path)
+	export.Close()
+	_, err = os.Stat(export.Path)
 	require.True(t, os.IsNotExist(err))
 }
 
@@ -118,6 +118,6 @@ func TestExportRejectsParentChildRefCollision(t *testing.T) {
 	setup, _ := childExportTestSetup(t, false, "same-ref")
 	err := prepareDeclarativeChild(setup.Helper.GetContext(), resources.ResourceTypeAIGatewayConsumerGroup,
 		adoptionChildID, "same-ref", "team-a", false, map[string]any{"name": "group", "display_name": "Group"},
-		adoptionParent{kind: resources.ResourceTypeAIGateway, id: adoptionGatewayID})
+		adoptionParent{Kind: resources.ResourceTypeAIGateway, ID: adoptionGatewayID})
 	require.ErrorContains(t, err, "collides")
 }

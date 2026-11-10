@@ -29,13 +29,13 @@ func NewIdentityGroupCmd(verb verbs.VerbValue,
 		_, err := readChildSelection(cmd, args, "", "")
 		return err
 	}
-	addDeclarativeExportFlags(command)
+	adoptCommon.AddDeclarativeExportFlags(command)
 	common.AddIdentityDirectoryFlags(command)
 	if addParentFlags != nil {
 		addParentFlags(verb, command)
 	}
 	command.RunE = func(cmd *cobra.Command, args []string) error {
-		setup, cleanup, err := setupChildAdoptRun(cmd, args)
+		setup, cleanup, err := adoptCommon.SetupExportRun(cmd, args)
 		if err != nil {
 			return err
 		}
@@ -91,10 +91,10 @@ func prepareAdoptIdentityGroup(ctx context.Context, api helpers.IdentityGroupsAP
 		return nil, err
 	}
 	request.ManagedBy = metadata
-	if err := prepareDeclarativeChild(
+	if err := adoptCommon.PrepareDeclarativeChild(
 		ctx, resources.ResourceTypeIdentityGroup, group.ID, group.ID, namespace,
 		resources.IsChildProtected(metadata), group,
-		adoptionParent{kind: resources.ResourceTypeIdentityDirectory, id: directoryID},
+		adoptCommon.AdoptionParent{Kind: resources.ResourceTypeIdentityDirectory, ID: directoryID},
 	); err != nil {
 		return nil, err
 	}
@@ -103,7 +103,7 @@ func prepareAdoptIdentityGroup(ctx context.Context, api helpers.IdentityGroupsAP
 			ctx, string(resources.ResourceTypeIdentityGroup), group.ID, group.Name, namespace,
 			map[string]string{"directory_id": directoryID}, "managed_by", group.ManagedBy, request.ManagedBy,
 		); dryRun {
-			return finishDeclarativeChild(ctx, result)
+			return adoptCommon.FinishDeclarativeChild(ctx, result)
 		}
 		fresh, err := helpers.ResolveIdentityGroup(ctx, api, directoryID, group.ID, 100)
 		if err != nil {
@@ -123,7 +123,7 @@ func prepareAdoptIdentityGroup(ctx context.Context, api helpers.IdentityGroupsAP
 			!maps.Equal(response.KongGroup.ManagedBy, request.ManagedBy) {
 			return nil, fmt.Errorf("group API did not retain adopted ownership")
 		}
-		return finishDeclarativeChild(ctx, &adoptCommon.AdoptResult{
+		return adoptCommon.FinishDeclarativeChild(ctx, &adoptCommon.AdoptResult{
 			ResourceType: string(resources.ResourceTypeIdentityGroup), ID: group.ID,
 			Name: group.Name, Namespace: namespace,
 		})
