@@ -127,7 +127,7 @@ test_full_lifecycle() {
   assert_contains "$FAKE_LOG" "get gateway control-plane" "full run exercises imperative get"
   assert_contains "$FAKE_LOG" "--include-child-resources" "dump requests nested child resources"
   local report_condition="value['status'] == 'passed' and value['cleanup']['status'] == 'passed' "
-  report_condition+="and len(value['resources']) == 5 and value['known_issues'] == [] "
+  report_condition+="and len(value['resources']) == 7 and value['known_issues'] == [] "
   report_condition+="and value['known_issue_checks'] == []"
   assert_json "$RUN_DIR/report.json" "$report_condition" "full report records lifecycle and cleanup"
   python3 - "$RUN_DIR" <<'PYTEST'
@@ -144,9 +144,10 @@ for resource in report["resources"]:
         plan = json.loads((directory / "plans" / f"{key}-{stage}{suffix}.json").read_text())
         assert plan["_desired"]["_namespace"] == namespace, (key, stage)
         assert all(change["namespace"] == namespace for change in plan["changes"])
-    dumped = (directory / "dumps" / f"{key}.yaml").read_text()
-    assert "!env" not in dumped, key
-    assert f'namespace: "{namespace}"' in dumped, key
+    if key != "identity_principal":
+        dumped = (directory / "dumps" / f"{key}.yaml").read_text()
+        assert "!env" not in dumped, key
+        assert f'namespace: "{namespace}"' in dumped, key
 PYTEST
   python3 - "$FAKE_LOG" <<'PYTEST'
 import json
@@ -364,6 +365,27 @@ test_reordered_mcp_readback() {
   pass "MCP readback is independent of array order"
 }
 
+test_identity_lifecycle() {
+  new_case identity
+  run_smoke --yes --resources identity_principal,identity_auth_server
+  [[ "$STATUS" -eq 0 ]] || fail "Identity-only smoke succeeds" "$OUTPUT"
+  assert_json "$FAKE_STATE" "value == {}" "Identity resources are cleaned up"
+  assert_contains "$FAKE_LOG" "--display-name smoke-person-" "principal discovery uses exact display name"
+  assert_contains "$FAKE_LOG" "get identity principal-identities" "custom identity readback runs"
+  assert_contains "$FAKE_LOG" "get identity auth-server-claim" "claim readback runs"
+  assert_contains "$FAKE_LOG" "list identity directories" "existing directory inventory is checked"
+  assert_not_contains "$FAKE_LOG" "scaffold identity_directory" "smoke does not manage a directory"
+  assert_contains "$RUN_DIR/fixtures/identity_principal/initial.yaml" '"_external"' \
+    "principal fixture references an external directory"
+  assert_not_contains "$RUN_DIR/fixtures/identity_principal/initial.yaml" "allow_all_control_planes" \
+    "principal fixture cannot change directory settings"
+  assert_contains "$RUN_DIR/fixtures/identity_auth_server/updated.yaml" "!ref smoke-read#id" \
+    "claim references its scope"
+  assert_json "$RUN_DIR/report.json" "value['status'] == 'passed' and len(value['resources']) == 2" \
+    "Identity-only report includes both families"
+  pass "Identity-only lifecycle covers principals, identities, scopes, and claims"
+}
+
 test_quick_uses_explain_and_scaffold
 test_full_lifecycle
 test_apply_failure_stops_lifecycle
@@ -392,5 +414,11 @@ test_fake_datastore_lookup
 test_numeric_readback_format
 test_reordered_mcp_readback
 test_resource_selection
+test_identity_lifecycle
+test_fault_is_rejected directory-read-error list-identity-directories --yes identity_principal
+test_fault_is_rejected stale-principal list-updated-principals --yes identity_principal
+test_fault_is_rejected stale-claim get-updated-claim --yes identity_auth_server
 python3 "$ROOT/test/smoke/plan_test.py" --temp-root "$TMP_ROOT"
 python3 "$ROOT/test/smoke/namespace_test.py" --temp-root "$TMP_ROOT"
+
+python3 "$ROOT/test/smoke/directory_test.py" --temp-root "$TMP_ROOT"

@@ -9,12 +9,12 @@ path, resource, stage, namespace = sys.argv[1:]
 with open(path, encoding="utf-8") as handle:
     plan = json.load(handle)
 changes = plan.get("changes", [])
-expected_mode = "apply" if stage == "create" else "sync"
+expected_mode = {"create": "apply", "delete": "delete"}.get(stage, "sync")
 if plan.get("metadata", {}).get("mode") != expected_mode:
     raise SystemExit(f"expected a {expected_mode} plan")
 if not changes or plan.get("summary", {}).get("total_changes") != len(changes):
     raise SystemExit("empty or inconsistent transition plan")
-if stage != "create" and any(change["resource_type"] == resource for change in changes):
+if stage not in ("create", "delete") and any(change["resource_type"] == resource for change in changes):
     raise SystemExit("child transition unexpectedly changes the root")
 if any(change.get("namespace") != namespace for change in changes):
     raise SystemExit("child transition escapes the smoke namespace")
@@ -25,6 +25,8 @@ model = "ai_gateway_model"
 policy = "ai_gateway_policy"
 datastore = "ai_gateway_datastore"
 children = {
+    "identity_principal": ["identity_principal_identity"],
+    "identity_auth_server": ["identity_auth_server_scope", "identity_auth_server_claim"],
     "api": ["api_version", "api_document"],
     "portal": ["portal_snippet"],
     "control_plane": [],
@@ -32,11 +34,13 @@ children = {
     "ai_gateway": [provider, model, policy, "ai_gateway_mcp_server", datastore],
 }
 create_dependencies = {
+    "identity_auth_server": [("identity_auth_server_scope", "identity_auth_server_claim")],
     "event_gateway": [("event_gateway_backend_cluster", "event_gateway_virtual_cluster")],
     "ai_gateway": [(kind, model) for kind in (provider, policy, datastore)],
 }
-if stage == "create":
-    expected = collections.Counter(("CREATE", kind) for kind in [resource] + children[resource])
+if stage in ("create", "delete"):
+    action = "CREATE" if stage == "create" else "DELETE"
+    expected = collections.Counter((action, kind) for kind in [resource] + children[resource])
 elif stage == "replacement":
     expected = collections.Counter({
         ("CREATE", provider): 1, ("DELETE", provider): 1,
@@ -73,6 +77,11 @@ if stage == "create":
         before(("CREATE", resource), ("CREATE", kind))
     for first, second in create_dependencies.get(resource, []):
         before(("CREATE", first), ("CREATE", second))
+elif stage == "delete":
+    for kind in children[resource]:
+        before(("DELETE", kind), ("DELETE", resource))
+    for first, second in create_dependencies.get(resource, []):
+        before(("DELETE", second), ("DELETE", first))
 elif stage == "replacement":
     for kind in (provider, policy):
         before(("CREATE", kind), ("UPDATE", model))

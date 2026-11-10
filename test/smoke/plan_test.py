@@ -141,6 +141,32 @@ class PlanChecks(unittest.TestCase):
                 plan["summary"]["total_changes"] -= 1
                 self.check_plan(plan, "unexpected actions", resource=resource, stage="create")
 
+    def test_identity_create_and_delete_dependency_order(self):
+        for resource, kinds in (
+            ("identity_principal", ["identity_principal", "identity_principal_identity"]),
+            ("identity_auth_server", ["identity_auth_server", "identity_auth_server_scope", "identity_auth_server_claim"]),
+        ):
+            for stage, action, mode in (("create", "CREATE", "apply"), ("delete", "DELETE", "delete")):
+                with self.subTest(resource=resource, stage=stage):
+                    ordered = kinds.copy() if stage == "create" else list(reversed(kinds))
+                    plan = {
+                        "metadata": {"mode": mode}, "summary": {"total_changes": len(kinds)},
+                        "changes": [{"id": kind, "action": action, "resource_type": kind,
+                                     "namespace": "smoke"} for kind in ordered],
+                        "execution_order": ordered.copy(), "execution_groups": [[kind] for kind in ordered],
+                    }
+                    self.check_plan(plan, resource=resource, stage=stage)
+                    plan["execution_groups"] = [ordered]
+                    self.check_plan(plan, "unsafe concurrent execution", resource=resource, stage=stage)
+                    del plan["execution_groups"]
+                    plan["execution_order"].reverse()
+                    self.check_plan(plan, "unsafe dependency order", resource=resource, stage=stage)
+                    # Quota-limited organizations must never receive directory mutations.
+                    plan["changes"].append({"id": "directory", "action": action,
+                                            "resource_type": "identity_directory", "namespace": "smoke"})
+                    plan["summary"]["total_changes"] += 1
+                    self.check_plan(plan, "unexpected actions", resource=resource, stage=stage)
+
     def test_event_gateway_create_backend_before_virtual_cluster(self):
         plan = {
             "metadata": {"mode": "apply"}, "summary": {"total_changes": 3},

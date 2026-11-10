@@ -14,7 +14,8 @@ Options:
   --profile NAME            kongctl profile to use
   --quick                   Run non-mutating discovery, scaffold, and list checks
   --resources LIST          Comma-separated subset of api,portal,control_plane,
-                            ai_gateway,event_gateway (default: all five)
+                            ai_gateway,event_gateway,identity_principal,
+                            identity_auth_server (default: all seven)
   --expect-version VERSION  Require the reported version (a leading v is ignored)
   --expect-commit SHA       Require the reported commit to start with SHA
   --artifacts-dir PATH      Parent directory for the timestamped run directory
@@ -27,9 +28,11 @@ Environment:
   KONGCTL_SMOKE_YES         1, true, or yes skips the confirmation prompt
 
 The full suite creates isolated APIs, portals, control planes, Event Gateways,
-and AI gateways with representative child resources,
+AI gateways, Identity principals, and Auth Servers with representative children,
 then deletes each resource with kongctl delete. Authentication is taken from the
-selected profile and the existing kongctl environment.
+selected profile and the existing kongctl environment. If Identity has no
+directory, full mode bootstraps a protected default directory and retains it
+after cleanup. Quick mode never bootstraps resources.
 EOF
 }
 
@@ -58,7 +61,7 @@ expect_commit=""
 artifacts_parent=""
 assume_yes="false"
 keep_on_failure="false"
-resource_selection="api,portal,control_plane,ai_gateway,event_gateway"
+resource_selection="api,portal,control_plane,ai_gateway,event_gateway,identity_principal,identity_auth_server"
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 while [[ $# -gt 0 ]]; do
@@ -121,7 +124,7 @@ IFS=',' read -r -a resource_registry <<<"$resource_selection"
 selected_keys=" "
 for key in "${resource_registry[@]}"; do
   case "$key" in
-    api | portal | control_plane | ai_gateway | event_gateway) ;;
+    api | portal | control_plane | ai_gateway | event_gateway | identity_principal | identity_auth_server) ;;
     *) die_usage "unknown resource: $key" ;;
   esac
   [[ "$selected_keys" != *" $key "* ]] || die_usage "duplicate resource: $key"
@@ -400,6 +403,13 @@ if root_key != expected_root:
     raise SystemExit(f"explain root key {root_key!r} does not match {expected_root!r}")
 
 raw_lines = pathlib.Path(raw_path).read_text(encoding="utf-8").splitlines()
+# Identity scaffolds use the grouped identity: envelope. Normalize indentation
+# for the shared transformer; fixtures.py restores the envelope after enrichment.
+if resource_type.startswith("identity_"):
+    if not raw_lines or raw_lines[0] != "identity:":
+        raise SystemExit("identity scaffold is missing its envelope")
+    raw_lines = [line[2:] for line in raw_lines[1:]]
+    root_key = root_key.removeprefix("identity.")
 active = [line for line in raw_lines if line.strip() and not line.lstrip().startswith("#")]
 if not active or active[0] != f"{root_key}:":
     raise SystemExit("scaffold root does not match explain root key")
@@ -520,10 +530,14 @@ PY
   then
     fail_current "plan did not contain the expected $action for $resource_ref"
   fi
-  if [[ "$action" == "CREATE" ]]; then
-    if ! python3 "$script_dir/smoke/assert-plan.py" "$plan_file" "$resource_type" create \
+  local stage="create"
+  if [[ "$action" == "DELETE" && "$resource_type" == identity_* ]]; then
+    stage="delete"
+  fi
+  if [[ "$action" == "CREATE" || "$stage" == "delete" ]]; then
+    if ! python3 "$script_dir/smoke/assert-plan.py" "$plan_file" "$resource_type" "$stage" \
       "$resource_namespace" 2>>"$current_stderr"; then
-      fail_current "unexpected create resources or dependency order"
+      fail_current "unexpected $stage resources or dependency order"
     fi
   fi
 }
@@ -686,7 +700,7 @@ prepare_resource() {
   run_kongctl scaffold "$type_name"
   require_success
   cp "$current_stdout" "$raw_file"
-  assert_text_contains "$raw_file" "$root_key:"
+  assert_text_contains "$raw_file" "${root_key##*.}:"
   pass_current
 
   if [[ "$key" == "api" ]]; then
@@ -804,6 +818,24 @@ load_resource_event_gateway() {
   list_args=(list konnect event-gateways -o json); match_field="name"
 }
 
+load_resource_identity_principal() {
+  resource_key="identity_principal"; resource_type="$identity_principal_type"; resource_root="$identity_principal_root"
+  resource_namespace="$identity_principal_namespace"; resource_ref="$identity_principal_ref"; resource_name="$identity_principal_name"
+  resource_description="$identity_principal_description"; resource_initial="$identity_principal_initial"
+  resource_updated="$identity_principal_updated"; dump_type=""
+  detail_args=(get identity principal --directory-name "$identity_directory_name" "$identity_principal_id" -o json)
+  list_args=(list identity principals --directory-name "$identity_directory_name" -o json); match_field="display_name"
+}
+
+load_resource_identity_auth_server() {
+  resource_key="identity_auth_server"; resource_type="$identity_auth_server_type"; resource_root="$identity_auth_server_root"
+  resource_namespace="$identity_auth_server_namespace"; resource_ref="$identity_auth_server_ref"; resource_name="$identity_auth_server_name"
+  resource_description="$identity_auth_server_description"; resource_initial="$identity_auth_server_initial"
+  resource_updated="$identity_auth_server_updated"; dump_type="identity.auth_servers"
+  detail_args=(get identity auth-server "$resource_name" -o json)
+  list_args=(list identity auth-server -o json); match_field="name"
+}
+
 declare -a detail_args=()
 declare -a list_args=()
 resource_key=""; resource_type=""; resource_root=""; resource_namespace=""; resource_ref=""; resource_name=""
@@ -818,12 +850,141 @@ ai_gateway_description=""; ai_gateway_initial=""; ai_gateway_updated=""
 event_gateway_type=""; event_gateway_root=""; event_gateway_namespace=""; event_gateway_ref=""
 event_gateway_name=""; event_gateway_description=""; event_gateway_initial=""; event_gateway_updated=""
 
+identity_principal_id=""
+identity_principal_type=""; identity_principal_root=""; identity_principal_namespace=""; identity_principal_ref=""
+identity_principal_name=""; identity_principal_description=""; identity_principal_initial=""; identity_principal_updated=""
+identity_auth_server_type=""; identity_auth_server_root=""; identity_auth_server_namespace=""; identity_auth_server_ref=""
+identity_auth_server_name=""; identity_auth_server_description=""
+identity_auth_server_initial=""; identity_auth_server_updated=""
+
+identity_directory_name="default"
+identity_directory_id=""
+
+# A directory is shared organization infrastructure, not a disposable smoke root.
+discover_identity_directory() {
+  local require_present="${1:-false}"
+  start_check "list-identity-directories" "identity_principal" "preflight"
+  run_kongctl list identity directories -o json
+  require_success
+  if ! python3 - "$current_stdout" "$artifacts_dir/identity-directory.json" "$require_present" <<'PYDIRECTORY'
+import json
+import pathlib
+import sys
+import uuid
+
+values = json.loads(pathlib.Path(sys.argv[1]).read_text())
+if isinstance(values, dict):
+    values = values.get("data", values.get("items"))
+if not isinstance(values, list):
+    raise SystemExit("expected a directory collection")
+for value in values:
+    if not isinstance(value, dict) or not isinstance(value.get("name"), str) or not value["name"]:
+        raise SystemExit("directory has no name")
+    uuid.UUID(value["id"])
+if not values and sys.argv[3] == "true":
+    raise SystemExit("no directory found after bootstrap")
+selected = min(values, key=lambda value: (value["name"] != "default", value["name"], value["id"])) if values else {
+    "name": "default", "id": "",
+}
+pathlib.Path(sys.argv[2]).write_text(json.dumps({"name": selected["name"], "id": selected["id"]}) + "\n")
+PYDIRECTORY
+  then
+    fail_current "could not select an Identity directory"
+  fi
+  identity_directory_name="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["name"])' \
+    "$artifacts_dir/identity-directory.json")"
+  identity_directory_id="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["id"])' \
+    "$artifacts_dir/identity-directory.json")"
+  export KONGCTL_SMOKE_IDENTITY_DIRECTORY_NAME="$identity_directory_name"
+  pass_current
+}
+
+prepare_identity_directory_bootstrap() {
+  start_check "fixture-identity-directory-bootstrap" "identity_principal" "scaffold"
+  current_command="write $fixtures_dir/identity-directory-bootstrap.yaml"
+  if ! python3 - "$fixtures_dir/identity-directory-bootstrap.yaml" \
+    >"$current_stdout" 2>"$current_stderr" <<'PYBOOTSTRAP'
+import json
+import pathlib
+import sys
+
+manifest = {"_defaults": {"kongctl": {"namespace": "kctl-smoke-identity-bootstrap"}}, "identity": {"directories": [{
+    "ref": "default", "name": "default", "allow_all_control_planes": True,
+    "kongctl": {"protected": True},
+}]}}
+pathlib.Path(sys.argv[1]).write_text(json.dumps(manifest, indent=2) + "\n")
+PYBOOTSTRAP
+  then
+    current_exit=1
+    fail_current "could not write the Identity bootstrap fixture"
+  fi
+  pass_current
+}
+
+bootstrap_identity_directory() {
+  local plan_file="$plans_dir/identity-directory-bootstrap.json"
+  start_check "plan-bootstrap-identity-directory" "identity_principal" "bootstrap"
+  run_kongctl plan -f "$fixtures_dir/identity-directory-bootstrap.yaml" --mode apply \
+    --require-namespace kctl-smoke-identity-bootstrap --output-file "$plan_file"
+  require_success
+  if ! python3 - "$plan_file" <<'PYBOOTSTRAPPLAN'
+import json
+import sys
+
+plan = json.load(open(sys.argv[1]))
+changes = plan.get("changes", [])
+if plan.get("metadata", {}).get("mode") != "apply" or plan.get("summary", {}).get("total_changes") != 1:
+    raise SystemExit("expected exactly one bootstrap create")
+if len(changes) != 1:
+    raise SystemExit("bootstrap plan must contain only the directory")
+change = changes[0]
+if any(change.get(key) != value for key, value in {
+    "action": "CREATE", "resource_type": "identity_directory", "resource_ref": "default",
+    "namespace": "kctl-smoke-identity-bootstrap", "protection": True,
+}.items()):
+    raise SystemExit("unexpected directory bootstrap change")
+if change.get("fields", {}).get("name") != "default" or change["fields"].get("allow_all_control_planes") is not True:
+    raise SystemExit("bootstrap must create default with allow_all_control_planes enabled")
+PYBOOTSTRAPPLAN
+  then
+    fail_current "unsafe Identity directory bootstrap plan"
+  fi
+  pass_current
+
+  start_check "bootstrap-identity-directory" "identity_principal" "bootstrap"
+  run_kongctl apply --plan "$plan_file" --auto-approve -o json
+  require_success
+  assert_execution 1
+  pass_current "retained protected directory; excluded from smoke cleanup"
+  discover_identity_directory true
+}
+
+select_smoke_principal() {
+  start_check "select-smoke-principal" "$resource_key" "read"
+  run_kongctl get identity principals --directory-name "$identity_directory_name" --display-name "$resource_name" -o json
+  require_success
+  if ! identity_principal_id="$(python3 -c '
+import json, sys, uuid
+values = json.load(open(sys.argv[1]))
+assert len(values) == 1
+print(uuid.UUID(values[0]["id"]))
+' "$current_stdout")"; then
+    fail_current "expected exactly one smoke principal with a UUID"
+  fi
+  detail_args=(get identity principal --directory-name "$identity_directory_name" "$identity_principal_id" -o json)
+  pass_current
+}
+
 check_detail_present() {
   start_check "get-${resource_key}" "$resource_key" "read"
   run_kongctl "${detail_args[@]}"
   require_success
   assert_object_field "$match_field" "$resource_name"
-  assert_object_field "labels.KONGCTL-namespace" "$resource_namespace"
+  if [[ "$resource_key" == "identity_principal" ]]; then
+    assert_object_field "managed_by.kongctl-namespace" "$resource_namespace"
+  else
+    assert_object_field "labels.KONGCTL-namespace" "$resource_namespace"
+  fi
   pass_current
 }
 
@@ -931,6 +1092,9 @@ smoke_resource() {
   assert_execution 1
   pass_current
 
+  if [[ "$key" == "identity_principal" ]]; then
+    select_smoke_principal
+  fi
   check_detail_present
   check_list_presence "present"
 
@@ -961,26 +1125,32 @@ smoke_resource() {
 
   check_zero_plans "$resource_updated" "updated"
 
-  start_check "dump-${key}" "$key" "dump"
-  run_kongctl dump declarative --resources "$dump_type" --filter-name "$resource_name" \
-    --default-namespace "$resource_namespace" --include-child-resources --output-file "$dump_file"
-  require_success
-  assert_text_contains "$dump_file" "$resource_root:"
-  assert_text_contains "$dump_file" "$resource_name"
-  if [[ "$key" == "api" ]]; then
-    assert_text_contains "$dump_file" "versions:"
-    assert_text_contains "$dump_file" "documents:"
-  fi
-  if [[ "$key" == "ai_gateway" ]]; then
-    assert_text_contains "$dump_file" "datastores:"
-    assert_text_contains "$dump_file" "smoke-store"
-    # The model also names the datastore; require the datastore definition's type.
-    if ! grep -Eq 'type"?:[[:space:]]*"?vectordb' "$dump_file"; then
-      fail_current "dump did not include the vector datastore definition"
+  if [[ "$key" != "identity_principal" ]]; then
+    start_check "dump-${key}" "$key" "dump"
+    run_kongctl dump declarative --resources "$dump_type" --filter-name "$resource_name" \
+      --default-namespace "$resource_namespace" --include-child-resources --output-file "$dump_file"
+    require_success
+    assert_text_contains "$dump_file" "${resource_root##*.}:"
+    assert_text_contains "$dump_file" "$resource_name"
+    if [[ "$key" == "identity_auth_server" ]]; then
+      assert_text_contains "$dump_file" "scopes:"
+      assert_text_contains "$dump_file" "claims:"
     fi
+    if [[ "$key" == "api" ]]; then
+      assert_text_contains "$dump_file" "versions:"
+      assert_text_contains "$dump_file" "documents:"
+    fi
+    if [[ "$key" == "ai_gateway" ]]; then
+      assert_text_contains "$dump_file" "datastores:"
+      assert_text_contains "$dump_file" "smoke-store"
+      # The model also names the datastore; require the datastore definition's type.
+      if ! grep -Eq 'type"?:[[:space:]]*"?vectordb' "$dump_file"; then
+        fail_current "dump did not include the vector datastore definition"
+      fi
+    fi
+    pass_current
+    check_zero_plans "$dump_file" "dump"
   fi
-  pass_current
-  check_zero_plans "$dump_file" "dump"
 
   if [[ "$key" == "event_gateway" ]]; then
     start_check "dump-root-only-${key}" "$key" "dump"
@@ -1023,7 +1193,69 @@ check_zero_plans() {
 }
 
 check_updated_children() {
-  if [[ "$resource_key" == "ai_gateway" ]]; then
+  if [[ "$resource_key" == "identity_principal" ]]; then
+    start_check "list-updated-principals" "$resource_key" "read"
+    run_kongctl get identity principals --directory-name "$identity_directory_name" --display-name "$resource_name" -o json
+    require_success
+    assert_object_field "0.display_name" "$resource_name"
+    assert_object_field "0.description" "$resource_description updated"
+    assert_object_field "0.metadata.department" "platform"
+    assert_object_field "0.metadata.attempts" "4" integer
+    assert_object_field "0.metadata.trusted" "True"
+    local principal_id
+    if ! principal_id="$(python3 -c '
+import json, sys, uuid
+values = json.load(open(sys.argv[1]))
+assert len(values) == 1
+print(uuid.UUID(values[0]["id"]))
+' "$current_stdout")"; then
+      fail_current "expected exactly one principal with a UUID"
+    fi
+    pass_current
+
+    start_check "get-updated-principal" "$resource_key" "read"
+    run_kongctl get identity principal --directory-name "$identity_directory_name" "$principal_id" -o json
+    require_success
+    assert_object_field "id" "$principal_id"
+    assert_object_field "type" "user"
+    assert_object_field "managed_by.kongctl-namespace" "$resource_namespace"
+    pass_current
+
+    start_check "list-updated-identities" "$resource_key" "read"
+    run_kongctl get identity principal-identities --directory-name "$identity_directory_name" --principal-id "$principal_id" -o json
+    require_success
+    assert_object_field "0.type" "custom"
+    assert_object_field "0.key" "employee_id"
+    assert_object_field "0.value" "${resource_ref}-employee-updated"
+    pass_current
+  elif [[ "$resource_key" == "identity_auth_server" ]]; then
+    start_check "get-updated-auth-server" "$resource_key" "read"
+    run_kongctl "${detail_args[@]}"
+    require_success
+    assert_object_field "audience" "https://updated.smoke.example.test"
+    pass_current
+
+    start_check "get-updated-scope" "$resource_key" "read"
+    run_kongctl get identity auth-server-scope --auth-server-name "$resource_name" smoke-read -o json
+    require_success
+    assert_object_field "name" "smoke-read"
+    assert_object_field "description" "Smoke read scope updated"
+    assert_object_field "default" "True"
+    local scope_id
+    if ! scope_id="$(python3 -c 'import json, sys, uuid; print(uuid.UUID(json.load(open(sys.argv[1]))["id"]))' \
+      "$current_stdout")"; then
+      fail_current "scope has no valid UUID"
+    fi
+    pass_current
+
+    start_check "get-updated-claim" "$resource_key" "read"
+    run_kongctl get identity auth-server-claim --auth-server-name "$resource_name" smoke-team -o json
+    require_success
+    assert_object_field "name" "smoke-team"
+    assert_object_field "value" '"platform"'
+    assert_object_field "include_in_scopes.0" "$scope_id"
+    pass_current
+  elif [[ "$resource_key" == "ai_gateway" ]]; then
     start_check "list-datastores" "$resource_key" "read"
     run_kongctl get ai-gateway datastores --gateway-name "$resource_name" -o json
     require_success
@@ -1174,6 +1406,13 @@ cleanup_resource() {
   fi
   pass_current "expected not-found response"
   check_list_presence "absent"
+  if [[ "$key" == "identity_principal" ]]; then
+    start_check "retain-default-directory" "$key" "cleanup"
+    run_kongctl get identity directory "$identity_directory_name" -o json
+    require_success
+    assert_object_field "name" "$identity_directory_name"
+    pass_current
+  fi
   cleaned_keys+="$key "
 }
 
@@ -1256,6 +1495,7 @@ report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", enco
 passed = sum(check["status"] == "passed" for check in checks)
 failed = sum(check["status"] == "failed" for check in checks)
 known = sum(check["status"] == "known_issue" for check in checks)
+skipped = sum(check["status"] == "skipped" for check in checks)
 lines = [
     f"kongctl smoke test: {report['status'].upper()}",
     f"mode: {report['mode']}",
@@ -1263,9 +1503,11 @@ lines = [
     f"version: {binary.get('version', 'unknown')}",
     f"commit: {binary.get('commit', 'unknown')}",
     f"profile: {report['profile']}",
-    f"checks: {passed} passed, {failed} failed, {known} known issues",
+    f"checks: {passed} passed, {failed} failed, {known} known issues, {skipped} skipped",
     f"cleanup: {report['cleanup']['status']}",
 ]
+if report["failure"]:
+    lines.append(f"failure: {report['failure']}")
 lines.append(f"artifacts: {report['artifacts_dir']}")
 summary_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 PY
@@ -1332,10 +1574,29 @@ if [[ "$selected_keys" == *" event_gateway "* ]]; then
     "Smoke Event Gateway ${resource_token}" "kongctl smoke Event Gateway" name description
 fi
 
+if [[ "$selected_keys" == *" identity_principal "* ]]; then
+  discover_identity_directory
+  if [[ -z "$identity_directory_id" ]]; then
+    prepare_identity_directory_bootstrap
+  fi
+  prepare_resource "identity_principal" "identity_principal" "identity.principals" "ga" "smoke-person-${resource_token}" \
+    "smoke-person-${resource_token}" "kongctl smoke principal" display_name directory
+fi
+if [[ "$selected_keys" == *" identity_auth_server "* ]]; then
+  prepare_resource "identity_auth_server" "identity_auth_server" "identity.auth_servers" "ga" "smoke-issuer-${resource_token}" \
+    "" "kongctl smoke Auth Server" name audience
+fi
+
 if [[ "$mode" == "quick" ]]; then
   for key in "${resource_registry[@]}"; do
     "load_resource_${key}"
     start_check "list-${key}-quick" "$key" "read"
+    if [[ "$key" == "identity_principal" && -z "$identity_directory_id" ]]; then
+      current_command="skip principal list: no Identity directory exists"
+      record_current "skipped" "full mode will bootstrap a directory after confirmation"
+      echo " SKIP (no directory; full mode will bootstrap)"
+      continue
+    fi
     run_kongctl "${list_args[@]}"
     require_success
     assert_collection "$match_field" "$resource_name" "absent"
@@ -1343,6 +1604,11 @@ if [[ "$mode" == "quick" ]]; then
   done
   cleanup_state="not_needed"
   exit 0
+fi
+
+if [[ "$selected_keys" == *" identity_principal "* && -z "$identity_directory_id" ]]; then
+  echo "Identity: creates a protected default directory (allow_all_control_planes=true)."
+  echo "Identity: retains this directory after cleanup, including failed runs."
 fi
 
 if [[ "$assume_yes" != "true" ]] && ! is_truthy "${KONGCTL_SMOKE_YES:-}"; then
@@ -1365,6 +1631,10 @@ if [[ "$assume_yes" != "true" ]] && ! is_truthy "${KONGCTL_SMOKE_YES:-}"; then
       exit 1
       ;;
   esac
+fi
+
+if [[ "$selected_keys" == *" identity_principal "* && -z "$identity_directory_id" ]]; then
+  bootstrap_identity_directory
 fi
 
 for key in "${resource_registry[@]}"; do
