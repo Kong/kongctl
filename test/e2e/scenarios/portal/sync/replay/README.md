@@ -15,6 +15,10 @@ retention, removal idempotency, dump after removal, dump-to-plan round trip,
 API deletion, and final cleanup checks remain intact. Replay eligibility is
 unchanged.
 
+The [committed chunked representation][committed-replay] also passed three
+network-isolated replays from commit `3d577d8e`, consuming all 372 exchanges
+in every run.
+
 ## Ordering review
 
 The annotations are bound to the exact raw-candidate SHA-256. Each range
@@ -50,3 +54,4 @@ unchanged.
 
 [record]: https://github.com/Kong/kongctl/actions/runs/42722303294
 [candidate-replay]: https://github.com/Kong/kongctl/actions/runs/42723428150
+[committed-replay]: https://github.com/Kong/kongctl/actions/runs/42724401109
