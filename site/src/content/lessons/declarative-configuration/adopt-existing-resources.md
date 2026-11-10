@@ -18,10 +18,10 @@ Resources created outside declarative configuration do not have a `kongctl`
 namespace. The two commands handle separate parts of bringing them under
 management:
 
-| Command                    | Job                                            |
-| -------------------------- | ---------------------------------------------- |
+| Command                    | Job                                           |
+| -------------------------- | --------------------------------------------- |
 | `kongctl adopt`            | Sets namespace ownership metadata in Konnect. |
-| `kongctl dump declarative` | Exports resource state as declarative YAML.    |
+| `kongctl dump declarative` | Exports resource state as declarative YAML.   |
 
 Adoption establishes the resource's management scope. Dumping gives you the
 desired-state configuration to maintain in version control.
