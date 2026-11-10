@@ -3,7 +3,49 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/apis/00000000-0000-4000-8000-000000000002/versions/00000000-0000-4000-8000-000000000016",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000001/versions",
+      "query": [
+        [
+          "page[number]",
+          "1"
+        ],
+        [
+          "page[size]",
+          "100"
+        ]
+      ],
+      "body": null
+    },
+    "response": {
+      "status": 200,
+      "body": {
+        "data": [
+          {
+            "id": "00000000-0000-4000-8000-000000000016",
+            "version": "1.3.7",
+            "spec": {
+              "type": "oas3"
+            },
+            "created_at": "2026-11-10T01:10:15.510Z",
+            "updated_at": "2026-11-10T01:10:15.510Z"
+          }
+        ],
+        "meta": {
+          "page": {
+            "total": 1,
+            "size": 100,
+            "number": 1
+          }
+        }
+      },
+      "content_type": "application/json"
+    }
+  },
+  {
+    "request": {
+      "endpoint": "regional",
+      "method": "GET",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000001/versions/00000000-0000-4000-8000-000000000016",
       "query": [],
       "body": null
     },
@@ -17,8 +59,8 @@
           "type": "oas3",
           "validation_messages": []
         },
-        "created_at": "2026-11-09T23:44:50.410Z",
-        "updated_at": "2026-11-09T23:44:50.410Z"
+        "created_at": "2026-11-10T01:10:15.510Z",
+        "updated_at": "2026-11-10T01:10:15.510Z"
       },
       "content_type": "application/json"
     }
@@ -31,7 +73,7 @@
       "query": [
         [
           "filter[api_id][eq]",
-          "00000000-0000-4000-8000-000000000002"
+          "00000000-0000-4000-8000-000000000001"
         ],
         [
           "page[number]",
@@ -49,12 +91,12 @@
       "body": {
         "data": [
           {
-            "api_id": "00000000-0000-4000-8000-000000000002",
+            "api_id": "00000000-0000-4000-8000-000000000001",
             "entity_type": "api",
             "visibility": "public",
-            "portal_id": "00000000-0000-4000-8000-000000000001",
-            "created_at": "2026-11-09T23:44:52.786Z",
-            "updated_at": "2026-11-09T23:44:52.786Z",
+            "portal_id": "00000000-0000-4000-8000-000000000003",
+            "created_at": "2026-11-10T01:10:17.265Z",
+            "updated_at": "2026-11-10T01:10:17.265Z",
             "form_id": null,
             "auto_approve_registrations": false,
             "environment": {
@@ -81,14 +123,14 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/apis/00000000-0000-4000-8000-000000000003",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000002",
       "query": [],
       "body": null
     },
     "response": {
       "status": 200,
       "body": {
-        "id": "00000000-0000-4000-8000-000000000003",
+        "id": "00000000-0000-4000-8000-000000000002",
         "name": "SMS API",
         "version": "3.2.0",
         "description": "With the SMS API you can send SMS from your account and lookup messages both messages that you've sent as well as messages sent to your virtual numbers. Numbers are specified in E.164 format. More SMS API documentation is at <https://developer.nexmo.com/messaging/sms/overview>",
@@ -97,8 +139,8 @@
           "protocol": "rest",
           "KONGCTL-namespace": "default"
         },
-        "created_at": "2026-11-09T23:44:42.947Z",
-        "updated_at": "2026-11-09T23:46:31.215Z",
+        "created_at": "2026-11-10T01:10:09.408Z",
+        "updated_at": "2026-11-10T01:11:31.691Z",
         "slug": "sms-api-3",
         "api_spec_ids": [
           "00000000-0000-4000-8000-000000000009"
@@ -107,7 +149,7 @@
         "current_version_summary": null,
         "portals": [
           {
-            "id": "00000000-0000-4000-8000-000000000001",
+            "id": "00000000-0000-4000-8000-000000000003",
             "name": "My First Portal",
             "display_name": "A Getting Started Portal"
           }
@@ -122,7 +164,7 @@
     "request": {
       "endpoint": "regional",
       "method": "DELETE",
-      "path": "/v3/apis/00000000-0000-4000-8000-000000000003",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000002",
       "query": [],
       "body": null
     },
@@ -154,7 +196,7 @@
       "body": {
         "data": [
           {
-            "id": "00000000-0000-4000-8000-000000000002",
+            "id": "00000000-0000-4000-8000-000000000001",
             "name": "Voice API",
             "version": "1.3.7",
             "description": "The Voice API lets you create outbound calls, control in-progress calls and get information about historical calls. More information about the Voice API can be found at <https://developer.nexmo.com/voice/voice-api/overview>.",
@@ -163,8 +205,8 @@
               "protocol": "rest",
               "KONGCTL-namespace": "default"
             },
-            "created_at": "2026-11-09T23:44:42.480Z",
-            "updated_at": "2026-11-09T23:44:52.786Z",
+            "created_at": "2026-11-10T01:10:09.057Z",
+            "updated_at": "2026-11-10T01:10:17.265Z",
             "slug": "voice-api",
             "api_spec_ids": [
               "00000000-0000-4000-8000-000000000016"
@@ -178,7 +220,7 @@
             },
             "portals": [
               {
-                "id": "00000000-0000-4000-8000-000000000001",
+                "id": "00000000-0000-4000-8000-000000000003",
                 "name": "My First Portal",
                 "display_name": "A Getting Started Portal"
               }
@@ -220,7 +262,7 @@
       "body": {
         "data": [
           {
-            "id": "00000000-0000-4000-8000-000000000002",
+            "id": "00000000-0000-4000-8000-000000000001",
             "name": "Voice API",
             "version": "1.3.7",
             "description": "The Voice API lets you create outbound calls, control in-progress calls and get information about historical calls. More information about the Voice API can be found at <https://developer.nexmo.com/voice/voice-api/overview>.",
@@ -229,8 +271,8 @@
               "protocol": "rest",
               "KONGCTL-namespace": "default"
             },
-            "created_at": "2026-11-09T23:44:42.480Z",
-            "updated_at": "2026-11-09T23:44:52.786Z",
+            "created_at": "2026-11-10T01:10:09.057Z",
+            "updated_at": "2026-11-10T01:10:17.265Z",
             "slug": "voice-api",
             "api_spec_ids": [
               "00000000-0000-4000-8000-000000000016"
@@ -244,7 +286,7 @@
             },
             "portals": [
               {
-                "id": "00000000-0000-4000-8000-000000000001",
+                "id": "00000000-0000-4000-8000-000000000003",
                 "name": "My First Portal",
                 "display_name": "A Getting Started Portal"
               }
@@ -286,7 +328,7 @@
       "body": {
         "data": [
           {
-            "id": "00000000-0000-4000-8000-000000000001",
+            "id": "00000000-0000-4000-8000-000000000003",
             "name": "My First Portal",
             "description": "A comprehensive developer portal with guides, API documentation, and getting started content",
             "display_name": "A Getting Started Portal",
@@ -308,10 +350,10 @@
             },
             "auto_approve_developers": false,
             "auto_approve_applications": false,
-            "canonical_domain": "6871542fa7c5.us.kongportals.com",
-            "default_domain": "6871542fa7c5.us.kongportals.com",
-            "created_at": "2026-11-09T23:44:41.834Z",
-            "updated_at": "2026-11-09T23:44:48.294Z",
+            "canonical_domain": "db2fed13e290.us.kongportals.com",
+            "default_domain": "db2fed13e290.us.kongportals.com",
+            "created_at": "2026-11-10T01:10:09.780Z",
+            "updated_at": "2026-11-10T01:10:14.118Z",
             "labels": {
               "KONGCTL-namespace": "default"
             }
@@ -350,7 +392,7 @@
       "body": {
         "data": [
           {
-            "id": "00000000-0000-4000-8000-000000000001",
+            "id": "00000000-0000-4000-8000-000000000003",
             "name": "My First Portal",
             "description": "A comprehensive developer portal with guides, API documentation, and getting started content",
             "display_name": "A Getting Started Portal",
@@ -372,10 +414,10 @@
             },
             "auto_approve_developers": false,
             "auto_approve_applications": false,
-            "canonical_domain": "6871542fa7c5.us.kongportals.com",
-            "default_domain": "6871542fa7c5.us.kongportals.com",
-            "created_at": "2026-11-09T23:44:41.834Z",
-            "updated_at": "2026-11-09T23:44:48.294Z",
+            "canonical_domain": "db2fed13e290.us.kongportals.com",
+            "default_domain": "db2fed13e290.us.kongportals.com",
+            "created_at": "2026-11-10T01:10:09.780Z",
+            "updated_at": "2026-11-10T01:10:14.118Z",
             "labels": {
               "KONGCTL-namespace": "default"
             }
@@ -396,14 +438,14 @@
     "request": {
       "endpoint": "regional",
       "method": "GET",
-      "path": "/v3/apis/00000000-0000-4000-8000-000000000002",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000001",
       "query": [],
       "body": null
     },
     "response": {
       "status": 200,
       "body": {
-        "id": "00000000-0000-4000-8000-000000000002",
+        "id": "00000000-0000-4000-8000-000000000001",
         "name": "Voice API",
         "version": "1.3.7",
         "description": "The Voice API lets you create outbound calls, control in-progress calls and get information about historical calls. More information about the Voice API can be found at <https://developer.nexmo.com/voice/voice-api/overview>.",
@@ -412,8 +454,8 @@
           "protocol": "rest",
           "KONGCTL-namespace": "default"
         },
-        "created_at": "2026-11-09T23:44:42.480Z",
-        "updated_at": "2026-11-09T23:44:52.786Z",
+        "created_at": "2026-11-10T01:10:09.057Z",
+        "updated_at": "2026-11-10T01:10:17.265Z",
         "slug": "voice-api",
         "api_spec_ids": [
           "00000000-0000-4000-8000-000000000016"
@@ -427,7 +469,7 @@
         },
         "portals": [
           {
-            "id": "00000000-0000-4000-8000-000000000001",
+            "id": "00000000-0000-4000-8000-000000000003",
             "name": "My First Portal",
             "display_name": "A Getting Started Portal"
           }
@@ -460,7 +502,7 @@
       "body": {
         "data": [
           {
-            "id": "00000000-0000-4000-8000-000000000001",
+            "id": "00000000-0000-4000-8000-000000000003",
             "name": "My First Portal",
             "description": "A comprehensive developer portal with guides, API documentation, and getting started content",
             "display_name": "A Getting Started Portal",
@@ -482,10 +524,10 @@
             },
             "auto_approve_developers": false,
             "auto_approve_applications": false,
-            "canonical_domain": "6871542fa7c5.us.kongportals.com",
-            "default_domain": "6871542fa7c5.us.kongportals.com",
-            "created_at": "2026-11-09T23:44:41.834Z",
-            "updated_at": "2026-11-09T23:44:48.294Z",
+            "canonical_domain": "db2fed13e290.us.kongportals.com",
+            "default_domain": "db2fed13e290.us.kongportals.com",
+            "created_at": "2026-11-10T01:10:09.780Z",
+            "updated_at": "2026-11-10T01:10:14.118Z",
             "labels": {
               "KONGCTL-namespace": "default"
             }
@@ -506,7 +548,7 @@
     "request": {
       "endpoint": "regional",
       "method": "DELETE",
-      "path": "/v3/apis/00000000-0000-4000-8000-000000000002",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000001",
       "query": [],
       "body": null
     },
@@ -520,7 +562,7 @@
     "request": {
       "endpoint": "regional",
       "method": "DELETE",
-      "path": "/v3/portals/00000000-0000-4000-8000-000000000001",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000003",
       "query": [
         [
           "force",
