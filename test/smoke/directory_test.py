@@ -16,7 +16,7 @@ DEFAULT = {"id": "22222222-2222-4222-8222-222222222222", "name": "default"}
 
 
 class DirectoryChecks(unittest.TestCase):
-    def run_smoke(self, directories, *options, fault=""):
+    def run_smoke(self, directories, *options, fault="", smoke_yes=False):
         scratch = tempfile.TemporaryDirectory(dir=TEMP_ROOT)
         self.addCleanup(scratch.cleanup)
         work = pathlib.Path(scratch.name)
@@ -30,6 +30,19 @@ class DirectoryChecks(unittest.TestCase):
         env = {key: value for key, value in os.environ.items()
                if not key.startswith("FAKE_") and key != "KONGCTL_SMOKE_YES"}
         env.update(FAKE_KONGCTL_LOG=str(work / "commands.log"), FAKE_KONGCTL_STATE=str(state), FAKE_FAULT=fault)
+        if smoke_yes:
+            env["KONGCTL_SMOKE_YES"] = "1"
+        if fault == "fixture-write-failure":
+            python = work / "python3"
+            python.write_text(f"#!{sys.executable}\n" +
+                              "import os, sys\n" +
+                              "if len(sys.argv) > 2 and sys.argv[1] == '-' and " +
+                              "sys.argv[2].endswith('identity-directory-bootstrap.yaml'):\n" +
+                              "    print('injected bootstrap fixture write failure', file=sys.stderr)\n" +
+                              "    raise SystemExit(1)\n" +
+                              f"os.execv({sys.executable!r}, [{sys.executable!r}, *sys.argv[1:]])\n")
+            python.chmod(0o700)
+            env["PATH"] = str(work) + os.pathsep + env["PATH"]
         result = subprocess.run(
             ["bash", str(ROOT / "scripts/smoke-test.sh"), "--binary", str(fake),
              "--artifacts-dir", str(work), "--resources", "identity_principal", *options],
@@ -68,6 +81,9 @@ class DirectoryChecks(unittest.TestCase):
         result = self.run_smoke([], "--yes")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("bootstrap-identity-directory", result.stdout)
+        self.assertIn("Identity: retains this directory after cleanup", result.stdout)
+        self.assertLess(result.stdout.index("Identity: creates a protected default directory"),
+                        result.stdout.index("==> plan-bootstrap-identity-directory"))
         self.assertEqual(len(self.directories), 1)
         self.assertEqual(self.directories[0]["name"], "default")
         manifest = json.loads((self.run_dir / "fixtures/identity-directory-bootstrap.yaml").read_text())
@@ -81,11 +97,34 @@ class DirectoryChecks(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(self.directories, [])
         self.assertNotIn("apply ", self.log)
+        self.assertNotIn("Identity: creates", result.stdout)
         self.assertTrue(any(c["status"] == "skipped" for c in self.report["checks"]))
 
     def test_declined_confirmation_does_not_bootstrap(self):
         result = self.run_smoke([])
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("Identity: retains this directory after cleanup", result.stdout)
+        self.assertLess(result.stdout.index("Identity: creates a protected default directory"),
+                        result.stdout.index("Continue with remote resource creation?"))
+        self.assertEqual(self.directories, [])
+        self.assertNotIn("apply ", self.log)
+
+    def test_environment_auto_confirmation_still_discloses_bootstrap(self):
+        result = self.run_smoke([], smoke_yes=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("Identity: retains this directory after cleanup", result.stdout)
+        self.assertLess(result.stdout.index("Identity: creates a protected default directory"),
+                        result.stdout.index("==> plan-bootstrap-identity-directory"))
+
+    def test_bootstrap_fixture_write_failure_is_reported(self):
+        result = self.run_smoke([], "--yes", fault="fixture-write-failure")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("could not write the Identity bootstrap fixture", self.report["failure"] or "")
+        failed = [check for check in self.report["checks"] if check["status"] == "failed"]
+        self.assertEqual(len(failed), 1)
+        self.assertEqual(failed[0]["name"], "fixture-identity-directory-bootstrap")
+        self.assertEqual(failed[0]["exit_code"], 1)
+        self.assertIn("could not write the Identity bootstrap fixture", (self.run_dir / "summary.txt").read_text())
         self.assertEqual(self.directories, [])
         self.assertNotIn("apply ", self.log)
 

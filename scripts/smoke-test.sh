@@ -900,7 +900,10 @@ PYDIRECTORY
 }
 
 prepare_identity_directory_bootstrap() {
-  python3 - "$fixtures_dir/identity-directory-bootstrap.yaml" <<'PYBOOTSTRAP'
+  start_check "fixture-identity-directory-bootstrap" "identity_principal" "scaffold"
+  current_command="write $fixtures_dir/identity-directory-bootstrap.yaml"
+  if ! python3 - "$fixtures_dir/identity-directory-bootstrap.yaml" \
+    >"$current_stdout" 2>"$current_stderr" <<'PYBOOTSTRAP'
 import json
 import pathlib
 import sys
@@ -911,6 +914,11 @@ manifest = {"_defaults": {"kongctl": {"namespace": "kctl-smoke-identity-bootstra
 }]}}
 pathlib.Path(sys.argv[1]).write_text(json.dumps(manifest, indent=2) + "\n")
 PYBOOTSTRAP
+  then
+    current_exit=1
+    fail_current "could not write the Identity bootstrap fixture"
+  fi
+  pass_current
 }
 
 bootstrap_identity_directory() {
@@ -1498,6 +1506,8 @@ lines = [
     f"checks: {passed} passed, {failed} failed, {known} known issues, {skipped} skipped",
     f"cleanup: {report['cleanup']['status']}",
 ]
+if report["failure"]:
+    lines.append(f"failure: {report['failure']}")
 lines.append(f"artifacts: {report['artifacts_dir']}")
 summary_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 PY
@@ -1567,7 +1577,7 @@ fi
 if [[ "$selected_keys" == *" identity_principal "* ]]; then
   discover_identity_directory
   if [[ -z "$identity_directory_id" ]]; then
-    prepare_identity_directory_bootstrap || exit 1
+    prepare_identity_directory_bootstrap
   fi
   prepare_resource "identity_principal" "identity_principal" "identity.principals" "ga" "smoke-person-${resource_token}" \
     "smoke-person-${resource_token}" "kongctl smoke principal" display_name directory
@@ -1594,6 +1604,11 @@ if [[ "$mode" == "quick" ]]; then
   done
   cleanup_state="not_needed"
   exit 0
+fi
+
+if [[ "$selected_keys" == *" identity_principal "* && -z "$identity_directory_id" ]]; then
+  echo "Identity: creates a protected default directory (allow_all_control_planes=true)."
+  echo "Identity: retains this directory after cleanup, including failed runs."
 fi
 
 if [[ "$assume_yes" != "true" ]] && ! is_truthy "${KONGCTL_SMOKE_YES:-}"; then
