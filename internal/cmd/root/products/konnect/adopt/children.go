@@ -143,6 +143,9 @@ func runChildAdoptions(setup adoptCommon.AdoptRunSetup, values []childCandidate,
 	for _, child := range prepared {
 		result, err := child.write()
 		if err != nil {
+			if result != nil {
+				results = append(results, result)
+			}
 			if printErr := printChildAdoptions(setup, results); printErr != nil {
 				return fmt.Errorf("adoption failed after %d of %d children; output failed: %w; adoption error: %w",
 					len(results),
@@ -183,4 +186,18 @@ func printChildAdoptions(setup adoptCommon.AdoptRunSetup, results []*adoptCommon
 	defer printer.Flush()
 	printer.Print(results)
 	return nil
+}
+
+func printSingleChildAdoption(setup adoptCommon.AdoptRunSetup, result *adoptCommon.AdoptResult,
+	adoptionErr error, description string,
+) error {
+	if result != nil {
+		if err := adoptCommon.PrintAdoptResult(setup.Helper, setup.OutType, result, description); err != nil {
+			if adoptionErr != nil {
+				return fmt.Errorf("%w; adoption output failed: %w", adoptionErr, err)
+			}
+			return err
+		}
+	}
+	return adoptionErr
 }

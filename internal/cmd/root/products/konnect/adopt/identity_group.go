@@ -29,15 +29,17 @@ func NewIdentityGroupCmd(verb verbs.VerbValue,
 		_, err := readChildSelection(cmd, args, "", "")
 		return err
 	}
+	addDeclarativeExportFlags(command)
 	common.AddIdentityDirectoryFlags(command)
 	if addParentFlags != nil {
 		addParentFlags(verb, command)
 	}
 	command.RunE = func(cmd *cobra.Command, args []string) error {
-		setup, err := adoptCommon.SetupAdoptRun(cmd, args)
+		setup, cleanup, err := setupChildAdoptRun(cmd, args)
 		if err != nil {
 			return err
 		}
+		defer cleanup()
 		directoryID, name, err := common.IdentityDirectorySelector(cmd)
 		if err != nil {
 			return err
@@ -89,12 +91,19 @@ func prepareAdoptIdentityGroup(ctx context.Context, api helpers.IdentityGroupsAP
 		return nil, err
 	}
 	request.ManagedBy = metadata
+	if err := prepareDeclarativeChild(
+		ctx, resources.ResourceTypeIdentityGroup, group.ID, group.ID, namespace,
+		resources.IsChildProtected(metadata), group,
+		adoptionParent{kind: resources.ResourceTypeIdentityDirectory, id: directoryID},
+	); err != nil {
+		return nil, err
+	}
 	return func() (*adoptCommon.AdoptResult, error) {
 		if result, dryRun := adoptCommon.PreviewAdoption(
 			ctx, string(resources.ResourceTypeIdentityGroup), group.ID, group.Name, namespace,
 			map[string]string{"directory_id": directoryID}, "managed_by", group.ManagedBy, request.ManagedBy,
 		); dryRun {
-			return result, nil
+			return finishDeclarativeChild(ctx, result)
 		}
 		fresh, err := helpers.ResolveIdentityGroup(ctx, api, directoryID, group.ID, 100)
 		if err != nil {
@@ -114,9 +123,9 @@ func prepareAdoptIdentityGroup(ctx context.Context, api helpers.IdentityGroupsAP
 			!maps.Equal(response.KongGroup.ManagedBy, request.ManagedBy) {
 			return nil, fmt.Errorf("group API did not retain adopted ownership")
 		}
-		return &adoptCommon.AdoptResult{
+		return finishDeclarativeChild(ctx, &adoptCommon.AdoptResult{
 			ResourceType: string(resources.ResourceTypeIdentityGroup), ID: group.ID,
 			Name: group.Name, Namespace: namespace,
-		}, nil
+		})
 	}, nil
 }

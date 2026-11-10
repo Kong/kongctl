@@ -23,6 +23,7 @@ func NewIdentityPrincipalCmd(verb verbs.VerbValue,
 		Short: "Adopt a principal by UUID with a local ref",
 		Args:  cobra.ExactArgs(1), PreRunE: parentPreRun,
 	}
+	addDeclarativeExportFlags(command)
 	common.AddIdentityDirectoryFlags(command)
 	command.Flags().String("ref", "", "Declarative ref to persist on this principal")
 	if err := command.MarkFlagRequired("ref"); err != nil {
@@ -32,10 +33,11 @@ func NewIdentityPrincipalCmd(verb verbs.VerbValue,
 		addParentFlags(verb, command)
 	}
 	command.RunE = func(cmd *cobra.Command, args []string) error {
-		setup, err := adoptCommon.SetupAdoptRun(cmd, args)
+		setup, cleanup, err := setupChildAdoptRun(cmd, args)
 		if err != nil {
 			return err
 		}
+		defer cleanup()
 		directoryID, name, err := common.IdentityDirectorySelector(cmd)
 		if err != nil {
 			return err
@@ -65,10 +67,7 @@ func NewIdentityPrincipalCmd(verb verbs.VerbValue,
 			setup.AdoptFlags.Namespace,
 			setup.AdoptFlags.OverwriteNamespace,
 		)
-		if err != nil {
-			return err
-		}
-		return adoptCommon.PrintAdoptResult(setup.Helper, setup.OutType, result, "Kong Identity principal")
+		return printSingleChildAdoption(setup, result, err, "Kong Identity principal")
 	}
 	return command, nil
 }
@@ -115,11 +114,18 @@ func adoptIdentityPrincipal(
 		resources.IsChildProtected(current.ManagedBy),
 		build.Version(ctx),
 	)
+	if err := prepareDeclarativeChild(
+		ctx, resources.ResourceTypeIdentityPrincipal, id, ref, namespace,
+		resources.IsChildProtected(request.ManagedBy), current,
+		adoptionParent{kind: resources.ResourceTypeIdentityDirectory, id: directoryID},
+	); err != nil {
+		return nil, err
+	}
 	if result, dryRun := adoptCommon.PreviewAdoption(
 		ctx, string(resources.ResourceTypeIdentityPrincipal), id, ref, namespace,
 		map[string]string{"directory_id": directoryID}, "managed_by", current.ManagedBy, request.ManagedBy,
 	); dryRun {
-		return result, nil
+		return finishDeclarativeChild(ctx, result)
 	}
 	response, err := api.ReplacePrincipal(
 		ctx,
@@ -133,10 +139,10 @@ func adoptIdentityPrincipal(
 		response.KongPrincipal.ManagedBy[resources.ChildNamespaceKey] != namespace {
 		return nil, fmt.Errorf("principal API did not retain adoption identity")
 	}
-	return &adoptCommon.AdoptResult{
+	return finishDeclarativeChild(ctx, &adoptCommon.AdoptResult{
 		ResourceType: string(resources.ResourceTypeIdentityPrincipal),
 		ID:           id,
 		Name:         ref,
 		Namespace:    namespace,
-	}, nil
+	})
 }

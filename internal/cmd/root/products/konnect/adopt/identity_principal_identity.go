@@ -23,6 +23,7 @@ func NewIdentityPrincipalIdentityCmd(verb verbs.VerbValue,
 		Args:    cobra.ExactArgs(1),
 		PreRunE: parentPreRun,
 	}
+	addDeclarativeExportFlags(cmd)
 	common.AddIdentityDirectoryFlags(cmd)
 	cmd.Flags().String("principal-id", "", "Parent principal UUID")
 	cmd.Flags().String("ref", "", "Declarative ref to persist on this identity")
@@ -35,10 +36,11 @@ func NewIdentityPrincipalIdentityCmd(verb verbs.VerbValue,
 		addParentFlags(verb, cmd)
 	}
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		setup, err := adoptCommon.SetupAdoptRun(cmd, args)
+		setup, cleanup, err := setupChildAdoptRun(cmd, args)
 		if err != nil {
 			return err
 		}
+		defer cleanup()
 		directory, name, err := common.IdentityDirectorySelector(cmd)
 		if err != nil {
 			return err
@@ -65,10 +67,7 @@ func NewIdentityPrincipalIdentityCmd(verb verbs.VerbValue,
 		}
 		result, err := adoptPrincipalIdentity(setup.Helper.GetContext(), setup.SDK.GetIdentityPrincipalIdentitiesAPI(),
 			directory, principal, args[0], ref, setup.AdoptFlags.Namespace, setup.AdoptFlags.OverwriteNamespace)
-		if err != nil {
-			return err
-		}
-		return adoptCommon.PrintAdoptResult(setup.Helper, setup.OutType, result, "Kong Identity principal identity")
+		return printSingleChildAdoption(setup, result, err, "Kong Identity principal identity")
 	}
 	return cmd, nil
 }
@@ -116,20 +115,27 @@ func adoptPrincipalIdentity(ctx context.Context, api helpers.IdentityPrincipalId
 	if err != nil {
 		return nil, err
 	}
+	if err := prepareDeclarativeChild(
+		ctx, resources.ResourceTypeIdentityPrincipalIdentity, id, ref, namespace,
+		resources.IsChildProtected(current.ManagedBy), current,
+		adoptionParent{kind: resources.ResourceTypeIdentityPrincipal, id: principalID, directoryID: directoryID},
+	); err != nil {
+		return nil, err
+	}
 	if result, dryRun := adoptCommon.PreviewAdoption(
 		ctx, string(resources.ResourceTypeIdentityPrincipalIdentity), id, ref, namespace,
 		map[string]string{"directory_id": directoryID, "principal_id": principalID}, "managed_by",
 		previousManagedBy, current.ManagedBy,
 	); dryRun {
-		return result, nil
+		return finishDeclarativeChild(ctx, result)
 	}
 	if _, err := helpers.ReplacePrincipalIdentity(ctx, api, directoryID, principalID, id, body); err != nil {
 		return nil, err
 	}
-	return &adoptCommon.AdoptResult{
+	return finishDeclarativeChild(ctx, &adoptCommon.AdoptResult{
 		ResourceType: string(resources.ResourceTypeIdentityPrincipalIdentity),
 		ID:           id,
 		Name:         ref,
 		Namespace:    namespace,
-	}, nil
+	})
 }

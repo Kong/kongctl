@@ -20,10 +20,7 @@ func runIdentityGroupAdoptions(cmd *cobra.Command, args []string,
 	if !selection.all && selection.pattern == "" {
 		result, err := adoptIdentityGroup(ctx, api, directory, selection.identifier,
 			setup.AdoptFlags.Namespace, setup.AdoptFlags.OverwriteNamespace)
-		if err != nil {
-			return err
-		}
-		return adoptCommon.PrintAdoptResult(setup.Helper, setup.OutType, result, "Kong Identity group")
+		return printSingleChildAdoption(setup, result, err, "Kong Identity group")
 	}
 	values, err := helpers.ListIdentityGroups(ctx, api, directory, 100)
 	if err != nil {
@@ -64,10 +61,7 @@ func runIdentityClientAdoptions(cmd *cobra.Command, args []string,
 	if !selection.all && selection.pattern == "" {
 		result, err := adoptIdentityAuthServerClient(ctx, api, parent, selection.identifier, selection.nameOnly,
 			setup.AdoptFlags.Namespace, setup.AdoptFlags.OverwriteNamespace)
-		if err != nil {
-			return err
-		}
-		return adoptCommon.PrintAdoptResult(setup.Helper, setup.OutType, result, "Kong Identity auth-server client")
+		return printSingleChildAdoption(setup, result, err, "Kong Identity auth-server client")
 	}
 	values, err := helpers.ListIdentityAuthServerClients(ctx, api, parent, 100)
 	if err != nil {
@@ -112,10 +106,7 @@ func runIdentityBasicAuthAdoptions(cmd *cobra.Command, args []string,
 		}
 		result, err := adoptIdentityBasicAuth(ctx, api, directory, principal, id, username,
 			setup.AdoptFlags.Namespace, setup.AdoptFlags.OverwriteNamespace)
-		if err != nil {
-			return err
-		}
-		return adoptCommon.PrintAdoptResult(setup.Helper, setup.OutType, result, "Kong Identity basic-auth credential")
+		return printSingleChildAdoption(setup, result, err, "Kong Identity basic-auth credential")
 	}
 	values, err := helpers.ListIdentityBasicAuths(ctx, api, directory, principal, 100)
 	if err != nil {

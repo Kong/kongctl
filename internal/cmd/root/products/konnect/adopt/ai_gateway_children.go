@@ -103,12 +103,18 @@ func aiChildAdapter[T, Request any](name, alias, selector string, kind resources
 			if err := mapChildAdoptionRequest(payload, &request); err != nil {
 				return nil, err
 			}
+			if err := prepareDeclarativeChild(
+				ctx, kind, selected.id, selected.id, namespace, resources.IsChildProtected(desired), payload,
+				adoptionParent{kind: resources.ResourceTypeAIGateway, id: parent},
+			); err != nil {
+				return nil, err
+			}
 			return func() (*adoptCommon.AdoptResult, error) {
 				if result, dryRun := adoptCommon.PreviewAdoption(
 					ctx, string(kind), selected.id, selected.name, namespace, map[string]string{"gateway_id": parent},
 					"managed_by", metadata, desired,
 				); dryRun {
-					return result, nil
+					return finishDeclarativeChild(ctx, result)
 				}
 				fresh, err := read(ctx, parent, selected.id)
 				if err != nil {
@@ -135,12 +141,12 @@ func aiChildAdapter[T, Request any](name, alias, selector string, kind resources
 				if updated.name != selected.name || !maps.Equal(retained, desired) {
 					return nil, fmt.Errorf("adoption API did not retain the child identity or ownership metadata")
 				}
-				return &adoptCommon.AdoptResult{
+				return finishDeclarativeChild(ctx, &adoptCommon.AdoptResult{
 					ResourceType: string(kind),
 					ID:           selected.id,
 					Name:         selected.name,
 					Namespace:    namespace,
-				}, nil
+				})
 			}, nil
 		},
 	}
@@ -361,6 +367,7 @@ func newAIGatewayChildCommands(verb verbs.VerbValue,
 		command.Flags().String(family.selector+"-id", "", "Exact child UUID")
 		command.Flags().String(family.selector+"-name", "", "Exact child name (including UUID-shaped names)")
 		addChildSelectionFlags(command)
+		addDeclarativeExportFlags(command)
 		command.Args = func(cmd *cobra.Command, args []string) error {
 			selection, err := readChildSelection(cmd, args, family.selector+"-id", family.selector+"-name")
 			if err == nil && selection.idOnly && !util.IsValidUUID(selection.identifier) {
@@ -376,11 +383,16 @@ func newAIGatewayChildCommands(verb verbs.VerbValue,
 			"  kongctl adopt ai-gateway " + family.name + " --all --gateway-name shared-gateway --namespace team-a\n" +
 			"  kongctl adopt ai-gateway " + family.name +
 			" --name-pattern 'team-*' --gateway-name shared-gateway --namespace team-a"
+		command.Example += "\n  kongctl adopt ai-gateway " + family.name +
+			" --name-pattern 'legacy-*' --gateway-name shared-gateway --namespace team-a" +
+			" --parent-ref shared-gateway --declarative-output adopted.yaml"
+
 		command.RunE = func(cmd *cobra.Command, args []string) error {
-			setup, err := adoptCommon.SetupAdoptRun(cmd, args)
+			setup, cleanup, err := setupChildAdoptRun(cmd, args)
 			if err != nil {
 				return err
 			}
+			defer cleanup()
 			selection, err := readChildSelection(cmd, args, family.selector+"-id", family.selector+"-name")
 			if err != nil {
 				return err

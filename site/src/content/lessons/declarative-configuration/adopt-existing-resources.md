@@ -67,6 +67,39 @@ Kong Identity groups, OAuth clients, and basic-auth usernames also support
 bulk selection within their parents. Principals and identities retain
 individual UUID and explicit `--ref` requirements.
 
+## Export exactly the adopted children
+
+When adopting children, `--declarative-output` writes the selected resources
+as declarative YAML. This avoids exporting unrelated siblings and manually
+reconstructing the adoption selection from a whole-gateway dump.
+
+```shell label="Run this..."
+kongctl adopt ai-gateway models --name-pattern 'legacy-*' \
+  --gateway-name shared-gateway --namespace team-a \
+  --parent-ref shared-gateway --declarative-output adopted-models.yaml
+
+kongctl plan --mode apply \
+  -f existing-gateway.yaml -f adopted-models.yaml
+```
+
+`--parent-ref` is the ref of the gateway declaration in
+`existing-gateway.yaml`. The exported root-level models use
+`ai_gateway: !ref shared-gateway#id`. Without this flag, the output includes an
+external gateway declaration using its exact ID, so the file stands alone.
+Referenced providers and other independently owned children are not adopted
+or exported automatically.
+
+Each exported child has explicit namespace/protection settings; no file-level
+default is added. Write-only credentials and generated `managed_by` entries
+are omitted. Your selected stdout format still applies to adoption results;
+the output file is YAML and must not already exist.
+
+With `--dry-run`, the file is clearly marked as proposed configuration and no
+remote writes occur. Use a different file path when performing the adoption.
+Batch API failures retain successfully adopted children in the output. File
+failures identify adopted resources that could not be exported; review the
+receipts before retrying.
+
 ## Dump its configuration
 
 Use the resource ID to export only the adopted AI Gateway:
