@@ -3,11 +3,28 @@
 
 import copy
 import json
+import os
 import pathlib
 import sys
 
 
 def children(key):
+    if key == "identity_principal":
+        return {
+            "directory": "smoke-default-directory", "type": "user",
+            "metadata": {"department": "engineering", "attempts": 3, "trusted": False},
+            "identities": [{"ref": "smoke-employee", "type": "custom",
+                            "key": "employee_id", "value": "smoke-employee"}],
+        }
+    if key == "identity_auth_server":
+        return {
+            "audience": "https://smoke.example.test",
+            "scopes": [{"ref": "smoke-read", "name": "smoke-read", "description": "Smoke read scope",
+                        "default": True, "include_in_metadata": True, "enabled": True}],
+            "claims": [{"ref": "smoke-team", "name": "smoke-team", "value": '"engineering"',
+                        "include_in_token": True, "include_in_all_scopes": False,
+                        "include_in_scopes": ["SMOKE_SCOPE_REFERENCE"], "enabled": True}],
+        }
     if key == "portal":
         return {"snippets": [{
             "ref": "smoke-snippet-ref", "name": "smoke-snippet",
@@ -116,6 +133,10 @@ def render(values):
         '"SMOKE_POLICY_REFERENCE"', "!ref smoke-policy-ref#name"
     ).replace('"SMOKE_DATASTORE_REFERENCE"', "!ref smoke-store-ref#name").replace(
         '"SMOKE_NAMESPACE_REFERENCE"', "!env {var: KONGCTL_SMOKE_NAMESPACE_AI_GATEWAY}"
+    ).replace(
+        '"SMOKE_SCOPE_REFERENCE"', "!ref smoke-read#id"
+    ).replace(
+        '"SMOKE_DIRECTORY_NAMESPACE"', "!env {var: KONGCTL_SMOKE_NAMESPACE_IDENTITY_PRINCIPAL}"
     )
 
 
@@ -123,8 +144,21 @@ def main():
     key, directory = sys.argv[1:]
     directory = pathlib.Path(directory)
     initial = children(key)
+    if key == "identity_principal":
+        reference = next(json.loads(line.split(": ", 1)[1])
+                         for line in (directory / "initial.yaml").read_text().splitlines()
+                         if line.startswith("  - ref:"))
+        initial["identities"][0]["value"] = reference + "-employee"
     updated = copy.deepcopy(initial)
-    if key == "portal":
+    if key == "identity_principal":
+        updated["identities"][0]["kongctl"] = {"namespace": "SMOKE_DIRECTORY_NAMESPACE"}
+        updated["metadata"].update(department="platform", attempts=4, trusted=True)
+        updated["identities"][0]["value"] += "-updated"
+    elif key == "identity_auth_server":
+        updated["audience"] = "https://updated.smoke.example.test"
+        updated["scopes"][0]["description"] += " updated"
+        updated["claims"][0]["value"] = '"platform"'
+    elif key == "portal":
         updated["snippets"][0]["content"] = "Smoke snippet updated content"
     elif key == "event_gateway":
         updated["backend_clusters"][0]["description"] += " updated"
@@ -151,7 +185,19 @@ def main():
         # Scaffolds may already supply commented or active optional root fields.
         base = "\n".join(line for line in base.splitlines()
                          if not any(line.startswith(f"    {field}:") for field in values)) + "\n"
-        path.write_text(base + render(values))
+        text = base + render(values)
+        if key.startswith("identity_"):
+            root_start = text.index("principals:" if key == "identity_principal" else "auth_servers:")
+            external_parent = ""
+            if key == "identity_principal":
+                external_parent = "  directories: " + json.dumps([{
+                    "ref": "smoke-default-directory",
+                    "_external": {"selector": {"matchFields": {"name": os.environ.get("KONGCTL_SMOKE_IDENTITY_DIRECTORY_NAME", "default")}}},
+                }]) + "\n"
+            text = text[:root_start] + "identity:\n" + external_parent + "".join(
+                "  " + line + "\n" for line in text[root_start:].splitlines()
+            )
+        path.write_text(text)
         if phase == "updated" and key in ("portal", "event_gateway", "ai_gateway"):
             collections = ("snippets", "backend_clusters", "virtual_clusters",
                            "model_providers", "models", "policies", "mcp_servers", "datastores")

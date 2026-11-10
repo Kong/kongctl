@@ -18,8 +18,8 @@ flag precedence, and missing-file errors using temporary configuration files.
 It does not mutate remote state.
 
 The full suite requires access to APIs, Portals, Gateway control planes, AI
-Gateway, and Event Gateway. Each run uses unique names and namespaces. It
-exercises:
+Gateway, Event Gateway, Kong Identity directories, and Auth Servers. Each run
+uses unique names and namespaces. It exercises:
 
 - Saved create/delete plans, diffs, imperative detail/list output, full-width
   text tables, description/label updates, and delete dry runs.
@@ -39,6 +39,40 @@ exercises:
 - Child deletion with the parent retained, followed by restoration and root
   cleanup. Event Gateway exports also check that children are excluded by
   default.
+
+Kong Identity coverage (1.27.0) adds two selectable families, enabled by
+default: `identity_principal` and `identity_auth_server`.
+
+- A user principal and custom employee identity under an existing directory,
+  referenced through `_external`. Discovery prefers `default`, otherwise the
+  first directory by name. Updates check typed metadata, principal ownership,
+  and identity values. Principal lookup uses a unique display name followed by
+  UUID selection. Existing directory settings and ownership are preserved.
+- If the inventory is empty, full mode bootstraps `default` after confirmation,
+  using `allow_all_control_planes: true` for organizations with a one-directory
+  quota. The saved plan must contain exactly one protected directory create.
+  The new directory belongs to `kctl-smoke-identity-bootstrap` and is retained
+  permanently, including after failures. Principal cleanup references it as an
+  external parent and never deletes it. Inventory errors stop the run rather
+  than triggering bootstrap. Quick mode remains read-only and skips principal
+  listing when no directory exists.
+- An Auth Server with a scope and a claim linked through `!ref`. Updates
+  verify audience, scope description, claim value, and the resolved scope UUID.
+- Saved create and delete plans check exact resource counts and dependency
+  order, including separate execution groups. Both families check namespace
+  isolation, apply/sync idempotency, and targeted cleanup. Auth Servers also
+  check dump round trips. Shared-directory dumps are excluded because they
+  can contain unrelated principals and directory settings.
+
+```sh
+scripts/smoke-test.sh --binary ./kongctl --profile smoke --yes \
+  --resources identity_principal,identity_auth_server
+```
+
+Identity checks administer isolated resources; they do not exercise runtime
+OAuth flows, external IdPs, generated credentials, or Token Vault enrollment.
+Cleanup deletes only the smoke principal and its identity, then verifies the
+selected directory remains accessible.
 
 AI Gateway coverage requires runtime 2.3 whenever AI Gateway is selected.
 It retains model costs and selector aliases, a policy condition, and MCP

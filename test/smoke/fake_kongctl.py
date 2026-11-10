@@ -34,14 +34,14 @@ def option(name, default=""):
 
 def resource_from_path(path):
     value = str(path)
-    for key in ("control_plane", "ai_gateway", "event_gateway", "portal", "api"):
+    for key in ("identity_principal", "identity_auth_server", "control_plane", "ai_gateway", "event_gateway", "portal", "api"):
         if f"/{key}/" in value or value.endswith(f"/{key}.yaml"):
             return key
     raise RuntimeError(f"unknown fixture path: {value}")
 
 def namespace_field(text):
     # Only the generated root metadata and file-default blocks carry ownership.
-    for indent in (4, 2):
+    for indent in (6, 4, 2):
         match = re.search(
             rf"^{' ' * indent}kongctl:\n"
             rf"(?:{' ' * (indent + 2)}(?!namespace:)\S[^\n]*\n)*"
@@ -54,7 +54,11 @@ def namespace_field(text):
 def parse_fixture(path):
     text = pathlib.Path(path).read_text(encoding="utf-8")
     key = resource_from_path(path)
-    root = {"api": "apis", "portal": "portals", "control_plane": "control_planes", "ai_gateway": "ai_gateways", "event_gateway": "event_gateways"}[key]
+    original_text = text
+    if key.startswith("identity_"):
+        prefix, envelope = text.split("identity:\n", 1)
+        text = prefix + "\n".join(line[2:] for line in envelope.splitlines()) + "\n"
+    root = {"api": "apis", "portal": "portals", "control_plane": "control_planes", "ai_gateway": "ai_gateways", "event_gateway": "event_gateways", "identity_principal": "identity.principals", "identity_auth_server": "identity.auth_servers"}[key]
     def scalar(field):
         match = re.search(rf"^    {field}: (.+)$", text, re.MULTILINE)
         if not match:
@@ -80,14 +84,27 @@ def parse_fixture(path):
     if option("--require-namespace", namespace) != namespace:
         raise SystemExit("fixture namespace does not match --require-namespace")
     item = {
-        "ref": ref, "name": scalar("name") or ref,
+        "ref": ref, "name": scalar("name") or scalar("display_name") or ref,
         "display_name": scalar("display_name"), "description": scalar("description"),
         "root": root, "labels": {"smoke-phase": re.search(r'smoke-phase: "([^"]+)"', text).group(1)},
-        "_fixture": text,
+        "_fixture": original_text,
         "_namespace": namespace,
     }
     item["labels"]["KONGCTL-namespace"] = namespace
-    for field in ("snippets", "backend_clusters", "virtual_clusters",
+    item["audience"] = scalar("audience")
+    if key == "identity_principal":
+        item["metadata"] = scalar("metadata")
+        item["type"] = scalar("type")
+    for field in ("ttl_secs", "allow_all_control_planes", "vault"):
+        value = scalar(field)
+        if value != "":
+            item[field] = value
+    item["managed_by"] = {"kongctl-namespace": namespace}
+    if key == "identity_principal":
+        if '"_external"' not in text or not any(json.dumps(d["name"]) in text for d in directories or [{"name": "default"}]):
+            raise SystemExit("smoke must reference the existing default directory")
+        item["id"] = "33333333-3333-4333-8333-333333333333"
+    for field in ("identities", "scopes", "claims", "snippets", "backend_clusters", "virtual_clusters",
                   "model_providers", "models", "policies", "mcp_servers", "datastores"):
         raw = scalar(field)
         if raw != "":
@@ -100,6 +117,8 @@ def parse_fixture(path):
     return key, item
 
 CHILD_TYPES = {
+    "identities": "identity_principal_identity", "scopes": "identity_auth_server_scope",
+    "claims": "identity_auth_server_claim",
     "snippets": "portal_snippet", "backend_clusters": "event_gateway_backend_cluster",
     "virtual_clusters": "event_gateway_virtual_cluster", "model_providers": "ai_gateway_model_provider",
     "datastores": "ai_gateway_datastore",
@@ -120,7 +139,9 @@ def flatten(key, item):
                 child["policies"] = [policy_names.get(p.split("#")[0], p) for p in child.get("policies", [])]
                 for store in child.get("datastores", []):
                     store["name"] = datastore_names.get(store["name"].split("#")[0], store["name"])
-            result[(kind, child["name"])] = child
+            result[(kind, child.get("name", child["ref"]))] = child
+            for identity in child.get("identities", []):
+                result[("identity_principal_identity", identity["ref"])] = identity
     if key == "api":
         for field, kind in (("versions", "api_version"), ("documents", "api_document")):
             if f"    {field}:" in item["_fixture"]:
@@ -142,6 +163,8 @@ def make_plan(key, desired, mode):
     # The fake orders the dependency graph independently from the script's checker.
     ranks = {"ai_gateway_datastore": 1, "ai_gateway_model_provider": 1,
              "ai_gateway_policy": 1, "ai_gateway_model": 2,
+             "identity_principal": 1, "identity_principal_identity": 2,
+             "identity_auth_server_scope": 1, "identity_auth_server_claim": 2,
              "event_gateway_backend_cluster": 1, "event_gateway_virtual_cluster": 2}
     changes.sort(key=lambda c: (c["action"] == "DELETE",
                                -ranks.get(c["resource_type"], 0) if c["action"] == "DELETE"
@@ -164,6 +187,8 @@ def make_plan(key, desired, mode):
     return plan
 
 def resource_from_command():
+    if "identity" in args:
+        return "identity_auth_server" if any(a.startswith("auth-server") for a in args) else "identity_principal"
     if "control-plane" in args or "control-planes" in args:
         return "control_plane"
     if "event-gateway" in args or "event-gateways" in args:
@@ -189,6 +214,50 @@ def saved_plan():
         desired["labels"]["KONGCTL-namespace"] = environment
     return plan, key, desired
 
+directory_path = state_path.with_suffix(".directories.json")
+directories = json.loads(directory_path.read_text()) if directory_path.exists() else [
+    {"id": "22222222-2222-4222-8222-222222222222", "name": "default"},
+]
+if "identity" in args and any(a in args for a in ("directory", "directories")):
+    if os.environ.get("FAKE_FAULT") == "directory-read-error":
+        print("directory inventory: authentication failed", file=sys.stderr)
+        raise SystemExit(1)
+    if args[0] == "list":
+        print(json.dumps(directories))
+    else:
+        matches = [d for d in directories if d["name"] in args or d["id"] in args]
+        if len(matches) != 1:
+            print("identity directory not found", file=sys.stderr)
+            raise SystemExit(1)
+        print(json.dumps(matches[0]))
+    raise SystemExit(0)
+
+if args[0] == "plan" and option("-f").endswith("identity-directory-bootstrap.yaml"):
+    declaration = json.loads(pathlib.Path(option("-f")).read_text())["identity"]["directories"][0]
+    assert declaration["allow_all_control_planes"] is True
+    assert declaration["kongctl"]["protected"] is True
+    assert not directories, "directory quota exceeded"
+    change = {"id": "bootstrap", "action": "CREATE", "resource_type": "identity_directory",
+              "resource_ref": "default", "namespace": "kctl-smoke-identity-bootstrap", "protection": True,
+              "fields": {"name": "default", "allow_all_control_planes": True}}
+    plan = {"metadata": {"mode": "apply"}, "summary": {"total_changes": 1},
+            "changes": [change], "_bootstrap": True}
+    pathlib.Path(option("--output-file")).write_text(json.dumps(plan))
+    print(json.dumps(plan))
+    raise SystemExit(0)
+if args[0] == "apply" and option("--plan"):
+    plan = json.loads(pathlib.Path(option("--plan")).read_text())
+    if plan.get("_bootstrap"):
+        if os.environ.get("FAKE_FAULT") == "bootstrap-failure":
+            print("directory create failed", file=sys.stderr)
+            raise SystemExit(1)
+        assert not directories, "directory quota exceeded"
+        directory_path.write_text(json.dumps([
+            {"id": "22222222-2222-4222-8222-222222222222", "name": "default"},
+        ]))
+        print_execution(1)
+        raise SystemExit(0)
+
 if args == ["--help"]:
     print("kongctl fake help")
 elif args[:2] == ["get", "profiles"]:
@@ -208,8 +277,10 @@ elif args[:1] == ["explain"]:
             print("type=openai type=azure allowed: basic")
         raise SystemExit(0)
     roots = {"api": "apis", "portal": "portals", "control_plane": "control_planes", "ai_gateway": "ai_gateways", "event_gateway": "event_gateways",
-             "api.versions": "api_versions", "api.documents": "api_documents"}
+             "api.versions": "api_versions", "api.documents": "api_documents", "identity_principal": "identity.principals", "identity_auth_server": "identity.auth_servers"}
     properties = {
+        "identity_principal": ["ref", "directory", "description", "display_name"],
+        "identity_auth_server": ["ref", "name", "description", "audience"],
         "api": ["ref", "name", "description", "version", "slug"],
         "portal": ["ref", "name", "display_name", "description"],
         "control_plane": ["ref", "name", "description", "cluster_type"],
@@ -273,6 +344,10 @@ elif args[:1] == ["scaffold"]:
         ref: my-resource
 """,
     }
+    outputs.update({
+        "identity_principal": "identity:\n  principals:\n    - ref: my-resource\n      display_name: My Resource\n      directory: value\n",
+        "identity_auth_server": "identity:\n  auth_servers:\n    - ref: my-resource\n      name: my-resource\n      audience: https://api.example.com\n",
+    })
     output = outputs[subject]
     if bad == subject:
         output = output.replace(output.splitlines()[0], "wrong_root:", 1)
@@ -303,7 +378,7 @@ elif args[:1] in (["apply"], ["sync"]):
     print_execution(len(plan["changes"]))
 elif args[:2] == ["dump", "declarative"]:
     keys = {"apis": "api", "portals": "portal", "control_planes": "control_plane",
-            "ai_gateways": "ai_gateway", "event_gateways": "event_gateway"}
+            "ai_gateways": "ai_gateway", "event_gateways": "event_gateway", "identity.directories": "identity_principal", "identity.auth_servers": "identity_auth_server"}
     key = keys[option("--resources")]
     text = state[key]["_fixture"]
     namespace = option("--default-namespace", state[key]["_namespace"])
@@ -311,7 +386,7 @@ elif args[:2] == ["dump", "declarative"]:
         namespace = "another-project"
     match = namespace_field(text)
     text = text[:match.start(1)] + json.dumps(namespace) + text[match.end(1):]
-    text = re.sub(r"!env \{var: KONGCTL_SMOKE_NAMESPACE_AI_GATEWAY\}", json.dumps(namespace), text)
+    text = re.sub(r"!env \{var: KONGCTL_SMOKE_NAMESPACE_\w+\}", json.dumps(namespace), text)
     if os.environ.get("FAKE_FAULT") == "bad-dump" and key == "portal":
         text = re.sub(r"^    snippets:.*$", "    snippets: []", text, flags=re.MULTILINE)
     if "--include-child-resources" not in args:
@@ -341,6 +416,27 @@ elif args[:1] in (["get"], ["list"]):
     key = resource_from_command()
     item = state.get(key)
     if item and args[0] == "get":
+        if key == "identity_principal":
+            person = dict(item)
+            if os.environ.get("FAKE_FAULT") == "stale-principal":
+                person["metadata"]["department"] = "engineering"
+            if "principal-identities" in args:
+                output = person["identities"]
+            else:
+                output = person if person["id"] in args else [person]
+            print(json.dumps(output))
+            raise SystemExit(0)
+        for command, field in (("auth-server-scope", "scopes"), ("auth-server-claim", "claims")):
+            if key == "identity_auth_server" and command in args:
+                output = dict(item[field][0])
+                if field == "scopes":
+                    output["id"] = "44444444-4444-4444-8444-444444444444"
+                else:
+                    output["include_in_scopes"] = ["44444444-4444-4444-8444-444444444444"]
+                if os.environ.get("FAKE_FAULT") == "stale-claim" and field == "claims":
+                    output["value"] = '\"engineering\"'
+                print(json.dumps(output))
+                raise SystemExit(0)
         if "datastores" in args:
             stores = item.get("datastores", [])
             names = []
