@@ -3,6 +3,7 @@ package adopt
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
@@ -27,19 +28,12 @@ func NewIdentityAuthServerClientCmd(verb verbs.VerbValue, addParentFlags func(ve
 	command.Flags().String("client-name", "", "Exact OAuth client name instead of a client ID argument")
 	command.MarkFlagsOneRequired("auth-server-id", "auth-server-name")
 	command.MarkFlagsMutuallyExclusive("auth-server-id", "auth-server-name")
+	addChildSelectionFlags(command)
 	command.Args = func(cmd *cobra.Command, args []string) error {
-		if err := cobra.MaximumNArgs(1)(cmd, args); err != nil {
-			return err
-		}
-		name, err := cmd.Flags().GetString("client-name")
-		if err != nil {
-			return err
-		}
-		if (len(args) == 0) == (name == "") {
-			return fmt.Errorf("provide a client ID argument or --client-name")
-		}
-		return nil
+		_, err := readChildSelection(cmd, args, "", "client-name")
+		return err
 	}
+
 	if addParentFlags != nil {
 		addParentFlags(verb, command)
 	}
@@ -68,27 +62,7 @@ func NewIdentityAuthServerClientCmd(verb verbs.VerbValue, addParentFlags func(ve
 			}
 			id = server.ID
 		}
-		selector, err := cmd.Flags().GetString("client-name")
-		if err != nil {
-			return err
-		}
-		byName := selector != ""
-		if !byName {
-			selector = args[0]
-		}
-		result, err := adoptIdentityAuthServerClient(
-			setup.Helper.GetContext(),
-			setup.SDK.GetIdentityAuthServerClientsAPI(),
-			id,
-			selector,
-			byName,
-			setup.AdoptFlags.Namespace,
-			setup.AdoptFlags.OverwriteNamespace,
-		)
-		if err != nil {
-			return err
-		}
-		return adoptCommon.PrintAdoptResult(setup.Helper, setup.OutType, result, "Kong Identity auth-server client")
+		return runIdentityClientAdoptions(cmd, args, setup, id)
 	}
 	return command, nil
 }
@@ -96,6 +70,16 @@ func NewIdentityAuthServerClientCmd(verb verbs.VerbValue, addParentFlags func(ve
 func adoptIdentityAuthServerClient(ctx context.Context, api helpers.IdentityAuthServerClientsAPI,
 	parent, identifier string, byName bool, namespace string, overwrite bool,
 ) (*adoptCommon.AdoptResult, error) {
+	write, err := prepareAdoptIdentityAuthServerClient(ctx, api, parent, identifier, byName, namespace, overwrite)
+	if err != nil {
+		return nil, err
+	}
+	return write()
+}
+
+func prepareAdoptIdentityAuthServerClient(ctx context.Context, api helpers.IdentityAuthServerClientsAPI,
+	parent, identifier string, byName bool, namespace string, overwrite bool, expectedName ...string,
+) (preparedChildAdoption, error) {
 	if !util.IsValidUUID(parent) || namespace == "" {
 		return nil, fmt.Errorf("valid auth-server UUID and namespace are required")
 	}
@@ -103,6 +87,9 @@ func adoptIdentityAuthServerClient(ctx context.Context, api helpers.IdentityAuth
 	current, err := helpers.ResolveIdentityAuthServerClient(ctx, api, parent, identifier, byName, 100)
 	if err != nil {
 		return nil, err
+	}
+	if len(expectedName) != 0 && expectedName[0] != current.Name {
+		return nil, fmt.Errorf("child name changed after selection; retry adoption")
 	}
 	if owner := current.Labels[labels.NamespaceKey]; owner != "" && !overwrite {
 		return nil, fmt.Errorf("client already has namespace %q; use --overwrite-namespace to adopt it", owner)
@@ -117,27 +104,43 @@ func adoptIdentityAuthServerClient(ctx context.Context, api helpers.IdentityAuth
 	if protected != "true" && protected != "false" {
 		return nil, fmt.Errorf("client has invalid protection labels")
 	}
-	response, err := api.UpdateAuthServerClient(ctx, kkOps.UpdateAuthServerClientRequest{
-		AuthServerID: parent, ClientID: current.ID,
-		UpdateClient: kkComps.UpdateClient{
-			TokenEndpointAuthMethod: current.TokenEndpointAuthMethod,
-			Labels: map[string]*string{
-				labels.NamespaceKey: &namespace,
-				labels.ProtectedKey: &protected,
+	return func() (*adoptCommon.AdoptResult, error) {
+		if result, dryRun := adoptCommon.PreviewAdoption(
+			ctx, string(resources.ResourceTypeIdentityAuthServerClient), current.ID, current.Name, namespace,
+			map[string]string{"auth_server_id": parent}, "labels", current.Labels,
+			map[string]string{labels.NamespaceKey: namespace, labels.ProtectedKey: protected},
+		); dryRun {
+			return result, nil
+		}
+		fresh, err := helpers.ResolveIdentityAuthServerClient(ctx, api, parent, current.ID, false, 100)
+		if err != nil {
+			return nil, err
+		}
+		if !reflect.DeepEqual(fresh, current) {
+			return nil, fmt.Errorf("child changed after adoption validation; retry adoption")
+		}
+		response, err := api.UpdateAuthServerClient(ctx, kkOps.UpdateAuthServerClientRequest{
+			AuthServerID: parent, ClientID: current.ID,
+			UpdateClient: kkComps.UpdateClient{
+				TokenEndpointAuthMethod: current.TokenEndpointAuthMethod,
+				Labels: map[string]*string{
+					labels.NamespaceKey: &namespace,
+					labels.ProtectedKey: &protected,
+				},
 			},
-		},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to adopt auth-server client: %w", err)
-	}
-	if response == nil || response.Client == nil || response.Client.ID != current.ID ||
-		response.Client.Labels[labels.NamespaceKey] != namespace ||
-		response.Client.TokenEndpointAuthMethod == nil ||
-		*response.Client.TokenEndpointAuthMethod != *current.TokenEndpointAuthMethod {
-		return nil, fmt.Errorf("client API did not retain adoption labels or authentication method")
-	}
-	return &adoptCommon.AdoptResult{
-		ResourceType: string(resources.ResourceTypeIdentityAuthServerClient),
-		ID:           current.ID, Name: current.Name, Namespace: namespace,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to adopt auth-server client: %w", err)
+		}
+		if response == nil || response.Client == nil || response.Client.ID != current.ID ||
+			response.Client.Labels[labels.NamespaceKey] != namespace ||
+			response.Client.TokenEndpointAuthMethod == nil ||
+			*response.Client.TokenEndpointAuthMethod != *current.TokenEndpointAuthMethod {
+			return nil, fmt.Errorf("client API did not retain adoption labels or authentication method")
+		}
+		return &adoptCommon.AdoptResult{
+			ResourceType: string(resources.ResourceTypeIdentityAuthServerClient),
+			ID:           current.ID, Name: current.Name, Namespace: namespace,
+		}, nil
 	}, nil
 }

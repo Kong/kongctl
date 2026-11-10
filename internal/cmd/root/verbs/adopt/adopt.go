@@ -25,9 +25,11 @@ var (
 	adoptShort = i18n.T("root.verbs.adopt.adoptShort", "Adopt existing resources into declarative management")
 
 	adoptLong = normalizers.LongDesc(i18n.T("root.verbs.adopt.adoptLong",
-		"Apply the KONGCTL-namespace label to existing Konnect resources so they become managed by kongctl.\n"+
-			"By default, adopt refuses to replace an existing namespace label. Use --overwrite-namespace "+
-			"to explicitly move an already adopted resource to the provided --namespace value."))
+		"Assign namespace ownership metadata to existing Konnect resources so they become managed by kongctl.\n"+
+			"By default, adopt refuses to replace existing namespace ownership. Use --overwrite-namespace "+
+			"to explicitly move an already adopted resource to the provided --namespace value. "+
+			"Use --dry-run to validate and report ownership changes without writing. Child commands "+
+			"adopt independently owned resources using their canonical managed_by metadata or labels."))
 
 	adoptExamples = normalizers.Examples(i18n.T("root.verbs.adopt.adoptExamples",
 		fmt.Sprintf(`  # Adopt a portal by name into the "team-alpha" namespace

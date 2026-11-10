@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/kong/kongctl/internal/declarative/resources"
+
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
@@ -111,6 +113,12 @@ func adoptAuthStrategy(
 	}
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
+	if result, dryRun := adoptCommon.PreviewAdoption(
+		ctx, string(resources.ResourceTypeApplicationAuthStrategy), id, name, namespace, nil, "labels",
+		existingLabels, adoptCommon.StringLabelMap(existingLabels, namespace),
+	); dryRun {
+		return result, nil
+	}
 	if _, err := api.UpdateAppAuthStrategy(ctx, id, updateReq); err != nil {
 		attrs := cmdpkg.TryConvertErrorToAttrs(err)
 		return nil, cmdpkg.PrepareExecutionError("failed to update auth strategy", err, helper.GetCmd(), attrs...)

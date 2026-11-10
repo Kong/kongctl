@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/kong/kongctl/internal/declarative/resources"
+
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
-	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	adoptCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
@@ -15,7 +16,6 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/util"
-	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
 )
 
@@ -92,23 +92,7 @@ func NewPortalCmd(
 			return err
 		}
 
-		streams := helper.GetStreams()
-		if outType == cmdCommon.TEXT {
-			name := result.Name
-			if name == "" {
-				name = result.ID
-			}
-			fmt.Fprintf(streams.Out, "Adopted portal %q (%s) into namespace %q\n", name, result.ID, result.Namespace)
-			return nil
-		}
-
-		printer, err := cli.Format(outType.String(), streams.Out)
-		if err != nil {
-			return err
-		}
-		defer printer.Flush()
-		printer.Print(result)
-		return nil
+		return adoptCommon.PrintAdoptResult(helper, outType, result, "portal")
 	}
 
 	return cmd, nil
@@ -141,6 +125,14 @@ func adoptPortal(
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
 
+	if result, dryRun := adoptCommon.PreviewAdoption(
+
+		ctx, string(resources.ResourceTypePortal), portal.ID, portal.Name, namespace, nil, "labels",
+
+		portal.Labels, adoptCommon.StringLabelMap(portal.Labels, namespace),
+	); dryRun {
+		return result, nil
+	}
 	resp, err := portalAPI.UpdatePortal(ctx, portal.ID, updateReq)
 	if err != nil {
 		attrs := cmdpkg.TryConvertErrorToAttrs(err)

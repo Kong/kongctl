@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/kong/kongctl/internal/declarative/resources"
+
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	adoptCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
@@ -115,6 +117,12 @@ func adoptDCRProvider(
 	}
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
+	if result, dryRun := adoptCommon.PreviewAdoption(
+		ctx, string(resources.ResourceTypeDCRProvider), provider.ID, provider.Name, namespace, nil, "labels",
+		provider.Labels, adoptCommon.StringLabelMap(provider.Labels, namespace),
+	); dryRun {
+		return result, nil
+	}
 	if _, err := api.UpdateDcrProvider(ctx, provider.ID, updateReq); err != nil {
 		attrs := cmdpkg.TryConvertErrorToAttrs(err)
 		return nil, cmdpkg.PrepareExecutionError("failed to update DCR provider", err, helper.GetCmd(), attrs...)

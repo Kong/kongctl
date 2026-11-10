@@ -32,7 +32,8 @@ func NewAIGatewayCmd(
 	cmd.Aliases = []string{"ai-gateways", "aigw"}
 	cmd.Short = "Adopt an existing Konnect AI Gateway into namespace management"
 	cmd.Long = "Apply the KONGCTL-namespace label to an existing Konnect AI Gateway " +
-		"that is not currently managed by kongctl."
+		"that is not currently managed by kongctl. Child subcommands adopt independently owned resources; " +
+		"adopting a gateway does not adopt its children."
 	cmd.Args = func(_ *cobra.Command, args []string) error {
 		if len(args) != 1 {
 			return fmt.Errorf("exactly one AI Gateway identifier (display name or ID) is required")
@@ -72,6 +73,7 @@ func NewAIGatewayCmd(
 		return adoptCommon.PrintAdoptResult(s.Helper, s.OutType, result, "AI Gateway")
 	}
 
+	cmd.AddCommand(newAIGatewayChildCommands(verb, addParentFlags, parentPreRun)...)
 	return cmd, nil
 }
 
@@ -108,6 +110,12 @@ func adoptAIGateway(
 	}
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
+	if result, dryRun := adoptCommon.PreviewAdoption(
+		ctx, string(resources.ResourceTypeAIGateway), gateway.ID, gateway.DisplayName, namespace, nil, "labels",
+		gateway.Labels, updateReq.Labels,
+	); dryRun {
+		return result, nil
+	}
 	resp, err := api.UpdateAiGateway(ctx, gateway.ID, updateReq)
 	if err != nil {
 		attrs := cmdpkg.TryConvertErrorToAttrs(err)
@@ -139,6 +147,7 @@ func resolveAIGateway(
 	api helpers.AIGatewayAPI,
 	cfg config.Hook,
 	identifier string,
+	byName ...bool,
 ) (*kkComps.AIGateway, error) {
 	if api == nil {
 		return nil, fmt.Errorf("AI Gateway API client is not configured")
@@ -146,7 +155,7 @@ func resolveAIGateway(
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
 
-	if util.IsValidUUID(identifier) {
+	if util.IsValidUUID(identifier) && (len(byName) == 0 || !byName[0]) {
 		resp, err := api.GetAiGateway(ctx, identifier)
 		if err != nil {
 			attrs := cmdpkg.TryConvertErrorToAttrs(err)

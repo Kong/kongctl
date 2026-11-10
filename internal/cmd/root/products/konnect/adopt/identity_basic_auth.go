@@ -3,6 +3,7 @@ package adopt
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	"github.com/kong/kongctl/internal/build"
 	adoptCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt/common"
@@ -27,18 +28,19 @@ func NewIdentityBasicAuthCmd(verb verbs.VerbValue, addParentFlags func(verbs.Ver
 	if err := command.MarkFlagRequired("principal-id"); err != nil {
 		return nil, err
 	}
+	addChildSelectionFlags(command)
 	command.Args = func(cmd *cobra.Command, args []string) error {
 		if err := cobra.MaximumNArgs(1)(cmd, args); err != nil {
 			return err
 		}
 		principal, _ := cmd.Flags().GetString("principal-id")
-		username, _ := cmd.Flags().GetString("username")
 		if !util.IsValidUUID(principal) {
 			return fmt.Errorf("principal-id must be a UUID")
 		}
-		if (len(args) == 0) == (username == "") {
-			return fmt.Errorf("provide exactly one basic-auth ID argument or --username")
+		if _, err := readChildSelection(cmd, args, "", "username"); err != nil {
+			return err
 		}
+
 		if len(args) != 0 && !util.IsValidUUID(args[0]) {
 			return fmt.Errorf("basic-auth ID must be a UUID")
 		}
@@ -58,7 +60,6 @@ func NewIdentityBasicAuthCmd(verb verbs.VerbValue, addParentFlags func(verbs.Ver
 			return err
 		}
 		principal, _ := cmd.Flags().GetString("principal-id")
-		username, _ := cmd.Flags().GetString("username")
 		if name != "" {
 			value, err := helpers.ResolveIdentityDirectory(ctx, setup.SDK.GetIdentityDirectoriesAPI(), name, 100)
 			if err != nil {
@@ -66,23 +67,24 @@ func NewIdentityBasicAuthCmd(verb verbs.VerbValue, addParentFlags func(verbs.Ver
 			}
 			directory = value.ID
 		}
-		id := ""
-		if len(args) != 0 {
-			id = args[0]
-		}
-		result, err := adoptIdentityBasicAuth(ctx, setup.SDK.GetIdentityBasicAuthAPI(), directory, principal,
-			id, username, setup.AdoptFlags.Namespace, setup.AdoptFlags.OverwriteNamespace)
-		if err != nil {
-			return err
-		}
-		return adoptCommon.PrintAdoptResult(setup.Helper, setup.OutType, result, "Kong Identity basic-auth credential")
+		return runIdentityBasicAuthAdoptions(cmd, args, setup, directory, principal)
 	}
 	return command, nil
 }
 
-func adoptIdentityBasicAuth(ctx context.Context, api helpers.IdentityBasicAuthAPI, directory, principal,
-	id, username, namespace string, overwrite bool,
+func adoptIdentityBasicAuth(ctx context.Context, api helpers.IdentityBasicAuthAPI,
+	directory, principal, id, username, namespace string, overwrite bool,
 ) (*adoptCommon.AdoptResult, error) {
+	write, err := prepareAdoptIdentityBasicAuth(ctx, api, directory, principal, id, username, namespace, overwrite)
+	if err != nil {
+		return nil, err
+	}
+	return write()
+}
+
+func prepareAdoptIdentityBasicAuth(ctx context.Context, api helpers.IdentityBasicAuthAPI,
+	directory, principal, id, username, namespace string, overwrite bool, expectedName ...string,
+) (preparedChildAdoption, error) {
 	ctx = adoptCommon.EnsureContext(ctx)
 	if id != "" {
 		value, err := helpers.GetIdentityBasicAuth(ctx, api, directory, principal, id)
@@ -98,21 +100,37 @@ func adoptIdentityBasicAuth(ctx context.Context, api helpers.IdentityBasicAuthAP
 	if id != "" && value.ID != id {
 		return nil, fmt.Errorf("basic-auth identity changed during adoption")
 	}
-	if current := value.ManagedBy[resources.ChildNamespaceKey]; current != "" && !overwrite {
-		return nil, fmt.Errorf("basic-auth already has namespace %q; use --overwrite-namespace to adopt it", current)
+	if len(expectedName) != 0 && expectedName[0] != value.Username {
+		return nil, fmt.Errorf("child name changed after selection; retry adoption")
 	}
-	request := helpers.IdentityBasicAuthReplacement(*value)
-	request.ManagedBy = resources.BuildChildManagedBy(
-		namespace,
-		resources.IsChildProtected(value.ManagedBy),
-		build.Version(ctx),
-	)
-	if _, err := helpers.ReplaceIdentityBasicAuth(ctx, api, directory, principal, value.ID, request); err != nil {
+	metadata, err := adoptionManagedBy(value.ManagedBy, namespace, overwrite, build.Version(ctx))
+	if err != nil {
 		return nil, err
 	}
-	return &adoptCommon.AdoptResult{
-		ResourceType: string(
-			resources.ResourceTypeIdentityBasicAuth,
-		), ID: value.ID, Name: value.Username, Namespace: namespace,
+	request := helpers.IdentityBasicAuthReplacement(*value)
+	request.ManagedBy = metadata
+	return func() (*adoptCommon.AdoptResult, error) {
+		if result, dryRun := adoptCommon.PreviewAdoption(
+			ctx, string(resources.ResourceTypeIdentityBasicAuth), value.ID, value.Username, namespace,
+			map[string]string{"directory_id": directory, "principal_id": principal}, "managed_by", value.ManagedBy,
+			request.ManagedBy,
+		); dryRun {
+			return result, nil
+		}
+		fresh, err := helpers.GetIdentityBasicAuth(ctx, api, directory, principal, value.ID)
+		if err != nil {
+			return nil, err
+		}
+		if !reflect.DeepEqual(fresh, value) {
+			return nil, fmt.Errorf("child changed after adoption validation; retry adoption")
+		}
+		if _, err := helpers.ReplaceIdentityBasicAuth(ctx, api, directory, principal, value.ID, request); err != nil {
+			return nil, err
+		}
+		return &adoptCommon.AdoptResult{
+			ResourceType: string(
+				resources.ResourceTypeIdentityBasicAuth,
+			), ID: value.ID, Name: value.Username, Namespace: namespace,
+		}, nil
 	}, nil
 }

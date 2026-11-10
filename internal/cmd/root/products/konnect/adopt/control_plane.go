@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/kong/kongctl/internal/declarative/resources"
+
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	adoptCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt/common"
@@ -111,6 +113,14 @@ func adoptControlPlane(
 		Labels: adoptCommon.StringLabelMap(cp.Labels, namespace),
 	}
 
+	if result, dryRun := adoptCommon.PreviewAdoption(
+
+		ctx, string(resources.ResourceTypeControlPlane), cp.ID, cp.Name, namespace, nil, "labels", cp.Labels,
+
+		updateReq.Labels,
+	); dryRun {
+		return result, nil
+	}
 	updateRes, err := controlPlaneAPI.UpdateControlPlane(ctx, id, updateReq)
 	if err != nil {
 		attrs := cmdpkg.TryConvertErrorToAttrs(err)

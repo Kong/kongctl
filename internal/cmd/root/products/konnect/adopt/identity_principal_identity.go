@@ -90,9 +90,10 @@ func adoptPrincipalIdentity(ctx context.Context, api helpers.IdentityPrincipalId
 	if current.WorkspaceID != nil {
 		return nil, fmt.Errorf("adoption of identities with workspace_id is deferred pending API question Q25")
 	}
-	if owner := current.ManagedBy[resources.ChildNamespaceKey]; owner != "" && !overwrite {
-		return nil, fmt.Errorf("identity already has namespace %q; use --overwrite-namespace to adopt it", owner)
+	if _, err := adoptionManagedBy(current.ManagedBy, namespace, overwrite, build.Version(ctx)); err != nil {
+		return nil, err
 	}
+
 	all, err := helpers.ListPrincipalIdentities(ctx, api, directoryID, principalID, 100)
 	if err != nil {
 		return nil, err
@@ -104,6 +105,7 @@ func adoptPrincipalIdentity(ctx context.Context, api helpers.IdentityPrincipalId
 		}
 	}
 	// Reproject with the complete generated map; helpers retain public fields.
+	previousManagedBy := current.ManagedBy
 	current.ManagedBy = resources.BuildPrincipalManagedBy(
 		namespace,
 		ref,
@@ -113,6 +115,13 @@ func adoptPrincipalIdentity(ctx context.Context, api helpers.IdentityPrincipalId
 	body, err := helpers.PrincipalIdentityReplacement(*current)
 	if err != nil {
 		return nil, err
+	}
+	if result, dryRun := adoptCommon.PreviewAdoption(
+		ctx, string(resources.ResourceTypeIdentityPrincipalIdentity), id, ref, namespace,
+		map[string]string{"directory_id": directoryID, "principal_id": principalID}, "managed_by",
+		previousManagedBy, current.ManagedBy,
+	); dryRun {
+		return result, nil
 	}
 	if _, err := helpers.ReplacePrincipalIdentity(ctx, api, directoryID, principalID, id, body); err != nil {
 		return nil, err

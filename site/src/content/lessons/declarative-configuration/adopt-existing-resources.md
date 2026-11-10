@@ -20,7 +20,7 @@ management:
 
 | Command                    | Job                                            |
 | -------------------------- | ---------------------------------------------- |
-| `kongctl adopt`            | Adds the `KONGCTL-namespace` label in Konnect. |
+| `kongctl adopt`            | Sets namespace ownership metadata in Konnect. |
 | `kongctl dump declarative` | Exports resource state as declarative YAML.    |
 
 Adoption establishes the resource's management scope. Dumping gives you the
@@ -36,8 +36,36 @@ kongctl adopt ai-gateway <id-or-display-name> --namespace <namespace>
 ```
 
 `adopt` preserves the resource's configuration and adds its
-`KONGCTL-namespace` label. It refuses to replace an existing namespace unless
+ownership metadata. It refuses to replace an existing namespace unless
 you explicitly use `--overwrite-namespace`.
+
+## Adopt independently owned children
+
+AI Gateway child ownership is independent of its parent. Adopting a gateway
+does not adopt its models, providers, policies, or other independently owned
+children. Select each family explicitly:
+
+```shell label="Run this..."
+kongctl adopt ai-gateway models --name-pattern 'team-*' \
+  --gateway-name shared-gateway --namespace team-a --dry-run -o json
+```
+
+`--dry-run` validates and reports ownership changes without writing. It is
+available on every adoption command and supports text, JSON, and YAML. Its
+report is separate from a declarative plan. Remove `--dry-run` to adopt the
+selection. Use `--all` instead of `--name-pattern` to select every model within
+that gateway, or provide an exact child name or ID.
+
+Selection stays within one family and parent. All selected children are
+validated before writes begin; API failures can leave a partially completed
+batch. Adoption preserves configuration, protection, and credentials. It does
+not adopt independently owned descendants. Unsupported credential-preserving
+updates, including affected AppRole vaults and runtime TLS certificates, are
+rejected or unavailable.
+
+Kong Identity groups, OAuth clients, and basic-auth usernames also support
+bulk selection within their parents. Principals and identities retain
+individual UUID and explicit `--ref` requirements.
 
 ## Dump its configuration
 

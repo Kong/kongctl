@@ -7,8 +7,11 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/kong/kongctl/internal/cmd"
+	adoptCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt/common"
 	"github.com/kong/kongctl/internal/declarative/labels"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -224,4 +227,17 @@ func TestResolveTeamValidUUID(t *testing.T) {
 	assert.Equal(t, testTeamName, team.Name)
 
 	helper.AssertExpectations(t)
+}
+
+func TestTeamAdoptionDryRunNeverWrites(t *testing.T) {
+	command := &cobra.Command{}
+	require.NoError(t, adoptCommon.AddAdoptFlags(command))
+	require.NoError(t, command.ParseFlags([]string{"--namespace", "team-a", "--dry-run"}))
+	_, err := adoptCommon.ReadAdoptFlags(command)
+	require.NoError(t, err)
+	api := &teamAPIStub{t: t, team: &kkComps.TeamResponse{ID: testTeamID, Name: testTeamName}}
+	result, err := adoptTeam(cmd.BuildHelper(command, nil), api, nil, "team-a", false, testTeamID)
+	require.NoError(t, err)
+	require.Equal(t, testTeamID, result.ID)
+	require.Zero(t, api.updateCall)
 }

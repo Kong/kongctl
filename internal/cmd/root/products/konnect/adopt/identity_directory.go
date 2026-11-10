@@ -58,6 +58,12 @@ func adoptIdentityDirectory(ctx context.Context, api helpers.IdentityDirectories
 	request.ManagedBy = resources.BuildChildManagedBy(
 		namespace, resources.IsChildProtected(directory.ManagedBy), build.Version(ctx),
 	)
+	if result, dryRun := adoptCommon.PreviewAdoption(
+		ctx, string(resources.ResourceTypeIdentityDirectory), directory.ID, directory.Name, namespace, nil,
+		"managed_by", directory.ManagedBy, request.ManagedBy,
+	); dryRun {
+		return result, nil
+	}
 	response, err := api.ReplaceDirectory(ctx, directory.ID, request)
 	if err != nil {
 		return nil, fmt.Errorf("failed to adopt Kong Identity directory: %w", err)

@@ -4,7 +4,7 @@ These six families use the [shared ownership contract][contract] on root and
 nested declarations. Their independent `kongctl` namespace and protection
 override source defaults, then fall back to `default` and `false`. Gateway
 ownership and public labels do not authorize writes. Existing resources need
-explicit API adoption; references never adopt their targets.
+explicit [child adoption](adoption.md); references never adopt their targets.
 
 `managed_by` contains four generated entries: `tool: kongctl`, the executing
 binary's `version`, `kongctl-namespace`, and `kongctl-protected`. Kongctl

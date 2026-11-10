@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/kong/kongctl/internal/declarative/resources"
+
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
@@ -107,6 +109,12 @@ func adoptDashboard(
 	}
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
+	if result, dryRun := adoptCommon.PreviewAdoption(
+		ctx, string(resources.ResourceTypeDashboard), id, dashboard.Name, namespace, nil, "labels",
+		dashboard.Labels, updateReq.Labels,
+	); dryRun {
+		return result, nil
+	}
 	resp, err := api.DashboardsUpdate(ctx, id, updateReq)
 	if err != nil {
 		attrs := cmdpkg.TryConvertErrorToAttrs(err)

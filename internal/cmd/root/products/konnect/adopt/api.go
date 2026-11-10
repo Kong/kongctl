@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/kong/kongctl/internal/declarative/resources"
+
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
@@ -101,6 +103,14 @@ func adoptAPI(
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
 
+	if result, dryRun := adoptCommon.PreviewAdoption(
+
+		ctx, string(resources.ResourceTypeAPI), api.ID, api.Name, namespace, nil, "labels", api.Labels,
+
+		adoptCommon.StringLabelMap(api.Labels, namespace),
+	); dryRun {
+		return result, nil
+	}
 	resp, err := apiClient.UpdateAPI(ctx, api.ID, updateReq, false)
 	if err != nil {
 		attrs := cmdpkg.TryConvertErrorToAttrs(err)

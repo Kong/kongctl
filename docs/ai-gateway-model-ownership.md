@@ -111,36 +111,24 @@ transferring its ownership, generate a new plan that reflects the current
 remote owner; execution rechecks ownership and rejects unowned or foreign
 models.
 
-Adoption is an explicit API update performed by the resource owner. Inspect the
-model and coordinate with anyone already managing it before assigning a
-namespace. For example, export a complete update payload and set ownership:
+Use explicit child adoption, which preserves public configuration, labels,
+credentials, and protection while generating canonical ownership metadata:
 
 ```sh
-kongctl get ai-gateway models --gateway-id GATEWAY_ID MODEL_ID -o json |
-  jq --arg namespace team-a '
-    del(.id, .created_at, .updated_at) |
-    .managed_by = {
-      "kongctl-namespace": $namespace,
-      "kongctl-protected": "false"
-    }' > adopted-model.json
-
-curl --fail-with-body --request PUT \
-  "https://us.api.konghq.com/v1/ai-gateways/GATEWAY_ID/models/MODEL_ID" \
-  --header "Authorization: Bearer $KONNECT_PAT" \
-  --header "Content-Type: application/json" \
-  --data-binary @adopted-model.json
+kongctl adopt ai-gateway models existing-model \
+  --gateway-name shared-gateway --namespace team-a --dry-run
+kongctl adopt ai-gateway models existing-model \
+  --gateway-name shared-gateway --namespace team-a
 ```
 
-Use the organization's regional API URL and choose protection deliberately.
-Kongctl owns and replaces the complete `managed_by` map. Verify adoption with
-GET and list, omit `managed_by` from manifests, and replan with the matching
-model namespace. Teams can establish ownership independently, but every
-existing model declared in one load must have matching ownership before that
-load can reconcile successfully.
+Use `--all` or `--name-pattern 'team-*'` for a selected family within one
+gateway. See [adoption](adoption.md) for selection, dry-run reports, and batch
+failure behavior. Omit `managed_by` from manifests and replan with the matching
+model namespace.
 
 Changing a manifest namespace does not transfer ownership. Transfer requires
 coordinating both owners, stopping their reconciliation pipelines, explicitly
-updating the remote namespace through the API, updating the destination
+adopting with `--overwrite-namespace`, updating the destination
 configuration, and regenerating plans. kongctl does not automatically adopt or
 transfer ownership.
 

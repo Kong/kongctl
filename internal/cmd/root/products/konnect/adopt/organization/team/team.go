@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/kong/kongctl/internal/declarative/resources"
+
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	adoptCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt/common"
@@ -102,6 +104,14 @@ func adoptTeam(
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
 
+	if result, dryRun := adoptCommon.PreviewAdoption(
+
+		ctx, string(resources.ResourceTypeOrganizationTeam), team.ID, team.Name, namespace, nil, "labels",
+
+		team.Labels, adoptCommon.StringLabelMap(team.Labels, namespace),
+	); dryRun {
+		return result, nil
+	}
 	resp, err := teamAPI.UpdateOrganizationTeam(ctx, identifier, &updateReq)
 	if err != nil {
 		attrs := cmdpkg.TryConvertErrorToAttrs(err)

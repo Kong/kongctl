@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/kong/kongctl/internal/declarative/resources"
+
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
@@ -108,6 +110,14 @@ func adoptEventGatewayControlPlane(
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
 
+	if result, dryRun := adoptCommon.PreviewAdoption(
+
+		ctx, string(resources.ResourceTypeEventGatewayControlPlane), egw.ID, egw.Name, namespace, nil, "labels",
+
+		egw.Labels, updateReq.Labels,
+	); dryRun {
+		return result, nil
+	}
 	resp, err := egwClient.UpdateEGWControlPlane(ctx, egw.ID, updateReq)
 	if err != nil {
 		attrs := cmdpkg.TryConvertErrorToAttrs(err)

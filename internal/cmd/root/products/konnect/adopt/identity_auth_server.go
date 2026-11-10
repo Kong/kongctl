@@ -51,12 +51,21 @@ func adoptIdentityAuthServer(ctx context.Context, api helpers.IdentityAuthServer
 	if owner := current.Labels[labels.NamespaceKey]; owner != "" && !overwrite {
 		return nil, fmt.Errorf("auth server already has namespace %q; use --overwrite-namespace to adopt it", owner)
 	}
+	if value, exists := current.Labels[labels.ProtectedKey]; exists && value != "true" && value != "false" {
+		return nil, fmt.Errorf("auth server has invalid protection labels")
+	}
 	protected := "false"
 	if labels.IsProtectedResource(current.Labels) {
 		protected = "true"
 	}
 	request := kkComps.UpdateAuthServer{
 		Labels: map[string]*string{labels.NamespaceKey: &namespace, labels.ProtectedKey: &protected},
+	}
+	if result, dryRun := adoptCommon.PreviewAdoption(
+		ctx, string(resources.ResourceTypeIdentityAuthServer), current.ID, current.Name, namespace, nil, "labels",
+		current.Labels, map[string]string{labels.NamespaceKey: namespace, labels.ProtectedKey: protected},
+	); dryRun {
+		return result, nil
 	}
 	response, err := api.UpdateAuthServer(ctx, current.ID, request)
 	if err != nil {

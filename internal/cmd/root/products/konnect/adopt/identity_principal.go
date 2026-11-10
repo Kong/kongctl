@@ -93,9 +93,10 @@ func adoptIdentityPrincipal(
 	if err := helpers.ValidateIdentityPrincipalManagement(*current); err != nil {
 		return nil, err
 	}
-	if owner := current.ManagedBy[resources.ChildNamespaceKey]; owner != "" && !overwrite {
-		return nil, fmt.Errorf("principal already has namespace %q; use --overwrite-namespace to adopt it", owner)
+	if _, err := adoptionManagedBy(current.ManagedBy, namespace, overwrite, build.Version(ctx)); err != nil {
+		return nil, err
 	}
+
 	values, err := helpers.ListIdentityPrincipals(ctx, api, directoryID, 100)
 	if err != nil {
 		return nil, err
@@ -114,6 +115,12 @@ func adoptIdentityPrincipal(
 		resources.IsChildProtected(current.ManagedBy),
 		build.Version(ctx),
 	)
+	if result, dryRun := adoptCommon.PreviewAdoption(
+		ctx, string(resources.ResourceTypeIdentityPrincipal), id, ref, namespace,
+		map[string]string{"directory_id": directoryID}, "managed_by", current.ManagedBy, request.ManagedBy,
+	); dryRun {
+		return result, nil
+	}
 	response, err := api.ReplacePrincipal(
 		ctx,
 		kkOps.ReplacePrincipalRequest{DirectoryID: directoryID, PrincipalID: id, ReplacePrincipalBody: request},
