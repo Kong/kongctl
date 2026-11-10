@@ -235,8 +235,9 @@ def main():
             assert bootstrap["summary"]["total_changes"] == 6
             execute("bootstrap", bootstrap)
             directories = request("GET", "/v2/directories")["data"]
-            assert len(directories) == 1 and directories[0]["name"] == name
-            directory = directories[0]["id"]
+            matches = [value for value in directories if value["name"] == name]
+            assert len(matches) == 1
+            directory = matches[0]["id"]
             root = "/v2/directories/" + directory
             deleted = False
             assert len(credentials(collection("vault/providers")[0]["id"])) == 3

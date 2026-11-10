@@ -8,7 +8,13 @@ test:
       useDefaultDirectory: true
       nameVar: directory_name
       nameEnv: KONGCTL_E2E_DECLARATIVE_KEY_DIRECTORY_NAME
-  info: Verify generated principal/group key declarations under managed parents and an external directory. Cover private capture, saved plans, inherited authority, nullable expiration, dump, scoped sync, replacement ordering and guarded deletion while preserving foreign/imported keys.
+  info: >-
+    Verify generated principal/group key declarations under managed parents and
+    an external directory. Cover private capture, saved plans, inherited
+    authority, principal-key renaming, nullable expiration, dump, scoped sync,
+    replacement ordering and guarded deletion while preserving foreign/imported
+    keys. Group-key renaming and null-name clearing run only in .tech until
+    production supports these updates; .com reports both checks as deferred.
 steps:
   - name: 001-generated-key-lifecycle
     skipInputs: true
@@ -44,7 +50,7 @@ steps:
                 generated_declarations: true
                 saved_plan_capture_preflight: true
                 inherited_parent_authority: true
-                nullable_expiration_and_name_updates: true
+                principal_rename_and_nullable_expiration_updates: true
                 dump_reload: true
                 foreign_imported_and_legacy_preserved: true
                 explicit_collection_sync: true

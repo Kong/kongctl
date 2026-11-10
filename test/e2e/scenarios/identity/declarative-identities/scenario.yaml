@@ -297,6 +297,8 @@ steps:
           - declarative
           - --resources
           - identity.directories
+          - --filter-id
+          - '{{ .vars.directory_id }}'
           - --include-child-resources
           - --default-namespace
           - identity-association-e2e

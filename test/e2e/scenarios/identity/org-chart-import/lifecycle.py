@@ -95,13 +95,12 @@ def main():
         path.chmod(0o600)
         return path
 
-    def invoke(label, source, mode="--dry-run", output="json", failure=None, report_dir=None, explicit=False, legacy=False):
+    def invoke(label, source, mode="--dry-run", output="json", failure=None, report_dir=None, explicit=False):
         nonlocal phase, attempted_execution
         phase = label
         report_dir = report_dir or private / (label + "-reports")
         before_reports = set(report_dir.glob("*.json"))
-        verb, noun = ("create", "org-chart-import") if legacy else ("import", "org-chart")
-        args = [binary, verb, *(["konnect"] if explicit else []), "identity", noun,
+        args = [binary, "import", *(["konnect"] if explicit else []), "identity", "org-chart",
             "--directory-name", name, "--file", str(source), "--report-output-dir", str(report_dir),
             "-o", output, "--log-level", "trace", "--log-file", str(work / (label + ".log")), *config]
         if mode:
@@ -169,10 +168,10 @@ def main():
         assert worker[1] in report(saved, original, True)["warnings"][0]["detail"]
         assert snapshot() == before
         old_bytes = saved.read_bytes()
-        legacy, legacy_report = invoke("legacy-preview", original, legacy=True)
-        assert {key: value for key, value in legacy.items() if key != "report_output_file"} == {
+        explicit, explicit_report = invoke("explicit-preview", original, explicit=True)
+        assert {key: value for key, value in explicit.items() if key != "report_output_file"} == {
             key: value for key, value in preview.items() if key != "report_output_file"}
-        assert report(legacy_report, original, True)["counts"] == report(saved, original, True)["counts"]
+        assert report(explicit_report, original, True)["counts"] == report(saved, original, True)["counts"]
         assert snapshot() == before
         repeated_preview, new_report = invoke("repeated-preview", original, report_dir=saved.parent)
         assert repeated_preview["status"] == "validated" and new_report != saved

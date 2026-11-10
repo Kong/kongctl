@@ -166,8 +166,7 @@ steps:
       - name: initial-credential-authenticates
         exec:
           - python3
-          - '{{ .scenario_dir }}/../client-secrets/verify_capture.py'
-          - authenticate
+          - '{{ .scenario_dir }}/authenticate.py'
           - '{{ .vars.initial_capture }}'
           - '{{ .vars.metadata_uri }}'
         parseAs: json
@@ -256,8 +255,7 @@ steps:
       - name: credential-still-authenticates
         exec:
           - python3
-          - '{{ .scenario_dir }}/../client-secrets/verify_capture.py'
-          - authenticate
+          - '{{ .scenario_dir }}/authenticate.py'
           - '{{ .vars.initial_capture }}'
           - '{{ .vars.metadata_uri }}'
         parseAs: json
@@ -358,8 +356,7 @@ steps:
       - name: adoption-preserves-credential
         exec:
           - python3
-          - '{{ .scenario_dir }}/../client-secrets/verify_capture.py'
-          - authenticate
+          - '{{ .scenario_dir }}/authenticate.py'
           - '{{ .vars.initial_capture }}'
           - '{{ .vars.metadata_uri }}'
         parseAs: json
