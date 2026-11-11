@@ -136,9 +136,13 @@ snapshot recorded in the release's workflow lockfile before generation.
 
 Commit the snapshot, workflow changes, generated SDK code, and regression tests
 to `patch/v<VERSION>/targeted-patch-defaults`, then push the SDK branch. Update
-kongctl's `go.mod` replacement to that commit's Go pseudo-version, refresh
+kongctl's `go.mod` requirement to that commit's Go pseudo-version, refresh
 `go.sum` and vendoring, and run kongctl's local gates and relevant live scenarios
 before pushing kongctl. The SDK branch is consumed by commit; it is not released.
+Require the public patched version directly rather than selecting it only with
+`replace`: downstream Go extension modules do not inherit replacement directives.
+Run `go mod tidy` in `docs/examples/extensions/go` and `make test-extension-go`
+to verify the example inherits the patched SDK and builds with committed metadata.
 
 Run the patch-tool checks with:
 
