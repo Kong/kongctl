@@ -16,6 +16,13 @@ The `AGENTS.md` file contains detailed information about:
 
 ## Key Reminders for Copilot
 
+Before adding or expanding imperative write commands (including
+`kongctl create`), follow the [human-approval rule in AGENTS.md][write-approval].
+Resource support defaults to declarative workflows. Existing command patterns
+do not grant approval for imperative writes.
+
+[write-approval]: /AGENTS.md#imperative-write-commands-require-human-approval
+
 1. **Always disable CGO**: Use `make build` or `CGO_ENABLED=0 go build`
 2. **Never log errors in functions**: Return them and handle at top level
 3. **Run quality gates before PR**: format → build → lint → test
