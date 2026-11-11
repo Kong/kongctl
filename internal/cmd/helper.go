@@ -216,7 +216,7 @@ func TryConvertErrorToAttrs(err error) []any {
 	if umError != nil {
 		return nil
 	}
-	attrs := make([]any, 0, len(result)*2)
+	attrs := make([]any, 0)
 	for k, v := range result {
 		attrs = append(attrs, k, v)
 	}
