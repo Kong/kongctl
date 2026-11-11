@@ -35,6 +35,16 @@ identity:
 `
 
 func TestImportedAPIKeySavedPlanLifecycleWithoutCapture(t *testing.T) {
+	for _, sourceDeclared := range []bool{true, false} {
+		name := "source_omitted"
+		if sourceDeclared {
+			name = "source_declared"
+		}
+		t.Run(name, func(t *testing.T) { testImportedAPIKeySavedPlanLifecycle(t, sourceDeclared) })
+	}
+}
+
+func testImportedAPIKeySavedPlanLifecycle(t *testing.T, sourceDeclared bool) {
 	client, _, _, api := generatedKeysTestState()
 	t.Setenv("IMPORTED_KEY_TEST", "fixture-imported-material")
 	plan := identityClientTestPlan(t, client, importedKeysManifest, planner.PlanModeApply)
@@ -60,9 +70,12 @@ func TestImportedAPIKeySavedPlanLifecycleWithoutCapture(t *testing.T) {
 	require.Len(t, api.Writes, 1)
 	t.Setenv("IMPORTED_KEY_TEST", "different-fixture-material")
 	require.Empty(t, identityClientTestPlan(t, client, importedKeysManifest, planner.PlanModeApply).Changes)
-	metadataOnly := strings.Replace(importedKeysManifest,
-		"              secret: !secret {source: !env IMPORTED_KEY_TEST}\n", "", 1)
-	metadataOnly = strings.Replace(metadataOnly, "name: Worker primary", "name: Renamed", 1)
+	metadataOnly := strings.Replace(importedKeysManifest, "name: Worker primary", "name: Renamed", 1)
+	if !sourceDeclared {
+		metadataOnly = strings.Replace(metadataOnly,
+			"              secret: !secret {source: !env IMPORTED_KEY_TEST}\n", "", 1)
+	}
+	t.Setenv("IMPORTED_KEY_TEST", "")
 	plan = identityClientTestPlan(t, client, metadataOnly, planner.PlanModeApply)
 	require.Len(t, plan.Changes, 1)
 	require.Empty(t, plan.Changes[0].SecretWrites)

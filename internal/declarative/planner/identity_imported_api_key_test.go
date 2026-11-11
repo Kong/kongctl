@@ -43,11 +43,14 @@ func TestImportedPrincipalAPIKeyPlanningAndSecretSelection(t *testing.T) {
 		Mode: PlanModeApply, WriteSecretSelectors: []string{"alice-key#secret"},
 	})
 	require.ErrorContains(t, err, "declare a new resource to rotate")
+	rs.AddSecretSource("alice-key", "/secret", envSecretExpression("UNAVAILABLE_IMPORTED_KEY"), false)
 	rs.Identity.PrincipalAPIKeys[0].Name = new("Renamed imported key")
 	plan, err = p.GeneratePlan(t.Context(), rs, Options{Mode: PlanModeApply})
 	require.NoError(t, err)
 	require.Len(t, plan.Changes, 1)
+	require.Len(t, rs.GetSecretSources("alice-key"), 1)
 	require.Empty(t, plan.Changes[0].SecretWrites)
+	require.NotContains(t, plan.Changes[0].Fields, FieldSecret)
 	require.Equal(t, resources.IdentityAPIKeyImportedType, plan.Changes[0].CreationType)
 	rs.Identity.PrincipalAPIKeys[0].Type = resources.IdentityAPIKeyGeneratedType
 	_, err = p.GeneratePlan(t.Context(), rs, Options{Mode: PlanModeApply})
