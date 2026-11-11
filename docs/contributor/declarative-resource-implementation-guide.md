@@ -7,7 +7,13 @@ signatures and working implementations.
 
 Follow [repository guidance][agents] and the maintainer's task constraints.
 Use [declarative usage][usage] and the [resource reference][reference] for the
-user-facing contract. Imperative commands are separate scope.
+user-facing contract. Resource support defaults to declarative workflows.
+Before adding or expanding imperative writes, including `kongctl create`,
+obtain explicit human approval for the specific command and behavior under the
+[imperative-write approval rule][write-approval]. Declarative resource work
+does not grant that approval.
+
+[write-approval]: ../../AGENTS.md#imperative-write-commands-require-human-approval
 
 ## Start here
 

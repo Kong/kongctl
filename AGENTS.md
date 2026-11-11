@@ -10,6 +10,29 @@ https://developer.konghq.com/kongctl/
 This file provides repository-specific guidance for AI coding agents working
 with the kongctl codebase.
 
+## Imperative write commands require human approval
+
+**Before adding or expanding any imperative write command, obtain explicit
+approval from the human user for that specific command and behavior.** If the
+user has not explicitly requested or approved it, explain the proposed command
+and wait for approval before implementation.
+
+- Resource management defaults to declarative configuration through `plan`,
+  `apply`, and `sync`. Imperative resource writes, including `kongctl create`,
+  are not provided by default when adding support for a resource.
+- This rule covers new commands, subcommands, aliases, flags, or extensions
+  that introduce or expand imperative create, update, patch, delete, or other
+  remote mutation behavior, regardless of the verb used.
+- A request to support an API/resource, achieve SDK parity, implement CRUD,
+  fill test coverage, or follow an existing command pattern is not approval
+  to add imperative writes. Confirm the specific imperative behavior first.
+- Existing token-creation commands, legacy implementations, examples, SDK
+  capabilities, and verb constants do not authorize additional imperative
+  writes. Treat them as existing behavior, not templates for new scope.
+- An explicit human request for the specific imperative command satisfies
+  this requirement; do not ask for the same approval again. Record the approved
+  scope in the PR description when opening a PR.
+
 For declarative resource type implementation work, use
 `docs/contributor/declarative-resource-implementation-guide.md` as the
 primary guide.
@@ -148,7 +171,10 @@ kongctl <verb> [product] <resource-type> [resource-name] [flags]
 Examples:
 - `kongctl get apis` - List all APIs (konnect implied)
 - `kongctl get konnect apis` - List all APIs (explicit)
-- `kongctl delete api my-api` - Delete specific API
+- `kongctl plan -f config.yaml` - Plan declarative resource changes
+
+The verb-noun pattern describes command structure. It does not authorize new
+imperative writes; follow the human-approval rule above.
 
 **Command Implementation Pattern:**
 
@@ -487,7 +513,10 @@ Kongctl is a Go-based CLI built with the following key components:
    - browser-based device authorization flow which handles token storage, refresh, and expiration (kongctl login)
 
 4. **Command Organization**:
-   - Root commands (verbs): get, list, create, delete, login, dump, apply, plan, diff
+   - Read commands include `get` and `list`; declarative workflows include
+     `dump`, `plan`, `diff`, `apply`, and `sync`.
+   - Existing write commands do not establish a default imperative CRUD
+     interface. Follow the human-approval rule above for imperative additions.
    - Product namespaces: konnect, gateway, mesh (defaults to konnect for "Konnect First" approach)
    - Resource types: apis, portals, control-planes, services, routes, etc.
 
