@@ -1645,10 +1645,10 @@ steps:
           - diff
           - --plan
           - '{{ .workdir }}/order-plan.json'
-        outputFormat: disable
+        outputFormat: text
         parseAs: raw
         assertions:
-          - select: '@'
+          - select: stdout
             expect:
               fields:
                 contains(@, 'policy_order'): true
