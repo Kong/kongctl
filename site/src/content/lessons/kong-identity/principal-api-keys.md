@@ -101,7 +101,7 @@ api_keys:
   - ref: support-worker-imported
     type: imported
     name: Imported support automation key
-    secret: !secret {source: !env SUPPORT_API_KEY}
+    secret: !secret { source: !env SUPPORT_API_KEY }
     expires_at: null
 ```
 
