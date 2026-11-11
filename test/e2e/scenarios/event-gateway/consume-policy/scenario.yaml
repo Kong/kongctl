@@ -1546,7 +1546,7 @@ steps:
           - -f
           - '{{ .workdir }}/config.yaml'
         outputFormat: disable
-        stdoutFile: '{{ .workdir }}/order-plan.json'
+        stdoutFile: "{{ .workdir }}/order-plan.json"
       - name: 002-execute-saved-order-plan
         run:
           - apply
@@ -1624,7 +1624,7 @@ steps:
           - -f
           - '{{ .workdir }}/config.yaml'
         outputFormat: disable
-        stdoutFile: '{{ .workdir }}/order-plan.json'
+        stdoutFile: "{{ .workdir }}/order-plan.json"
         assertions:
           - select: summary
             expect:
@@ -1731,7 +1731,7 @@ steps:
           - -f
           - '{{ .workdir }}/config.yaml'
         outputFormat: disable
-        stdoutFile: '{{ .workdir }}/order-plan.json'
+        stdoutFile: "{{ .workdir }}/order-plan.json"
       - name: 002-execute-saved-order-plan
         run:
           - sync
