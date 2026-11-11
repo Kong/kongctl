@@ -5,14 +5,17 @@ import (
 	"fmt"
 	"time"
 	"unicode/utf8"
+
+	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
 const (
 	IdentityAPIKeyCreateTypeKey = "kongctl-create-type" //nolint:gosec // Public metadata key, not credential material.
 	IdentityAPIKeyGeneratedType = "v1"
+	IdentityAPIKeyImportedType  = "imported"
 )
 
-// IdentityAPIKeyFields records generated creation intent. Lifecycle authority
+// IdentityAPIKeyFields records creation intent. Lifecycle authority
 // comes from the current managed parent, never copied namespace/protection.
 type IdentityAPIKeyFields struct {
 	Ref             string     `yaml:"ref"                  json:"ref"`
@@ -22,6 +25,7 @@ type IdentityAPIKeyFields struct {
 	konnectID       string
 	nameDeclared    bool
 	expiresDeclared bool
+	secretDeclared  bool
 }
 
 func (k IdentityAPIKeyFields) GetRef() string                    { return k.Ref }
@@ -42,10 +46,8 @@ func (k IdentityAPIKeyFields) Validate() error {
 	if err := ValidateRef(k.Ref); err != nil {
 		return err
 	}
-	if k.Type != IdentityAPIKeyGeneratedType {
-		return fmt.Errorf(
-			"generated API keys require explicit type: v1; imported keys are outside declarative support",
-		)
+	if k.Type != IdentityAPIKeyGeneratedType && k.Type != IdentityAPIKeyImportedType {
+		return fmt.Errorf("API keys require explicit type: v1 or imported")
 	}
 	if k.Name != nil && (!utf8.ValidString(*k.Name) || utf8.RuneCountInString(*k.Name) > 255) {
 		return fmt.Errorf("API-key name must contain at most 255 UTF-8 characters")
@@ -60,6 +62,7 @@ func (k *IdentityAPIKeyFields) observeFields(data []byte) error {
 	}
 	_, k.nameDeclared = fields["name"]
 	_, k.expiresDeclared = fields["expires_at"]
+	_, k.secretDeclared = fields["secret"]
 	return nil
 }
 
@@ -77,29 +80,30 @@ func (k IdentityAPIKeyFields) marshal(data []byte) ([]byte, error) {
 	return json.Marshal(fields)
 }
 
-// IdentityAPIKeyRef recognizes the generated-key convention without granting
+// IdentityAPIKeyRef recognizes the managed-key convention without granting
 // lifecycle authority. Unknown and legacy maps stay outside this convention.
 func IdentityAPIKeyRef(metadata map[string]string) (string, bool, error) {
 	if metadata[ManagedByToolKey] != ManagedByTool ||
-		metadata[IdentityAPIKeyCreateTypeKey] != IdentityAPIKeyGeneratedType {
+		(metadata[IdentityAPIKeyCreateTypeKey] != IdentityAPIKeyGeneratedType &&
+			metadata[IdentityAPIKeyCreateTypeKey] != IdentityAPIKeyImportedType) {
 		return "", false, nil
 	}
 	if len(metadata) != 4 && len(metadata) != 5 {
-		return "", false, fmt.Errorf("API key has an incompatible generated identity marker shape")
+		return "", false, fmt.Errorf("API key has an incompatible creation identity marker shape")
 	}
 	if namespace, found := metadata[ChildNamespaceKey]; found {
 		if namespace == "" || len(metadata) != 5 {
 			return "", false, fmt.Errorf("API key has invalid independent namespace metadata")
 		}
 	} else if len(metadata) != 4 {
-		return "", false, fmt.Errorf("API key has incompatible generated identity marker shape")
+		return "", false, fmt.Errorf("API key has incompatible creation identity marker shape")
 	}
 	if _, found := metadata[ChildProtectedKey]; found {
 		return "", false, fmt.Errorf("API key has incompatible independent protection metadata")
 	}
 	ref := metadata[ManagedByRefKey]
 	if err := ValidateRef(ref); err != nil || metadata[ManagedByVersionKey] == "" {
-		return "", false, fmt.Errorf("API key has invalid generated identity or creator metadata")
+		return "", false, fmt.Errorf("API key has invalid creation identity or creator metadata")
 	}
 	return ref, true, nil
 }
@@ -107,12 +111,34 @@ func IdentityAPIKeyRef(metadata map[string]string) (string, bool, error) {
 type IdentityPrincipalAPIKeyResource struct {
 	IdentityAPIKeyFields `       yaml:",inline"             json:",inline"`
 	Principal            string       `yaml:"principal,omitempty" json:"principal,omitempty"`
+	Secret               *string      `yaml:"secret,omitempty" json:"secret,omitempty"`
 	Kongctl              *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
 }
 
 type IdentityGroupAPIKeyResource struct {
 	IdentityAPIKeyFields `       yaml:",inline"         json:",inline"`
 	Group                string `yaml:"group,omitempty" json:"group,omitempty"`
+}
+
+func (k IdentityPrincipalAPIKeyResource) Validate() error {
+	if err := k.IdentityAPIKeyFields.Validate(); err != nil {
+		return err
+	}
+	if k.Type == IdentityAPIKeyGeneratedType && (k.Secret != nil || k.secretDeclared) {
+		return fmt.Errorf("generated API keys cannot declare secret")
+	}
+	if k.Type == IdentityAPIKeyImportedType && (k.Secret != nil || k.secretDeclared) &&
+		(k.Secret == nil || !tags.IsSecretPlaceholder(*k.Secret)) {
+		return fmt.Errorf("imported API-key secret requires !secret with a deferred source")
+	}
+	return nil
+}
+
+func (k IdentityGroupAPIKeyResource) Validate() error {
+	if k.Type == IdentityAPIKeyImportedType {
+		return fmt.Errorf("imported group API keys are unsupported: the API does not retain the initial name")
+	}
+	return k.IdentityAPIKeyFields.Validate()
 }
 
 func (k *IdentityPrincipalAPIKeyResource) UnmarshalJSON(data []byte) error {
@@ -248,7 +274,15 @@ func init() {
 		AutoExplain[IdentityPrincipalAPIKeyResource](
 			WithExplainAliases("identity.principal_api_keys", "principal-api-key", "principal-api-keys"),
 			WithExplainRecommendedFields("ref", "principal", "type"),
-			WithExplainFieldHint("type", ExplainFieldHint{Enum: []any{IdentityAPIKeyGeneratedType}}),
+			WithExplainFieldHint("type", ExplainFieldHint{
+				Enum:  []any{IdentityAPIKeyGeneratedType, IdentityAPIKeyImportedType},
+				Notes: []string{"Immutable creation type. Imported keys use user-supplied material; v1 keys generate it."},
+			}),
+			WithExplainFieldHint("secret", ExplainFieldHint{PreferredTag: "!secret", Notes: []string{
+				"Imported keys only: deferred !secret source required on creation, optional for existing managed keys.",
+				"Create-only; rotation requires a new key/ref and explicit retirement. No --write-secrets or capture required.",
+				"Dumps omit material and its source. This key type is independent of imported principal provisioning.",
+			}}),
 			WithExplainFieldHint(
 				"expires_at",
 				ExplainFieldHint{
@@ -261,11 +295,14 @@ func init() {
 		WithManagedBy(ManagedByPolicy{
 			MaxEntries: 5, PersistsRef: true, PersistsNamespace: true, CreateOnly: true,
 			CreationValues: map[string]string{IdentityAPIKeyCreateTypeKey: IdentityAPIKeyGeneratedType},
+			CreationValueOptions: map[string][]string{
+				IdentityAPIKeyCreateTypeKey: {IdentityAPIKeyGeneratedType, IdentityAPIKeyImportedType},
+			},
 		}),
 		WithChildSyncScope(ResourceTypeIdentityPrincipal),
 		withReferenceValidation(111),
 		WithExternalUnsupportedReason(
-			"API-key adoption is unavailable; declare generated keys under a managed or external principal",
+			"API-key adoption is unavailable; declare keys under a managed or external principal",
 		),
 		withChildLoad(ResourceTypeIdentityPrincipalAPIKey, ensurePrincipalAPIKeySlice,
 			childLoad[IdentityPrincipalAPIKeyResource, IdentityPrincipalResource]{

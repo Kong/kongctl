@@ -60,7 +60,7 @@ namespace `identity-guide`. A namespace is a KongCTL management boundary,
 not a directory or an access-control permission.
 
 The explicit `type` classifies each principal as `user` or `agent`; it does
-not grant either one permissions. Keep it unchanged after creation. `ref` is
+not grant either one permissions. Type is immutable after creation. `ref` is
 the stable local identifier; `display_name` is human-facing and is not unique.
 The `metadata.role` values are application data that the later AI Gateway
 quickstart will explicitly use in an access rule. Metadata alone grants nothing.

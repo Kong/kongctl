@@ -36,9 +36,13 @@ func collectIdentityAPIKeys(ctx context.Context, d *declarativeDumpContext, kind
 		}
 		seen[ref] = true
 		value := indexed[ref]
+		if kind == resources.ResourceTypeIdentityGroupAPIKey &&
+			value.ManagedBy[resources.IdentityAPIKeyCreateTypeKey] == resources.IdentityAPIKeyImportedType {
+			return nil, fmt.Errorf("imported group API keys are outside declarative support")
+		}
 		fields := resources.IdentityAPIKeyFields{
 			Ref:       ref,
-			Type:      resources.IdentityAPIKeyGeneratedType,
+			Type:      value.ManagedBy[resources.IdentityAPIKeyCreateTypeKey],
 			Name:      value.Name,
 			ExpiresAt: value.ExpiresAt,
 		}
@@ -79,7 +83,8 @@ func collectExternalPrincipalAPIKeys(ctx context.Context, d *declarativeDumpCont
 		seen[ref] = true
 		key := resources.IdentityPrincipalAPIKeyResource{
 			IdentityAPIKeyFields: resources.IdentityAPIKeyFields{
-				Ref: ref, Type: resources.IdentityAPIKeyGeneratedType, Name: value.Name, ExpiresAt: value.ExpiresAt,
+				Ref: ref, Type: value.ManagedBy[resources.IdentityAPIKeyCreateTypeKey],
+				Name: value.Name, ExpiresAt: value.ExpiresAt,
 			},
 			Kongctl: &resources.KongctlMeta{Namespace: new(namespace)},
 		}

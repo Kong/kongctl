@@ -146,3 +146,33 @@ func TestCreateOnlyIdentityRegistrationValidatesCapacityAndReservedKeys(t *testi
 		MaxEntries: 4, PersistsRef: true, CreateOnly: true,
 	})(&ownerless), "namespace participation or a namespace owner")
 }
+
+func TestPrincipalAPIKeyCreationMarkersRetainReviewedTypes(t *testing.T) {
+	for _, creationType := range []string{IdentityAPIKeyGeneratedType, IdentityAPIKeyImportedType} {
+		for _, namespace := range []string{"", "external-team"} {
+			metadata := map[string]string{
+				ManagedByRefKey: "primary", IdentityAPIKeyCreateTypeKey: creationType,
+			}
+			if namespace != "" {
+				metadata[ChildNamespaceKey] = namespace
+			}
+			prepared, err := PrepareManagedBy(ResourceTypeIdentityPrincipalAPIKey, metadata, "creator")
+			require.NoError(t, err)
+			require.Equal(t, creationType, prepared[IdentityAPIKeyCreateTypeKey])
+			require.Equal(t, namespace, prepared[ChildNamespaceKey])
+			ref, owned, err := IdentityAPIKeyRef(prepared)
+			require.NoError(t, err)
+			require.True(t, owned)
+			require.Equal(t, "primary", ref)
+		}
+	}
+	_, err := PrepareManagedBy(ResourceTypeIdentityPrincipalAPIKey, map[string]string{
+		ManagedByRefKey: "primary", IdentityAPIKeyCreateTypeKey: "unsupported",
+	}, "creator")
+	require.ErrorContains(t, err, "unsupported creation metadata")
+	// Existing generated plans can omit the creation marker before stamping.
+	prepared, err := PrepareManagedBy(ResourceTypeIdentityPrincipalAPIKey,
+		map[string]string{ManagedByRefKey: "primary"}, "creator")
+	require.NoError(t, err)
+	require.Equal(t, IdentityAPIKeyGeneratedType, prepared[IdentityAPIKeyCreateTypeKey])
+}

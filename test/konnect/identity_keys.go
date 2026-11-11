@@ -116,6 +116,9 @@ func (a *APIKeyHTTP) Do(request *http.Request) (*http.Response, error) {
 			a.Keys = make(map[string][]helpers.IdentityAPIKey)
 		}
 		a.Keys[collection] = append(values, value)
+		if a.Failure == "post-uncertain" {
+			return nil, fmt.Errorf("fixture-private-material: transport failed after issuance")
+		}
 		data, err = json.Marshal(value)
 		if err != nil {
 			return nil, err
@@ -125,6 +128,9 @@ func (a *APIKeyHTTP) Do(request *http.Request) (*http.Response, error) {
 			return nil, err
 		}
 		issued["secret"] = "fixture-private-material"
+		if body["type"] == "imported" {
+			issued["secret"] = body["secret"]
+		}
 		return a.response(request, http.StatusCreated, issued)
 	}
 	for i := range values {

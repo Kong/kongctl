@@ -9,6 +9,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/util"
 )
 
@@ -67,14 +68,14 @@ func (a *identityAPIKeyAdapter) validateContext(change *planner.PlannedChange) e
 }
 
 func (a *identityAPIKeyAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionContext, fields map[string]any,
-	request *kkComps.CreatePrincipalKeyBodyv1,
+	request *kkComps.CreatePrincipalKeyBody,
 ) error {
 	if execCtx == nil {
 		return fmt.Errorf("API-key create requires an execution context")
 	}
 	for field, value := range fields {
 		if field != planner.FieldType && field != planner.FieldManagedBy && field != planner.FieldName &&
-			field != planner.FieldExpiresAt {
+			field != planner.FieldExpiresAt && field != planner.FieldSecret {
 			return fmt.Errorf("unsupported API-key create field %q", field)
 		}
 		if value == nil && field != planner.FieldExpiresAt && field != planner.FieldName {
@@ -88,24 +89,41 @@ func (a *identityAPIKeyAdapter) MapCreateFields(_ context.Context, execCtx *Exec
 	if err := json.Unmarshal(data, request); err != nil {
 		return fmt.Errorf("invalid API-key create payload")
 	}
-	if fields[planner.FieldType] != "v1" {
-		return fmt.Errorf("declarative API keys require type v1")
+	creationType, _ := fields[planner.FieldType].(string)
+	if creationType == resources.IdentityAPIKeyImportedType && a.kind != resources.ResourceTypeIdentityPrincipalAPIKey {
+		return fmt.Errorf("imported group API keys are unsupported")
 	}
-	ref, owned, err := resources.IdentityAPIKeyRef(request.ManagedBy)
+	var metadata map[string]string
+	var name *string
+	if request.CreatePrincipalKeyBodyImported != nil {
+		metadata, name = request.CreatePrincipalKeyBodyImported.ManagedBy, request.CreatePrincipalKeyBodyImported.Name
+		if err := helpers.ValidateImportedIdentityAPIKeySecret(request.CreatePrincipalKeyBodyImported.Secret); err != nil {
+			return err
+		}
+	} else if request.CreatePrincipalKeyBodyv1 != nil {
+		if _, present := fields[planner.FieldSecret]; present {
+			return fmt.Errorf("generated API keys cannot declare secret")
+		}
+		metadata, name = request.CreatePrincipalKeyBodyv1.ManagedBy, request.CreatePrincipalKeyBodyv1.Name
+	} else {
+		return fmt.Errorf("API keys require type v1 or imported")
+	}
+	ref, owned, err := resources.IdentityAPIKeyRef(metadata)
 	if err != nil {
 		return err
 	}
-	if !owned || ref != execCtx.PlannedChange.ResourceRef {
-		return fmt.Errorf("API-key create requires its canonical generated identity markers")
+	if !owned || ref != execCtx.PlannedChange.ResourceRef ||
+		metadata[resources.IdentityAPIKeyCreateTypeKey] != creationType {
+		return fmt.Errorf("API-key create requires its canonical creation identity markers")
 	}
 	wantNamespace := ""
 	if execCtx.PlannedChange.ProtectingParent == nil && a.kind == resources.ResourceTypeIdentityPrincipalAPIKey {
 		wantNamespace = execCtx.PlannedChange.Namespace
 	}
-	if request.ManagedBy[resources.ChildNamespaceKey] != wantNamespace {
+	if metadata[resources.ChildNamespaceKey] != wantNamespace {
 		return fmt.Errorf("API-key ownership namespace differs from the planned authority")
 	}
-	declaration := resources.IdentityAPIKeyFields{Ref: ref, Type: request.GetType(), Name: request.Name}
+	declaration := resources.IdentityAPIKeyFields{Ref: ref, Type: creationType, Name: name}
 	return declaration.Validate()
 }
 
@@ -207,7 +225,7 @@ func (a *identityAPIKeyAdapter) current(
 	if value == nil {
 		for _, other := range all {
 			if other.ID == id {
-				return nil, fmt.Errorf("API-key UUID no longer matches the planned generated identity")
+				return nil, fmt.Errorf("API-key UUID no longer matches the planned creation identity")
 			}
 		}
 		return nil, nil
@@ -228,6 +246,13 @@ func (a *identityAPIKeyAdapter) current(
 	}
 	if !owned || ref != execCtx.PlannedChange.ResourceRef {
 		return nil, fmt.Errorf("API-key identity markers changed; regenerate the plan")
+	}
+	wantType := execCtx.PlannedChange.CreationType
+	if wantType == "" {
+		wantType = resources.IdentityAPIKeyGeneratedType
+	}
+	if fresh.ManagedBy[resources.IdentityAPIKeyCreateTypeKey] != wantType {
+		return nil, fmt.Errorf("API-key creation type changed; regenerate the plan")
 	}
 	if fresh.ManagedBy[resources.ChildNamespaceKey] != value.ManagedBy[resources.ChildNamespaceKey] {
 		return nil, fmt.Errorf("API-key namespace changed; regenerate the plan")
@@ -254,7 +279,7 @@ func (a *identityAPIKeyAdapter) GetByID(
 	return value, nil
 }
 
-func (a *identityAPIKeyAdapter) Create(ctx context.Context, request kkComps.CreatePrincipalKeyBodyv1,
+func (a *identityAPIKeyAdapter) Create(ctx context.Context, request kkComps.CreatePrincipalKeyBody,
 	_ string, execCtx *ExecutionContext,
 ) (string, error) {
 	directory, parent, err := a.parent(ctx, execCtx)
@@ -272,9 +297,13 @@ func (a *identityAPIKeyAdapter) Create(ctx context.Context, request kkComps.Crea
 	if value != nil {
 		return "", fmt.Errorf("API-key ref already exists; regenerate the plan instead of reissuing material")
 	}
-	output, err := a.executor.initialClientOutput(execCtx.PlannedChange)
-	if err != nil {
-		return "", err
+	var output generatedClientOutput
+	if request.CreatePrincipalKeyBodyv1 != nil {
+		reserved, err := a.executor.initialClientOutput(execCtx.PlannedChange)
+		if err != nil {
+			return "", err
+		}
+		output = *reserved
 	}
 	created, err := a.client.CreateIdentityAPIKey(ctx, a.kind, directory, parent, request, output.file, output.metadata)
 	if err != nil {
@@ -290,7 +319,7 @@ func (a *identityAPIKeyAdapter) Create(ctx context.Context, request kkComps.Crea
 	}
 	if value == nil || value.ID != created.ID {
 		return "", fmt.Errorf(
-			"created API-key identity is inconsistent; material was captured; inspect before retrying",
+			"created API-key identity is inconsistent; inspect before retrying",
 		)
 	}
 	return created.ID, nil
@@ -332,7 +361,7 @@ func (a *identityAPIKeyAdapter) Delete(ctx context.Context, id string, execCtx *
 }
 
 type identityAPIKeyExecutor struct {
-	*BaseExecutor[kkComps.CreatePrincipalKeyBodyv1, kkComps.UpdatePrincipalKeyBody]
+	*BaseExecutor[kkComps.CreatePrincipalKeyBody, kkComps.UpdatePrincipalKeyBody]
 	adapter *identityAPIKeyAdapter
 }
 

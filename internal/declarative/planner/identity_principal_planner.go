@@ -155,7 +155,7 @@ func (p *identityDirectoryPlanner) planPrincipals(ctx context.Context, config *C
 				// Type changes require verified API support; see contributor/kong-identity.md.
 				if plan.Metadata.Mode != PlanModeDelete && value.TypeDeclared() &&
 					!principalTypeEqual(current.Type, value.Type) {
-					return fmt.Errorf("principal %q type is create-only pending API question Q9", value.Ref)
+					return fmt.Errorf("principal %q type is immutable after creation", value.Ref)
 				}
 			}
 			desired = append(

@@ -3,6 +3,7 @@ package resources
 import (
 	"fmt"
 	"maps"
+	"slices"
 )
 
 const (
@@ -46,6 +47,8 @@ type ManagedByPolicy struct {
 	// CreationValues records fixed creation intent not otherwise observable.
 	// These fields do not supply namespace or protection authority.
 	CreationValues map[string]string
+	// CreationValueOptions allows reviewed alternatives to a fixed creation value.
+	CreationValueOptions map[string][]string
 }
 
 // WithManagedBy opts a resource into shared tool/version writing. Existing
@@ -83,6 +86,12 @@ func WithManagedBy(policy ManagedByPolicy) ResourceRegistrationOption {
 				return fmt.Errorf("creation metadata cannot override reserved management keys")
 			}
 		}
+		for key, values := range policy.CreationValueOptions {
+			value, exists := policy.CreationValues[key]
+			if !exists || !slices.Contains(values, value) {
+				return fmt.Errorf("creation value options require a registered default")
+			}
+		}
 		minimum := 2 + len(policy.CreationValues)
 		if policy.PersistsRef {
 			minimum++
@@ -103,6 +112,10 @@ func WithManagedBy(policy ManagedByPolicy) ResourceRegistrationOption {
 			return fmt.Errorf("managed_by capability already registered")
 		}
 		policy.CreationValues = maps.Clone(policy.CreationValues)
+		policy.CreationValueOptions = maps.Clone(policy.CreationValueOptions)
+		for key, values := range policy.CreationValueOptions {
+			policy.CreationValueOptions[key] = slices.Clone(values)
+		}
 		ops.managedBy = &policy
 		return nil
 	}
@@ -128,6 +141,15 @@ func PrepareManagedBy(kind ResourceType, metadata map[string]string, version str
 	}
 	ref := metadata[ManagedByRefKey]
 	namespace := metadata[ChildNamespaceKey]
+	creationValues := maps.Clone(policy.CreationValues)
+	for key, options := range policy.CreationValueOptions {
+		if value, present := metadata[key]; present {
+			if !slices.Contains(options, value) {
+				return nil, fmt.Errorf("unsupported creation metadata value for %s", key)
+			}
+			creationValues[key] = value
+		}
+	}
 	if !UsesManagedByOwnership(kind) {
 		metadata = nil
 	}
@@ -143,7 +165,7 @@ func PrepareManagedBy(kind ResourceType, metadata map[string]string, version str
 		}
 		result[ManagedByRefKey] = ref
 	}
-	maps.Copy(result, policy.CreationValues)
+	maps.Copy(result, creationValues)
 	if err := ValidateManagedBy(result, *policy); err != nil {
 		return nil, err
 	}

@@ -229,7 +229,7 @@ func TestPrincipalTypeCompatibilityAndProtection(t *testing.T) {
 			d.DeclareUnclassified()
 		}
 		_, err := principalPlan(t, api, []resources.IdentityPrincipalResource{d}, PlanModeApply, true)
-		require.ErrorContains(t, err, "Q9")
+		require.ErrorContains(t, err, "type is immutable after creation")
 	}
 	d := principalDesired()
 	d.Type = nil

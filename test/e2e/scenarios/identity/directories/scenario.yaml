@@ -368,7 +368,7 @@ steps:
           - "apply"
         expectFailure:
           "exitCode": 1
-          "contains": "Q9"
+          "contains": "type is immutable after creation"
         "outputFormat": "disable"
       -
         "name": "principal-reject-type-null"
@@ -380,7 +380,7 @@ steps:
           - "apply"
         expectFailure:
           "exitCode": 1
-          "contains": "Q9"
+          "contains": "type is immutable after creation"
         "outputFormat": "disable"
       -
         "name": "principal-active-lifecycle"

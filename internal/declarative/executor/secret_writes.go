@@ -7,6 +7,7 @@ import (
 
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/tags"
+	"github.com/kong/kongctl/internal/konnect/helpers"
 )
 
 func (e *Executor) preflightSecretWrites(plan *planner.Plan) error {
@@ -27,6 +28,11 @@ func (e *Executor) preflightSecretWrites(plan *planner.Plan) error {
 			if err != nil {
 				return fmt.Errorf("failed to resolve secret source for %s %q field %s: %w",
 					change.ResourceType, change.ResourceRef, intent.Field, err)
+			}
+			if change.ResourceType == planner.ResourceTypeIdentityPrincipalAPIKey && intent.Field == "/secret" {
+				if err := helpers.ValidateImportedIdentityAPIKeySecret(value); err != nil {
+					return fmt.Errorf("invalid imported API-key material for %q: %w", change.ResourceRef, err)
+				}
 			}
 			if resolved[change.ID] == nil {
 				resolved[change.ID] = make(map[string]string)

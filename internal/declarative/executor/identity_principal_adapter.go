@@ -180,10 +180,10 @@ func (a *IdentityPrincipalAdapter) Update(ctx context.Context, id string, reques
 	if err := helpers.ValidatePrincipalActiveUpdate(current.IdentityPrincipal, request.Active); err != nil {
 		return "", err
 	}
-	// Q9: reject saved-plan type changes as well as planner-generated ones.
+	// Reject immutable type changes in saved plans as well as planner-generated ones.
 	if value, present := execCtx.PlannedChange.Fields[planner.FieldType]; present {
 		if current.Type == nil || value != string(*current.Type) {
-			return "", fmt.Errorf("principal type is create-only pending API question Q9")
+			return "", fmt.Errorf("principal type is immutable after creation")
 		}
 	}
 	full := helpers.IdentityPrincipalReplacement(current.IdentityPrincipal)

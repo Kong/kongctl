@@ -113,7 +113,7 @@ func (c *Client) GetIdentityAPIKey(
 }
 
 func (c *Client) CreateIdentityAPIKey(ctx context.Context, kind resources.ResourceType, directory, parent string,
-	request kkComps.CreatePrincipalKeyBodyv1, capture *secretoutput.File, local secretoutput.Metadata,
+	request kkComps.CreatePrincipalKeyBody, capture *secretoutput.File, local secretoutput.Metadata,
 ) (*IdentityAPIKey, error) {
 	if err := stampManagedByRequest(ctx, kind, &request); err != nil {
 		return nil, err
@@ -122,9 +122,19 @@ func (c *Client) CreateIdentityAPIKey(ctx context.Context, kind resources.Resour
 	if err != nil {
 		return nil, err
 	}
-	value, err := client.CreateWithReservedCapture(ctx, helpers.IdentityAPIKeyCreate{
-		Name: request.Name, ExpiresAt: request.ExpiresAt, ManagedBy: request.ManagedBy,
-	}, capture, local)
+	var options helpers.IdentityAPIKeyCreate
+	if imported := request.CreatePrincipalKeyBodyImported; imported != nil {
+		options = helpers.IdentityAPIKeyCreate{
+			Name: imported.Name, Secret: &imported.Secret, ExpiresAt: imported.ExpiresAt, ManagedBy: imported.ManagedBy,
+		}
+	} else if generated := request.CreatePrincipalKeyBodyv1; generated != nil {
+		options = helpers.IdentityAPIKeyCreate{
+			Name: generated.Name, ExpiresAt: generated.ExpiresAt, ManagedBy: generated.ManagedBy,
+		}
+	} else {
+		return nil, fmt.Errorf("API-key creation requires a generated or imported request")
+	}
+	value, err := client.CreateWithReservedCapture(ctx, options, capture, local)
 	if err != nil {
 		return nil, err
 	}

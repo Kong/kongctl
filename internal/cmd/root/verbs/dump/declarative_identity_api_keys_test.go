@@ -18,7 +18,13 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-func TestGeneratedAPIKeyDumpRoundTripUsesParentAuthorityAndCreationMarkers(t *testing.T) {
+func TestAPIKeyDumpRoundTripUsesParentAuthorityAndCreationMarkers(t *testing.T) {
+	for _, creationType := range []string{resources.IdentityAPIKeyGeneratedType, resources.IdentityAPIKeyImportedType} {
+		t.Run(creationType, func(t *testing.T) { testAPIKeyDumpRoundTrip(t, creationType) })
+	}
+}
+
+func testAPIKeyDumpRoundTrip(t *testing.T, creationType string) {
 	directory := fixture.Directory("default", "", false)
 	principal := kkComps.KongPrincipal{
 		ID: "5078f559-063b-4f10-9098-9e6553b21d9b", Type: new(kkComps.KongPrincipalTypeUser),
@@ -36,6 +42,9 @@ func TestGeneratedAPIKeyDumpRoundTripUsesParentAuthorityAndCreationMarkers(t *te
 				resources.ManagedByToolKey: resources.ManagedByTool, resources.ManagedByVersionKey: "creator",
 				resources.ManagedByRefKey: parent.ref, resources.IdentityAPIKeyCreateTypeKey: "v1",
 			}, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC(),
+		}
+		if i == 0 {
+			key.ManagedBy[resources.IdentityAPIKeyCreateTypeKey] = creationType
 		}
 		if i == 1 {
 			key.ExpiresAt = new(time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC))
@@ -66,7 +75,7 @@ func TestGeneratedAPIKeyDumpRoundTripUsesParentAuthorityAndCreationMarkers(t *te
 	require.Len(t, declaration.Principals[0].APIKeys, 1)
 	require.Len(t, declaration.Groups[0].APIKeys, 1)
 	require.Equal(t, "worker-key", declaration.Principals[0].APIKeys[0].Ref)
-	require.Equal(t, "v1", declaration.Principals[0].APIKeys[0].Type)
+	require.Equal(t, creationType, declaration.Principals[0].APIKeys[0].Type)
 	require.True(t, declaration.Principals[0].APIKeys[0].ExpirationDeclared())
 	require.Nil(t, declaration.Principals[0].APIKeys[0].ExpiresAt)
 	data, err := yaml.Marshal(rs)
@@ -82,6 +91,12 @@ func TestGeneratedAPIKeyDumpRoundTripUsesParentAuthorityAndCreationMarkers(t *te
 		GeneratePlan(t.Context(), loaded, planner.Options{Mode: planner.PlanModeApply})
 	require.NoError(t, err)
 	require.Empty(t, plan.Changes)
+	if creationType == resources.IdentityAPIKeyImportedType {
+		api.Keys["/v2/directories/"+directory.ID+"/principals/"+principal.ID+"/api-keys"] = nil
+		_, err = planner.NewPlanner(client, slog.Default()).
+			GeneratePlan(t.Context(), loaded, planner.Options{Mode: planner.PlanModeApply})
+		require.ErrorContains(t, err, "creation requires secret: !secret")
+	}
 }
 
 func TestExternalImportedPrincipalKeyDumpRoundTrip(t *testing.T) {
@@ -95,8 +110,9 @@ func TestExternalImportedPrincipalKeyDumpRoundTrip(t *testing.T) {
 		ID: "6078f559-063b-4f10-9098-9e6553b21d9b", Name: new("Employee key"),
 		ManagedBy: map[string]string{
 			resources.ManagedByToolKey: "kongctl", resources.ManagedByVersionKey: "creator",
-			resources.ManagedByRefKey: "employee-key", resources.IdentityAPIKeyCreateTypeKey: "v1",
-			resources.ChildNamespaceKey: "workforce-access",
+			resources.ManagedByRefKey:             "employee-key",
+			resources.IdentityAPIKeyCreateTypeKey: resources.IdentityAPIKeyImportedType,
+			resources.ChildNamespaceKey:           "workforce-access",
 		}, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC(),
 	}}}}
 	sdk := api.SDK()
@@ -115,6 +131,7 @@ func TestExternalImportedPrincipalKeyDumpRoundTrip(t *testing.T) {
 	p := rs.Identity.Directories[0].Principals[0]
 	require.True(t, p.IsExternal())
 	require.Len(t, p.APIKeys, 1)
+	require.Equal(t, resources.IdentityAPIKeyImportedType, p.APIKeys[0].Type)
 	require.Equal(t, "workforce-access", resources.GetNamespace(p.APIKeys[0].Kongctl))
 	data, err := yaml.Marshal(rs)
 	require.NoError(t, err)

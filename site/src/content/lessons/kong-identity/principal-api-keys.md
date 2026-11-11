@@ -92,6 +92,37 @@ Expect one key, a null expiration and no configuration changes. Key ownership
 uses its generated management metadata and parent authority. A nonunique
 human-facing key name is not the declarative lookup identity.
 
+## Supply an existing secret instead
+
+For `identity_principal_api_key`, use `type: imported` and a deferred source:
+
+```yaml
+api_keys:
+  - ref: support-worker-imported
+    type: imported
+    name: Imported support automation key
+    secret: !secret { source: !env SUPPORT_API_KEY }
+    expires_at: null
+```
+
+Set the environment variable before execution. Existing deferred file sources
+and parts expressions also work. Planning stores the expression without reading
+material; apply resolves it before remote writes. Imported creation requires
+neither `--write-secrets` nor `--secret-output-dir`.
+
+The secret is create-only. Reapply preserves it; changing the source value does
+not rotate it. Existing managed imported keys may omit `secret` for metadata
+updates. Bulk `--write-secrets` skips existing material with a warning; explicit
+`--write-secret support-worker-imported#secret` fails with rotation guidance.
+To rotate, add a new key/ref, apply, switch applications, verify access, and
+explicitly retire the old key through a reviewed scoped sync deletion.
+
+Dumps include only creation type and public metadata. They can manage an
+existing key, but recreation requires supplying `!secret` again. Imported keys
+can belong to ordinary principals or external imported principals; those are
+separate concepts. Imported group keys remain unsupported because the API
+loses their initial name.
+
 ## Continue
 
 The key is not useful against arbitrary services by itself. Continue to

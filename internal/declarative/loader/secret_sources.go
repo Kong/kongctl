@@ -18,6 +18,11 @@ func (l *Loader) collectSecretSources(actual, placeholder *resources.ResourceSet
 		resourceRef := resource.GetRef()
 		return walkConfiguredStrings(reflect.ValueOf(resource), nil, func(path, value string) (bool, error) {
 			capability, supported := secrets.Match(resource.GetType(), path)
+			if resource.GetType() == resources.ResourceTypeIdentityPrincipalAPIKey && path == "/secret" &&
+				!tags.IsSecretPlaceholder(value) {
+				return false, fmt.Errorf("resource %s %q field /secret requires !secret with a deferred source",
+					resource.GetType(), resourceRef)
+			}
 			if tags.IsSecretPlaceholder(value) {
 				if !supported {
 					return false, fmt.Errorf(

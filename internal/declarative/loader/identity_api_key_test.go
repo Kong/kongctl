@@ -87,7 +87,10 @@ func TestGeneratedKeysLoadInheritedAuthorityAndNullableExpiration(t *testing.T) 
 func TestGeneratedKeysRejectUnsupportedDeclarations(t *testing.T) {
 	for _, change := range []struct{ name, old, next string }{
 		{"missing-type", "              type: v1\n", ""},
-		{"imported-type", "              type: v1", "              type: imported"},
+		{
+			"imported-group", "            - ref: operators-primary\n              type: v1",
+			"            - ref: operators-primary\n              type: imported",
+		},
 		{"material", "name: Worker primary", "secret: private-value"},
 		{"ownership", "name: Worker primary", "managed_by: {tool: kongctl}"},
 		{"independent-namespace", "name: Worker primary", "kongctl: {namespace: other}"},

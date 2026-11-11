@@ -80,6 +80,12 @@ func validateChangeCompatibility(change *PlannedChange) error {
 			return fmt.Errorf("metadata_merge requires an explicit metadata patch")
 		}
 	}
+	if change.ResourceType == ResourceTypeIdentityPrincipalAPIKey ||
+		change.ResourceType == ResourceTypeIdentityGroupAPIKey {
+		if err := validateAPIKeySecretContract(change); err != nil {
+			return err
+		}
+	}
 	switch change.Action {
 	case ActionCreate, ActionUpdate, ActionDelete:
 		if change.ResourceType == ResourceTypeDeck && change.Action != ActionCreate {
@@ -94,6 +100,46 @@ func validateChangeCompatibility(change *PlannedChange) error {
 	}
 
 	return validateRoutingBoundary(change)
+}
+
+func validateAPIKeySecretContract(change *PlannedChange) error {
+	if _, exists := change.Fields[FieldSecret]; exists {
+		return fmt.Errorf("API-key plans must retain only a deferred /secret expression, never material")
+	}
+	creationType := change.CreationType
+	if creationType == "" {
+		creationType = resources.IdentityAPIKeyGeneratedType
+	}
+	if creationType != resources.IdentityAPIKeyGeneratedType && creationType != resources.IdentityAPIKeyImportedType {
+		return fmt.Errorf("unsupported API-key creation type")
+	}
+	if change.Action == ActionCreate && change.Fields[FieldType] != creationType {
+		return fmt.Errorf("API-key creation type differs from the planned context")
+	}
+	if creationType == resources.IdentityAPIKeyImportedType && change.ResourceType == ResourceTypeIdentityGroupAPIKey {
+		return fmt.Errorf("imported group API keys are unsupported")
+	}
+	if change.Action != ActionCreate || creationType != resources.IdentityAPIKeyImportedType {
+		if len(change.SecretWrites) != 0 {
+			return fmt.Errorf("API-key secret material is create-only for imported principal keys; " +
+				"declare a new key/ref to rotate it")
+		}
+		return nil
+	}
+	if len(change.SecretWrites) != 1 || change.SecretWrites[0].Field != "/secret" {
+		return fmt.Errorf("imported API-key creation requires a deferred /secret expression")
+	}
+	hasSource := false
+	for _, part := range change.SecretWrites[0].Expression.Parts {
+		if (part.Source == nil) == (part.Literal == nil) {
+			return fmt.Errorf("invalid imported API-key secret expression")
+		}
+		hasSource = hasSource || part.Source != nil
+	}
+	if !hasSource {
+		return fmt.Errorf("imported API-key secret expression requires a deferred source")
+	}
+	return nil
 }
 
 func validateRoutingBoundary(change *PlannedChange) error {

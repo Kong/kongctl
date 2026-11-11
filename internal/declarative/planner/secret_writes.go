@@ -239,6 +239,16 @@ func validateSecretWriteSelection(
 
 	for _, selector := range selectors {
 		if !selector.matched {
+			resource, _ := rs.GetResourceByRef(selector.resourceRef)
+			if key, ok := resource.(*resources.IdentityPrincipalAPIKeyResource); ok &&
+				key.Type == resources.IdentityAPIKeyImportedType && key.GetKonnectID() != "" &&
+				(selector.field == "" || secretFieldSelectorMatches(selector.field, "/secret")) {
+				problems = append(problems, fmt.Sprintf(
+					"resource %s %q field /secret is create-only; declare a new resource to rotate it",
+					key.GetType(), key.GetRef(),
+				))
+				continue
+			}
 			problems = append(problems, fmt.Sprintf(
 				"--write-secret selector %q did not match a configured write-only field",
 				formatSecretSelector(selector),
