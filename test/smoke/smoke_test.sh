@@ -297,7 +297,7 @@ PYTEST
 test_fault_is_rejected() {
   local fault="$1" check="$2" mode="${3:---yes}"
   local resources="${4:-api,portal,control_plane,ai_gateway,event_gateway}"
-  new_case "$fault"
+  new_case "${fault}-${resources//,/-}"
   export FAKE_FAULT="$fault"
   run_smoke "$mode" --resources "$resources"
   unset FAKE_FAULT
@@ -306,6 +306,11 @@ test_fault_is_rejected() {
     "any(c['name'] == '$check' and c['status'] == 'failed' for c in value['checks'])" \
     "$fault fails at the expected check"
   assert_json "$FAKE_STATE" "value == {}" "$fault leaves no resources"
+  if [[ "$fault" == "adoption-readback-failure" ]]; then
+    assert_json "$RUN_DIR/report.json" \
+      "any(c['name'] == 'adopt-restore-${resources}-cleanup' and c['status'] == 'passed' for c in value['checks'])" \
+      "failed adoption readback restores ownership before deletion"
+  fi
   pass "$fault is rejected"
 }
 
@@ -401,6 +406,12 @@ test_prompt_refusal_is_non_mutating
 test_scaffold_contract_failure_is_safe
 test_default_ai_gateway_23_lifecycle
 test_fault_is_rejected bad-adoption-preview adopt-preview-portal --yes portal
+test_fault_is_rejected bad-adoption-preview-file adopt-preview-portal --yes portal
+test_fault_is_rejected bad-adoption-preview-file adopt-preview-ai_gateway --yes ai_gateway
+test_fault_is_rejected skipped-adoption-write adopt-owner-portal-moved --yes portal
+test_fault_is_rejected skipped-adoption-write adopt-owner-ai_gateway-moved --yes ai_gateway
+test_fault_is_rejected adoption-readback-failure adopt-owner-portal-moved --yes portal
+test_fault_is_rejected adoption-readback-failure adopt-owner-ai_gateway-moved --yes ai_gateway
 test_fault_is_rejected bad-list list-api-quick --quick
 test_fault_is_rejected lost-tags patch-preserves-tags --quick
 test_fault_is_rejected false-zero plan-zero-api-updated-apply

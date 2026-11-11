@@ -1355,6 +1355,10 @@ check_child_transition() {
 best_effort_cleanup_resource() {
   local key="$1"
   "load_resource_${key}"
+  if ! restore_adoption_ownership; then
+    cleanup_failed="true"
+    return
+  fi
   start_check "cleanup-${key}" "$key" "cleanup"
   run_kongctl delete -f "$resource_updated" --require-namespace "$resource_namespace" --auto-approve -o json
   if [[ "$current_exit" -eq 0 ]]; then

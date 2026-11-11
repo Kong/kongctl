@@ -402,21 +402,31 @@ elif args[:1] == ["adopt"]:
         change.update(before={namespace_key: item["_namespace"]}, after={namespace_key: namespace})
         if child:
             change["parent"] = {"gateway_id": "ai_gateway-id"}
-    output = pathlib.Path(option("--declarative-output"))
+    output = option("--declarative-output")
+    file_namespace = namespace
+    if dry_run and os.environ.get("FAKE_FAULT") == "bad-adoption-preview-file":
+        file_namespace = item["_namespace"]
     if child:
         models = json.loads(json.dumps(item["models"]))
         for model in models:
             model["ai_gateway"] = "gateway"
-            model["kongctl"] = {"namespace": namespace, "protected": False}
+            model["kongctl"] = {"namespace": file_namespace, "protected": False}
         text = json.dumps({"ai_gateways": [{"ref": "gateway", "_external": {"id": "ai_gateway-id"}}],
                            "ai_gateway_models": models})
     else:
         text = item["_fixture"]
         match = namespace_field(text)
-        text = text[:match.start(1)] + json.dumps(namespace) + text[match.end(1):]
-    output.write_text(("# DRY RUN: proposed configuration\n" if dry_run else "") + text)
-    if not dry_run:
-        assert namespace == item["_namespace"]
+        text = text[:match.start(1)] + json.dumps(file_namespace) + text[match.end(1):]
+    if output:
+        pathlib.Path(output).write_text(("# DRY RUN: proposed configuration\n" if dry_run else "") + text)
+    if not dry_run and os.environ.get("FAKE_FAULT") != "skipped-adoption-write":
+        if child:
+            for model in item["models"]:
+                model["kongctl"]["namespace"] = namespace
+        else:
+            item["_namespace"] = namespace
+            item["labels"]["KONGCTL-namespace"] = namespace
+        save_state()
     if os.environ.get("FAKE_FAULT") == "bad-adoption-preview" and dry_run:
         change["after"][namespace_key] = "wrong-namespace"
     print(json.dumps({"dry_run": True, "changes": [change]} if dry_run else [change] if child else change))
@@ -451,6 +461,10 @@ elif args[:1] == ["delete"]:
             raise SystemExit(0)
     else:
         key = resource_from_path(option("-f"))
+    if key in state:
+        if key == "ai_gateway" and any(model.get("kongctl", {}).get("namespace", state[key]["_namespace"]) != state[key]["_namespace"]
+                                       for model in state[key].get("models", [])):
+            raise SystemExit("cannot delete gateway with foreign-owned models")
     changes = 1 if key in state else 0
     if not dry_run:
         state.pop(key, None)
@@ -460,6 +474,11 @@ elif args[:1] in (["get"], ["list"]):
     key = resource_from_command()
     item = state.get(key)
     if item and args[0] == "get":
+        if os.environ.get("FAKE_FAULT") == "adoption-readback-failure":
+            owner = (item["models"][0]["kongctl"]["namespace"]
+                     if "models" in args else item["_namespace"])
+            if owner.endswith("-preview"):
+                raise SystemExit("injected readback failure after ownership transfer")
         if key == "identity_principal":
             person = dict(item)
             if os.environ.get("FAKE_FAULT") == "stale-principal":
@@ -507,6 +526,8 @@ elif args[:1] in (["get"], ["list"]):
                 child = item[field][0]
                 kind = CHILD_TYPES[field]
                 output = flatten(key, item)[(kind, child["name"])]
+                if field == "models":
+                    output["managed_by"] = {"kongctl-namespace": child["kongctl"]["namespace"]}
                 fault = os.environ.get("FAKE_FAULT", "")
                 if field == "models" and fault in ("numeric-format", "wrong-threshold"):
                     vector = output["config"]["balancer"]["vectordb"]
