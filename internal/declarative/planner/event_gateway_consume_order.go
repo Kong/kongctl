@@ -21,7 +21,7 @@ func (p *Planner) planConsumePolicyOrder(
 		declared[policy.GetMoniker()] = true
 	}
 	for _, policy := range current {
-		if policy.Name != nil {
+		if policy.Name != nil && *policy.Name != "" {
 			byID[policy.ID] = *policy.Name
 		}
 	}

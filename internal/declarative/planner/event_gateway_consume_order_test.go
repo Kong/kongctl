@@ -105,3 +105,23 @@ func TestConsumeCreatesSerializeOnlySiblings(t *testing.T) {
 		}
 	}
 }
+
+func TestConsumeOrderPreservesUnnamedParentScope(t *testing.T) {
+	p := newTestPlanner()
+	desired := []resources.EventGatewayConsumePolicyResource{
+		consumePolicyResourceFromJSON(t,
+			`{"ref":"a","name":"a","type":"skip_record","parent_policy_id":"schema-id"}`),
+		consumePolicyResourceFromJSON(t,
+			`{"ref":"b","name":"b","type":"skip_record","parent_policy_id":"schema-id"}`),
+	}
+	current := []state.EventGatewayConsumePolicyInfo{
+		{EventGatewayPolicy: kkComps.EventGatewayPolicy{ID: "schema-id", Name: new("")}},
+		{EventGatewayPolicy: kkComps.EventGatewayPolicy{ID: "b-id", Name: new("b"), ParentPolicyID: new("schema-id")}},
+		{EventGatewayPolicy: kkComps.EventGatewayPolicy{ID: "a-id", Name: new("a"), ParentPolicyID: new("schema-id")}},
+	}
+	plan := NewPlan(CurrentPlanVersion, "test", PlanModeApply)
+	p.planConsumePolicyOrder("default", "gw", "gw", "vc", "vc", "vc", desired, current, 0, plan)
+	require.Len(t, plan.Changes, 1)
+	require.Equal(t, "schema-id", plan.Changes[0].ConsumePolicyOrder.ParentID)
+	require.Empty(t, plan.Changes[0].ConsumePolicyOrder.ParentName)
+}
