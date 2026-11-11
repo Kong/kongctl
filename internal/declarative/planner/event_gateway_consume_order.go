@@ -36,6 +36,7 @@ func (p *Planner) planConsumePolicyOrder(
 		return parent
 	}
 	groups := make(map[string][]string)
+	groupRefs := make(map[string][]string)
 	parents := make(map[string]string)
 	var keys []string
 	for _, policy := range desired {
@@ -46,6 +47,7 @@ func (p *Planner) planConsumePolicyOrder(
 			parents[key] = parent
 		}
 		groups[key] = append(groups[key], policy.GetMoniker())
+		groupRefs[key] = append(groupRefs[key], policy.Ref)
 	}
 	var dependencies []string
 	recreated := make(map[string]bool)
@@ -94,12 +96,13 @@ func (p *Planner) planConsumePolicyOrder(
 		if len(target) < 2 || (slices.Equal(old, target) && !recreated[key]) {
 			continue
 		}
-		intent := &ConsumePolicyOrder{Names: names, ParentID: parents[key]}
+		intent := &ConsumePolicyOrder{Names: names, Refs: groupRefs[key], ParentID: parents[key]}
 		if name, ok := byID[intent.ParentID]; ok {
 			intent.ParentName = name
 			intent.ParentID = ""
 		} else if tags.IsRefPlaceholder(intent.ParentID) {
-			intent.ParentName = byRef[referenceTargetRef(intent.ParentID)]
+			intent.ParentRef = referenceTargetRef(intent.ParentID)
+			intent.ParentName = byRef[intent.ParentRef]
 			intent.ParentID = ""
 		}
 		id := clusterID

@@ -125,3 +125,26 @@ func TestConsumeOrderPreservesUnnamedParentScope(t *testing.T) {
 	require.Equal(t, "schema-id", plan.Changes[0].ConsumePolicyOrder.ParentID)
 	require.Empty(t, plan.Changes[0].ConsumePolicyOrder.ParentName)
 }
+
+func TestConsumeOrderSavesRefsForNewUnnamedParent(t *testing.T) {
+	p := newTestPlanner()
+	desired := []resources.EventGatewayConsumePolicyResource{
+		consumePolicyResourceFromJSON(t, `{"ref":"schema-ref","type":"schema_validation","config":{"type":"json"}}`),
+		consumePolicyResourceFromJSON(t,
+			`{"ref":"a-ref","name":"a","type":"skip_record","parent_policy_id":"__REF__:schema-ref#id"}`),
+		consumePolicyResourceFromJSON(t,
+			`{"ref":"b-ref","name":"b","type":"skip_record","parent_policy_id":"__REF__:schema-ref#id"}`),
+	}
+	plan := NewPlan(CurrentPlanVersion, "test", PlanModeApply)
+	require.NoError(t, p.planConsumePolicyCreatesForNewVirtualCluster("default", "gw", "vc", "vc", "", desired, plan))
+	data, err := json.Marshal(plan)
+	require.NoError(t, err)
+	var saved Plan
+	require.NoError(t, json.Unmarshal(data, &saved))
+	require.Len(t, saved.Changes, 4)
+	order := saved.Changes[3].ConsumePolicyOrder
+	require.Equal(t, "schema-ref", order.ParentRef)
+	require.Equal(t, []string{"a-ref", "b-ref"}, order.Refs)
+	require.Equal(t, []string{"a", "b"}, order.Names)
+	require.Empty(t, order.ParentID)
+}

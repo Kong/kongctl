@@ -92,12 +92,14 @@ type PlannedChange struct {
 	ConsumePolicyOrder *ConsumePolicyOrder `json:"consume_policy_order,omitempty"`
 }
 
-// ConsumePolicyOrder is a sibling-scoped ordering operation. Names are resolved
-// after preceding mutations, so saved plans also handle newly created IDs.
+// ConsumePolicyOrder is a sibling-scoped ordering operation. Refs identify
+// policies created in this plan; names provide lookup for existing policies.
 type ConsumePolicyOrder struct {
 	ParentID   string   `json:"parent_id,omitempty"`
 	ParentName string   `json:"parent_name,omitempty"`
+	ParentRef  string   `json:"parent_ref,omitempty"`
 	Names      []string `json:"names"`
+	Refs       []string `json:"refs,omitempty"`
 }
 
 // IdentityReferenceScope retains the explicitly observed collections whose

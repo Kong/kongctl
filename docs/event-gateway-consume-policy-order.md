@@ -21,8 +21,10 @@ of the resource list. An ordering update shows the current and desired
 `policy_order` sequences. `apply` uses sibling-scoped moves after policy
 mutations complete. Otherwise unchanged policies retain their IDs. Sibling
 creates execute sequentially; independent chains can execute concurrently.
-Saved plans include the ordering intent and dependencies. Newly created or
-recreated policy IDs are resolved from the final collection before moving.
+Saved plans include ordering intent, dependencies, and declaration refs.
+Created or recreated policies and parents resolve through their refs, including
+policies without API names. Existing named policies resolve from the final
+collection before moving.
 
 In apply mode, declared policies form a prefix of each declared sibling chain.
 Undeclared policies remain after that prefix, retaining their relative order.

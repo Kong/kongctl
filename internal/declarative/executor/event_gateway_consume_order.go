@@ -16,7 +16,8 @@ func (c consumeOrderContract) ValidatePayload(ctx context.Context, change planne
 	}
 	order := change.ConsumePolicyOrder
 	if change.Action != planner.ActionUpdate || len(change.Fields) != 0 || len(order.Names) == 0 ||
-		(order.ParentName != "" && order.ParentID != "") {
+		(order.ParentID != "" && (order.ParentName != "" || order.ParentRef != "")) ||
+		(len(order.Refs) != 0 && len(order.Refs) != len(order.Names)) {
 		return fmt.Errorf("invalid consume policy ordering operation")
 	}
 	seen := make(map[string]bool)
@@ -25,6 +26,13 @@ func (c consumeOrderContract) ValidatePayload(ctx context.Context, change planne
 			return fmt.Errorf("empty or duplicate consume policy name %q", name)
 		}
 		seen[name] = true
+	}
+	seenRefs := make(map[string]bool)
+	for _, ref := range order.Refs {
+		if ref == "" || seenRefs[ref] {
+			return fmt.Errorf("empty or duplicate consume policy ref %q", ref)
+		}
+		seenRefs[ref] = true
 	}
 	for _, field := range []string{planner.FieldEventGatewayID, planner.FieldEventGatewayVirtualClusterID} {
 		ref := change.References[field]
@@ -51,7 +59,10 @@ func (e *Executor) executeConsumePolicyOrder(ctx context.Context, change *planne
 	}
 	order := change.ConsumePolicyOrder
 	parent := order.ParentID
-	if order.ParentName != "" {
+	if parent == "" && order.ParentRef != "" {
+		parent, _ = e.getRef(planner.ResourceTypeEventGatewayConsumePolicy, order.ParentRef)
+	}
+	if parent == "" && order.ParentName != "" {
 		for _, policy := range policies {
 			if policy.Name != nil && *policy.Name == order.ParentName {
 				if parent != "" {
@@ -63,6 +74,9 @@ func (e *Executor) executeConsumePolicyOrder(ctx context.Context, change *planne
 		if parent == "" {
 			return "", fmt.Errorf("consume policy parent %q no longer exists", order.ParentName)
 		}
+	}
+	if parent == "" && order.ParentRef != "" {
+		return "", fmt.Errorf("consume policy parent ref %q could not be resolved", order.ParentRef)
 	}
 	byName := make(map[string]string)
 	var siblings []string
@@ -86,8 +100,14 @@ func (e *Executor) executeConsumePolicyOrder(ctx context.Context, change *planne
 	// siblings are retained, in their original relative order, after the prefix.
 	ids := make([]string, len(order.Names))
 	for i, name := range order.Names {
-		id := byName[name]
+		id := ""
+		if len(order.Refs) != 0 {
+			id, _ = e.getRef(planner.ResourceTypeEventGatewayConsumePolicy, order.Refs[i])
+		}
 		if id == "" {
+			id = byName[name]
+		}
+		if id == "" || !slices.Contains(siblings, id) {
 			return "", fmt.Errorf("consume policy %q is missing from the intended parent", name)
 		}
 		ids[i] = id
