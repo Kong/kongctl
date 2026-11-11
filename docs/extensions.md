@@ -329,6 +329,11 @@ replace github.com/kong/kongctl => /path/to/kongctl
 Remove the replace directive before publishing, and pin a released kongctl
 module version once the SDK is available from a release tag.
 
+kongctl directly requires its public patched Konnect SDK version, so Go
+extensions inherit that version requirement. Run `go mod tidy` after updating
+kongctl to refresh the extension's module metadata. Extensions do not need
+their own Konnect SDK replacement directive.
+
 ## Security Model
 
 Extensions are not isolated sandboxes. An extension runs with the same operating

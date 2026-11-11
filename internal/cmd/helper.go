@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/Kong/sdk-konnect-go/models/sdkerrors"
 	"github.com/kong/kongctl/internal/build"
 	"github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/root/products"
@@ -185,15 +186,37 @@ func (e *ExecutionError) Error() string {
 	return e.Err.Error()
 }
 
-// Will try and json unmarshal an error string into a slice of interfaces
-// that match the slog algorithm for varadic parameters (alternating key value pairs)
+// TryConvertErrorToAttrs extracts structured SDK error fields or JSON error text
+// as alternating key/value pairs for slog.
 func TryConvertErrorToAttrs(err error) []any {
+	data := []byte(err.Error())
+	var structured error
+	if value, ok := errors.AsType[*sdkerrors.GatewayUnauthorizedError](err); ok {
+		structured = value
+	} else if value, ok := errors.AsType[*sdkerrors.KonnectCPLegacyBadRequestError](err); ok {
+		structured = value
+	} else if value, ok := errors.AsType[*sdkerrors.KonnectCPLegacyConflictError](err); ok {
+		structured = value
+	} else if value, ok := errors.AsType[*sdkerrors.KonnectCPLegacyForbiddenError](err); ok {
+		structured = value
+	} else if value, ok := errors.AsType[*sdkerrors.KonnectCPLegacyNotFoundError](err); ok {
+		structured = value
+	} else if value, ok := errors.AsType[*sdkerrors.KonnectCPLegacyUnauthorizedError](err); ok {
+		structured = value
+	}
+	if structured != nil {
+		var marshalErr error
+		data, marshalErr = json.Marshal(structured)
+		if marshalErr != nil {
+			return nil
+		}
+	}
 	var result map[string]any
-	umError := json.Unmarshal([]byte(err.Error()), &result)
+	umError := json.Unmarshal(data, &result)
 	if umError != nil {
 		return nil
 	}
-	attrs := make([]any, 0, len(result)*2)
+	attrs := make([]any, 0)
 	for k, v := range result {
 		attrs = append(attrs, k, v)
 	}

@@ -1,5 +1,5 @@
 {
-  "speakeasy_version": "1.806.0",
+  "speakeasy_version": "1.808.1",
   "overlays": [
     "ai-gateway-pgvector-connection-defaults.yaml",
     "ai-gateway-update-runtime-defaults.yaml",

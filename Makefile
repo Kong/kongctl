@@ -1,5 +1,5 @@
 .PHONY: test-all
-test-all: lint test-installer test test-sdk-patches test-e2e-harness test-e2e-metrics test-integration
+test-all: lint test-installer test test-extension-go test-sdk-patches test-e2e-harness test-e2e-metrics test-integration
 
 VERSION ?= $(shell (git describe --tags --exact-match 2>/dev/null || echo dev) | sed 's/^v//')
 GIT_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
@@ -70,6 +70,10 @@ mod:
 .PHONY: test-sdk-patches
 test-sdk-patches:
 	python3 -m unittest discover -s tools/sdk-patches -p '*_test.py'
+
+.PHONY: test-extension-go
+test-extension-go:
+	cd docs/examples/extensions/go && CGO_ENABLED=0 go build -mod=readonly -o bin/kongctl-ext-hello-go .
 
 .PHONY: build
 build: mod
