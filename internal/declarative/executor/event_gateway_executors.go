@@ -43,9 +43,16 @@ func (e *Executor) registerEventGatewayChildExecutors() {
 	registerChild(crudResourceExecutor(
 		NewBaseExecutor(NewEventGatewayProducePolicyAdapter(client), client, dryRun),
 	), e.prepareEventGatewayProducePolicy)
-	registerChild(crudResourceExecutor(
-		NewBaseExecutor(NewEventGatewayConsumePolicyAdapter(client), client, dryRun),
-	), e.prepareEventGatewayClusterPolicy)
+	consume := crudResourceExecutor(NewBaseExecutor(NewEventGatewayConsumePolicyAdapter(client), client, dryRun))
+	consume.contract = consumeOrderContract{consume.contract}
+	updateConsume := consume.update
+	consume.update = func(ctx context.Context, change *planner.PlannedChange) (string, error) {
+		if change.ConsumePolicyOrder != nil {
+			return e.executeConsumePolicyOrder(ctx, change)
+		}
+		return updateConsume(ctx, change)
+	}
+	registerChild(consume, e.prepareEventGatewayClusterPolicy)
 	registerChild(crudResourceExecutor(
 		NewBaseExecutor(NewEventGatewayDataPlaneCertificateAdapter(client), client, dryRun),
 	), e.prepareEventGatewayReference)

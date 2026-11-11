@@ -88,7 +88,16 @@ type PlannedChange struct {
 	IdentityReferenceScopes []IdentityReferenceScope `json:"identity_reference_scopes,omitempty"`
 	// MetadataMerge makes principal metadata a patch against fresh execution state.
 	// It is client intent and must never be included in an API request body.
-	MetadataMerge bool `json:"metadata_merge,omitempty"`
+	MetadataMerge      bool                `json:"metadata_merge,omitempty"`
+	ConsumePolicyOrder *ConsumePolicyOrder `json:"consume_policy_order,omitempty"`
+}
+
+// ConsumePolicyOrder is a sibling-scoped ordering operation. Names are resolved
+// after preceding mutations, so saved plans also handle newly created IDs.
+type ConsumePolicyOrder struct {
+	ParentID   string   `json:"parent_id,omitempty"`
+	ParentName string   `json:"parent_name,omitempty"`
+	Names      []string `json:"names"`
 }
 
 // IdentityReferenceScope retains the explicitly observed collections whose

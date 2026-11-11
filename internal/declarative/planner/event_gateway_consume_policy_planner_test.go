@@ -205,7 +205,7 @@ func TestShouldUpdateConsumePolicy_TypeChanged(t *testing.T) {
 	assert.Equal(t, "schema_validation", changedFields[FieldType].New)
 }
 
-func TestShouldUpdateConsumePolicy_IgnoresUnresolvedParentPolicyPlaceholder(t *testing.T) {
+func TestShouldUpdateConsumePolicy_ReplacesChildForNewParentReference(t *testing.T) {
 	desired := consumePolicyResourceFromJSON(t, `{
 		"ref": "decrypt-fields",
 		"type": "decrypt_fields",
@@ -234,9 +234,9 @@ func TestShouldUpdateConsumePolicy_IgnoresUnresolvedParentPolicyPlaceholder(t *t
 
 	needsUpdate, updateFields, changedFields := p.shouldUpdateConsumePolicy(current, desired)
 
-	assert.False(t, needsUpdate)
-	assert.Nil(t, updateFields)
-	assert.Empty(t, changedFields)
+	assert.True(t, needsUpdate)
+	assert.NotEmpty(t, updateFields)
+	assert.True(t, eventGatewayPolicyRequiresRecreate(changedFields))
 }
 
 func TestConsumePolicyToFieldsDecryptFields(t *testing.T) {

@@ -20,6 +20,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/frontmatter"
 	declresources "github.com/kong/kongctl/internal/declarative/resources"
 	declstate "github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
 func populatePortalChildren(
@@ -2678,8 +2679,16 @@ func buildEventGatewayConsumePolicies(
 		return nil, nil
 	}
 
+	policies, err = client.OrderEventGatewayConsumePolicies(ctx, gatewayID, virtualClusterID, policies)
+	if err != nil {
+		return nil, err
+	}
+
 	results := make([]declresources.EventGatewayConsumePolicyResource, 0, len(policies))
 	for _, policy := range policies {
+		if policy.ParentPolicyID != nil && *policy.ParentPolicyID != "" {
+			policy.ParentPolicyID = new(tags.RefPlaceholderPrefix + *policy.ParentPolicyID + "#id")
+		}
 		res, err := convertConsumePolicyToResource(policy.EventGatewayPolicy, policy.RawConfig)
 		if err != nil {
 			logWarn(logger, "failed to convert consume policy", policy.ID, "", err)
@@ -2699,13 +2708,15 @@ func convertConsumePolicyToResource(
 	policy kkComps.EventGatewayPolicy,
 	rawConfig map[string]any,
 ) (declresources.EventGatewayConsumePolicyResource, error) {
-	if rawConfig == nil {
+	if rawConfig == nil && policy.Type != "skip_record" {
 		return declresources.EventGatewayConsumePolicyResource{},
 			fmt.Errorf("consume policy %q has no parsed config", policy.ID)
 	}
 	policyMap := map[string]any{
-		"type":   policy.Type,
-		"config": rawConfig,
+		"type": policy.Type,
+	}
+	if rawConfig != nil {
+		policyMap["config"] = rawConfig
 	}
 	if policy.Name != nil {
 		policyMap["name"] = *policy.Name
