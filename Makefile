@@ -28,7 +28,7 @@ test-installer:
 .PHONY: test-smoke
 test-smoke:
 	@if command -v shellcheck >/dev/null 2>&1; then \
-		shellcheck scripts/smoke-test.sh test/smoke/smoke_test.sh; \
+		shellcheck scripts/smoke-test.sh scripts/smoke/adoption.sh test/smoke/smoke_test.sh; \
 	elif [ "$$CI" = "true" ]; then \
 		echo "shellcheck is required to lint smoke-test scripts in CI" >&2; \
 		exit 1; \

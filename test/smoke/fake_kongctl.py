@@ -359,7 +359,19 @@ elif args[:2] == ["patch", "file"]:
     print(text.replace("name: before", "name: after"))
 elif args[:1] == ["plan"]:
     fixture = option("-f")
-    key, desired = parse_fixture(fixture)
+    if pathlib.Path(fixture).name == "adopted.yaml" and "/ai_gateway/" in fixture:
+        exported = json.loads(pathlib.Path(fixture).read_text())
+        assert exported["ai_gateways"][0]["_external"]["id"] == "ai_gateway-id"
+        models = exported["ai_gateway_models"]
+        assert len(models) == len(state["ai_gateway"]["models"])
+        for model, original in zip(models, state["ai_gateway"]["models"]):
+            assert model["ai_gateway"] == "gateway"
+            assert model["kongctl"]["namespace"] == state["ai_gateway"]["_namespace"]
+            assert {k: v for k, v in model.items() if k not in ("ai_gateway", "kongctl")} == {
+                k: v for k, v in original.items() if k != "kongctl"}
+        key, desired = "ai_gateway", state["ai_gateway"]
+    else:
+        key, desired = parse_fixture(fixture)
     mode = option("--mode", "sync")
     plan = make_plan(key, desired, mode)
     pathlib.Path(option("--output-file")).write_text(json.dumps(plan), encoding="utf-8")
@@ -376,6 +388,48 @@ elif args[:1] in (["apply"], ["sync"]):
     state[key] = desired
     save_state()
     print_execution(len(plan["changes"]))
+elif args[:1] == ["adopt"]:
+    key = "portal" if args[1] == "portal" else "ai_gateway"
+    item = state[key]
+    child = key == "ai_gateway"
+    namespace = option("--namespace")
+    namespace_key = "kongctl-namespace" if child else "KONGCTL-namespace"
+    change = {"resource_type": "ai_gateway_model" if child else "portal",
+              "id": "model-id" if child else "portal-id",
+              "name": "smoke-model" if child else item["name"], "namespace": namespace}
+    dry_run = "--dry-run" in args
+    if dry_run:
+        change.update(before={namespace_key: item["_namespace"]}, after={namespace_key: namespace})
+        if child:
+            change["parent"] = {"gateway_id": "ai_gateway-id"}
+    output = option("--declarative-output")
+    file_namespace = namespace
+    if dry_run and os.environ.get("FAKE_FAULT") == "bad-adoption-preview-file":
+        file_namespace = item["_namespace"]
+    if child:
+        models = json.loads(json.dumps(item["models"]))
+        for model in models:
+            model["ai_gateway"] = "gateway"
+            model["kongctl"] = {"namespace": file_namespace, "protected": False}
+        text = json.dumps({"ai_gateways": [{"ref": "gateway", "_external": {"id": "ai_gateway-id"}}],
+                           "ai_gateway_models": models})
+    else:
+        text = item["_fixture"]
+        match = namespace_field(text)
+        text = text[:match.start(1)] + json.dumps(file_namespace) + text[match.end(1):]
+    if output:
+        pathlib.Path(output).write_text(("# DRY RUN: proposed configuration\n" if dry_run else "") + text)
+    if not dry_run and os.environ.get("FAKE_FAULT") != "skipped-adoption-write":
+        if child:
+            for model in item["models"]:
+                model["kongctl"]["namespace"] = namespace
+        else:
+            item["_namespace"] = namespace
+            item["labels"]["KONGCTL-namespace"] = namespace
+        save_state()
+    if os.environ.get("FAKE_FAULT") == "bad-adoption-preview" and dry_run:
+        change["after"][namespace_key] = "wrong-namespace"
+    print(json.dumps({"dry_run": True, "changes": [change]} if dry_run else [change] if child else change))
 elif args[:2] == ["dump", "declarative"]:
     keys = {"apis": "api", "portals": "portal", "control_planes": "control_plane",
             "ai_gateways": "ai_gateway", "event_gateways": "event_gateway", "identity.directories": "identity_principal", "identity.auth_servers": "identity_auth_server"}
@@ -407,6 +461,10 @@ elif args[:1] == ["delete"]:
             raise SystemExit(0)
     else:
         key = resource_from_path(option("-f"))
+    if key in state:
+        if key == "ai_gateway" and any(model.get("kongctl", {}).get("namespace", state[key]["_namespace"]) != state[key]["_namespace"]
+                                       for model in state[key].get("models", [])):
+            raise SystemExit("cannot delete gateway with foreign-owned models")
     changes = 1 if key in state else 0
     if not dry_run:
         state.pop(key, None)
@@ -416,6 +474,11 @@ elif args[:1] in (["get"], ["list"]):
     key = resource_from_command()
     item = state.get(key)
     if item and args[0] == "get":
+        if os.environ.get("FAKE_FAULT") == "adoption-readback-failure":
+            owner = (item["models"][0]["kongctl"]["namespace"]
+                     if "models" in args else item["_namespace"])
+            if owner.endswith("-preview"):
+                raise SystemExit("injected readback failure after ownership transfer")
         if key == "identity_principal":
             person = dict(item)
             if os.environ.get("FAKE_FAULT") == "stale-principal":
@@ -463,6 +526,8 @@ elif args[:1] in (["get"], ["list"]):
                 child = item[field][0]
                 kind = CHILD_TYPES[field]
                 output = flatten(key, item)[(kind, child["name"])]
+                if field == "models":
+                    output["managed_by"] = {"kongctl-namespace": child["kongctl"]["namespace"]}
                 fault = os.environ.get("FAKE_FAULT", "")
                 if field == "models" and fault in ("numeric-format", "wrong-threshold"):
                     vector = output["config"]["balancer"]["vectordb"]

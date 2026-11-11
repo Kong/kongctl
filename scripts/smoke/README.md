@@ -25,6 +25,15 @@ uses unique names and namespaces. It exercises:
   text tables, description/label updates, and delete dry runs.
 - API versions and documents, a Portal snippet, an AI provider/model/attached
   policy, and an Event Gateway backend/virtual cluster.
+- Adoption previews and saved declarative output for a Portal and AI Gateway
+  models. A filtered model preview checks the proposed namespace in both JSON
+  and YAML. Actual adoption moves ownership to that namespace and reads it
+  back through the API, then restores and verifies the original namespace.
+  Failure cleanup restores ownership before deleting fixtures. Apply/sync
+  plans verify that previews leave ownership unchanged and adoption preserves
+  configuration; apply plans also check the exported declarations. These checks re-adopt the
+  suite's managed fixtures using `--overwrite-namespace`; they don't cover
+  bootstrapping unmanaged resources or every adoption family.
 - Apply- and sync-mode no-change plans after updates and from exported files.
 - Namespace `!env` resolution: create fixtures inherit a scalar-tagged
   `_defaults.kongctl.namespace`; update fixtures use a mapping-tagged
