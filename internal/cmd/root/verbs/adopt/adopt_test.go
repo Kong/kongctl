@@ -113,3 +113,37 @@ func clearLifecycleHooks(cmd *cobra.Command) {
 		clearLifecycleHooks(child)
 	}
 }
+
+func TestAdoptDryRunIsInheritedAndDefaultsOff(t *testing.T) {
+	for _, path := range [][]string{
+		{"portal"},
+		{"konnect", "api"},
+		{"ai-gateway"},
+		{"ai-gateway", "models"},
+		{"konnect", "ai-gateway", "vaults"},
+		{"identity", "principal", "basic-auth"},
+		{"identity", "auth-server", "client"},
+		{"organization", "team"},
+	} {
+		root, err := NewAdoptCmd()
+		require.NoError(t, err)
+		command := findCommand(t, root, path...)
+		require.NotNil(t, command.Flag("dry-run"))
+		require.Equal(t, "false", command.Flag("dry-run").DefValue)
+	}
+	root, err := NewAdoptCmd()
+	require.NoError(t, err)
+	clearLifecycleHooks(root)
+	command := findCommand(t, root, "ai-gateway", "models")
+	command.RunE = func(c *cobra.Command, _ []string) error {
+		flags, err := adoptCommon.ReadAdoptFlags(c)
+		require.NoError(t, err)
+		require.True(t, flags.DryRun)
+		require.Equal(t, "team-a", flags.Namespace)
+		return nil
+	}
+	root.SetArgs([]string{
+		"--dry-run", "ai-gateway", "models", "--all", "--gateway-name", "shared", "--namespace", "team-a",
+	})
+	require.NoError(t, root.Execute())
+}

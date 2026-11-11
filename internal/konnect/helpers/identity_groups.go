@@ -148,7 +148,26 @@ func ResolveIdentityGroup(ctx context.Context, api IdentityGroupsReader, directo
 	if match == nil {
 		return nil, fmt.Errorf("identity group %q not found in the selected directory", identifier)
 	}
-	response, err := api.GetGroup(ctx, directoryID, match.ID)
+	value, err := GetIdentityGroup(ctx, api, directoryID, match.ID)
+	if err != nil {
+		return nil, err
+	}
+	if !byID && value.Name != identifier {
+		return nil, fmt.Errorf("identity group identity changed during lookup")
+	}
+	return value, nil
+}
+
+// GetIdentityGroup reads current public details under a directory. Adoption
+// callers first prove membership using a complete parent collection.
+func GetIdentityGroup(ctx context.Context, api IdentityGroupsReader, directoryID, id string) (*IdentityGroup, error) {
+	if api == nil {
+		return nil, fmt.Errorf("identity groups reader is not configured")
+	}
+	if !util.IsValidUUID(directoryID) || !util.IsValidUUID(id) {
+		return nil, fmt.Errorf("directory and group IDs must be UUIDs")
+	}
+	response, err := api.GetGroup(ctx, directoryID, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get identity group: %w", err)
 	}
@@ -159,7 +178,7 @@ func ResolveIdentityGroup(ctx context.Context, api IdentityGroupsReader, directo
 	if err := decodeIdentityGroupResponse(response.RawResponse, &value); err != nil {
 		return nil, err
 	}
-	if value.ID != match.ID || value.Name == "" || (!byID && value.Name != identifier) {
+	if value.ID != id || value.Name == "" {
 		return nil, fmt.Errorf("identity group identity changed during lookup")
 	}
 	return &value, nil

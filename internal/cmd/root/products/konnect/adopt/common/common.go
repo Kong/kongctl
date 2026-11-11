@@ -2,8 +2,10 @@ package common
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
+	"strconv"
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
@@ -30,6 +32,7 @@ type AdoptResult struct {
 type AdoptFlags struct {
 	Namespace          string
 	OverwriteNamespace bool
+	DryRun             bool
 }
 
 type AdoptRunSetup struct {
@@ -41,6 +44,9 @@ type AdoptRunSetup struct {
 }
 
 func AddAdoptFlags(cmd *cobra.Command) error {
+	cmd.PersistentFlags().Bool("dry-run",
+		false,
+		"Validate adoption and show ownership metadata changes without writing resources")
 	cmd.PersistentFlags().String(NamespaceFlagName, "", "Namespace ownership metadata to apply to the resource (required)")
 	cmd.PersistentFlags().Bool(
 		OverwriteNamespaceFlagName,
@@ -65,15 +71,25 @@ func ReadAdoptFlags(cmd *cobra.Command) (AdoptFlags, error) {
 		return flags, &cmdpkg.ConfigurationError{Err: err}
 	}
 
-	if cmd.Flags().Lookup(OverwriteNamespaceFlagName) == nil {
-		return flags, nil
+	if flag := cmd.Flag(OverwriteNamespaceFlagName); flag != nil {
+		overwrite, err := strconv.ParseBool(flag.Value.String())
+		if err != nil {
+			return flags, fmt.Errorf("invalid --%s value: %w", OverwriteNamespaceFlagName, err)
+		}
+		flags.OverwriteNamespace = overwrite
 	}
-	overwrite, err := cmd.Flags().GetBool(OverwriteNamespaceFlagName)
-	if err != nil {
-		return flags, fmt.Errorf("invalid --%s value: %w", OverwriteNamespaceFlagName, err)
-	}
-	flags.OverwriteNamespace = overwrite
 
+	if flag := cmd.Flag("dry-run"); flag != nil && flag.Value.String() == "true" {
+		flags.DryRun = true
+		cmd.SetContext(context.WithValue(EnsureContext(cmd.Context()),
+			dryRunKey{},
+			&AdoptionPreview{
+				DryRun:  true,
+				Changes: []AdoptionChange{},
+			}))
+	} else {
+		cmd.SetContext(context.WithValue(EnsureContext(cmd.Context()), dryRunKey{}, false))
+	}
 	return flags, nil
 }
 
@@ -130,6 +146,9 @@ func PrintAdoptResult(
 	result *AdoptResult,
 	resourceDisplayName string,
 ) error {
+	if handled, err := PrintDryRun(helper, outType); handled {
+		return err
+	}
 	streams := helper.GetStreams()
 	if outType == cmdCommon.TEXT {
 		name := result.Name
@@ -162,4 +181,14 @@ func EnsureContext(ctx context.Context) context.Context {
 		return context.Background()
 	}
 	return ctx
+}
+
+// PrintAdoptionOutcome retains a confirmed receipt when exporting it failed.
+func PrintAdoptionOutcome(helper cmdpkg.Helper, outType cmdCommon.OutputFormat,
+	result *AdoptResult, adoptionErr error, description string,
+) error {
+	if result == nil {
+		return adoptionErr
+	}
+	return errors.Join(adoptionErr, PrintAdoptResult(helper, outType, result, description))
 }

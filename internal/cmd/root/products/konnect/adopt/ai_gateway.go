@@ -32,7 +32,8 @@ func NewAIGatewayCmd(
 	cmd.Aliases = []string{"ai-gateways", "aigw"}
 	cmd.Short = "Adopt an existing Konnect AI Gateway into namespace management"
 	cmd.Long = "Apply the KONGCTL-namespace label to an existing Konnect AI Gateway " +
-		"that is not currently managed by kongctl."
+		"that is not currently managed by kongctl. Child subcommands adopt independently owned resources; " +
+		"adopting a gateway does not adopt its children."
 	cmd.Args = func(_ *cobra.Command, args []string) error {
 		if len(args) != 1 {
 			return fmt.Errorf("exactly one AI Gateway identifier (display name or ID) is required")
@@ -51,11 +52,14 @@ func NewAIGatewayCmd(
 		cmd.PreRunE = parentPreRun
 	}
 
+	adoptCommon.AddDeclarativeRootExportFlag(cmd)
 	cmd.RunE = func(cobraCmd *cobra.Command, args []string) error {
-		s, err := adoptCommon.SetupAdoptRun(cobraCmd, args)
+		s, cleanup, err := adoptCommon.SetupExportRun(cobraCmd, args)
 		if err != nil {
 			return err
 		}
+
+		defer cleanup()
 
 		result, err := adoptAIGateway(
 			s.Helper,
@@ -65,13 +69,10 @@ func NewAIGatewayCmd(
 			s.AdoptFlags.OverwriteNamespace,
 			strings.TrimSpace(args[0]),
 		)
-		if err != nil {
-			return err
-		}
-
-		return adoptCommon.PrintAdoptResult(s.Helper, s.OutType, result, "AI Gateway")
+		return adoptCommon.PrintAdoptionOutcome(s.Helper, s.OutType, result, err, "AI Gateway")
 	}
 
+	cmd.AddCommand(newAIGatewayChildCommands(verb, addParentFlags, parentPreRun)...)
 	return cmd, nil
 }
 
@@ -83,7 +84,7 @@ func adoptAIGateway(
 	overwriteNamespace bool,
 	identifier string,
 ) (*adoptCommon.AdoptResult, error) {
-	gateway, err := resolveAIGateway(helper, api, cfg, identifier)
+	gateway, err := resolveAIGateway(helper, api, cfg, identifier, false)
 	if err != nil {
 		return nil, err
 	}
@@ -100,14 +101,31 @@ func adoptAIGateway(
 	}
 
 	updateReq := kkComps.UpdateAIGatewayRequest{
-		DisplayName: gateway.DisplayName,
-		Name:        gateway.Name,
-		Description: gateway.Description,
-		ProxyUrls:   gateway.ProxyUrls,
-		Labels:      adoptCommon.StringLabelMap(gateway.Labels, namespace),
+		MinRuntimeVersion:  gateway.MinRuntimeVersion,
+		RuntimeAutoUpgrade: gateway.RuntimeAutoUpgrade,
+		DisplayName:        gateway.DisplayName,
+		Name:               gateway.Name,
+		Description:        gateway.Description,
+		ProxyUrls:          gateway.ProxyUrls,
+		Labels:             adoptCommon.StringLabelMap(gateway.Labels, namespace),
+		ManagedBy:          gateway.ManagedBy,
 	}
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
+
+	if result, dryRun, err := adoptCommon.PrepareRootAdoption(ctx, adoptCommon.AdoptionChange{
+		AdoptResult: adoptCommon.AdoptResult{
+			ResourceType: string(resources.ResourceTypeAIGateway),
+			ID:           gateway.ID,
+			Name:         gateway.DisplayName,
+			Namespace:    namespace,
+		},
+		MetadataLocation: resources.SchemaFieldLabels,
+		Before:           gateway.Labels,
+		After:            updateReq.Labels,
+	}, *gateway, labels.IsProtectedResource(gateway.Labels)); err != nil || dryRun {
+		return result, err
+	}
 	resp, err := api.UpdateAiGateway(ctx, gateway.ID, updateReq)
 	if err != nil {
 		attrs := cmdpkg.TryConvertErrorToAttrs(err)
@@ -126,12 +144,12 @@ func adoptAIGateway(
 		}
 	}
 
-	return &adoptCommon.AdoptResult{
+	return adoptCommon.FinishAdoption(ctx, &adoptCommon.AdoptResult{
 		ResourceType: string(resources.ResourceTypeAIGateway),
 		ID:           updated.ID,
 		Name:         updated.DisplayName,
 		Namespace:    ns,
-	}, nil
+	})
 }
 
 func resolveAIGateway(
@@ -139,6 +157,7 @@ func resolveAIGateway(
 	api helpers.AIGatewayAPI,
 	cfg config.Hook,
 	identifier string,
+	byName bool,
 ) (*kkComps.AIGateway, error) {
 	if api == nil {
 		return nil, fmt.Errorf("AI Gateway API client is not configured")
@@ -146,7 +165,7 @@ func resolveAIGateway(
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
 
-	if util.IsValidUUID(identifier) {
+	if util.IsValidUUID(identifier) && !byName {
 		resp, err := api.GetAiGateway(ctx, identifier)
 		if err != nil {
 			attrs := cmdpkg.TryConvertErrorToAttrs(err)

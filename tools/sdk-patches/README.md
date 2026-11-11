@@ -77,6 +77,13 @@ Portal and organization team patches preserve omitted membership management.
 A PATCH changing a team's name must not reset `konnect_managed` to `false`.
 Explicit `false` and `true` remain supported.
 
+AI Gateway update patches preserve omitted `runtime_auto_upgrade`. Updating
+ownership labels or other gateway fields must not enable runtime auto-upgrade.
+Explicit `false` and `true` remain supported. The overlay only changes the
+update request; creation and response defaults remain unchanged. Actual SDK
+wire tests exercise omitted and explicit values through struct construction
+and JSON decoding. Adoption also explicitly preserves observed runtime values.
+
 AI Gateway pgvector model patches preserve omitted connection settings,
 including SSL fields. A referenced datastore supplies these settings; inline
 SDK defaults must not turn omitted fields into explicit model overrides.

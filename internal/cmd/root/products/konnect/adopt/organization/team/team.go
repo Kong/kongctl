@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/kong/kongctl/internal/declarative/resources"
+
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	adoptCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt/common"
@@ -49,11 +51,14 @@ func NewTeamCmd(
 		cmd.PreRunE = parentPreRun
 	}
 
+	adoptCommon.AddDeclarativeRootExportFlag(cmd)
 	cmd.RunE = func(cobraCmd *cobra.Command, args []string) error {
-		s, err := adoptCommon.SetupAdoptRun(cobraCmd, args)
+		s, cleanup, err := adoptCommon.SetupExportRun(cobraCmd, args)
 		if err != nil {
 			return err
 		}
+
+		defer cleanup()
 
 		result, err := adoptTeam(
 			s.Helper,
@@ -63,11 +68,7 @@ func NewTeamCmd(
 			s.AdoptFlags.OverwriteNamespace,
 			strings.TrimSpace(args[0]),
 		)
-		if err != nil {
-			return err
-		}
-
-		return adoptCommon.PrintAdoptResult(s.Helper, s.OutType, result, "organization_team")
+		return adoptCommon.PrintAdoptionOutcome(s.Helper, s.OutType, result, err, "organization_team")
 	}
 
 	return cmd, nil
@@ -102,6 +103,19 @@ func adoptTeam(
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
 
+	if result, dryRun, err := adoptCommon.PrepareRootAdoption(ctx, adoptCommon.AdoptionChange{
+		AdoptResult: adoptCommon.AdoptResult{
+			ResourceType: string(resources.ResourceTypeOrganizationTeam),
+			ID:           team.ID,
+			Name:         team.Name,
+			Namespace:    namespace,
+		},
+		MetadataLocation: resources.SchemaFieldLabels,
+		Before:           team.Labels,
+		After:            adoptCommon.StringLabelMap(team.Labels, namespace),
+	}, *team, labels.IsProtectedResource(team.Labels)); err != nil || dryRun {
+		return result, err
+	}
 	resp, err := teamAPI.UpdateOrganizationTeam(ctx, identifier, &updateReq)
 	if err != nil {
 		attrs := cmdpkg.TryConvertErrorToAttrs(err)
@@ -120,12 +134,12 @@ func adoptTeam(
 		}
 	}
 
-	return &adoptCommon.AdoptResult{
+	return adoptCommon.FinishAdoption(ctx, &adoptCommon.AdoptResult{
 		ResourceType: "organization_team",
 		ID:           updated.ID,
 		Name:         updated.Name,
 		Namespace:    ns,
-	}, nil
+	})
 }
 
 func resolveTeam(

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/kong/kongctl/internal/declarative/resources"
+
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
@@ -51,11 +53,14 @@ func NewEventGatewayControlPlaneCmd(
 		cmd.PreRunE = parentPreRun
 	}
 
+	adoptCommon.AddDeclarativeRootExportFlag(cmd)
 	cmd.RunE = func(cobraCmd *cobra.Command, args []string) error {
-		s, err := adoptCommon.SetupAdoptRun(cobraCmd, args)
+		s, cleanup, err := adoptCommon.SetupExportRun(cobraCmd, args)
 		if err != nil {
 			return err
 		}
+
+		defer cleanup()
 
 		result, err := adoptEventGatewayControlPlane(
 			s.Helper,
@@ -65,11 +70,7 @@ func NewEventGatewayControlPlaneCmd(
 			s.AdoptFlags.OverwriteNamespace,
 			strings.TrimSpace(args[0]),
 		)
-		if err != nil {
-			return err
-		}
-
-		return adoptCommon.PrintAdoptResult(s.Helper, s.OutType, result, "Event Gateway Control Plane")
+		return adoptCommon.PrintAdoptionOutcome(s.Helper, s.OutType, result, err, "Event Gateway Control Plane")
 	}
 
 	return cmd, nil
@@ -108,6 +109,19 @@ func adoptEventGatewayControlPlane(
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
 
+	if result, dryRun, err := adoptCommon.PrepareRootAdoption(ctx, adoptCommon.AdoptionChange{
+		AdoptResult: adoptCommon.AdoptResult{
+			ResourceType: string(resources.ResourceTypeEventGatewayControlPlane),
+			ID:           egw.ID,
+			Name:         egw.Name,
+			Namespace:    namespace,
+		},
+		MetadataLocation: resources.SchemaFieldLabels,
+		Before:           egw.Labels,
+		After:            updateReq.Labels,
+	}, *egw, labels.IsProtectedResource(egw.Labels)); err != nil || dryRun {
+		return result, err
+	}
 	resp, err := egwClient.UpdateEGWControlPlane(ctx, egw.ID, updateReq)
 	if err != nil {
 		attrs := cmdpkg.TryConvertErrorToAttrs(err)
@@ -131,12 +145,12 @@ func adoptEventGatewayControlPlane(
 		}
 	}
 
-	return &adoptCommon.AdoptResult{
+	return adoptCommon.FinishAdoption(ctx, &adoptCommon.AdoptResult{
 		ResourceType: "event_gateway",
 		ID:           updated.ID,
 		Name:         updated.Name,
 		Namespace:    ns,
-	}, nil
+	})
 }
 
 func resolveEventGatewayControlPlane(

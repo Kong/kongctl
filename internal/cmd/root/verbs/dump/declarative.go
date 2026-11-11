@@ -15,8 +15,7 @@ import (
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	konnectCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
-	"github.com/kong/kongctl/internal/declarative/fieldcontracts"
-	decllabels "github.com/kong/kongctl/internal/declarative/labels"
+	declexport "github.com/kong/kongctl/internal/declarative/export"
 	declresources "github.com/kong/kongctl/internal/declarative/resources"
 	declstate "github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/konnect/helpers"
@@ -420,14 +419,14 @@ func collectDeclarativePortals(
 		}
 
 		for _, portal := range resp.ListPortalsResponse.Data {
-			resource := mapPortalToDeclarativeResource(portal)
+			resource := declexport.MapPortalToDeclarativeResource(portal)
 			if portalID := strings.TrimSpace(portal.GetID()); portalID != "" {
 				detail, err := portalAPI.GetPortal(ctx, portalID)
 				if err != nil {
 					return false, fmt.Errorf("failed to get portal %q: %w", portalID, err)
 				}
 				if detailedPortal := detail.GetPortalResponse(); detailedPortal != nil {
-					resource = mapPortalResponseToDeclarativeResource(*detailedPortal)
+					resource = declexport.MapPortalResponseToDeclarativeResource(*detailedPortal)
 				}
 			}
 
@@ -484,7 +483,7 @@ func collectDeclarativeAPIs(
 		}
 
 		for _, api := range resp.ListAPIResponse.Data {
-			results = append(results, mapAPIToDeclarativeResource(api))
+			results = append(results, declexport.MapAPIToDeclarativeResource(api))
 		}
 
 		params := paginationParams{
@@ -542,7 +541,7 @@ func collectDeclarativeDashboards(
 		}
 
 		for _, dashboard := range resp.Object.Data {
-			results = append(results, mapDashboardToDeclarativeResource(dashboard))
+			results = append(results, declexport.MapDashboardToDeclarativeResource(dashboard))
 		}
 
 		var total float64
@@ -608,7 +607,7 @@ func collectDeclarativeEventGateways(
 		}
 
 		for _, egw := range res.ListEventGatewaysResponse.Data {
-			allData = append(allData, mapEventGatewayToDeclarativeResource(egw))
+			allData = append(allData, declexport.MapEventGatewayToDeclarativeResource(egw))
 		}
 
 		nextCursor := pagination.ExtractPageAfterCursor(res.ListEventGatewaysResponse.Meta.Page.Next)
@@ -659,7 +658,7 @@ func collectDeclarativeAIGateways(
 		}
 
 		for _, gateway := range resp.ListAIGatewaysResponse.Data {
-			results = append(results, mapAIGatewayToDeclarativeResource(gateway))
+			results = append(results, declexport.MapAIGatewayToDeclarativeResource(gateway))
 		}
 
 		params := paginationParams{
@@ -731,7 +730,7 @@ func collectDeclarativeOrganizationTeams(
 				// these can't be updated by users anyway
 				continue
 			}
-			results = append(results, mapOrganizationTeamToDeclarativeResource(team))
+			results = append(results, declexport.MapOrganizationTeamToDeclarativeResource(team))
 		}
 
 		params := paginationParams{
@@ -758,175 +757,6 @@ func collectDeclarativeOrganizationTeams(
 	})
 
 	return results, nil
-}
-
-func mapPortalToDeclarativeResource(portal kkComps.ListPortalsResponsePortal) declresources.PortalResource {
-	result := declresources.PortalResource{
-		BaseResource: declresources.BaseResource{Ref: portal.GetID()},
-		CreatePortal: kkComps.CreatePortal{
-			Name: portal.GetName(),
-		},
-	}
-
-	fieldcontracts.ExportPortalFields(portal, &result.CreatePortal)
-
-	result.DefaultApplicationAuthStrategyID = portal.GetDefaultApplicationAuthStrategyID()
-
-	if userLabels := decllabels.GetUserLabels(portal.GetLabels()); len(userLabels) > 0 {
-		result.Labels = decllabels.DenormalizeLabels(userLabels)
-	}
-	result.Kongctl = kongctlMetaFromLabels(portal.GetLabels())
-
-	return result
-}
-
-func mapPortalResponseToDeclarativeResource(portal kkComps.PortalResponse) declresources.PortalResource {
-	listPortal := kkComps.ListPortalsResponsePortal{
-		ID:                               portal.GetID(),
-		Name:                             portal.GetName(),
-		DefaultApplicationAuthStrategyID: portal.GetDefaultApplicationAuthStrategyID(),
-		Labels:                           portal.GetLabels(),
-	}
-
-	result := mapPortalToDeclarativeResource(listPortal)
-	fieldcontracts.ExportPortalResponseFields(portal, &result.CreatePortal)
-	return result
-}
-
-func mapAPIToDeclarativeResource(api kkComps.APIResponseSchema) declresources.APIResource {
-	result := declresources.APIResource{
-		BaseResource:     declresources.BaseResource{Ref: api.ID},
-		CreateAPIRequest: kkComps.CreateAPIRequest{Name: api.Name},
-	}
-
-	if labels := decllabels.GetUserLabels(api.Labels); len(labels) > 0 {
-		result.Labels = labels
-	}
-	result.Kongctl = kongctlMetaFromLabels(api.Labels)
-
-	fieldcontracts.ExportAPIFields(api, &result.CreateAPIRequest)
-
-	return result
-}
-
-func mapDashboardToDeclarativeResource(dashboard kkComps.DashboardResponse) declresources.DashboardResource {
-	result := declresources.DashboardResource{
-		BaseResource: declresources.BaseResource{Ref: getString(dashboard.ID)},
-		Name:         dashboard.Name,
-		Definition:   dashboard.Definition,
-	}
-
-	if result.Ref == "" {
-		result.Ref = dashboard.Name
-	}
-
-	if labels := decllabels.GetUserLabels(dashboard.Labels); len(labels) > 0 {
-		result.Labels = labels
-	}
-	result.Kongctl = kongctlMetaFromLabels(dashboard.Labels)
-
-	return result
-}
-
-func mapEventGatewayToDeclarativeResource(egw kkComps.EventGatewayInfo) declresources.EventGatewayControlPlaneResource {
-	var minRuntimeVersion *string
-	if egw.MinRuntimeVersion != "" {
-		minRuntimeVersion = &egw.MinRuntimeVersion
-	}
-
-	result := declresources.EventGatewayControlPlaneResource{
-		BaseResource: declresources.BaseResource{Ref: egw.ID},
-		CreateGatewayRequest: kkComps.CreateGatewayRequest{
-			Name:              egw.Name,
-			Description:       egw.Description,
-			MinRuntimeVersion: minRuntimeVersion,
-		},
-	}
-
-	if labels := decllabels.GetUserLabels(egw.Labels); len(labels) > 0 {
-		result.Labels = labels
-	}
-	result.Kongctl = kongctlMetaFromLabels(egw.Labels)
-
-	return result
-}
-
-func mapAIGatewayToDeclarativeResource(gateway kkComps.AIGateway) declresources.AIGatewayResource {
-	var deploymentType *kkComps.CreateAIGatewayRequestDeploymentType
-	if gateway.DeploymentType != nil {
-		value := kkComps.CreateAIGatewayRequestDeploymentType(*gateway.DeploymentType)
-		deploymentType = &value
-	}
-
-	result := declresources.AIGatewayResource{
-		BaseResource: declresources.BaseResource{Ref: gateway.ID},
-		CreateAIGatewayRequest: kkComps.CreateAIGatewayRequest{
-			MinRuntimeVersion:  gateway.MinRuntimeVersion,
-			RuntimeAutoUpgrade: gateway.RuntimeAutoUpgrade,
-			Name:               gateway.Name,
-			DisplayName:        gateway.DisplayName,
-			DeploymentType:     deploymentType,
-			Description:        gateway.Description,
-			ProxyUrls:          gateway.ProxyUrls,
-		},
-	}
-
-	if result.Ref == "" {
-		result.Ref = gateway.DisplayName
-	}
-
-	if labels := decllabels.GetUserLabels(gateway.Labels); len(labels) > 0 {
-		result.Labels = labels
-	}
-
-	if ns := strings.TrimSpace(gateway.Labels[decllabels.NamespaceKey]); ns != "" {
-		result.Kongctl = &declresources.KongctlMeta{Namespace: stringPointer(ns)}
-	}
-	if gateway.Labels[decllabels.ProtectedKey] == decllabels.TrueValue {
-		if result.Kongctl == nil {
-			result.Kongctl = &declresources.KongctlMeta{}
-		}
-		protected := true
-		result.Kongctl.Protected = &protected
-	}
-
-	return result
-}
-
-func mapOrganizationTeamToDeclarativeResource(team kkComps.TeamResponse) declresources.OrganizationTeamResource {
-	result := declresources.OrganizationTeamResource{
-		BaseResource: declresources.BaseResource{Ref: team.ID},
-		CreateTeam: kkComps.CreateTeam{
-			Name:        team.Name,
-			Description: team.Description,
-		},
-	}
-
-	if labels := decllabels.GetUserLabels(team.Labels); len(labels) > 0 {
-		result.Labels = labels
-	}
-
-	result.Kongctl = kongctlMetaFromLabels(team.Labels)
-
-	return result
-}
-
-func kongctlMetaFromLabels(labels map[string]string) *declresources.KongctlMeta {
-	namespace := strings.TrimSpace(labels[decllabels.NamespaceKey])
-	protected := labels[decllabels.ProtectedKey] == decllabels.TrueValue
-	if namespace == "" && !protected {
-		return nil
-	}
-
-	meta := &declresources.KongctlMeta{}
-	if namespace != "" {
-		meta.Namespace = stringPointer(namespace)
-	}
-	if protected {
-		value := true
-		meta.Protected = &value
-	}
-	return meta
 }
 
 func collectDeclarativeAuthStrategies(
@@ -962,7 +792,7 @@ func collectDeclarativeAuthStrategies(
 		}
 
 		for _, strategy := range resp.ListAppAuthStrategiesResponse.Data {
-			mapped, mapErr := mapAuthStrategyToDeclarativeResource(strategy)
+			mapped, mapErr := declexport.MapAuthStrategyToDeclarativeResource(strategy)
 			if mapErr != nil {
 				return false, mapErr
 			}
@@ -998,99 +828,6 @@ func collectDeclarativeAuthStrategies(
 	return results, nil
 }
 
-func mapAuthStrategyToDeclarativeResource(
-	strategy kkComps.AppAuthStrategy,
-) (declresources.ApplicationAuthStrategyResource, error) {
-	switch strategy.Type {
-	case kkComps.AppAuthStrategyTypeKeyAuth:
-		return mapKeyAuthStrategyToDeclarativeResource(strategy)
-	case kkComps.AppAuthStrategyTypeOpenidConnect:
-		return mapOIDCStrategyToDeclarativeResource(strategy)
-	default:
-		return declresources.ApplicationAuthStrategyResource{},
-			fmt.Errorf("unsupported application auth strategy type: %s", strategy.Type)
-	}
-}
-
-func mapKeyAuthStrategyToDeclarativeResource(
-	strategy kkComps.AppAuthStrategy,
-) (declresources.ApplicationAuthStrategyResource, error) {
-	resp := strategy.AppAuthStrategyKeyAuthResponseAppAuthStrategyKeyAuthResponse
-	if resp == nil {
-		return declresources.ApplicationAuthStrategyResource{},
-			fmt.Errorf("missing key auth strategy payload")
-	}
-
-	req := kkComps.AppAuthStrategyKeyAuthRequest{
-		Name:        resp.Name,
-		DisplayName: resp.DisplayName,
-		Configs: kkComps.AppAuthStrategyKeyAuthRequestConfigs{
-			KeyAuth: resp.Configs.GetKeyAuth(),
-		},
-		Labels: decllabels.GetUserLabels(resp.Labels),
-	}
-
-	resource := declresources.ApplicationAuthStrategyResource{
-		BaseResource: declresources.BaseResource{
-			Ref:     buildAuthStrategyRef(resp.ID, resp.Name),
-			Kongctl: kongctlMetaFromLabels(resp.Labels),
-		},
-		CreateAppAuthStrategyRequest: kkComps.CreateCreateAppAuthStrategyRequestKeyAuth(req),
-	}
-
-	return resource, nil
-}
-
-func mapOIDCStrategyToDeclarativeResource(
-	strategy kkComps.AppAuthStrategy,
-) (declresources.ApplicationAuthStrategyResource, error) {
-	resp := strategy.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyOpenIDConnectResponse
-	if resp == nil {
-		return declresources.ApplicationAuthStrategyResource{},
-			fmt.Errorf("missing openid_connect strategy payload")
-	}
-
-	req := kkComps.AppAuthStrategyOpenIDConnectRequest{
-		Name:        resp.Name,
-		DisplayName: resp.DisplayName,
-		Configs: kkComps.AppAuthStrategyOpenIDConnectRequestConfigs{
-			OpenidConnect: resp.Configs.GetOpenidConnect(),
-		},
-		Labels: decllabels.GetUserLabels(resp.Labels),
-	}
-
-	if provider := resp.DcrProvider; provider != nil {
-		providerID := provider.ID
-		if strings.TrimSpace(providerID) != "" {
-			req.DcrProviderID = &providerID
-		}
-	}
-
-	resource := declresources.ApplicationAuthStrategyResource{
-		BaseResource: declresources.BaseResource{
-			Ref:     buildAuthStrategyRef(resp.ID, resp.Name),
-			Kongctl: kongctlMetaFromLabels(resp.Labels),
-		},
-		CreateAppAuthStrategyRequest: kkComps.CreateCreateAppAuthStrategyRequestOpenidConnect(req),
-	}
-
-	return resource, nil
-}
-
-func buildAuthStrategyRef(id, name string) string {
-	if trimmed := strings.TrimSpace(id); trimmed != "" {
-		return trimmed
-	}
-	return strings.TrimSpace(name)
-}
-
-func buildDCRProviderRef(id, name string) string {
-	if trimmed := strings.TrimSpace(id); trimmed != "" {
-		return trimmed
-	}
-	return strings.TrimSpace(name)
-}
-
 func collectDeclarativeDCRProviders(
 	ctx context.Context,
 	api helpers.DCRProvidersAPI,
@@ -1119,7 +856,7 @@ func collectDeclarativeDCRProviders(
 		}
 
 		for _, provider := range resp.Data {
-			mapped, mapErr := mapDCRProviderToDeclarativeResource(provider)
+			mapped, mapErr := declexport.MapDCRProviderToDeclarativeResource(provider)
 			if mapErr != nil {
 				return false, mapErr
 			}
@@ -1146,34 +883,6 @@ func collectDeclarativeDCRProviders(
 	})
 
 	return results, nil
-}
-
-func mapDCRProviderToDeclarativeResource(data any) (declresources.DCRProviderResource, error) {
-	provider, err := helpers.NormalizeDCRProviderPayload(data)
-	if err != nil {
-		return declresources.DCRProviderResource{}, err
-	}
-
-	resource := declresources.DCRProviderResource{
-		BaseResource: declresources.BaseResource{
-			Ref:     buildDCRProviderRef(provider.ID, provider.Name),
-			Kongctl: kongctlMetaFromLabels(provider.Labels),
-		},
-		Name:         provider.Name,
-		ProviderType: provider.ProviderType,
-		Issuer:       provider.Issuer,
-		DCRConfig:    provider.DCRConfig,
-		Labels:       decllabels.GetUserLabels(provider.Labels),
-	}
-
-	if resource.DCRConfig == nil {
-		resource.DCRConfig = map[string]any{}
-	}
-	if provider.DisplayNameSet {
-		resource.DisplayName = provider.DisplayName
-	}
-
-	return resource, nil
 }
 
 func collectDeclarativeControlPlanes(
@@ -1221,14 +930,14 @@ func collectDeclarativeControlPlanes(
 			memberIDs := []string{}
 			if groupsAPI != nil &&
 				cp.Config.ClusterType == kkComps.ControlPlaneClusterTypeClusterTypeControlPlaneGroup {
-				ids, err := fetchControlPlaneGroupMembers(ctx, groupsAPI, cp.ID)
+				ids, err := declexport.FetchControlPlaneGroupMembers(ctx, groupsAPI, cp.ID)
 				if err != nil {
 					return false, fmt.Errorf("failed to list group memberships for control plane %s: %w", cp.Name, err)
 				}
 				memberIDs = normalizers.NormalizeMemberIDs(ids)
 			}
 
-			mapped := mapControlPlaneToDeclarativeResource(cp, memberIDs)
+			mapped := declexport.MapControlPlaneToDeclarativeResource(cp, memberIDs)
 			results = append(results, mapped)
 		}
 
@@ -1250,93 +959,9 @@ func collectDeclarativeControlPlanes(
 	return results, nil
 }
 
-func mapControlPlaneToDeclarativeResource(
-	cp kkComps.ControlPlane,
-	memberIDs []string,
-) declresources.ControlPlaneResource {
-	mapped := declresources.ControlPlaneResource{
-		BaseResource: declresources.BaseResource{Ref: cp.ID},
-		CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{
-			Name: cp.Name,
-		},
-	}
-	fieldcontracts.ExportControlPlaneFields(cp, &mapped.CreateControlPlaneRequest)
-
-	userLabels := decllabels.GetUserLabels(cp.Labels)
-	if len(userLabels) > 0 {
-		mapped.Labels = userLabels
-	}
-
-	mapped.Kongctl = kongctlMetaFromLabels(cp.Labels)
-
-	if len(memberIDs) > 0 && cp.Config.ClusterType == kkComps.ControlPlaneClusterTypeClusterTypeControlPlaneGroup {
-		mapped.Members = make([]declresources.ControlPlaneGroupMember, 0, len(memberIDs))
-		for _, id := range memberIDs {
-			mapped.Members = append(mapped.Members, declresources.ControlPlaneGroupMember{ID: id})
-		}
-	}
-
-	return mapped
-}
-
-func fetchControlPlaneGroupMembers(
-	ctx context.Context,
-	api helpers.ControlPlaneGroupsAPI,
-	controlPlaneID string,
-) ([]string, error) {
-	const defaultPageSize int64 = 100
-	pageSize := defaultPageSize
-
-	var (
-		members   []string
-		pageAfter *string
-	)
-
-	for {
-		req := kkOps.GetControlPlanesIDGroupMembershipsRequest{
-			ControlPlaneID: controlPlaneID,
-			PageSize:       &pageSize,
-		}
-
-		if pageAfter != nil {
-			req.PageAfter = pageAfter
-		}
-
-		resp, err := api.GetControlPlanesIDGroupMemberships(ctx, req)
-		if err != nil {
-			return nil, fmt.Errorf("failed to list control plane group memberships: %w", err)
-		}
-
-		if resp == nil || resp.GetListGroupMemberships() == nil {
-			break
-		}
-
-		for _, member := range resp.GetListGroupMemberships().GetData() {
-			if member.ID != "" {
-				members = append(members, member.ID)
-			}
-		}
-
-		nextCursor := pagination.ExtractPageAfterCursor(resp.GetListGroupMemberships().GetMeta().Page.Next)
-		if nextCursor == "" {
-			break
-		}
-		pageAfter = &nextCursor
-	}
-
-	return members, nil
-}
-
 func stringPointer(s string) *string {
 	if s == "" {
 		return nil
 	}
 	return &s
-}
-
-func getString(s *string) string {
-	if s == nil {
-		return ""
-	}
-	return *s
 }

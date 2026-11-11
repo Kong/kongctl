@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/kong/kongctl/internal/declarative/resources"
+
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
@@ -50,11 +52,14 @@ func NewAPICmd(
 		cmd.PreRunE = parentPreRun
 	}
 
+	adoptCommon.AddDeclarativeRootExportFlag(cmd)
 	cmd.RunE = func(cobraCmd *cobra.Command, args []string) error {
-		s, err := adoptCommon.SetupAdoptRun(cobraCmd, args)
+		s, cleanup, err := adoptCommon.SetupExportRun(cobraCmd, args)
 		if err != nil {
 			return err
 		}
+
+		defer cleanup()
 
 		result, err := adoptAPI(
 			s.Helper,
@@ -64,11 +69,7 @@ func NewAPICmd(
 			s.AdoptFlags.OverwriteNamespace,
 			strings.TrimSpace(args[0]),
 		)
-		if err != nil {
-			return err
-		}
-
-		return adoptCommon.PrintAdoptResult(s.Helper, s.OutType, result, "API")
+		return adoptCommon.PrintAdoptionOutcome(s.Helper, s.OutType, result, err, "API")
 	}
 
 	return cmd, nil
@@ -101,6 +102,19 @@ func adoptAPI(
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
 
+	if result, dryRun, err := adoptCommon.PrepareRootAdoption(ctx, adoptCommon.AdoptionChange{
+		AdoptResult: adoptCommon.AdoptResult{
+			ResourceType: string(resources.ResourceTypeAPI),
+			ID:           api.ID,
+			Name:         api.Name,
+			Namespace:    namespace,
+		},
+		MetadataLocation: resources.SchemaFieldLabels,
+		Before:           api.Labels,
+		After:            adoptCommon.StringLabelMap(api.Labels, namespace),
+	}, *api, labels.IsProtectedResource(api.Labels)); err != nil || dryRun {
+		return result, err
+	}
 	resp, err := apiClient.UpdateAPI(ctx, api.ID, updateReq, false)
 	if err != nil {
 		attrs := cmdpkg.TryConvertErrorToAttrs(err)
@@ -119,12 +133,12 @@ func adoptAPI(
 		}
 	}
 
-	return &adoptCommon.AdoptResult{
+	return adoptCommon.FinishAdoption(ctx, &adoptCommon.AdoptResult{
 		ResourceType: "api",
 		ID:           updated.ID,
 		Name:         updated.Name,
 		Namespace:    ns,
-	}, nil
+	})
 }
 
 func resolveAPI(

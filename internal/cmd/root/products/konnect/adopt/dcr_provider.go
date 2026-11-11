@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/kong/kongctl/internal/declarative/resources"
+
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	adoptCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
@@ -55,11 +57,14 @@ func NewDCRProviderCmd(
 		cmd.PreRunE = parentPreRun
 	}
 
+	adoptCommon.AddDeclarativeRootExportFlag(cmd)
 	cmd.RunE = func(cobraCmd *cobra.Command, args []string) error {
-		s, err := adoptCommon.SetupAdoptRun(cobraCmd, args)
+		s, cleanup, err := adoptCommon.SetupExportRun(cobraCmd, args)
 		if err != nil {
 			return err
 		}
+
+		defer cleanup()
 
 		result, err := adoptDCRProvider(
 			s.Helper,
@@ -69,11 +74,7 @@ func NewDCRProviderCmd(
 			s.AdoptFlags.OverwriteNamespace,
 			strings.TrimSpace(args[0]),
 		)
-		if err != nil {
-			return err
-		}
-
-		return adoptCommon.PrintAdoptResult(s.Helper, s.OutType, result, "DCR provider")
+		return adoptCommon.PrintAdoptionOutcome(s.Helper, s.OutType, result, err, "DCR provider")
 	}
 
 	return cmd, nil
@@ -115,17 +116,31 @@ func adoptDCRProvider(
 	}
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
+
+	if result, dryRun, err := adoptCommon.PrepareRootAdoption(ctx, adoptCommon.AdoptionChange{
+		AdoptResult: adoptCommon.AdoptResult{
+			ResourceType: string(resources.ResourceTypeDCRProvider),
+			ID:           provider.ID,
+			Name:         provider.Name,
+			Namespace:    namespace,
+		},
+		MetadataLocation: resources.SchemaFieldLabels,
+		Before:           provider.Labels,
+		After:            adoptCommon.StringLabelMap(provider.Labels, namespace),
+	}, *provider, labels.IsProtectedResource(provider.Labels)); err != nil || dryRun {
+		return result, err
+	}
 	if _, err := api.UpdateDcrProvider(ctx, provider.ID, updateReq); err != nil {
 		attrs := cmdpkg.TryConvertErrorToAttrs(err)
 		return nil, cmdpkg.PrepareExecutionError("failed to update DCR provider", err, helper.GetCmd(), attrs...)
 	}
 
-	return &adoptCommon.AdoptResult{
+	return adoptCommon.FinishAdoption(ctx, &adoptCommon.AdoptResult{
 		ResourceType: dcrProviderResourceType,
 		ID:           provider.ID,
 		Name:         provider.Name,
 		Namespace:    namespace,
-	}, nil
+	})
 }
 
 func resolveDCRProvider(

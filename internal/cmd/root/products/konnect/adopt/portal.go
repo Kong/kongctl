@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/kong/kongctl/internal/declarative/resources"
+
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
-	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	adoptCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
@@ -15,7 +16,6 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/util"
-	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
 )
 
@@ -52,33 +52,14 @@ func NewPortalCmd(
 		cmd.PreRunE = parentPreRun
 	}
 
+	adoptCommon.AddDeclarativeRootExportFlag(cmd)
 	cmd.RunE = func(cobraCmd *cobra.Command, args []string) error {
-		helper := cmdpkg.BuildHelper(cobraCmd, args)
-
-		adoptFlags, err := adoptCommon.ReadAdoptFlags(cobraCmd)
+		s, cleanup, err := adoptCommon.SetupExportRun(cobraCmd, args)
 		if err != nil {
 			return err
 		}
-
-		outType, err := helper.GetOutputFormat()
-		if err != nil {
-			return err
-		}
-
-		cfg, err := helper.GetConfig()
-		if err != nil {
-			return err
-		}
-
-		logger, err := helper.GetLogger()
-		if err != nil {
-			return err
-		}
-
-		sdk, err := helper.GetKonnectSDK(cfg, logger)
-		if err != nil {
-			return err
-		}
+		defer cleanup()
+		helper, sdk, cfg, adoptFlags, outType := s.Helper, s.SDK, s.Cfg, s.AdoptFlags, s.OutType
 
 		result, err := adoptPortal(
 			helper,
@@ -88,27 +69,7 @@ func NewPortalCmd(
 			adoptFlags.OverwriteNamespace,
 			strings.TrimSpace(args[0]),
 		)
-		if err != nil {
-			return err
-		}
-
-		streams := helper.GetStreams()
-		if outType == cmdCommon.TEXT {
-			name := result.Name
-			if name == "" {
-				name = result.ID
-			}
-			fmt.Fprintf(streams.Out, "Adopted portal %q (%s) into namespace %q\n", name, result.ID, result.Namespace)
-			return nil
-		}
-
-		printer, err := cli.Format(outType.String(), streams.Out)
-		if err != nil {
-			return err
-		}
-		defer printer.Flush()
-		printer.Print(result)
-		return nil
+		return adoptCommon.PrintAdoptionOutcome(helper, outType, result, err, "portal")
 	}
 
 	return cmd, nil
@@ -141,6 +102,19 @@ func adoptPortal(
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
 
+	if result, dryRun, err := adoptCommon.PrepareRootAdoption(ctx, adoptCommon.AdoptionChange{
+		AdoptResult: adoptCommon.AdoptResult{
+			ResourceType: string(resources.ResourceTypePortal),
+			ID:           portal.ID,
+			Name:         portal.Name,
+			Namespace:    namespace,
+		},
+		MetadataLocation: resources.SchemaFieldLabels,
+		Before:           portal.Labels,
+		After:            adoptCommon.StringLabelMap(portal.Labels, namespace),
+	}, *portal, labels.IsProtectedResource(portal.Labels)); err != nil || dryRun {
+		return result, err
+	}
 	resp, err := portalAPI.UpdatePortal(ctx, portal.ID, updateReq)
 	if err != nil {
 		attrs := cmdpkg.TryConvertErrorToAttrs(err)
@@ -159,12 +133,12 @@ func adoptPortal(
 		}
 	}
 
-	return &adoptCommon.AdoptResult{
+	return adoptCommon.FinishAdoption(ctx, &adoptCommon.AdoptResult{
 		ResourceType: "portal",
 		ID:           updated.ID,
 		Name:         updated.Name,
 		Namespace:    ns,
-	}, nil
+	})
 }
 
 func resolvePortal(

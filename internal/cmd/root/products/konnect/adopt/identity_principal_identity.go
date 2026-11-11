@@ -23,6 +23,7 @@ func NewIdentityPrincipalIdentityCmd(verb verbs.VerbValue,
 		Args:    cobra.ExactArgs(1),
 		PreRunE: parentPreRun,
 	}
+	adoptCommon.AddDeclarativeExportFlags(cmd)
 	common.AddIdentityDirectoryFlags(cmd)
 	cmd.Flags().String("principal-id", "", "Parent principal UUID")
 	cmd.Flags().String("ref", "", "Declarative ref to persist on this identity")
@@ -35,10 +36,11 @@ func NewIdentityPrincipalIdentityCmd(verb verbs.VerbValue,
 		addParentFlags(verb, cmd)
 	}
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		setup, err := adoptCommon.SetupAdoptRun(cmd, args)
+		setup, cleanup, err := adoptCommon.SetupExportRun(cmd, args)
 		if err != nil {
 			return err
 		}
+		defer cleanup()
 		directory, name, err := common.IdentityDirectorySelector(cmd)
 		if err != nil {
 			return err
@@ -65,10 +67,7 @@ func NewIdentityPrincipalIdentityCmd(verb verbs.VerbValue,
 		}
 		result, err := adoptPrincipalIdentity(setup.Helper.GetContext(), setup.SDK.GetIdentityPrincipalIdentitiesAPI(),
 			directory, principal, args[0], ref, setup.AdoptFlags.Namespace, setup.AdoptFlags.OverwriteNamespace)
-		if err != nil {
-			return err
-		}
-		return adoptCommon.PrintAdoptResult(setup.Helper, setup.OutType, result, "Kong Identity principal identity")
+		return printSingleChildAdoption(setup, result, err, "Kong Identity principal identity")
 	}
 	return cmd, nil
 }
@@ -90,9 +89,10 @@ func adoptPrincipalIdentity(ctx context.Context, api helpers.IdentityPrincipalId
 	if current.WorkspaceID != nil {
 		return nil, fmt.Errorf("adoption of identities with workspace_id is deferred pending API question Q25")
 	}
-	if owner := current.ManagedBy[resources.ChildNamespaceKey]; owner != "" && !overwrite {
-		return nil, fmt.Errorf("identity already has namespace %q; use --overwrite-namespace to adopt it", owner)
+	if _, err := adoptionManagedBy(current.ManagedBy, namespace, overwrite, build.Version(ctx)); err != nil {
+		return nil, err
 	}
+
 	all, err := helpers.ListPrincipalIdentities(ctx, api, directoryID, principalID, 100)
 	if err != nil {
 		return nil, err
@@ -104,6 +104,7 @@ func adoptPrincipalIdentity(ctx context.Context, api helpers.IdentityPrincipalId
 		}
 	}
 	// Reproject with the complete generated map; helpers retain public fields.
+	previousManagedBy := current.ManagedBy
 	current.ManagedBy = resources.BuildPrincipalManagedBy(
 		namespace,
 		ref,
@@ -114,13 +115,27 @@ func adoptPrincipalIdentity(ctx context.Context, api helpers.IdentityPrincipalId
 	if err != nil {
 		return nil, err
 	}
+	if err := adoptCommon.PrepareDeclarativeChild(
+		ctx, resources.ResourceTypeIdentityPrincipalIdentity, id, ref, namespace,
+		resources.IsChildProtected(current.ManagedBy), current,
+		adoptCommon.AdoptionParent{Kind: resources.ResourceTypeIdentityPrincipal, ID: principalID, DirectoryID: directoryID},
+	); err != nil {
+		return nil, err
+	}
+	if result, dryRun := adoptCommon.PreviewAdoption(
+		ctx, string(resources.ResourceTypeIdentityPrincipalIdentity), id, ref, namespace,
+		map[string]string{"directory_id": directoryID, "principal_id": principalID}, "managed_by",
+		previousManagedBy, current.ManagedBy,
+	); dryRun {
+		return adoptCommon.FinishAdoption(ctx, result)
+	}
 	if _, err := helpers.ReplacePrincipalIdentity(ctx, api, directoryID, principalID, id, body); err != nil {
 		return nil, err
 	}
-	return &adoptCommon.AdoptResult{
+	return adoptCommon.FinishAdoption(ctx, &adoptCommon.AdoptResult{
 		ResourceType: string(resources.ResourceTypeIdentityPrincipalIdentity),
 		ID:           id,
 		Name:         ref,
 		Namespace:    namespace,
-	}, nil
+	})
 }

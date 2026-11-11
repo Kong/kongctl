@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/kong/kongctl/internal/declarative/resources"
+
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
@@ -50,11 +52,14 @@ func NewDashboardCmd(
 		cmd.PreRunE = parentPreRun
 	}
 
+	adoptCommon.AddDeclarativeRootExportFlag(cmd)
 	cmd.RunE = func(cobraCmd *cobra.Command, args []string) error {
-		s, err := adoptCommon.SetupAdoptRun(cobraCmd, args)
+		s, cleanup, err := adoptCommon.SetupExportRun(cobraCmd, args)
 		if err != nil {
 			return err
 		}
+
+		defer cleanup()
 
 		result, err := adoptDashboard(
 			s.Helper,
@@ -64,11 +69,7 @@ func NewDashboardCmd(
 			s.AdoptFlags.OverwriteNamespace,
 			strings.TrimSpace(args[0]),
 		)
-		if err != nil {
-			return err
-		}
-
-		return adoptCommon.PrintAdoptResult(s.Helper, s.OutType, result, "dashboard")
+		return adoptCommon.PrintAdoptionOutcome(s.Helper, s.OutType, result, err, "dashboard")
 	}
 
 	return cmd, nil
@@ -107,6 +108,20 @@ func adoptDashboard(
 	}
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
+
+	if result, dryRun, err := adoptCommon.PrepareRootAdoption(ctx, adoptCommon.AdoptionChange{
+		AdoptResult: adoptCommon.AdoptResult{
+			ResourceType: string(resources.ResourceTypeDashboard),
+			ID:           id,
+			Name:         dashboard.Name,
+			Namespace:    namespace,
+		},
+		MetadataLocation: resources.SchemaFieldLabels,
+		Before:           dashboard.Labels,
+		After:            updateReq.Labels,
+	}, *dashboard, labels.IsProtectedResource(dashboard.Labels)); err != nil || dryRun {
+		return result, err
+	}
 	resp, err := api.DashboardsUpdate(ctx, id, updateReq)
 	if err != nil {
 		attrs := cmdpkg.TryConvertErrorToAttrs(err)
@@ -125,12 +140,12 @@ func adoptDashboard(
 		}
 	}
 
-	return &adoptCommon.AdoptResult{
+	return adoptCommon.FinishAdoption(ctx, &adoptCommon.AdoptResult{
 		ResourceType: "dashboard",
 		ID:           getDashboardID(updated),
 		Name:         updated.Name,
 		Namespace:    ns,
-	}, nil
+	})
 }
 
 func resolveDashboard(

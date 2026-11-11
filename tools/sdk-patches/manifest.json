@@ -2,6 +2,7 @@
   "speakeasy_version": "1.806.0",
   "overlays": [
     "ai-gateway-pgvector-connection-defaults.yaml",
+    "ai-gateway-update-runtime-defaults.yaml",
     "backend-cluster-tls-defaults.yaml",
     "organization-team-konnect-managed-defaults.yaml",
     "patch-custom-portal-email-template-defaults.yaml",
@@ -341,7 +342,8 @@
     "tests/auth_server_client_fields_test.go.txt": "auth_server_client_fields_kongctl_test.go",
     "tests/identity_cursor_query_test.go.txt": "identity_cursor_query_kongctl_test.go",
     "tests/identity_credential_expiration_test.go.txt": "identity_credential_expiration_kongctl_test.go",
-    "tests/identity_key_metadata_test.go.txt": "identity_key_metadata_kongctl_test.go"
+    "tests/identity_key_metadata_test.go.txt": "identity_key_metadata_kongctl_test.go",
+    "tests/ai_gateway_update_defaults_test.go.txt": "ai_gateway_update_defaults_kongctl_test.go"
   },
   "post_generation_doc_sections": [
     {

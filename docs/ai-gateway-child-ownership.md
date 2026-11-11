@@ -58,9 +58,11 @@ preserving valid siblings. It does not interpret invalid protection values as
 unprotected.
 
 New children receive generated ownership metadata when kongctl creates them.
-An existing unowned name match requires explicit adoption through the API. A
-match owned by another namespace requires explicit transfer; a child already
-owned by the intended namespace needs neither operation. Defaults and
+An existing unowned name match requires explicit
+[child adoption](declarative/adoption.md). A match owned by another namespace
+requires
+explicit transfer; a child already owned by the intended namespace needs
+neither operation. Defaults and
 references never adopt an observed child. Names are unique per actual gateway
 and family. See [ownership setup for existing resources][existing] for the
 setup checklist.

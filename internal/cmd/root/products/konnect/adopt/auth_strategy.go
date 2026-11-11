@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/kong/kongctl/internal/declarative/resources"
+
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
@@ -50,11 +52,14 @@ func NewAuthStrategyCmd(
 		cmd.PreRunE = parentPreRun
 	}
 
+	adoptCommon.AddDeclarativeRootExportFlag(cmd)
 	cmd.RunE = func(cobraCmd *cobra.Command, args []string) error {
-		s, err := adoptCommon.SetupAdoptRun(cobraCmd, args)
+		s, cleanup, err := adoptCommon.SetupExportRun(cobraCmd, args)
 		if err != nil {
 			return err
 		}
+
+		defer cleanup()
 
 		result, err := adoptAuthStrategy(
 			s.Helper,
@@ -64,11 +69,7 @@ func NewAuthStrategyCmd(
 			s.AdoptFlags.OverwriteNamespace,
 			strings.TrimSpace(args[0]),
 		)
-		if err != nil {
-			return err
-		}
-
-		return adoptCommon.PrintAdoptResult(s.Helper, s.OutType, result, "auth strategy")
+		return adoptCommon.PrintAdoptionOutcome(s.Helper, s.OutType, result, err, "auth strategy")
 	}
 
 	return cmd, nil
@@ -111,17 +112,31 @@ func adoptAuthStrategy(
 	}
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
+
+	if result, dryRun, err := adoptCommon.PrepareRootAdoption(ctx, adoptCommon.AdoptionChange{
+		AdoptResult: adoptCommon.AdoptResult{
+			ResourceType: string(resources.ResourceTypeApplicationAuthStrategy),
+			ID:           id,
+			Name:         name,
+			Namespace:    namespace,
+		},
+		MetadataLocation: resources.SchemaFieldLabels,
+		Before:           existingLabels,
+		After:            adoptCommon.StringLabelMap(existingLabels, namespace),
+	}, *strategy, labels.IsProtectedResource(existingLabels)); err != nil || dryRun {
+		return result, err
+	}
 	if _, err := api.UpdateAppAuthStrategy(ctx, id, updateReq); err != nil {
 		attrs := cmdpkg.TryConvertErrorToAttrs(err)
 		return nil, cmdpkg.PrepareExecutionError("failed to update auth strategy", err, helper.GetCmd(), attrs...)
 	}
 
-	return &adoptCommon.AdoptResult{
+	return adoptCommon.FinishAdoption(ctx, &adoptCommon.AdoptResult{
 		ResourceType: "auth_strategy",
 		ID:           id,
 		Name:         name,
 		Namespace:    namespace,
-	}, nil
+	})
 }
 
 func resolveAuthStrategy(

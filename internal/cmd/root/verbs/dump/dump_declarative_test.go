@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	declexport "github.com/kong/kongctl/internal/declarative/export"
+
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 
@@ -324,7 +326,7 @@ func TestMapPortalToDeclarativeResource(t *testing.T) {
 	portal.AutoApproveDevelopers = &authTrue
 	portal.AutoApproveApplications = &authFalse
 
-	resource := mapPortalToDeclarativeResource(portal)
+	resource := declexport.MapPortalToDeclarativeResource(portal)
 
 	if resource.Ref != portal.ID {
 		t.Fatalf("expected ref %q, got %q", portal.ID, resource.Ref)
@@ -390,7 +392,7 @@ func TestMapPortalToDeclarativeResource(t *testing.T) {
 }
 
 func TestMapEventGatewayToDeclarativeResourcePreservesMinRuntimeVersion(t *testing.T) {
-	resource := mapEventGatewayToDeclarativeResource(kkComps.EventGatewayInfo{
+	resource := declexport.MapEventGatewayToDeclarativeResource(kkComps.EventGatewayInfo{
 		ID:                "event-gateway-id",
 		Name:              "event-gateway",
 		MinRuntimeVersion: "1.2",
@@ -494,7 +496,7 @@ func TestMapAPIToDeclarativeResource(t *testing.T) {
 		},
 	}
 
-	resource := mapAPIToDeclarativeResource(api)
+	resource := declexport.MapAPIToDeclarativeResource(api)
 
 	if resource.Ref != api.ID {
 		t.Fatalf("expected ref %q, got %q", api.ID, resource.Ref)
@@ -538,7 +540,7 @@ func TestMapDashboardToDeclarativeResource(t *testing.T) {
 		},
 	}
 
-	resource := mapDashboardToDeclarativeResource(dashboard)
+	resource := declexport.MapDashboardToDeclarativeResource(dashboard)
 
 	if resource.Ref != id {
 		t.Fatalf("expected ref %q, got %q", id, resource.Ref)
@@ -577,7 +579,7 @@ func TestMapAIGatewayToDeclarativeResource(t *testing.T) {
 		},
 	}
 
-	resource := mapAIGatewayToDeclarativeResource(gateway)
+	resource := declexport.MapAIGatewayToDeclarativeResource(gateway)
 	if len(resource.ManagedBy) != 0 {
 		t.Fatalf("expected reserved managed_by metadata to be omitted, got %v", resource.ManagedBy)
 	}
@@ -621,7 +623,7 @@ func TestAIGatewayDeploymentTypeDumpBehavior(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			resource := mapAIGatewayToDeclarativeResource(kkComps.AIGateway{
+			resource := declexport.MapAIGatewayToDeclarativeResource(kkComps.AIGateway{
 				ID:             "ai-gateway-id",
 				Name:           "ai-gateway",
 				DisplayName:    "AI Gateway",
@@ -688,7 +690,7 @@ func TestMapAuthStrategyToDeclarativeResource_KeyAuth(t *testing.T) {
 		},
 	)
 
-	resource, err := mapAuthStrategyToDeclarativeResource(strategy)
+	resource, err := declexport.MapAuthStrategyToDeclarativeResource(strategy)
 	if err != nil {
 		t.Fatalf("unexpected error mapping key auth strategy: %v", err)
 	}
@@ -756,7 +758,7 @@ func TestMapAuthStrategyToDeclarativeResource_OIDC(t *testing.T) {
 		},
 	)
 
-	resource, err := mapAuthStrategyToDeclarativeResource(strategy)
+	resource, err := declexport.MapAuthStrategyToDeclarativeResource(strategy)
 	if err != nil {
 		t.Fatalf("unexpected error mapping oidc strategy: %v", err)
 	}

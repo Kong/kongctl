@@ -9,7 +9,7 @@ test:
       nameVar: directory_name
       nameEnv: KONGCTL_E2E_GROUP_READ_DIRECTORY_NAME
       principalGroups: true
-  info: Inspect ordinary/default groups and teams where creation is supported. Verify the exact Q32 enum error when teams are unavailable and use an ordinary alternate parent for scope isolation. Inspect groups and direct membership entries with complete cursor traversal, explicit selectors, public fields, JSON/YAML/text and scoped entry-ID resolution. Fixtures are manually created without credentials; opt-in cleanup verifies all ownership and membership markers.
+  info: Inspect ordinary/default groups and teams where creation is supported. Verify the known exact Q32 type validation errors when teams are unavailable and use an ordinary alternate parent for scope isolation. Inspect groups and direct membership entries with complete cursor traversal, explicit selectors, public fields, JSON/YAML/text and scoped entry-ID resolution. Fixtures are manually created without credentials; opt-in cleanup verifies all ownership and membership markers.
 steps:
   - name: 001-group-inspection
     skipInputs: true

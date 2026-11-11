@@ -1,7 +1,6 @@
 package dump
 
 import (
-	"bytes"
 	"cmp"
 	"context"
 	"encoding/json"
@@ -10,7 +9,7 @@ import (
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 
-	"github.com/kong/kongctl/internal/declarative/labels"
+	declexport "github.com/kong/kongctl/internal/declarative/export"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/declarative/tags"
@@ -32,18 +31,7 @@ func identityDirectoryCollector() declarativeCollector {
 			})
 			result := make([]resources.IdentityDirectoryResource, 0, len(values))
 			for _, current := range values {
-				declaration := resources.IdentityDirectoryResource{
-					BaseResource: resources.BaseResource{
-						Ref:     current.ID,
-						Kongctl: kongctlMetaFromLabels(current.NormalizedLabels),
-					},
-					Name: current.Name, Description: &current.Description,
-					AllowedControlPlanes:  slices.Clone(current.AllowedControlPlanes),
-					AllowAllControlPlanes: current.AllowAllControlPlanes, TTLSecs: current.TTLSecs,
-					NegativeTTLSecs:        current.NegativeTTLSecs,
-					IdentityDirectoryVault: resources.IdentityDirectoryVault{VaultEnabled: current.VaultEnabled},
-					Labels:                 labels.GetUserLabels(current.Labels),
-				}
+				declaration := declexport.MapIdentityDirectory(current.KongDirectory)
 				if current.ManagedBy[resources.ManagedByToolKey] != resources.ManagedByTool {
 					declaration.Kongctl = nil
 					declaration.External = &resources.ExternalBlock{Selector: &resources.ExternalSelector{
@@ -123,24 +111,13 @@ func identityDirectoryCollector() declarativeCollector {
 					}
 					seen[ref] = true
 					principalRefs[current.ID] = ref
-					data, err := json.Marshal(current.Metadata)
+					principal, err := declexport.ProjectAs[resources.IdentityPrincipalResource](current.IdentityPrincipal)
 					if err != nil {
 						return err
 					}
-					metadata := make(map[string]any)
-					decoder := json.NewDecoder(bytes.NewReader(data))
-					decoder.UseNumber()
-					if err := decoder.Decode(&metadata); err != nil {
-						return err
-					}
-					principal := resources.IdentityPrincipalResource{
-						BaseResource: resources.BaseResource{
-							Ref:     ref,
-							Kongctl: kongctlMetaFromLabels(current.NormalizedLabels),
-						},
-						DisplayName: current.DisplayName, Description: &current.Description, Metadata: metadata, Labels: current.Labels,
-						Active: current.Active,
-					}
+					principal.Ref = ref
+					principal.Kongctl = declexport.KongctlMetaFromLabels(current.NormalizedLabels)
+
 					if !managed {
 						principal.External = &resources.ExternalBlock{ID: current.ID}
 						principal.Kongctl = nil
@@ -173,7 +150,7 @@ func identityDirectoryCollector() declarativeCollector {
 								)
 							}
 							owned := state.NormalizeIdentityPrincipalIdentity(identity)
-							declaration.Kongctl = kongctlMetaFromLabels(owned.NormalizedLabels)
+							declaration.Kongctl = declexport.KongctlMetaFromLabels(owned.NormalizedLabels)
 						} else {
 							declaration.External = &resources.ExternalBlock{ID: identity.ID}
 						}
@@ -213,7 +190,7 @@ func identityDirectoryCollector() declarativeCollector {
 								basic.ManagedBy[resources.ChildNamespaceKey]); err != nil {
 								return err
 							}
-							declaration.Kongctl = kongctlMetaFromLabels(basic.NormalizedLabels)
+							declaration.Kongctl = declexport.KongctlMetaFromLabels(basic.NormalizedLabels)
 						} else {
 							declaration.External = &resources.ExternalBlock{ID: basic.ID}
 						}
@@ -266,23 +243,13 @@ func identityDirectoryCollector() declarativeCollector {
 						return fmt.Errorf("group ref %q is ambiguous in the dump", ref)
 					}
 					seen[ref] = true
-					data, err := json.Marshal(current.Metadata)
+					group, err := declexport.ProjectAs[resources.IdentityGroupResource](current.IdentityGroup)
 					if err != nil {
 						return err
 					}
-					var metadata map[string]any
-					decoder := json.NewDecoder(bytes.NewReader(data))
-					decoder.UseNumber()
-					if err := decoder.Decode(&metadata); err != nil {
-						return err
-					}
-					group := resources.IdentityGroupResource{
-						BaseResource: resources.BaseResource{
-							Ref:     ref,
-							Kongctl: kongctlMetaFromLabels(current.NormalizedLabels),
-						},
-						Name: current.Name, Description: &current.Description, Metadata: metadata, Labels: current.Labels,
-					}
+					group.Ref = ref
+					group.Kongctl = declexport.KongctlMetaFromLabels(current.NormalizedLabels)
+
 					if current.Type != nil {
 						group.Type = new(string(*current.Type))
 					}

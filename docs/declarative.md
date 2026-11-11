@@ -101,6 +101,13 @@ remote files.
 
 Set namespaces, defaults, protection, and ownership guardrails.
 
+<a id="adopt"></a>
+
+### [Adopting existing resources](declarative/adoption.md)
+
+Bring existing resources and independently owned children under management,
+with scoped bulk selection and `--dry-run` reports.
+
 <a id="plan-artifacts"></a>
 <a id="how-planning-works"></a>
 <a id="why-use-plan-artifacts"></a>
@@ -117,7 +124,6 @@ Set namespaces, defaults, protection, and ownership guardrails.
 <a id="apply"></a>
 <a id="delete"></a>
 <a id="diff"></a>
-<a id="adopt"></a>
 <a id="dump"></a>
 <a id="emergency-rollback-using-previous-plan"></a>
 
