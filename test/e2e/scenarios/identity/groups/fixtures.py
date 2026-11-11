@@ -30,13 +30,18 @@ def main():
                 with urllib.request.urlopen(request, timeout=30) as response:
                     value = json.load(response)
             except urllib.error.HTTPError as error:
-                if error.code != 400 or body.get("type") != "team":
-                    raise
-                failure = json.load(error)
-                expected = {"field": "type", "rule": "enum", "reason": "type must be one of: group",
-                            "source": "body"}
-                # Q32: this exact deployment response identifies unavailable team creation.
-                assert failure.get("invalid_parameters") == [expected]
+                with error:
+                    context = f"POST {path} failed (HTTP {error.code}, type={body.get('type')!r})"
+                    if error.code != 400 or body.get("type") != "team":
+                        raise RuntimeError(context) from None
+                    failure = json.load(error)
+                enum_error = {"field": "type", "rule": "enum", "reason": "type must be one of: group",
+                              "source": "body"}
+                schema_error = {"field": "type", "rule": "allOf",
+                                "reason": 'doesn\'t match all schemas from "allOf"', "source": ""}
+                # Deployments reject direct team creation with either exact type error.
+                if failure.get("invalid_parameters") not in ([enum_error], [schema_error]):
+                    raise RuntimeError(context + "; unrecognized team validation response")
                 return None
             assert response.status == 201 and value.get("id")
             return value
@@ -93,8 +98,10 @@ def main():
     raise ValueError("unknown action")
 
 
-try:
-    print(json.dumps(main()))
-except Exception:
-    print("Group fixture operation failed", file=sys.stderr)
-    sys.exit(1)
+if __name__ == "__main__":
+    try:
+        print(json.dumps(main()))
+    except Exception as error:
+        print("Group fixture operation failed", file=sys.stderr)
+        print(str(error) if isinstance(error, RuntimeError) else type(error).__name__, file=sys.stderr)
+        sys.exit(1)
