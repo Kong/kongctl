@@ -1,42 +1,56 @@
 # Event Gateway consume-policy replay
 
-The expanded scenario passed [live recording][record] with all 307 HTTP
+The expanded scenario passed [live recording][record] with 478 HTTP
 exchanges and [three isolated replays][replay]. Recording used the existing
-acceptance-3 organization lock and passed both before/after live resets.
+acceptance-3 organization lock and passed before/after live resets.
 
-The committed cassette is byte-for-byte identical to the validated cassette
-from each isolated replay. Requests, responses, input fingerprint, and source
-provenance are unchanged from the live candidate; only reviewed parallel
-phases were added. The annotation file binds those phases to the original
-candidate's SHA-256. Generated UUIDs use the recorder's normalization. The
-static key remains the public scenario fixture, not a recording credential.
+The committed cassette is identical to the validated cassette from each
+isolated replay. Requests, responses, input fingerprint, and live source
+provenance are unchanged from the recording; only reviewed parallel phases
+were added. The annotation file binds those phases to the original
+candidate's SHA-256. Generated UUIDs are normalized by the recorder. The
+static key remains the public scenario fixture.
 
-Coverage retains the existing create/update, root-level declarations, lookup,
-dump/plan round-trip, decrypt, skip-record, schema-validation, chained-policy,
-and decrypt-fields checks. The mask-fields lifecycle verifies the replacement
-strategy and field path. The transcode lifecycle creates an Avro registry,
-checks reference-based schema configuration and its resolved registry ID,
-then deletes the policy and registry. Both lifecycles check idempotency and
-preserve the existing schema-validation parent before final cleanup.
+Existing policy CRUD, root declarations, references, schema validation,
+decrypt-fields, mask-fields, transcode, registry, and cleanup assertions are
+retained. Added coverage checks top-level and shared-parent sibling creation,
+order-only correction, saved plans and text diff, insertion/deletion,
+immutable recreation, moving a child to the top-level chain, repeat no-op
+convergence, ordered dump/reload, and reconstruction after deleting the
+original gateway.
 
-Three bounded phases describe concurrent operations:
+Eight bounded phases permit independent work within specific commands:
 
-- Exchanges 158–160 create the static key and schema-validation parent. The
-  static-key create must follow its gateway lookup.
-- Exchanges 271–276 look up and delete the transcode policy and registry.
-  Each delete follows its lookup; registry deletion also waits for policy
-  deletion, preserving the reference relationship.
-- Exchanges 297–302 look up and delete the parent policy and static key.
-  Repeated gateway reads retain their order and lookups precede deletes.
+- 169–171: static-key and schema-validation-parent creation. The static-key
+  create follows its gateway lookup.
+- 293–298: transcode-policy and registry cleanup. Each delete follows its
+  lookup; registry deletion also waits for policy deletion.
+- 320–325: parent-policy and static-key cleanup. Lookups precede deletes.
+- 340–341: a top-level sibling and a child under the schema-validation parent
+  are created independently. The next child remains behind the strict barrier.
+- 343–346: read-only observations for the two independent sibling chains.
+- 380–386: reorder observations and sibling moves. Both chain observations
+  precede moves, and the two top-level moves retain their order. The child
+  move is independent of those top-level moves.
+- 420–426: insertion and independent immutable-policy deletions. Each delete
+  retains its detail-read dependency; subsequent replacement creates stay
+  behind the strict barrier.
+- 467–468: independent top-level and child creation during reconstruction.
 
-Planning, policy/registry creation, verification, and all other operations
-remain outside those phases. Every method, path, query, and body must still
-match exactly once. The replay dependency test also exercises reordered
-requests and rejects writes before their required predecessors.
+Planning, dump, convergence checks, parent creation, sibling sequencing, and
+all other exchanges remain strict. Every request method, path, query, and
+body still matches exactly once. Matcher tests exercise reversed independent
+work and reject writes before required predecessors.
 
-Only ordinary eligible PRs use this cassette. Main, manual all-live runs and
-`e2e:force-live` retain live validation. Input or assertion changes require
-another live recording and three isolated replays before promotion.
+The three isolated runs took 28.238–28.699 seconds in the scenario and
+28.754–29.272 seconds in the wrapper. Recording took 112.336 scenario
+seconds, including proxy overhead, so it cannot serve as a live performance
+baseline. These timings describe validation execution, without a speedup claim.
 
-[record]: https://github.com/Kong/kongctl/actions/runs/41658862645
-[replay]: https://github.com/Kong/kongctl/actions/runs/41661424390
+Only ordinary eligible PRs use this cassette. Main, manual all-live runs,
+and `e2e:force-live` retain live validation. Input or assertion changes
+require another live recording and three isolated replays before promotion.
+
+[record]:
+  https://github.com/Kong/kongctl/actions/runs/42966353556/job/130345970498
+[replay]: https://github.com/Kong/kongctl/actions/runs/42967692887

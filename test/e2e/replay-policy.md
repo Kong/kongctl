@@ -42,8 +42,9 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 [plan]: https://github.com/Kong/kongctl/actions/runs/34428189915
 [sync]: https://github.com/Kong/kongctl/actions/runs/39666956462
 [sync-replay]: https://github.com/Kong/kongctl/actions/runs/39670010464
-[consume-record]: https://github.com/Kong/kongctl/actions/runs/41658862645
-[consume-replay]: https://github.com/Kong/kongctl/actions/runs/41661424390
+[consume-record]:
+  https://github.com/Kong/kongctl/actions/runs/42966353556/job/130345970498
+[consume-replay]: https://github.com/Kong/kongctl/actions/runs/42967692887
 [portal-record]: https://github.com/Kong/kongctl/actions/runs/42733116346
 [portal-replay]: https://github.com/Kong/kongctl/actions/runs/42735053013
 [visibility-record]: https://github.com/Kong/kongctl/actions/runs/41902506032
@@ -351,13 +352,14 @@ setup; CI performs it before network isolation. No kongctl dependency changes.
 Dependency installation belongs to job setup, not scenario execution savings.
 
 `event-gateway/consume-policy` passed its expanded live scenario and three
-isolated replays, each matching all 211 exchanges. Two bounded phases cover
-independent schema-validation-parent/static-key creation and cleanup.
-The decrypt_fields child lifecycle and all assertions remain intact. Replay
-scenario execution took 6.855–6.971 seconds; wrappers took 7.565–7.744 seconds.
-Its scenario-local replay README records provenance, phase boundaries and
-measurement limitations. The cassette retains the live source provenance;
-the isolated job's validated artifact adds only the reviewed annotations.
+isolated replays, each matching all 478 exchanges. Eight bounded phases cover
+independent creates, cleanup, chain observations, and scoped moves. Existing
+CRUD and field-policy coverage remains intact. New checks cover sibling order,
+saved plans, recreation, parent changes, convergence, and dump reconstruction.
+Replay scenario execution took 28.238–28.699 seconds; wrappers took
+28.754–29.272 seconds. Recording's 112.336-second scenario includes proxy
+overhead and is not a live baseline. The scenario-local replay README records
+provenance, phase boundaries, and measurement limitations.
 
 `portal/sync` passed its expanded live recording and three isolated replays
 of the committed packed cassette (374 HTTP interactions each). All scenario
