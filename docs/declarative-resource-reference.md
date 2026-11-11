@@ -232,7 +232,11 @@ Declare directory resources under `identity.directories` and issuers under
 `identity.auth_servers`. Directory children include principals, identities,
 ordinary groups/memberships, basic-auth usernames, generated API keys,
 Trusted IdPs and Token Vault configuration. Auth Servers contain scopes,
-claims and OAuth clients.
+claims and OAuth clients. Principal API keys also support `type: imported`
+with create-only deferred `secret` sources. See the
+[imported-key example](examples/declarative/identity/README.md#imported-principal-api-keys)
+for creation, rotation, saved plans and dump limitations. Imported group keys
+remain unsupported.
 
 Use `kongctl explain identity` to discover accepted fields and
 `kongctl scaffold identity.principals` for a principal starting point. Grouped
@@ -252,8 +256,10 @@ identity:
           type: agent
 ```
 
-Principals support `user`, `agent` or an unclassified type. Their namespace/ref
-is persisted remotely because display names are not unique. External principal
+Principals support `user`, `agent` or an unclassified type. Type is immutable
+after creation; omitting it preserves the existing type, and explicit null
+cannot clear an existing classification. Their namespace/ref is persisted
+remotely because display names are not unique. External principal
 references require UUIDs; declared principal IDs are assertions, not adoption.
 Public `metadata`, public labels and KongCTL ownership serve separate purposes.
 

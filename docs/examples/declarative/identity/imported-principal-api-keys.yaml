@@ -1,0 +1,21 @@
+_defaults:
+  kongctl:
+    namespace: imported-key-example
+
+identity:
+  directories:
+    - ref: people
+      _external:
+        selector:
+          matchFields:
+            name: default
+      principals:
+        - ref: worker
+          type: agent
+          display_name: Imported key example worker
+          api_keys:
+            - ref: worker-primary
+              type: imported
+              name: Worker primary
+              secret: !secret {source: !env WORKER_API_KEY}
+              expires_at: null

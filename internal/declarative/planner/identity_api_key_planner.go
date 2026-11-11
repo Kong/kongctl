@@ -162,7 +162,12 @@ func (p *identityDirectoryPlanner) planAPIKeyParent(
 		if parent.protected && action != ActionCreate {
 			return fmt.Errorf("API-key parent %q is protected", parent.ref)
 		}
+		creationType, _ := fields[FieldType].(string)
+		if action != ActionCreate {
+			creationType = indexed[ref].ManagedBy[resources.IdentityAPIKeyCreateTypeKey]
+		}
 		change := PlannedChange{
+			CreationType: creationType,
 			ID: p.NextChangeID(
 				action,
 				string(parent.kind),
@@ -187,6 +192,10 @@ func (p *identityDirectoryPlanner) planAPIKeyParent(
 		return nil
 	}
 	for _, desired := range parent.desired {
+		if parent.kind == resources.ResourceTypeIdentityGroupAPIKey &&
+			desired.fields.Type == resources.IdentityAPIKeyImportedType {
+			return fmt.Errorf("imported group API keys are unsupported: the API does not retain the initial name")
+		}
 		if err := desired.fields.Validate(); err != nil {
 			return err
 		}
@@ -210,9 +219,19 @@ func (p *identityDirectoryPlanner) planAPIKeyParent(
 			continue
 		}
 		if current == nil {
+			if desired.fields.Type == resources.IdentityAPIKeyImportedType {
+				source, exists := p.planner.resources.GetSecretSources(desired.fields.Ref)["/secret"]
+				if !exists || source.DeprecatedBareEnv {
+					return fmt.Errorf("imported API key %q creation requires secret: !secret with a deferred source",
+						desired.fields.Ref)
+				}
+			}
 			fields := map[string]any{
-				FieldType:      desired.fields.Type,
-				FieldManagedBy: map[string]string{resources.ManagedByRefKey: desired.fields.Ref},
+				FieldType: desired.fields.Type,
+				FieldManagedBy: map[string]string{
+					resources.ManagedByRefKey:             desired.fields.Ref,
+					resources.IdentityAPIKeyCreateTypeKey: desired.fields.Type,
+				},
 			}
 			if parent.external {
 				fields[FieldManagedBy].(map[string]string)[resources.ChildNamespaceKey] = config.Namespace
@@ -227,6 +246,9 @@ func (p *identityDirectoryPlanner) planAPIKeyParent(
 				return err
 			}
 			continue
+		}
+		if current.ManagedBy[resources.IdentityAPIKeyCreateTypeKey] != desired.fields.Type {
+			return fmt.Errorf("API key %q creation type is immutable; declare a new key/ref to rotate it", desired.fields.Ref)
 		}
 		fields := make(map[string]any)
 		changed := make(map[string]FieldChange)

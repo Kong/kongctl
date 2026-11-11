@@ -38,8 +38,9 @@ password material is outside declarative support.
 
 Principal/group key names can be changed without rotating the credential. Set
 `name: null` to clear a name; omit it to preserve the current value. These
-examples use generated keys; imported-key provisioning is outside the
-supported declarative workflow.
+examples use generated keys. Imported principal keys are also supported as
+described below; imported group keys are rejected because the API loses their
+initial name.
 Principal and group metadata preserve signed 64-bit integers, including values
 above JavaScript's safe-integer range. Use strings for identifiers that are not
 intended to be numbers. These behaviors require the updated Identity API.
@@ -74,6 +75,63 @@ kongctl delete -f principals-and-access.yaml
 Apply preserves undeclared resources. Sync treats explicitly declared child
 collections as authoritative within their ownership scope; omission leaves a
 collection alone. The directory remains external during cleanup.
+
+## Imported principal API keys
+
+[imported-principal-api-keys.yaml](imported-principal-api-keys.yaml) supplies
+existing material to an `identity_principal_api_key`. Set `WORKER_API_KEY` in
+your environment without printing or committing it, then run:
+
+```sh
+kongctl plan -f imported-principal-api-keys.yaml
+kongctl apply -f imported-principal-api-keys.yaml
+```
+
+The manifest creates an agent beneath the external `default` directory. The
+key declaration can also live under `identity.principal_api_keys`, using
+`principal: worker`. `type: imported` describes the key's material source;
+it does not require an imported principal. Imported principals remain external
+and can own these keys through their existing UUID-reference workflow.
+
+Use one of the existing deferred source forms:
+
+```yaml
+secret: !secret {source: !env WORKER_API_KEY}
+secret: !secret {source: !file ./private/worker-api-key}
+secret: !secret {parts: ["prefix-", !env WORKER_API_KEY]}
+```
+
+Choose one `secret` declaration. Literal values, bare `!env`, eager `!file`,
+and vault references are not accepted for imported key material. Planning
+retains only the expression; file sources use the existing path checks without
+reading material. Execution resolves all selected sources before remote writes
+and requires 1 to 255 UTF-8 characters. Saved plans retain the existing file
+boundary rules: keep their source files within the execution plan's directory.
+Literal parts are public plan metadata; keep sensitive text in sources.
+
+Creation automatically includes required material. It needs neither
+`--write-secrets` nor `--secret-output-dir`. Generated `type: v1` keys still
+require private capture and cannot declare `secret`.
+
+Material is create-only. Repeated apply preserves it, even if the source value
+changes. Existing managed keys can omit `secret` and manage name/expiration
+only. Bulk `--write-secrets` skips existing material with a warning; explicitly
+selecting `--write-secret worker-primary#secret` errors with rotation guidance.
+Creation type cannot change on an existing key, and arbitrary existing keys
+are not adopted by name or secret.
+
+To rotate, keep the old declaration and add a new key with a new ref and secret
+source. Apply, switch your applications to the new secret, and verify access.
+Then remove the old declaration, review its scoped sync deletion plan, and
+sync to retire it. Apply alone does not delete keys. An uncertain creation is
+not retried automatically; inspect the parent's keys before trying again.
+
+Dumps contain the recorded creation type and public metadata, without material
+or an invented source. Reload can manage an existing key. Recreating a dumped
+imported key requires adding a deferred `secret` source.
+
+Imported `identity_group_api_key` declarations remain unsupported because
+creation loses the initial name (API-14); no automatic rename is attempted.
 
 ## Service and consumer identities
 

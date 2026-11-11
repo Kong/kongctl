@@ -16,6 +16,7 @@ type Capability struct {
 }
 
 var capabilities = []Capability{
+	{resources.ResourceTypeIdentityPrincipalAPIKey, "/secret", true, false},
 	{resources.ResourceTypeIdentityVaultProvider, "/client_secret", true, true},
 	{resources.ResourceTypeIdentityVaultProviderCredential, "/secret", true, true},
 	{

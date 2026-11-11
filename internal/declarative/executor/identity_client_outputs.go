@@ -9,6 +9,7 @@ import (
 	"slices"
 
 	"github.com/kong/kongctl/internal/declarative/planner"
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/secretoutput"
 )
 
@@ -33,6 +34,9 @@ func (e *Executor) prepareClientSecretOutputs(plan *planner.Plan) (resultErr err
 			change.ResourceType == planner.ResourceTypeIdentityGroupAPIKey
 		if (change.ResourceType != planner.ResourceTypeIdentityAuthServerClient && !key) ||
 			change.Action != planner.ActionCreate {
+			continue
+		}
+		if key && change.Fields[planner.FieldType] == resources.IdentityAPIKeyImportedType {
 			continue
 		}
 		if e.secretOutputDir == "" {

@@ -18,9 +18,20 @@ func generatedKeyFixture(id, ref string) IdentityAPIKey {
 	}}}
 }
 
-func TestGeneratedKeyMatchingRejectsAmbiguousAndLegacyIdentity(t *testing.T) {
-	primary := generatedKeyFixture("first", "primary")
-	foreign := generatedKeyFixture("foreign", "primary")
+func TestAPIKeyMatchingRejectsAmbiguousAndLegacyIdentity(t *testing.T) {
+	for _, creationType := range []string{resources.IdentityAPIKeyGeneratedType, resources.IdentityAPIKeyImportedType} {
+		t.Run(creationType, func(t *testing.T) { testAPIKeyMatching(t, creationType) })
+	}
+}
+
+func testAPIKeyMatching(t *testing.T, creationType string) {
+	keyFixture := func(id, ref string) IdentityAPIKey {
+		key := generatedKeyFixture(id, ref)
+		key.ManagedBy[resources.IdentityAPIKeyCreateTypeKey] = creationType
+		return key
+	}
+	primary := keyFixture("first", "primary")
+	foreign := keyFixture("foreign", "primary")
 	foreign.ManagedBy[resources.ManagedByToolKey] = "other"
 	unmanaged := IdentityAPIKey{helpers.IdentityAPIKey{ID: "unmanaged"}}
 	values := []IdentityAPIKey{unmanaged, foreign, primary}
@@ -34,7 +45,7 @@ func TestGeneratedKeyMatchingRejectsAmbiguousAndLegacyIdentity(t *testing.T) {
 	faults := []string{"duplicate", "legacy", "protection", "no-version", "bad-ref", "extra-marker"}
 	for _, fault := range faults {
 		t.Run(fault, func(t *testing.T) {
-			extra := generatedKeyFixture("second", "primary")
+			extra := keyFixture("second", "primary")
 			switch fault {
 			case "legacy":
 				delete(extra.ManagedBy, resources.IdentityAPIKeyCreateTypeKey)
@@ -51,7 +62,7 @@ func TestGeneratedKeyMatchingRejectsAmbiguousAndLegacyIdentity(t *testing.T) {
 			require.Error(t, err)
 		})
 	}
-	legacy := generatedKeyFixture("legacy", "other")
+	legacy := keyFixture("legacy", "other")
 	delete(legacy.ManagedBy, resources.IdentityAPIKeyCreateTypeKey)
 	indexed, err = IndexIdentityAPIKeys(append(values, legacy))
 	require.NoError(t, err)
@@ -62,12 +73,23 @@ func TestGeneratedKeyMatchingRejectsAmbiguousAndLegacyIdentity(t *testing.T) {
 	require.Equal(t, before, primary.ManagedBy)
 }
 
-func TestGeneratedKeysUnderExternalPrincipalsMatchNamespaceAndRef(t *testing.T) {
-	first := generatedKeyFixture("first", "primary")
+func TestAPIKeysUnderExternalPrincipalsMatchNamespaceAndRef(t *testing.T) {
+	for _, creationType := range []string{resources.IdentityAPIKeyGeneratedType, resources.IdentityAPIKeyImportedType} {
+		t.Run(creationType, func(t *testing.T) { testExternalAPIKeyMatching(t, creationType) })
+	}
+}
+
+func testExternalAPIKeyMatching(t *testing.T, creationType string) {
+	keyFixture := func(id string) IdentityAPIKey {
+		key := generatedKeyFixture(id, "primary")
+		key.ManagedBy[resources.IdentityAPIKeyCreateTypeKey] = creationType
+		return key
+	}
+	first := keyFixture("first")
 	first.ManagedBy[resources.ChildNamespaceKey] = "team-a"
-	other := generatedKeyFixture("other", "primary")
+	other := keyFixture("other")
 	other.ManagedBy[resources.ChildNamespaceKey] = "team-b"
-	legacy := generatedKeyFixture("inherited", "primary")
+	legacy := keyFixture("inherited")
 	values := []IdentityAPIKey{first, other, legacy}
 	for _, namespace := range []string{"team-a", "team-b"} {
 		value, err := FindIdentityAPIKey(values, "primary", namespace)
@@ -77,7 +99,7 @@ func TestGeneratedKeysUnderExternalPrincipalsMatchNamespaceAndRef(t *testing.T) 
 	value, err := FindIdentityAPIKey(values, "primary")
 	require.NoError(t, err)
 	require.Equal(t, legacy.ID, value.ID)
-	duplicate := generatedKeyFixture("duplicate", "primary")
+	duplicate := keyFixture("duplicate")
 	duplicate.ManagedBy[resources.ChildNamespaceKey] = "team-a"
 	_, err = FindIdentityAPIKey(append(values, duplicate), "primary", "team-a")
 	require.ErrorContains(t, err, "multiple API keys")

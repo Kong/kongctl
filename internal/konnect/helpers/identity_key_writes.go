@@ -151,13 +151,19 @@ func sameIdentityKeyName(a, b *string) bool {
 
 func (c *IdentityAPIKeyClient) validateCreate(options IdentityAPIKeyCreate) error {
 	if options.Secret != nil {
-		length := utf8.RuneCountInString(*options.Secret)
 		if c.group != nil && options.Name != nil {
 			return fmt.Errorf("imported group API keys cannot set a name at creation; create first, then rename")
 		}
-		if !utf8.ValidString(*options.Secret) || length < 1 || length > 255 {
-			return fmt.Errorf("API-key material must contain 1 to 255 UTF-8 characters")
-		}
+		return ValidateImportedIdentityAPIKeySecret(*options.Secret)
+	}
+	return nil
+}
+
+// ValidateImportedIdentityAPIKeySecret never includes material in diagnostics.
+func ValidateImportedIdentityAPIKeySecret(value string) error {
+	length := utf8.RuneCountInString(value)
+	if !utf8.ValidString(value) || length < 1 || length > 255 {
+		return fmt.Errorf("API-key material must contain 1 to 255 UTF-8 characters")
 	}
 	return nil
 }
@@ -194,22 +200,26 @@ func (c *IdentityAPIKeyClient) CreateAndCapture(ctx context.Context,
 
 // CreateWithReservedCapture accepts a file reserved during whole-plan preflight.
 // Parent IDs are bound from this client before issuance; local context never
-// changes the request scope. Unsupported input leaves the reservation unused.
+// changes the request scope. Imported material may omit capture because the
+// caller already possesses it. Unsupported input leaves the reservation unused.
 func (c *IdentityAPIKeyClient) CreateWithReservedCapture(ctx context.Context,
 	options IdentityAPIKeyCreate, output *secretoutput.File, local secretoutput.Metadata,
 ) (*IdentityAPIKey, error) {
 	if err := c.validateCreate(options); err != nil {
 		return nil, err
 	}
-	if output == nil {
-		return nil, fmt.Errorf("API-key creation requires a reserved private capture")
+	if output == nil && options.Secret == nil {
+		return nil, fmt.Errorf("generated API-key creation requires a reserved private capture")
 	}
 	metadata := c.captureMetadata(local)
-	if err := output.RecordPending(metadata); err != nil {
-		return nil, err
+	outputPath := ""
+	if output != nil {
+		if err := output.RecordPending(metadata); err != nil {
+			return nil, err
+		}
+		defer func() { _ = output.Close() }()
+		outputPath = output.Path()
 	}
-	defer func() { _ = output.Close() }()
-	outputPath := output.Path()
 	body := kkComps.CreateCreatePrincipalKeyBodyV1(kkComps.CreatePrincipalKeyBodyv1{
 		Name: options.Name, ExpiresAt: options.ExpiresAt, ManagedBy: maps.Clone(options.ManagedBy),
 	})
@@ -241,45 +251,54 @@ func (c *IdentityAPIKeyClient) CreateWithReservedCapture(ctx context.Context,
 		}
 	}
 	if err != nil {
+		if output == nil {
+			return nil, fmt.Errorf("%w; creation outcome is unconfirmed; inspect parent metadata before retrying",
+				identitySecretAPIError("create API key", err))
+		}
 		return nil, fmt.Errorf("%w; creation outcome is unconfirmed; "+
 			"inspect parent metadata before retrying; reserved output: %s",
 			identitySecretAPIError("create API key", err), outputPath)
 	}
 	if issued == nil || status != http.StatusCreated {
+		if output == nil {
+			return nil, fmt.Errorf("missing API-key creation response; inspect parent metadata before retrying")
+		}
 		return nil, fmt.Errorf("missing API-key creation response; "+
 			"inspect parent metadata before retrying; reserved output: %s", outputPath)
 	}
 	if util.IsValidUUID(issued.ID) {
 		metadata.APIKeyID = issued.ID
 	}
-	if err := output.Capture(metadata, issued.Secret); err != nil {
-		return nil, fmt.Errorf("API-key capture is unconfirmed: %w; inspect %s before retrying", err, outputPath)
+	if output != nil {
+		if err := output.Capture(metadata, issued.Secret); err != nil {
+			return nil, fmt.Errorf("API-key capture is unconfirmed: %w; inspect %s before retrying", err, outputPath)
+		}
 	}
 	if options.Secret != nil && issued.Secret != *options.Secret {
-		return nil, fmt.Errorf("API-key material was captured but differs from supplied material; inspect the issued record")
+		return nil, fmt.Errorf("API-key creation succeeded but differs from supplied material; inspect the issued record")
 	}
 	created, err := identityAPIKeyWriteObservation(raw, issued.ID)
 	if err != nil {
-		return nil, fmt.Errorf("API-key material was captured but public creation fields cannot be verified: %w", err)
+		return nil, fmt.Errorf("API-key creation succeeded but public creation fields cannot be verified: %w", err)
 	}
 	expiration, supplied := options.ExpiresAt.Get()
 	if !sameIdentityKeyName(created.Name, options.Name) || !maps.Equal(created.ManagedBy, options.ManagedBy) ||
 		supplied && !sameIdentityCredentialExpiration(created.ExpiresAt, expiration) {
-		return nil, fmt.Errorf("API-key material was captured but requested public fields were not retained")
+		return nil, fmt.Errorf("API-key creation succeeded but requested public fields were not retained")
 	}
 	observed, err := c.Get(ctx, created.ID)
 	if err != nil {
 		return nil, fmt.Errorf(
-			"API-key material was captured but read-back failed; inspect metadata before retrying: %w", err,
+			"API-key creation succeeded but read-back failed; inspect metadata before retrying: %w", err,
 		)
 	}
 	if !sameIdentityAPIKey(created, observed) {
-		return nil, fmt.Errorf("API-key material was captured but public read-back differs; inspect the issued record")
+		return nil, fmt.Errorf("API-key creation succeeded but public read-back differs; inspect the issued record")
 	}
 	return observed, nil
 }
 
-// Update sends expiration explicitly because omission clears it in the API.
+// Update explicitly preserves expiration for compatibility with older deployments.
 // Management patches merge keys; explicit null values remove them.
 func (c *IdentityAPIKeyClient) Update(ctx context.Context, id string, options IdentityAPIKeyUpdate) (
 	*IdentityAPIKey, error,

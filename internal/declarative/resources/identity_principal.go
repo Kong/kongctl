@@ -47,7 +47,7 @@ func init() {
 				ExplainFieldHint{
 					Enum: []any{"user", "agent", nil},
 					Notes: []string{
-						"Create-only until API question Q9 is resolved. Omission preserves an existing type; null declares unclassified.",
+						"Immutable after creation. Omission preserves an existing type; null declares unclassified on creation only.",
 					},
 				},
 			),
