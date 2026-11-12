@@ -147,6 +147,22 @@ func TestAIGatewayAuthStrategyExplainBranchesTrackSDKRequestShapes(t *testing.T)
 	)
 }
 
+func TestOIDCHeaderExplainRetainsTypedConfig(t *testing.T) {
+	node, err := aiGatewayAuthStrategyExplainNode(ExplainBuildContext{})
+	require.NoError(t, err)
+	oidc := aiGatewayAuthStrategyExplainBranch(t, node, "openid-connect")
+	config, ok := oidc.property(aiGatewayAuthStrategyFieldConfig)
+	require.True(t, ok)
+	header, ok := config.Node.property("upstream_access_token_header")
+	require.True(t, ok)
+	require.Equal(t, explainKindString, header.Node.Kind)
+	require.True(t, header.Node.Nullable)
+	require.False(t, header.Required)
+	require.IsType(t, &kkComps.AIGWOpenIDConnectGeneratedConfig{}, kkComps.AIGatewayAuthStrategyOpenIDConnect{}.Config)
+	response := kkComps.AIGatewayAuthStrategyOpenIDConnectResponse{}
+	require.IsType(t, &kkComps.AIGWOpenIDConnectGeneratedConfigOutput{}, response.Config)
+}
+
 func TestAIGatewayAgentConfigExplainTracksSDKRequestShape(t *testing.T) {
 	node, err := aiGatewayAgentExplainNode(ExplainBuildContext{})
 	require.NoError(t, err)

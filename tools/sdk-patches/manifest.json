@@ -327,6 +327,37 @@
       "before": "func (u *UpdatePrincipalKeyBody) GetName() *string {",
       "after": "func (u *UpdatePrincipalKeyBody) GetName() optionalnullable.OptionalNullable[string] {",
       "optional_file": true
+    },
+    {
+      "file": "models/components/aigwopenidconnectgeneratedconfigoutput.go",
+      "before": "import (\n\t\"github.com/Kong/sdk-konnect-go/internal/utils\"\n)",
+      "after": "import (\n\t\"github.com/Kong/sdk-konnect-go/internal/utils\"\n\t\"github.com/Kong/sdk-konnect-go/optionalnullable\"\n)"
+    },
+    {
+      "file": "models/components/aigwopenidconnectgeneratedconfigoutput.go",
+      "before": "\tUpstreamAccessTokenHeader *string `default:\"authorization:bearer\" json:\"upstream_access_token_header\"`",
+      "after": "\tUpstreamAccessTokenHeader optionalnullable.OptionalNullable[string] `json:\"upstream_access_token_header,omitempty\"`",
+      "count": 2
+    },
+    {
+      "file": "models/components/aigwopenidconnectgeneratedconfigoutput.go",
+      "before": "func (a *AIGWOpenIDConnectGeneratedConfigOutput) GetUpstreamAccessTokenHeader() *string {\n\tif a == nil {\n\t\treturn nil\n\t}\n\treturn a.UpstreamAccessTokenHeader\n}",
+      "after": "func (a *AIGWOpenIDConnectGeneratedConfigOutput) GetUpstreamAccessTokenHeader() *string {\n\tif a == nil {\n\t\treturn nil\n\t}\n\tvalue, _ := a.UpstreamAccessTokenHeader.Get()\n\treturn value\n}"
+    },
+    {
+      "file": "docs/models/components/aigwopenidconnectgeneratedconfigoutput.md",
+      "before": "| `UpstreamAccessTokenHeader`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | `*string`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |",
+      "after": "| `UpstreamAccessTokenHeader`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | `optionalnullable.OptionalNullable[string]` |"
+    },
+    {
+      "file": "models/components/aigwopenidconnectgeneratedconfigoutput.go",
+      "before": "func (a *AIGWOpenIDConnectGeneratedConfig) GetUpstreamAccessTokenHeader() *string {\n\tif a == nil {\n\t\treturn nil\n\t}\n\treturn a.UpstreamAccessTokenHeader\n}",
+      "after": "func (a *AIGWOpenIDConnectGeneratedConfig) GetUpstreamAccessTokenHeader() *string {\n\tif a == nil {\n\t\treturn nil\n\t}\n\tvalue, _ := a.UpstreamAccessTokenHeader.Get()\n\treturn value\n}"
+    },
+    {
+      "file": "docs/models/components/aigwopenidconnectgeneratedconfig.md",
+      "before": "| `UpstreamAccessTokenHeader`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | `*string`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |",
+      "after": "| `UpstreamAccessTokenHeader`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | `optionalnullable.OptionalNullable[string]` |"
     }
   ],
   "tests": {
@@ -343,7 +374,10 @@
     "tests/identity_cursor_query_test.go.txt": "identity_cursor_query_kongctl_test.go",
     "tests/identity_credential_expiration_test.go.txt": "identity_credential_expiration_kongctl_test.go",
     "tests/identity_key_metadata_test.go.txt": "identity_key_metadata_kongctl_test.go",
-    "tests/ai_gateway_update_defaults_test.go.txt": "ai_gateway_update_defaults_kongctl_test.go"
+    "tests/ai_gateway_update_defaults_test.go.txt": "ai_gateway_update_defaults_kongctl_test.go",
+    "tests/ai_gateway_oidc_config_presence_test.go.txt": "kongctl_ai_gateway_oidc_config_presence_test.go",
+    "tests/ai_gateway_oidc_config_typed_test.go.txt": "kongctl_ai_gateway_oidc_config_typed_test.go",
+    "tests/ai_gateway_oidc_config_baseline.json": "kongctl_oidc_config_baseline.json"
   },
   "post_generation_doc_sections": [
     {
