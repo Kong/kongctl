@@ -750,6 +750,29 @@ updates auth strategies with PUT, kongctl merges fields returned by Konnect
 that are omitted from the declarative config into the update body. This keeps
 an unrelated update from removing existing access-control configuration.
 
+For OpenID Connect, `config.upstream_access_token_header` preserves omission,
+explicit `null`, and explicit strings without inserting the SDK's
+`authorization:bearer` default. Other config fields retain their existing SDK
+serialization and defaults. To clear a previously stored header value, declare
+`upstream_access_token_header: null`; omitting it from an update preserves the
+observed value.
+
+This is a behavior change for newly created or recreated strategies. Older
+versions injected `authorization:bearer` even when the manifest omitted this
+field. With `hide_credentials: true`, leaving it unconfigured now allows the
+KOKO-4858 credential-hiding behavior. If your upstream relies on access-token
+forwarding, explicitly declare
+`upstream_access_token_header: authorization:bearer`.
+
+Older `dump` and `get` output could also report `authorization:bearer` when
+Konnect actually had the field absent or null. Review manifests saved from
+that output before applying them after upgrading: an explicit header now
+produces a real change and can enable token forwarding. Re-dump with the
+updated client, or remove an unintentionally injected header from the manifest
+to preserve the observed setting. Use explicit `null` to clear a stored header.
+An omitted header is unmanaged during comparison, so zero planned changes do
+not mean that two environments have the same header configuration.
+
 ```yaml
 ai_gateway_auth_strategies:
  - ref: string

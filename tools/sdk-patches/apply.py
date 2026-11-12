@@ -49,14 +49,15 @@ def configure_workflow(text, manifest):
 
 def replace_tag(text, patch):
     before, after = patch["before"], patch["after"]
+    count = patch.get("count", 1)
     optional_field = patch.get("optional_field")
     if optional_field and not re.search(r"^\s*" + re.escape(optional_field) + r"\s", text, re.M):
         return text
-    if text.count(before) == 1 and after not in text:
-        return text.replace(before, after, 1)
-    if text.count(after) == 1 and before not in text.replace(after, "", 1):
+    if text.count(before) == count and after not in text:
+        return text.replace(before, after, count)
+    if text.count(after) == count and before not in text.replace(after, ""):
         return text
-    raise ValueError(f"{patch['file']}: expected exactly one original or patched field; SDK schema may have changed")
+    raise ValueError(f"{patch['file']}: expected exactly {count} original or patched occurrences; SDK schema may have changed")
 
 
 def post_generate(sdk, manifest):
@@ -96,6 +97,38 @@ def replace_doc_section(text, patch):
     return text[:section.start()] + updated + text[section.end():]
 
 
+def configure_makefile(text, manifest):
+    anchor = "\t$(MAKE) _generate.omitempty\n"
+    if text.count(anchor) != 1:
+        raise ValueError("expected one upstream post-generation hook in SDK Makefile")
+    if POST_GENERATE not in text:
+        text = text.replace(anchor, anchor + POST_GENERATE, 1)
+    generation = r"^generate\.sdk\.speakeasy: speakeasy(?: validate\.kongctl-overlays)?$"
+    text, count = re.subn(generation, "generate.sdk.speakeasy: speakeasy validate.kongctl-overlays", text, flags=re.M)
+    if count != 1:
+        raise ValueError("expected one Speakeasy generation target in SDK Makefile")
+    if ".PHONY: validate.kongctl-overlays\n" not in text:
+        text += (
+            "\n.PHONY: validate.kongctl-overlays\nvalidate.kongctl-overlays:\n"
+            "\t@for overlay in $(sort $(wildcard kongctl-patches/overlays/*.yaml)); do \\\n"
+            "\t\tspeakeasy overlay validate --overlay $$overlay; \\\n"
+            "\t\tspeakeasy overlay apply --strict --schema $(OPENAPI_FILE) --overlay $$overlay --out /dev/null; \\\n"
+            "\tdone\n"
+        )
+    else:
+        text = text.replace("$(wildcard .speakeasy/overlays/*.yaml)", "$(wildcard kongctl-patches/overlays/*.yaml)")
+    if manifest.get("tests"):
+        test_hook = "\t$(MAKE) test.kongctl-patches\n"
+        if test_hook not in text:
+            text = text.replace(POST_GENERATE, POST_GENERATE + test_hook, 1)
+        if ".PHONY: test.kongctl-patches\n" not in text:
+            text += (
+                "\n.PHONY: test.kongctl-patches\ntest.kongctl-patches:\n"
+                "\tCGO_ENABLED=0 go test -count=1 -tags=kongctl_sdk_patched .\n"
+            )
+    return text
+
+
 def prepare(sdk, manifest):
     if sdk == BUNDLE or BUNDLE.is_relative_to(sdk):
         raise ValueError("prepare must run from the kongctl source bundle, targeting a separate SDK checkout")
@@ -106,26 +139,7 @@ def prepare(sdk, manifest):
     workflow = sdk / ".speakeasy/workflow.yaml"
     workflow_text = configure_workflow(workflow.read_text(), manifest)
     makefile = sdk / "Makefile"
-    make_text = makefile.read_text()
-    anchor = "\t$(MAKE) _generate.omitempty\n"
-    if make_text.count(anchor) != 1:
-        raise ValueError("expected one upstream post-generation hook in SDK Makefile")
-    if POST_GENERATE not in make_text:
-        make_text = make_text.replace(anchor, anchor + POST_GENERATE, 1)
-    generation = r"^generate\.sdk\.speakeasy: speakeasy(?: validate\.kongctl-overlays)?$"
-    make_text, count = re.subn(generation, "generate.sdk.speakeasy: speakeasy validate.kongctl-overlays", make_text, flags=re.M)
-    if count != 1:
-        raise ValueError("expected one Speakeasy generation target in SDK Makefile")
-    if ".PHONY: validate.kongctl-overlays\n" not in make_text:
-        make_text += (
-            "\n.PHONY: validate.kongctl-overlays\nvalidate.kongctl-overlays:\n"
-            "\t@for overlay in $(sort $(wildcard kongctl-patches/overlays/*.yaml)); do \\\n"
-            "\t\tspeakeasy overlay validate --overlay $$overlay; \\\n"
-            "\t\tspeakeasy overlay apply --strict --schema $(OPENAPI_FILE) --overlay $$overlay --out /dev/null; \\\n"
-            "\tdone\n"
-        )
-    else:
-        make_text = make_text.replace("$(wildcard .speakeasy/overlays/*.yaml)", "$(wildcard kongctl-patches/overlays/*.yaml)")
+    make_text = configure_makefile(makefile.read_text(), manifest)
     mise = sdk / ".mise/config.toml"
     mise_text, count = re.subn(r'^version = "[^"]+"$', f'version = "{manifest["speakeasy_version"]}"', mise.read_text(), flags=re.M)
     if count != 1:

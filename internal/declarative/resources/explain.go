@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Kong/sdk-konnect-go/optionalnullable"
+
 	capmaturity "github.com/kong/kongctl/internal/maturity"
 )
 
@@ -1513,6 +1515,11 @@ func autoExplainValueNode(
 ) (*ExplainNode, error) {
 	nullable := typ.Kind() == reflect.Pointer
 	typ = derefExplainType(typ)
+	if optionalnullable.IsOptionalNullableType(typ) {
+		nullable = true
+		// IsOptionalNullableType verifies map[bool]*T before we unwrap T.
+		typ = typ.Elem().Elem()
+	}
 
 	node := &ExplainNode{
 		Nullable: nullable,

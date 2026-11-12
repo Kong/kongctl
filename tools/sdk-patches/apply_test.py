@@ -68,6 +68,14 @@ class PatchTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             patches.replace_tag("field\nadditional\nfield", patch)
 
+    def test_replacement_checks_an_explicit_match_count(self):
+        patch = {"file": "model.go", "before": "field", "after": "patched", "count": 2}
+        self.assertEqual(patches.replace_tag("field\nfield\nother", patch), "patched\npatched\nother")
+        self.assertEqual(patches.replace_tag("patched\npatched\nother", patch), "patched\npatched\nother")
+        for source in ["field", "field\nfield\nfield", "field\npatched"]:
+            with self.assertRaises(ValueError):
+                patches.replace_tag(source, patch)
+
     def test_optional_internal_field_preserves_absence_but_rejects_drift(self):
         patch = self.manifest["post_generation"][1]
         public = 'type CreatePortal struct {\nName string `json:"name"`\n}\n'
@@ -95,6 +103,14 @@ class PatchTests(unittest.TestCase):
             target.write_text(patch["before"])
             patches.post_generate(sdk, {"post_generation": [patch]})
             self.assertEqual(target.read_text(), patch["after"])
+
+    def test_generation_runs_typed_tests_only_after_post_generation_patch(self):
+        original = "generate.sdk.speakeasy: speakeasy\ngenerate.sdk:\n\t$(MAKE) _generate.omitempty\n\tgo mod tidy\n"
+        result = patches.configure_makefile(original, self.manifest)
+        self.assertLess(result.index(patches.POST_GENERATE), result.index("\t$(MAKE) test.kongctl-patches"))
+        self.assertLess(result.index("\t$(MAKE) test.kongctl-patches"), result.index("\tgo mod tidy"))
+        self.assertIn("go test -count=1 -tags=kongctl_sdk_patched .", result)
+        self.assertEqual(patches.configure_makefile(result, self.manifest), result)
 
     def test_multiple_replacements_in_one_file_accumulate_and_fail_atomically(self):
         with tempfile.TemporaryDirectory() as directory:

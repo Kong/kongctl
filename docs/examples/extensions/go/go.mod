@@ -5,7 +5,7 @@ go 1.26.10
 require github.com/kong/kongctl v1.28.0
 
 require (
-	github.com/Kong/sdk-konnect-go v0.84.1-0.20261111154937-74edfa4c2948 // indirect
+	github.com/Kong/sdk-konnect-go v0.84.1-0.20261112154232-92b33d2ef4fd // indirect
 	github.com/ajg/form v1.9.0 // indirect
 	github.com/alecthomas/chroma/v2 v2.27.0 // indirect
 	github.com/dlclark/regexp2/v2 v2.2.1 // indirect
@@ -31,8 +31,8 @@ require (
 	github.com/subosito/gotenv v1.6.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
-	golang.org/x/sys v0.49.0 // indirect
-	golang.org/x/text v0.43.0 // indirect
+	golang.org/x/sys v0.50.0 // indirect
+	golang.org/x/text v0.44.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )

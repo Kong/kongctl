@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"testing"
 
@@ -475,5 +476,63 @@ func TestAuthStrategyProxyCredentialsDoNotForceConfigUpdates(t *testing.T) {
 			field:               "unselected-credential",
 		}
 		require.False(t, aiGatewayAuthStrategyConfigChanged(current, desired))
+	}
+}
+
+func TestOIDCDisplayNameUpdatePreservesStoredHeader(t *testing.T) {
+	for _, header := range []any{nil, "authorization:bearer", "x-custom-token"} {
+		t.Run(fmt.Sprint(header), func(t *testing.T) {
+			config := map[string]any{
+				"issuer": "https://example.com", "cache_tokens_salt": "salt", "upstream_access_token_header": header,
+			}
+			current := state.AIGatewayAuthStrategy{
+				Name: "probe", Type: "openid-connect", DisplayName: "Before", Config: config,
+			}
+			desired := resources.AIGatewayAuthStrategyResource{
+				Name: "probe", Type: "openid-connect", DisplayName: "After",
+				Config: map[string]any{"issuer": "https://example.com", "cache_tokens_salt": "salt"},
+			}
+			changed, fields, changes, err := shouldUpdateAIGatewayAuthStrategy(current, desired)
+			require.NoError(t, err)
+			require.True(t, changed)
+			require.NotContains(t, changes, FieldConfig)
+			require.Equal(t, config, fields[FieldConfig])
+		})
+	}
+}
+
+func TestOIDCExplicitHeaderPlansUpdateFromUnconfiguredObservedState(t *testing.T) {
+	for _, stateName := range []string{"omitted", "null"} {
+		t.Run(stateName, func(t *testing.T) {
+			config := map[string]any{"issuer": "https://example.com", "cache_tokens_salt": "salt"}
+			if stateName == "null" {
+				config["upstream_access_token_header"] = nil
+			}
+			raw, err := json.Marshal(map[string]any{
+				"id": "probe-id", "name": "probe", "type": "openid-connect", "display_name": "Probe",
+				"config": config, "created_at": "2026-11-11T00:00:00Z", "updated_at": "2026-11-11T00:00:00Z",
+			})
+			require.NoError(t, err)
+			var response kkComps.AIGatewayAuthStrategy
+			require.NoError(t, json.Unmarshal(raw, &response))
+			current, err := state.NormalizeAIGatewayAuthStrategy(response)
+			require.NoError(t, err)
+			observedHeader, present := current.Config["upstream_access_token_header"]
+			require.Equal(t, stateName == "null", present)
+			require.Nil(t, observedHeader)
+			desired := resources.AIGatewayAuthStrategyResource{
+				Name: "probe", Type: "openid-connect", DisplayName: "Probe",
+				Config: map[string]any{
+					"issuer": "https://example.com", "cache_tokens_salt": "salt",
+					"upstream_access_token_header": "authorization:bearer",
+				},
+			}
+			changed, fields, changes, err := shouldUpdateAIGatewayAuthStrategy(current, desired)
+			require.NoError(t, err)
+			require.True(t, changed)
+			require.Contains(t, changes, FieldConfig)
+			require.NotContains(t, changes, FieldDisplayName)
+			require.Equal(t, "authorization:bearer", fields[FieldConfig].(map[string]any)["upstream_access_token_header"])
+		})
 	}
 }
