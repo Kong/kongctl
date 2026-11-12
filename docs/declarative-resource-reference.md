@@ -750,6 +750,13 @@ updates auth strategies with PUT, kongctl merges fields returned by Konnect
 that are omitted from the declarative config into the update body. This keeps
 an unrelated update from removing existing access-control configuration.
 
+For OpenID Connect, `config.upstream_access_token_header` preserves omission,
+explicit `null`, and explicit strings without inserting the SDK's
+`authorization:bearer` default. Other config fields retain their existing SDK
+serialization and defaults. To clear a previously stored header value, declare
+`upstream_access_token_header: null`; omitting it from an update preserves the
+observed value.
+
 ```yaml
 ai_gateway_auth_strategies:
  - ref: string

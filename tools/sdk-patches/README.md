@@ -91,6 +91,40 @@ Explicit values, including values equal to API defaults, remain supported.
 The planner separately accounts for datastore-expanded response fields and
 inline API defaults.
 
+AI Gateway OpenID Connect auth strategies patch only
+`upstream_access_token_header` in the generated request and response config
+structs. That field uses `optionalnullable.OptionalNullable[string]` with
+`omitempty` and no serializer default. Omission stays omitted, explicit null
+stays null, and explicit strings (including `authorization:bearer`) are kept.
+Its getter still returns `*string`; inspect the field's `IsSet`/`IsNull` methods
+when presence matters. Go constructors assigning this field use
+`optionalnullable.From` instead of a bare pointer.
+
+All other OIDC fields retain their generated types, getters, JSON tags, and
+SDK defaults. Nested models and unknown-field handling remain unchanged. The
+patch does not change the global SDK serializer. The policy selects the single
+JSON field explicitly in both config models and checks generated field
+inventories, required fields, and getter shapes before applying it.
+
+Wire regressions compare all non-header output against fixtures recorded with
+the unmodified v0.84.0 OIDC models. They cover minimal configs, existing access
+control/principal/header mappings, nested Redis/JIT/token-exchange settings,
+and explicit values through create, update, and response serialization. Each
+case also checks omitted/null/default/custom header values. The baseline
+fixture intentionally includes existing SDK defaults and empty-array omission;
+only `upstream_access_token_header` is excluded from the baseline comparison.
+
+On a field-inventory mismatch, the patch reports expected and computed
+`fields_sha256` values and the normalized `[name, original-type, json-key]`
+field list. Review upstream schema, required fields, and getters before
+updating a fingerprint. Remove this correction when upstream preserves this
+field's presence without inventing a default.
+
+Typed construction tests use `kongctl_sdk_patched` because Speakeasy compiles
+an intermediate unpatched SDK before the post-generation hook runs.
+`make generate.sdk` runs them automatically through `make test.kongctl-patches`
+immediately after the patch hook. Normal wire tests also run without the tag.
+
 The internal-only `CreatePortal.create_default_content` field also stays
 omitted when unset. Its tag replacement skips public SDKs where the field is
 absent, but fails on unexpected tags or types when the field is present.
@@ -122,6 +156,7 @@ mise trust
 mise install
 CGO_ENABLED=0 GOFLAGS=-buildvcs=false mise exec -- make generate.sdk
 CGO_ENABLED=0 go test . ./models/... ./internal/... ./pkg/...
+CGO_ENABLED=0 go test -tags=kongctl_sdk_patched .
 make test.unit
 ```
 

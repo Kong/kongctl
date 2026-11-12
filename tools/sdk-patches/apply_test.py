@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import hashlib
 from pathlib import Path
 import tempfile
 import unittest
@@ -95,6 +96,132 @@ class PatchTests(unittest.TestCase):
             target.write_text(patch["before"])
             patches.post_generate(sdk, {"post_generation": [patch]})
             self.assertEqual(target.read_text(), patch["after"])
+
+    def typed_config_fixture(self):
+        source = '''package components
+import "github.com/Kong/sdk-konnect-go/internal/utils"
+type Sample struct {
+    Issuer string `json:"issuer"`
+    Flag *bool `default:"true" json:"flag"`
+    Scopes []string `default:"[openid]" json:"scopes,omitempty"`
+    Header *string `json:"header,omitempty"`
+}
+func (s *Sample) UnmarshalJSON(data []byte) error {
+    if err := utils.UnmarshalJSON(data, &s, "", false, []string{"issuer"}); err != nil { return err }
+    return nil
+}
+func (s *Sample) GetFlag() *bool {
+    if s == nil { return nil }
+    return s.Flag
+}
+func (s *Sample) GetScopes() []string {
+    if s == nil { return nil }
+    return s.Scopes
+}
+func (s *Sample) GetHeader() *string {
+    if s == nil { return nil }
+    return s.Header
+}
+'''
+        # Match the generated declarations, which always use tab indentation.
+        source = source.replace("    ", "\t")
+        fields = [["Issuer", "string", "issuer"], ["Flag", "*bool", "flag"],
+                  ["Scopes", "[]string", "scopes"], ["Header", "*string", "header"]]
+        signature = hashlib.sha256(json.dumps(fields, separators=(",", ":")).encode()).hexdigest()
+        policy = {"file": "model.go", "models": {"Sample": {"fields_sha256": signature, "required": ["issuer"], "fields": ["header"]}}}
+        return source, policy
+
+    def test_typed_presence_retains_struct_getters_and_required_fields(self):
+        source, policy = self.typed_config_fixture()
+        result, models = patches.typed_presence(source, policy)
+        self.assertRegex(result, r'Issuer\s+string\s+`json:"issuer"`')
+        self.assertIn('"github.com/Kong/sdk-konnect-go/optionalnullable"', result)
+        self.assertIn("optionalnullable.OptionalNullable[string]", result)
+        self.assertIn('default:"true"', result)
+        self.assertIn('json:"header,omitempty"', result)
+        self.assertNotIn("AdditionalProperties", result)
+        self.assertIn("GetFlag() *bool", result)
+        self.assertIn("GetScopes() []string", result)
+        self.assertIn("s.Header.Get()", result)
+        self.assertNotIn("s.Scopes.Get()", result)
+        again, _ = patches.typed_presence(result, policy)
+        self.assertEqual(result, again)
+        self.assertEqual(set(models["Sample"]), {"Header"})
+
+    def test_targeted_presence_leaves_other_field_types_defaults_and_getters_unchanged(self):
+        source, policy = self.typed_config_fixture()
+        policy["models"]["Sample"]["fields"] = ["header"]
+        result, models = patches.typed_presence(source, policy)
+        self.assertRegex(result, r'Flag\s+\*bool\s+`default:"true" json:"flag"`')
+        self.assertRegex(result, r'Scopes\s+\[\]string\s+`default:"\[openid\]" json:"scopes,omitempty"`')
+        self.assertNotIn("AdditionalProperties", result)
+        self.assertNotIn("s.Flag.Get()", result)
+        self.assertIn("optionalnullable.OptionalNullable[string]", result)
+        self.assertEqual(set(models["Sample"]), {"Header"})
+
+    def test_typed_presence_rejects_field_and_required_schema_drift(self):
+        source, policy = self.typed_config_fixture()
+        for changed in [source.replace("Flag *bool", "Flag *int"),
+                        source.replace('[]string{"issuer"}', '[]string{"issuer", "flag"}')]:
+            with self.assertRaises(ValueError):
+                patches.typed_presence(changed, policy)
+
+    def test_typed_presence_docs_are_repeatable(self):
+        source, policy = self.typed_config_fixture()
+        _, models = patches.typed_presence(source, policy)
+        doc = "# Sample\n\n## Fields\n\n| Field | Type | Required | Description |\n| --- | --- | --- | --- |\n"
+        for name in ["Issuer", "Flag", "Scopes", "Header"]:
+            doc += f"| `{name}` | old | optional | Description |\n"
+        updated = patches.typed_presence_docs(doc, models["Sample"])
+        self.assertIn("`optionalnullable.OptionalNullable[string]`", updated)
+        self.assertNotIn("`AdditionalProperties`", updated)
+        self.assertIn("| `Issuer` | old |", updated)
+        self.assertEqual(patches.typed_presence_docs(updated, models["Sample"]), updated)
+
+    def test_typed_presence_reports_missing_json_tag_and_new_digest(self):
+        source, policy = self.typed_config_fixture()
+        with self.assertRaisesRegex(ValueError, r"Sample.Flag: missing.*json tag"):
+            patches.typed_presence(source.replace('default:"true" json:"flag"', 'default:"true"'), policy)
+        with self.assertRaisesRegex(ValueError, r"computed fields_sha256=[0-9a-f]{64}; review normalized fields"):
+            patches.typed_presence(source.replace("Flag *bool", "Flag *int"), policy)
+
+    def test_typed_presence_supports_single_and_block_imports(self):
+        source, policy = self.typed_config_fixture()
+        for form in ['import (\n"github.com/Kong/sdk-konnect-go/internal/utils"\n)',
+                     'import(\n"github.com/Kong/sdk-konnect-go/internal/utils"\n)',
+                     'import "github.com/Kong/sdk-konnect-go/internal/utils"']:
+            candidate = source.replace('import "github.com/Kong/sdk-konnect-go/internal/utils"', form)
+            result, _ = patches.typed_presence(candidate, policy)
+            self.assertEqual(result.count('"github.com/Kong/sdk-konnect-go/optionalnullable"'), 1)
+            self.assertEqual(patches.typed_presence(result, policy)[0], result)
+        with self.assertRaisesRegex(ValueError, "unsupported import declaration"):
+            patches.typed_presence(source.replace('import "github.com/Kong/sdk-konnect-go/internal/utils"', ''), policy)
+
+    def test_typed_presence_docs_preserve_links_and_scope_fields_table(self):
+        doc = ("# Example\n\n## Fields\n\n| Field | Type | Required | Description |\n"
+               "| --- | --- | --- | --- |\n"
+               "| `Key` | [*components.ClientJwk](../../models/components/clientjwk.md) | optional | A key |\n"
+               "\n## Other table\n\n| Field | Type |\n| --- | --- |\n| `Key` | unchanged |\n")
+        optional = {"Key": ("*ClientJwk", "optionalnullable.OptionalNullable[ClientJwk]", "key")}
+        result = patches.typed_presence_docs(doc, optional)
+        fields, other = result.split("## Other table")
+        self.assertIn("[`optionalnullable.OptionalNullable[ClientJwk]`](../../models/components/clientjwk.md)", fields)
+        self.assertNotIn("`AdditionalProperties`", fields)
+        self.assertNotIn("`AdditionalProperties`", other)
+        self.assertIn("| `Key` | unchanged |", other)
+        self.assertEqual(patches.typed_presence_docs(result, optional), result)
+        # Restore links in docs produced by an older version of this patch.
+        plain = doc.replace("[*components.ClientJwk](../../models/components/clientjwk.md)",
+                            "`optionalnullable.OptionalNullable[ClientJwk]`")
+        self.assertIn("../../models/components/clientjwk.md", patches.typed_presence_docs(plain, optional))
+
+    def test_generation_runs_typed_tests_only_after_post_generation_patch(self):
+        original = "generate.sdk.speakeasy: speakeasy\ngenerate.sdk:\n\t$(MAKE) _generate.omitempty\n\tgo mod tidy\n"
+        result = patches.configure_makefile(original, self.manifest)
+        self.assertLess(result.index(patches.POST_GENERATE), result.index("\t$(MAKE) test.kongctl-patches"))
+        self.assertLess(result.index("\t$(MAKE) test.kongctl-patches"), result.index("\tgo mod tidy"))
+        self.assertIn("go test -count=1 -tags=kongctl_sdk_patched .", result)
+        self.assertEqual(patches.configure_makefile(result, self.manifest), result)
 
     def test_multiple_replacements_in_one_file_accumulate_and_fail_atomically(self):
         with tempfile.TemporaryDirectory() as directory:

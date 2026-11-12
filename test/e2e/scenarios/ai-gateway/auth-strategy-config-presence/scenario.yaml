@@ -1,0 +1,224 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+steps:
+  - name: 001-create-preserves-config-presence
+    commands:
+      - name: apply-create
+        run: [apply, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+      - name: get-omitted
+        run:
+          - get
+          - ai-gateway
+          - auth-strategies
+          - --gateway-name
+          - OIDC Config Presence E2E
+          - "omitted"
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                name: "omitted"
+                "contains(keys(config), 'upstream_access_token_header')": false
+                config.cache_ttl: 120
+                config.consumer_groups_claim[0]: groups
+                config.consumer_groups_optional: false
+                config.upstream_headers_claims[0]: sub
+                config.upstream_headers_names[0]: x-consumer-subject
+                config.principals.principal_claim[0]: sub
+                config.principals.error_on_miss: false
+      - name: get-null
+        run:
+          - get
+          - ai-gateway
+          - auth-strategies
+          - --gateway-name
+          - OIDC Config Presence E2E
+          - "null"
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                name: "null"
+                "contains(keys(config), 'upstream_access_token_header')": true
+                config.cache_ttl: 120
+                config.consumer_groups_claim[0]: groups
+                config.consumer_groups_optional: false
+                config.upstream_headers_claims[0]: sub
+                config.upstream_headers_names[0]: x-consumer-subject
+                config.principals.principal_claim[0]: sub
+                config.principals.error_on_miss: false
+                config.upstream_access_token_header: null
+      - name: get-explicit
+        run:
+          - get
+          - ai-gateway
+          - auth-strategies
+          - --gateway-name
+          - OIDC Config Presence E2E
+          - "explicit"
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                name: "explicit"
+                "contains(keys(config), 'upstream_access_token_header')": true
+                config.cache_ttl: 120
+                config.consumer_groups_claim[0]: groups
+                config.consumer_groups_optional: false
+                config.upstream_headers_claims[0]: sub
+                config.upstream_headers_names[0]: x-consumer-subject
+                config.principals.principal_claim[0]: sub
+                config.principals.error_on_miss: false
+                config.upstream_access_token_header: authorization:bearer
+      - name: plan-after-create
+        run: [plan, -f, "{{ .workdir }}/config.yaml"]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 002-update-and-converge
+    inputOverlayOps:
+      - file: config.yaml
+        match: >-
+          ai_gateways[?ref=='oidc-config-presence'].auth_strategies[?ref=='omitted'] | [0]
+        set:
+          display_name: omitted updated
+      - file: config.yaml
+        match: >-
+          ai_gateways[?ref=='oidc-config-presence'].auth_strategies[?ref=='null'] | [0]
+        set:
+          display_name: null updated
+      - file: config.yaml
+        match: >-
+          ai_gateways[?ref=='oidc-config-presence'].auth_strategies[?ref=='explicit'] | [0]
+        set:
+          display_name: explicit updated
+      - file: config.yaml
+        match: >-
+          ai_gateways[?ref=='oidc-config-presence'].auth_strategies[?ref=='explicit'].config | [0]
+        set:
+          upstream_access_token_header: null
+    commands:
+      - name: apply-update
+        run: [apply, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+      - name: get-omitted
+        run:
+          - get
+          - ai-gateway
+          - auth-strategies
+          - --gateway-name
+          - OIDC Config Presence E2E
+          - "omitted"
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                display_name: omitted updated
+                "contains(keys(config), 'upstream_access_token_header')": false
+                config.cache_ttl: 120
+                config.consumer_groups_claim[0]: groups
+                config.consumer_groups_optional: false
+                config.upstream_headers_claims[0]: sub
+                config.upstream_headers_names[0]: x-consumer-subject
+                config.principals.principal_claim[0]: sub
+                config.principals.error_on_miss: false
+      - name: get-null
+        run:
+          - get
+          - ai-gateway
+          - auth-strategies
+          - --gateway-name
+          - OIDC Config Presence E2E
+          - "null"
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                display_name: null updated
+                "contains(keys(config), 'upstream_access_token_header')": true
+                config.cache_ttl: 120
+                config.consumer_groups_claim[0]: groups
+                config.consumer_groups_optional: false
+                config.upstream_headers_claims[0]: sub
+                config.upstream_headers_names[0]: x-consumer-subject
+                config.principals.principal_claim[0]: sub
+                config.principals.error_on_miss: false
+                config.upstream_access_token_header: null
+      - name: get-explicit
+        run:
+          - get
+          - ai-gateway
+          - auth-strategies
+          - --gateway-name
+          - OIDC Config Presence E2E
+          - "explicit"
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                display_name: explicit updated
+                "contains(keys(config), 'upstream_access_token_header')": true
+                config.cache_ttl: 120
+                config.consumer_groups_claim[0]: groups
+                config.consumer_groups_optional: false
+                config.upstream_headers_claims[0]: sub
+                config.upstream_headers_names[0]: x-consumer-subject
+                config.principals.principal_claim[0]: sub
+                config.principals.error_on_miss: false
+                config.upstream_access_token_header: null
+      - name: apply-converges
+        run: [apply, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: summary
+            expect:
+              fields:
+                applied: 0
+                failed: 0
+                total_changes: 0
+                status: success
+      - name: sync-converges
+        run: [sync, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: summary
+            expect:
+              fields:
+                applied: 0
+                failed: 0
+                total_changes: 0
+                status: success
+
+  - name: 003-delete-fixtures
+    commands:
+      - name: delete-fixtures
+        run: [delete, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success

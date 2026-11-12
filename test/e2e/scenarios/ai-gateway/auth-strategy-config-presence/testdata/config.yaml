@@ -1,0 +1,75 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-auth-config-presence-e2e
+
+ai_gateways:
+  - ref: oidc-config-presence
+    name: oidc-config-presence-e2e
+    display_name: OIDC Config Presence E2E
+    deployment_type: hybrid
+    auth_strategies:
+      - ref: omitted
+        name: omitted
+        type: openid-connect
+        display_name: omitted
+        config:
+          issuer: https://issuer.example.com
+          auth_methods: [bearer]
+          cache_tokens_salt: config-presence-cache-salt-000001
+          hide_credentials: true
+          cache_ttl: 120
+          consumer_groups_claim: [groups]
+          consumer_groups_optional: false
+          upstream_headers_claims: [sub]
+          upstream_headers_names: [x-consumer-subject]
+          principals:
+            enabled: true
+            directory: default
+            principal_claim: [sub]
+            match_consumer: true
+            match_consumer_groups: true
+            error_on_miss: false
+      - ref: "null"
+        name: "null"
+        type: openid-connect
+        display_name: "null"
+        config:
+          issuer: https://issuer.example.com
+          auth_methods: [bearer]
+          cache_tokens_salt: config-presence-cache-salt-000001
+          hide_credentials: true
+          cache_ttl: 120
+          consumer_groups_claim: [groups]
+          consumer_groups_optional: false
+          upstream_headers_claims: [sub]
+          upstream_headers_names: [x-consumer-subject]
+          principals:
+            enabled: true
+            directory: default
+            principal_claim: [sub]
+            match_consumer: true
+            match_consumer_groups: true
+            error_on_miss: false
+          upstream_access_token_header: null
+      - ref: explicit
+        name: explicit
+        type: openid-connect
+        display_name: explicit
+        config:
+          issuer: https://issuer.example.com
+          auth_methods: [bearer]
+          cache_tokens_salt: config-presence-cache-salt-000001
+          hide_credentials: true
+          cache_ttl: 120
+          consumer_groups_claim: [groups]
+          consumer_groups_optional: false
+          upstream_headers_claims: [sub]
+          upstream_headers_names: [x-consumer-subject]
+          principals:
+            enabled: true
+            directory: default
+            principal_claim: [sub]
+            match_consumer: true
+            match_consumer_groups: true
+            error_on_miss: false
+          upstream_access_token_header: authorization:bearer

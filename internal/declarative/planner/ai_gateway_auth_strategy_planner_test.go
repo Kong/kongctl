@@ -477,3 +477,19 @@ func TestAuthStrategyProxyCredentialsDoNotForceConfigUpdates(t *testing.T) {
 		require.False(t, aiGatewayAuthStrategyConfigChanged(current, desired))
 	}
 }
+
+func TestOIDCDisplayNameUpdatePreservesServerConfigExtensions(t *testing.T) {
+	config := map[string]any{
+		"issuer": "https://example.com", "cache_tokens_salt": "salt", "upstream_access_token_header": nil,
+		"future_server_option": map[string]any{"enabled": true},
+	}
+	current := state.AIGatewayAuthStrategy{Name: "probe", Type: "openid-connect", DisplayName: "Before", Config: config}
+	desired := resources.AIGatewayAuthStrategyResource{
+		Name: "probe", Type: "openid-connect", DisplayName: "After",
+		Config: map[string]any{"issuer": "https://example.com", "cache_tokens_salt": "salt"},
+	}
+	changed, fields, _, err := shouldUpdateAIGatewayAuthStrategy(current, desired)
+	require.NoError(t, err)
+	require.True(t, changed)
+	require.Equal(t, config, fields[FieldConfig])
+}
