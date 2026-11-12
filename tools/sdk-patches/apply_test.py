@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import hashlib
 from pathlib import Path
 import tempfile
 import unittest
@@ -96,24 +97,77 @@ class PatchTests(unittest.TestCase):
             patches.post_generate(sdk, {"post_generation": [patch]})
             self.assertEqual(target.read_text(), patch["after"])
 
-    def test_oidc_configs_and_getters_preserve_presence(self):
-        for model in ["aigatewayauthstrategyopenidconnect", "aigatewayauthstrategyopenidconnectresponse"]:
-            filename = "models/components/" + model + ".go"
-            selected = [patch for patch in self.manifest["post_generation"] if patch["file"] == filename]
-            self.assertEqual(len(selected), 2)
-            with tempfile.TemporaryDirectory() as directory:
-                sdk = Path(directory)
-                target = sdk / filename
-                target.parent.mkdir(parents=True)
-                target.write_text("\n".join(patch["before"] for patch in selected))
-                manifest = {"post_generation": selected}
-                patches.post_generate(sdk, manifest)
-                result = target.read_text()
-                self.assertIn("GetConfig() map[string]any {", result)
-                self.assertEqual(result.count("map[string]any"), 2)
-                self.assertNotIn("*AIGWOpenIDConnectGeneratedConfig", result)
-                patches.post_generate(sdk, manifest)
-                self.assertEqual(target.read_text(), result)
+    def typed_config_fixture(self):
+        source = '''package components
+import "github.com/Kong/sdk-konnect-go/internal/utils"
+type Sample struct {
+    Issuer string `json:"issuer"`
+    Flag *bool `default:"true" json:"flag"`
+    Scopes []string `default:"[openid]" json:"scopes,omitempty"`
+    Header *string `json:"header,omitempty"`
+}
+func (s *Sample) UnmarshalJSON(data []byte) error {
+    if err := utils.UnmarshalJSON(data, &s, "", false, []string{"issuer"}); err != nil { return err }
+    return nil
+}
+func (s *Sample) GetFlag() *bool {
+    if s == nil { return nil }
+    return s.Flag
+}
+func (s *Sample) GetScopes() []string {
+    if s == nil { return nil }
+    return s.Scopes
+}
+func (s *Sample) GetHeader() *string {
+    if s == nil { return nil }
+    return s.Header
+}
+'''
+        # Match the generated declarations, which always use tab indentation.
+        source = source.replace("    ", "\t")
+        fields = [["Issuer", "string", "issuer"], ["Flag", "*bool", "flag"],
+                  ["Scopes", "[]string", "scopes"], ["Header", "*string", "header"]]
+        signature = hashlib.sha256(json.dumps(fields, separators=(",", ":")).encode()).hexdigest()
+        policy = {"file": "model.go", "models": {"Sample": {"fields_sha256": signature, "required": ["issuer"]}}}
+        return source, policy
+
+    def test_typed_presence_retains_struct_getters_and_required_fields(self):
+        source, policy = self.typed_config_fixture()
+        result, models = patches.typed_presence(source, policy)
+        self.assertRegex(result, r'Issuer\s+string\s+`json:"issuer"`')
+        self.assertIn("optionalnullable.OptionalNullable[bool]", result)
+        self.assertIn("optionalnullable.OptionalNullable[[]string]", result)
+        self.assertIn("optionalnullable.OptionalNullable[string]", result)
+        self.assertNotIn('default:', result)
+        self.assertIn('json:"flag,omitempty"', result)
+        self.assertIn('additionalProperties:"true"', result)
+        self.assertIn("GetFlag() *bool", result)
+        self.assertIn("GetScopes() []string", result)
+        self.assertIn("s.Flag.Get()", result)
+        self.assertIn("return *value", result)
+        again, _ = patches.typed_presence(result, policy)
+        self.assertEqual(result, again)
+        self.assertEqual(set(models["Sample"]), {"Flag", "Scopes", "Header"})
+
+    def test_typed_presence_rejects_field_and_required_schema_drift(self):
+        source, policy = self.typed_config_fixture()
+        for changed in [source.replace("Flag *bool", "Flag *int"),
+                        source.replace('[]string{"issuer"}', '[]string{"issuer", "flag"}'),
+                        source + "\ntype Added struct {}\n"]:
+            with self.assertRaises(ValueError):
+                patches.typed_presence(changed, policy)
+
+    def test_typed_presence_docs_are_repeatable(self):
+        source, policy = self.typed_config_fixture()
+        _, models = patches.typed_presence(source, policy)
+        doc = "| Field | Type | Required | Description |\n| --- | --- | --- | --- |\n"
+        for name in ["Issuer", "Flag", "Scopes", "Header"]:
+            doc += f"| `{name}` | old | optional | Description |\n"
+        updated = patches.typed_presence_docs(doc, models["Sample"])
+        self.assertIn("`optionalnullable.OptionalNullable[bool]`", updated)
+        self.assertIn("`AdditionalProperties`", updated)
+        self.assertIn("| `Issuer` | old |", updated)
+        self.assertEqual(patches.typed_presence_docs(updated, models["Sample"]), updated)
 
     def test_multiple_replacements_in_one_file_accumulate_and_fail_atomically(self):
         with tempfile.TemporaryDirectory() as directory:

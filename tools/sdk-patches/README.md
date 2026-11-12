@@ -91,17 +91,26 @@ Explicit values, including values equal to API defaults, remain supported.
 The planner separately accounts for datastore-expanded response fields and
 inline API defaults.
 
-AI Gateway OpenID Connect auth strategy configs use presence-preserving maps
-on the request and response models. The generated plugin config types apply
-SDK defaults and collapse explicit null into nil, so removing default tags
-alone cannot retain all three states. Targeted replacements change only the
-OIDC strategy's config field and getter; generated config models remain
-available for validation and explain metadata. Maps preserve nested values,
-explicit false, empty arrays, omitted fields, and null without synthesizing
-plugin defaults. Response maps prevent null from becoming a default during
-state normalization and causing perpetual updates. Wire regressions exercise
-create and update, including explicit values equal to the API default.
-Remove these replacements when upstream models preserve config presence.
+AI Gateway OpenID Connect auth strategies retain their generated typed config
+structs. Optional fields in the request/response config models and their nested
+models use the SDK's `optionalnullable.OptionalNullable[T]` wrapper with
+`omitempty`, without serializer default tags. Required fields stay unchanged.
+The wrapper preserves omission, explicit null, and typed values, including
+false and empty arrays. Existing typed getters retain their return types;
+callers can inspect the field's `IsSet`/`IsNull` methods for presence. Go callers
+constructing optional fields use `optionalnullable.From` instead of assigning
+bare pointers or slices. This is a scoped model correction, not a change to the
+SDK's global JSON serializer or other resources.
+
+The typed-presence policy fingerprints each model's generated field inventory
+and checks required fields and getter shapes before changing anything. SDK
+schema drift fails closed for review. The post-generation patch updates model
+docs as well as Go code. `AdditionalProperties` retains newer server fields
+alongside the typed fields, including within nested config objects; full PUT
+updates must not silently drop them. Wire regressions cover typed construction,
+JSON decoding, response round trips, nested properties, null, false, empty
+arrays, and explicit values equal to API defaults. Remove the correction when
+upstream generated models preserve these states without inventing defaults.
 
 The internal-only `CreatePortal.create_default_content` field also stays
 omitted when unset. Its tag replacement skips public SDKs where the field is
