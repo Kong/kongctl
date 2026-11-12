@@ -300,6 +300,7 @@ func aiGatewayAuthStrategyExplainNode(_ ExplainBuildContext) (*ExplainNode, erro
 	if err != nil {
 		return nil, err
 	}
+	openIDConnectConfig.Additional = &ExplainNode{}
 	explainReplacePath(openIDConnectSDK, []string{aiGatewayAuthStrategyFieldConfig}, openIDConnectConfig)
 
 	openIDConnect := aiGatewayAuthStrategySDKExplainBranch(

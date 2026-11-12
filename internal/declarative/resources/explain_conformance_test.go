@@ -75,8 +75,9 @@ func TestAIGatewayCustomExplainSchemasTrackSDKShapes(t *testing.T) {
 					t,
 					aiGatewayAuthStrategyExplainBranch(t, actual, "key-auth"),
 				)
-				assertExplainNodePreservesSDKOpenness(t, "", aiGatewayOIDCSDKExplainShape(t),
-					aiGatewayAuthStrategyExplainBranch(t, actual, "openid-connect"))
+				assertCustomExplainPreservesSDKOpenness[kkComps.AIGatewayAuthStrategyOpenIDConnect](
+					t, aiGatewayAuthStrategyExplainBranch(t, actual, "openid-connect"),
+				)
 			},
 			actual: func() (*ExplainNode, error) {
 				return aiGatewayAuthStrategyExplainNode(ExplainBuildContext{})
@@ -138,8 +139,16 @@ func TestAIGatewayAuthStrategyExplainBranchesTrackSDKRequestShapes(t *testing.T)
 		aiGatewayAuthStrategyExplainBranch(t, node, "key-auth"),
 		allowOverlay,
 	)
-	assertExplainNodeDeeplySupportsSDKShape(t, "", aiGatewayOIDCSDKExplainShape(t),
-		aiGatewayAuthStrategyExplainBranch(t, node, "openid-connect"), allowOverlay)
+	oidc := aiGatewayAuthStrategyExplainBranch(t, node, "openid-connect")
+	assertCustomExplainDeeplySupportsSDKShape[kkComps.AIGatewayAuthStrategyOpenIDConnect](t, oidc,
+		func(path, name string) bool {
+			return path == aiGatewayAuthStrategyFieldConfig || allowOverlay(path, name)
+		})
+	config, ok := oidc.property(aiGatewayAuthStrategyFieldConfig)
+	require.True(t, ok)
+	assertCustomExplainDeeplySupportsSDKShape[kkComps.AIGWOpenIDConnectGeneratedConfig](t, config.Node, nil)
+	require.IsType(t, map[string]any{}, kkComps.AIGatewayAuthStrategyOpenIDConnect{}.Config)
+	require.IsType(t, map[string]any{}, kkComps.AIGatewayAuthStrategyOpenIDConnectResponse{}.Config)
 }
 
 func TestAIGatewayAgentConfigExplainTracksSDKRequestShape(t *testing.T) {
@@ -444,16 +453,4 @@ func assertExplainFieldShapeCompatible(t *testing.T, path string, expected, actu
 			)
 		}
 	}
-}
-
-// OIDC wire configs are maps for field presence; validation and explain retain
-// the generated plugin model's detailed schema.
-func aiGatewayOIDCSDKExplainShape(t *testing.T) *ExplainNode {
-	t.Helper()
-	expected, err := autoExplainConcreteNode[kkComps.AIGatewayAuthStrategyOpenIDConnect](nil)
-	require.NoError(t, err)
-	config, err := autoExplainConcreteNode[kkComps.AIGWOpenIDConnectGeneratedConfig](nil)
-	require.NoError(t, err)
-	explainReplacePath(expected, []string{aiGatewayAuthStrategyFieldConfig}, config)
-	return expected
 }
