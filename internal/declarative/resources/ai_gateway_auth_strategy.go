@@ -294,14 +294,6 @@ func aiGatewayAuthStrategyExplainNode(_ ExplainBuildContext) (*ExplainNode, erro
 	if err != nil {
 		return nil, err
 	}
-	// The writable config is a map to preserve null and omission. Retain the
-	// generated plugin schema for explain/scaffold metadata.
-	openIDConnectConfig, err := autoExplainConcreteNode[kkComps.AIGWOpenIDConnectGeneratedConfig](nil)
-	if err != nil {
-		return nil, err
-	}
-	openIDConnectConfig.Additional = &ExplainNode{}
-	explainReplacePath(openIDConnectSDK, []string{aiGatewayAuthStrategyFieldConfig}, openIDConnectConfig)
 
 	openIDConnect := aiGatewayAuthStrategySDKExplainBranch(
 		openIDConnectSDK,

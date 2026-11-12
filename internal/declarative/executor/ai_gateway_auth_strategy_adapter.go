@@ -2,7 +2,6 @@ package executor
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -193,19 +192,6 @@ func aiGatewayAuthStrategyPayloadFromFields(fields map[string]any) (map[string]a
 	config, ok := fields[planner.FieldConfig]
 	if !ok || config == nil {
 		return nil, fmt.Errorf("config is required")
-	}
-
-	// Check known field types and required fields without discarding newer
-	// server fields or serializing defaults into the request config.
-	if providerType == string(kkComps.CreateAIGatewayAuthStrategyRequestTypeOpenidConnect) {
-		data, err := json.Marshal(config)
-		if err != nil {
-			return nil, fmt.Errorf("failed to encode AI Gateway auth strategy config")
-		}
-		var validation kkComps.AIGWOpenIDConnectGeneratedConfig
-		if err := json.Unmarshal(data, &validation); err != nil {
-			return nil, fmt.Errorf("invalid AI Gateway auth strategy config: %w", &aiGatewaySDKDecodeError{cause: err})
-		}
 	}
 
 	payload := map[string]any{

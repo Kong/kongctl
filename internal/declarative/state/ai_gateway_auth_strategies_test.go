@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Kong/sdk-konnect-go/optionalnullable"
+
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/stretchr/testify/require"
@@ -20,12 +22,12 @@ func TestGetAIGatewayAuthStrategyPreservesAccessControlConfig(t *testing.T) {
 			DisplayName: "Support OIDC",
 			CreatedAt:   time.Now(),
 			UpdatedAt:   time.Now(),
-			Config: map[string]any{
-				"cache_tokens_salt":        "support-cache-salt",
-				"consumer_groups_claim":    []string{"groups"},
-				"consumer_groups_optional": false,
-				"upstream_headers_claims":  []string{"sub"},
-				"upstream_headers_names":   []string{"x-consumer-subject"},
+			Config: &kkComps.AIGWOpenIDConnectGeneratedConfigOutput{
+				CacheTokensSalt:        "support-cache-salt",
+				ConsumerGroupsClaim:    optionalnullable.From(new([]string{"groups"})),
+				ConsumerGroupsOptional: optionalnullable.From(new(false)),
+				UpstreamHeadersClaims:  optionalnullable.From(new([]string{"sub"})),
+				UpstreamHeadersNames:   optionalnullable.From(new([]string{"x-consumer-subject"})),
 			},
 		},
 	)

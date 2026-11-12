@@ -140,15 +140,24 @@ func TestAIGatewayAuthStrategyExplainBranchesTrackSDKRequestShapes(t *testing.T)
 		allowOverlay,
 	)
 	oidc := aiGatewayAuthStrategyExplainBranch(t, node, "openid-connect")
-	assertCustomExplainDeeplySupportsSDKShape[kkComps.AIGatewayAuthStrategyOpenIDConnect](t, oidc,
-		func(path, name string) bool {
-			return path == aiGatewayAuthStrategyFieldConfig || allowOverlay(path, name)
-		})
+	assertCustomExplainDeeplySupportsSDKShape[kkComps.AIGatewayAuthStrategyOpenIDConnect](t, oidc, allowOverlay)
 	config, ok := oidc.property(aiGatewayAuthStrategyFieldConfig)
 	require.True(t, ok)
 	assertCustomExplainDeeplySupportsSDKShape[kkComps.AIGWOpenIDConnectGeneratedConfig](t, config.Node, nil)
-	require.IsType(t, map[string]any{}, kkComps.AIGatewayAuthStrategyOpenIDConnect{}.Config)
-	require.IsType(t, map[string]any{}, kkComps.AIGatewayAuthStrategyOpenIDConnectResponse{}.Config)
+	require.IsType(t, &kkComps.AIGWOpenIDConnectGeneratedConfig{}, kkComps.AIGatewayAuthStrategyOpenIDConnect{}.Config)
+	response := kkComps.AIGatewayAuthStrategyOpenIDConnectResponse{}
+	require.IsType(t, &kkComps.AIGWOpenIDConnectGeneratedConfigOutput{}, response.Config)
+	header, ok := config.Node.property("upstream_access_token_header")
+	require.True(t, ok)
+	require.Equal(t, explainKindString, header.Node.Kind)
+	require.True(t, header.Node.Nullable)
+	require.False(t, header.Required)
+	require.Nil(t, header.Node.Additional)
+	scopes, ok := config.Node.property("scopes")
+	require.True(t, ok)
+	require.Equal(t, explainKindArray, scopes.Node.Kind)
+	require.True(t, scopes.Node.Nullable)
+	require.Equal(t, explainKindString, scopes.Node.Items.Kind)
 }
 
 func TestAIGatewayAgentConfigExplainTracksSDKRequestShape(t *testing.T) {

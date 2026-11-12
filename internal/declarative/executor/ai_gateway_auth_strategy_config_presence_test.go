@@ -121,7 +121,7 @@ func TestOIDCConfigValidationRejectsMalformedKnownFields(t *testing.T) {
 				adapter.MapCreateFields(t.Context(), nil, fields, &create),
 				adapter.MapUpdateFields(t.Context(), nil, fields, &update, nil),
 			} {
-				require.ErrorContains(t, err, "config")
+				require.ErrorContains(t, err, "current SDK rejected")
 				require.NotContains(t, err.Error(), "sensitive-value-must-not-leak")
 			}
 		})

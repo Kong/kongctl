@@ -26,7 +26,7 @@ func TestAIGatewayAuthStrategyAdapterMapsOpenIDConnectCacheTokensSalt(t *testing
 	require.NoError(t, err)
 	require.NotNil(t, request.AIGatewayAuthStrategyOpenIDConnect)
 	require.NotNil(t, request.AIGatewayAuthStrategyOpenIDConnect.Config)
-	require.Equal(t, "support-cache-salt", request.AIGatewayAuthStrategyOpenIDConnect.Config["cache_tokens_salt"])
+	require.Equal(t, "support-cache-salt", request.AIGatewayAuthStrategyOpenIDConnect.Config.CacheTokensSalt)
 }
 
 func TestAIGatewayAuthStrategyAdapterMapsKongIdentityPrincipals(t *testing.T) {
@@ -92,7 +92,7 @@ func TestAIGatewayAuthStrategyAdapterPreservesAdditionalOpenIDConnectConfigPrope
 	require.NoError(t, err)
 	require.NotNil(t, request.AIGatewayAuthStrategyOpenIDConnect)
 	require.NotNil(t, request.AIGatewayAuthStrategyOpenIDConnect.Config)
-	require.Equal(t, []any{"sub"}, request.AIGatewayAuthStrategyOpenIDConnect.Config["credential_claim"])
+	require.Equal(t, []string{"sub"}, request.AIGatewayAuthStrategyOpenIDConnect.Config.GetCredentialClaim())
 
 	data, err := json.Marshal(request)
 	require.NoError(t, err)
@@ -126,8 +126,9 @@ func TestAIGatewayAuthStrategyAdapterPreservesAccessControlConfig(t *testing.T) 
 	require.NotNil(t, request.AIGatewayAuthStrategyOpenIDConnect)
 	config := request.AIGatewayAuthStrategyOpenIDConnect.Config
 	require.NotNil(t, config)
-	require.Equal(t, []any{"groups"}, config["consumer_groups_claim"])
-	require.Equal(t, false, config["consumer_groups_optional"])
+	require.Equal(t, []string{"groups"}, config.GetConsumerGroupsClaim())
+	require.NotNil(t, config.GetConsumerGroupsOptional())
+	require.False(t, *config.GetConsumerGroupsOptional())
 
 	data, err := json.Marshal(request)
 	require.NoError(t, err)
