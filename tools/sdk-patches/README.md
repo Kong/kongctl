@@ -43,6 +43,11 @@ A wire regression verifies the bracketed names and cursor encoding; it fails
 before the patches. Skip SDKs without these operations. Remove replacements
 when upstream generation preserves the documented/deployed cursor shape.
 
+The Trusted IdP JIT mapping `identifier` patch removes the generated `sub`
+default. Omission stays omitted; explicitly supplied claim names remain intact.
+Wire regressions cover create and replacement requests. This is a replacement
+API, so omission does not promise preservation of a remote custom identifier.
+
 SDK 0.83 includes a dedicated writable nullable expiration schema for the six
 Identity credential requests. No preview-spec correction is needed for that
 schema separation. Generated time pointers still cannot distinguish omitted
