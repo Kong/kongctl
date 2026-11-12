@@ -10,9 +10,6 @@ func TestPortalAISettingsPatchPreservesOmissionAndExplicitValues(t *testing.T) {
 	for _, input := range []string{
 		`{"enabled":false}`,
 		`{"enabled":true}`,
-		`{"enabled":true,"features":{"portal_agent":{}}}`,
-		`{"enabled":true,"features":{"portal_agent":{"display_name":"AI","audience":"all"}}}`,
-		`{"enabled":true,"features":{"portal_agent":{"display_name":"Assistant"}}}`,
 		`{"enabled":true,"features":{"mcp_server":{"enabled":true}}}`,
 		`{"enabled":true,"features":{"mcp_server":{"enabled":true,"write_operations_enabled":false}}}`,
 		`{"enabled":true,"features":{"mcp_server":{"enabled":false,"write_operations_enabled":true}}}`,

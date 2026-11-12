@@ -67,11 +67,11 @@ Portal customization patches preserve omitted theme names and Try It UI
 audiences. Explicit audience values remain supported; an unset audience must
 not become `all` in a PATCH request.
 
-Portal AI settings patches preserve omitted MCP write enablement and Portal
-Agent display name and audience. Updating one feature must not reset unrelated
-optional settings. Required top-level and feature enablement retain their API
-defaults. The nullable Portal Agent schemas are shared with PUT requests,
-which also preserve omission of these optional fields.
+Portal AI settings patches preserve omitted MCP write enablement. Updating
+one feature must not reset unrelated optional settings. Required top-level and
+feature enablement retain their API defaults. SDK v0.86.1 removes Portal Agent
+and AI Search schemas; the obsolete Portal Agent patches and tests are removed
+with maintainer approval. Earlier bundle revisions cover those older schemas.
 
 Portal and organization team patches preserve omitted membership management.
 A PATCH changing a team's name must not reset `konnect_managed` to `false`.
