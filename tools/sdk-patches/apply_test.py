@@ -128,33 +128,41 @@ func (s *Sample) GetHeader() *string {
         fields = [["Issuer", "string", "issuer"], ["Flag", "*bool", "flag"],
                   ["Scopes", "[]string", "scopes"], ["Header", "*string", "header"]]
         signature = hashlib.sha256(json.dumps(fields, separators=(",", ":")).encode()).hexdigest()
-        policy = {"file": "model.go", "models": {"Sample": {"fields_sha256": signature, "required": ["issuer"]}}}
+        policy = {"file": "model.go", "models": {"Sample": {"fields_sha256": signature, "required": ["issuer"], "fields": ["header"]}}}
         return source, policy
 
     def test_typed_presence_retains_struct_getters_and_required_fields(self):
         source, policy = self.typed_config_fixture()
         result, models = patches.typed_presence(source, policy)
         self.assertRegex(result, r'Issuer\s+string\s+`json:"issuer"`')
-        self.assertIn("optionalnullable.OptionalNullable[bool]", result)
         self.assertIn('"github.com/Kong/sdk-konnect-go/optionalnullable"', result)
-        self.assertIn("optionalnullable.OptionalNullable[[]string]", result)
         self.assertIn("optionalnullable.OptionalNullable[string]", result)
-        self.assertNotIn('default:', result)
-        self.assertIn('json:"flag,omitempty"', result)
-        self.assertIn('additionalProperties:"true"', result)
+        self.assertIn('default:"true"', result)
+        self.assertIn('json:"header,omitempty"', result)
+        self.assertNotIn("AdditionalProperties", result)
         self.assertIn("GetFlag() *bool", result)
         self.assertIn("GetScopes() []string", result)
-        self.assertIn("s.Flag.Get()", result)
-        self.assertIn("return *value", result)
+        self.assertIn("s.Header.Get()", result)
+        self.assertNotIn("s.Scopes.Get()", result)
         again, _ = patches.typed_presence(result, policy)
         self.assertEqual(result, again)
-        self.assertEqual(set(models["Sample"]), {"Flag", "Scopes", "Header"})
+        self.assertEqual(set(models["Sample"]), {"Header"})
+
+    def test_targeted_presence_leaves_other_field_types_defaults_and_getters_unchanged(self):
+        source, policy = self.typed_config_fixture()
+        policy["models"]["Sample"]["fields"] = ["header"]
+        result, models = patches.typed_presence(source, policy)
+        self.assertRegex(result, r'Flag\s+\*bool\s+`default:"true" json:"flag"`')
+        self.assertRegex(result, r'Scopes\s+\[\]string\s+`default:"\[openid\]" json:"scopes,omitempty"`')
+        self.assertNotIn("AdditionalProperties", result)
+        self.assertNotIn("s.Flag.Get()", result)
+        self.assertIn("optionalnullable.OptionalNullable[string]", result)
+        self.assertEqual(set(models["Sample"]), {"Header"})
 
     def test_typed_presence_rejects_field_and_required_schema_drift(self):
         source, policy = self.typed_config_fixture()
         for changed in [source.replace("Flag *bool", "Flag *int"),
-                        source.replace('[]string{"issuer"}', '[]string{"issuer", "flag"}'),
-                        source + "\ntype Added struct {}\n"]:
+                        source.replace('[]string{"issuer"}', '[]string{"issuer", "flag"}')]:
             with self.assertRaises(ValueError):
                 patches.typed_presence(changed, policy)
 
@@ -165,8 +173,8 @@ func (s *Sample) GetHeader() *string {
         for name in ["Issuer", "Flag", "Scopes", "Header"]:
             doc += f"| `{name}` | old | optional | Description |\n"
         updated = patches.typed_presence_docs(doc, models["Sample"])
-        self.assertIn("`optionalnullable.OptionalNullable[bool]`", updated)
-        self.assertIn("`AdditionalProperties`", updated)
+        self.assertIn("`optionalnullable.OptionalNullable[string]`", updated)
+        self.assertNotIn("`AdditionalProperties`", updated)
         self.assertIn("| `Issuer` | old |", updated)
         self.assertEqual(patches.typed_presence_docs(updated, models["Sample"]), updated)
 
@@ -198,7 +206,7 @@ func (s *Sample) GetHeader() *string {
         result = patches.typed_presence_docs(doc, optional)
         fields, other = result.split("## Other table")
         self.assertIn("[`optionalnullable.OptionalNullable[ClientJwk]`](../../models/components/clientjwk.md)", fields)
-        self.assertIn("`AdditionalProperties`", fields)
+        self.assertNotIn("`AdditionalProperties`", fields)
         self.assertNotIn("`AdditionalProperties`", other)
         self.assertIn("| `Key` | unchanged |", other)
         self.assertEqual(patches.typed_presence_docs(result, optional), result)

@@ -345,7 +345,8 @@
     "tests/identity_key_metadata_test.go.txt": "identity_key_metadata_kongctl_test.go",
     "tests/ai_gateway_update_defaults_test.go.txt": "ai_gateway_update_defaults_kongctl_test.go",
     "tests/ai_gateway_oidc_config_presence_test.go.txt": "kongctl_ai_gateway_oidc_config_presence_test.go",
-    "tests/ai_gateway_oidc_config_typed_test.go.txt": "kongctl_ai_gateway_oidc_config_typed_test.go"
+    "tests/ai_gateway_oidc_config_typed_test.go.txt": "kongctl_ai_gateway_oidc_config_typed_test.go",
+    "tests/ai_gateway_oidc_config_baseline.json": "kongctl_oidc_config_baseline.json"
   },
   "post_generation_doc_sections": [
     {
@@ -398,104 +399,14 @@
       "file": "models/components/aigwopenidconnectgeneratedconfigoutput.go",
       "docs_directory": "docs/models/components",
       "models": {
-        "ClientJwk": {
-          "fields_sha256": "0ebf7eb0aef696ea9aae618b655687dc11fb29b30a0426417f76eb3264fe0171",
-          "required": []
-        },
-        "AIGWOpenIDConnectGeneratedConfigClusterCacheRedisCloudAuthentication": {
-          "fields_sha256": "1cb16363f4775f12ef6a9ca76f6fc0646eebbf717f49d00aee8681f16275305b",
-          "required": []
-        },
-        "AIGWOpenIDConnectGeneratedConfigClusterCacheRedisClusterNodes": {
-          "fields_sha256": "b7b9ecd6d126b7d0be033b03130255710cd1915acbf8d00f1fa0d7713b5391d7",
-          "required": []
-        },
-        "AIGWOpenIDConnectGeneratedConfigClusterCacheRedisSentinelNodes": {
-          "fields_sha256": "7d116465b286755fc5c44b0c57a1d3af21e53936e4d066d1ecb458844e7835ed",
-          "required": []
-        },
-        "ClusterCacheRedis": {
-          "fields_sha256": "b40119b89b6de95b1f331d7e59407890f476d9d1ddbbd14df0d6a680151da6d5",
-          "required": []
-        },
-        "DownstreamHeaders": {
-          "fields_sha256": "e112dee8bb1e6d31e6066a29d67dce99aee3ac4591b4d607be458e1418523e12",
-          "required": [
-            "header",
-            "path"
-          ]
-        },
-        "Jit": {
-          "fields_sha256": "351c1f5d619f484ee30280a615dc38eaf07a592deedc3588c92e6cf1b6ea8c9a",
-          "required": []
-        },
-        "AIGWOpenIDConnectGeneratedConfigPrincipals": {
-          "fields_sha256": "2fdaeb80d4f85a86ee71c1d6c004da2f962a309d1dc46fc6c9c77d690aa92807",
-          "required": []
-        },
-        "ProtectedResourceMetadata": {
-          "fields_sha256": "8d062f9f89e575d669e48b279ac843fff10578c01f89e689884b2cc0b698e0ca",
-          "required": [
-            "authorization_servers",
-            "resource"
-          ]
-        },
-        "AIGWOpenIDConnectGeneratedConfigCloudAuthentication": {
-          "fields_sha256": "0c90fb74d82c3e0396f64b8dfa7ac0e52830c26cce2dce5808fdf7f071d825ec",
-          "required": []
-        },
-        "AIGWOpenIDConnectGeneratedConfigClusterNodes": {
-          "fields_sha256": "b7b9ecd6d126b7d0be033b03130255710cd1915acbf8d00f1fa0d7713b5391d7",
-          "required": []
-        },
-        "AIGWOpenIDConnectGeneratedConfigSentinelNodes": {
-          "fields_sha256": "7d116465b286755fc5c44b0c57a1d3af21e53936e4d066d1ecb458844e7835ed",
-          "required": []
-        },
-        "Redis": {
-          "fields_sha256": "08d257a7706d175ef6610c9aa2431b0baa9111c147095699afcab860bd1291ec",
-          "required": []
-        },
-        "AIGWOpenIDConnectGeneratedConfigCache": {
-          "fields_sha256": "fcae6eb997caf4e3353b8ba34dcd03ffc55a3255c5a391fc1e570692f0968fb1",
-          "required": []
-        },
-        "ActorToken": {
-          "fields_sha256": "94a59af30e800c3c1f7ed614adbf1912fd929168790c78dc21ccfd57a55aa64f",
-          "required": []
-        },
-        "Request": {
-          "fields_sha256": "6b37859df3ed1bd8e84abb2e3525d8f413e164c82ccff267f269dade933b5d8d",
-          "required": []
-        },
-        "Conditions": {
-          "fields_sha256": "69694891e09d4a643532869170a2653a665153810b63e65ef99b68f4655f3123",
-          "required": []
-        },
-        "SubjectTokenIssuers": {
-          "fields_sha256": "6e5492057c8bfc35883a308dd0726b366994078edea3c94c0f1aec3717ce30ff",
-          "required": [
-            "issuer"
-          ]
-        },
-        "TokenExchange": {
-          "fields_sha256": "1fe498ff475f5a4aed62d1cd1061cd7d65b0950dfee6fd15bdc69a14e3951067",
-          "required": [
-            "subject_token_issuers"
-          ]
-        },
-        "UpstreamHeaders": {
-          "fields_sha256": "e112dee8bb1e6d31e6066a29d67dce99aee3ac4591b4d607be458e1418523e12",
-          "required": [
-            "header",
-            "path"
-          ]
-        },
         "AIGWOpenIDConnectGeneratedConfigOutput": {
           "fields_sha256": "216d648ea88985a045fc042590ab68c6d92fd5be598cfa0f8e7a1af597eabce1",
           "required": [
             "cache_tokens_salt",
             "issuer"
+          ],
+          "fields": [
+            "upstream_access_token_header"
           ]
         },
         "AIGWOpenIDConnectGeneratedConfig": {
@@ -503,6 +414,9 @@
           "required": [
             "cache_tokens_salt",
             "issuer"
+          ],
+          "fields": [
+            "upstream_access_token_header"
           ]
         }
       }

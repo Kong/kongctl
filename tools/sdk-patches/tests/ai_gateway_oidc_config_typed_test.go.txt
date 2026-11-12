@@ -15,9 +15,9 @@ func TestKongctlOIDCConfigTypedConstruction(t *testing.T) {
 		t.Run(state, func(t *testing.T) {
 			config := c.AIGWOpenIDConnectGeneratedConfig{
 				Issuer: "https://example.com", CacheTokensSalt: "probe-salt",
-				HideCredentials: optionalnullable.From(new(false)),
-				AuthMethods:     optionalnullable.From(new([]c.AuthMethods{c.AuthMethodsBearer})),
-				Scopes:          optionalnullable.From(new([]string{})),
+				HideCredentials: new(false),
+				AuthMethods:     []c.AuthMethods{c.AuthMethodsBearer},
+				Scopes:          []string{},
 			}
 			if state == "null" {
 				config.UpstreamAccessTokenHeader = optionalnullable.From[string](nil)
@@ -58,17 +58,13 @@ func TestKongctlOIDCConfigTypedConstruction(t *testing.T) {
 			if body.Config["hide_credentials"] != false {
 				t.Fatal("lost false")
 			}
-			scopes, ok := body.Config["scopes"].([]any)
-			if !ok || len(scopes) != 0 {
-				t.Fatal("lost empty array")
-			}
-			expected := 5
-			if present {
-				expected++
-			}
-			if len(body.Config) != expected {
-				t.Fatalf("got %d config fields, want %d", len(body.Config), expected)
-			}
-		})
-	}
+
+            if _, present := body.Config["scopes"]; present {
+                t.Fatal("changed existing empty-slice omission")
+            }
+            if body.Config["cache_ttl"] != float64(3600) {
+                t.Fatal("changed existing cache TTL default")
+            }
+        })
+    }
 }

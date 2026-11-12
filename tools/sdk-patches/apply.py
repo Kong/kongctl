@@ -64,10 +64,10 @@ WRAPPER = "optionalnullable.OptionalNullable["
 
 
 def typed_presence(text, policy):
-    """Keep generated field types while preserving absence, null and values."""
+    """Preserve presence only for explicitly selected generated fields."""
     models = policy["models"]
     found = set(re.findall(r"^type (\w+) struct ", text, re.M))
-    if found != set(models):
+    if not set(models).issubset(found):
         raise ValueError(f"{policy['file']}: config model inventory changed")
     docs = {}
     for name, model in models.items():
@@ -91,7 +91,7 @@ def typed_presence(text, policy):
                 inner = original[len(WRAPPER):-1]
                 original = inner if inner.startswith(("[]", "map[")) else "*" + inner
             fields.append([field_name, original, key])
-            if key not in model["required"]:
+            if key in model["fields"]:
                 if not original.startswith(("*", "[]", "map[")):
                     raise ValueError(f"{name}.{field_name}: optional field shape changed")
                 inner = original.removeprefix("*")
@@ -103,6 +103,8 @@ def typed_presence(text, policy):
                 f"expected fields_sha256={model['fields_sha256']}, computed fields_sha256={digest}; "
                 f"review normalized fields: {json.dumps(fields, separators=(',', ':'))}"
             )
+        if {entry[2] for entry in optional.values()} != set(model["fields"]):
+            raise ValueError(f"{name}: selected optional fields changed")
         required = re.search(
             r"func \(\w+ \*" + re.escape(name) +
             r"\) UnmarshalJSON.*?utils.UnmarshalJSON\([^\n]+false, ([^\n]+)\);", text, re.S,
@@ -120,8 +122,6 @@ def typed_presence(text, policy):
             return f"\t{field_name} {wrapped} `{tags}`"
 
         body = FIELD.sub(patch_field, body)
-        if "AdditionalProperties" not in {field[1] for field in FIELD.finditer(body)}:
-            body += '\tAdditionalProperties map[string]any `additionalProperties:"true" json:"-"`\n'
         text = text[:match.start(1)] + body + text[match.end(1):]
         for field_name, (original, _, _) in optional.items():
             getter = re.search(
@@ -188,8 +188,6 @@ def typed_presence_docs(text, optional):
         table, count = re.subn(pattern, replace_type, table, flags=re.M)
         if count != 1:
             raise ValueError(f"missing or duplicate config documentation field {name}")
-    if "`AdditionalProperties`" not in table:
-        table = table.rstrip("\n") + "\n| `AdditionalProperties` | map[string]any | :heavy_minus_sign: | Additional API fields preserved alongside typed fields. |\n"
     updated = section[0][:table_match.start()] + table + section[0][table_match.end():]
     return text[:section.start()] + updated + text[section.end():]
 
