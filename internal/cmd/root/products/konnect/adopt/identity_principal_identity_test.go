@@ -17,17 +17,21 @@ func TestPrincipalIdentityAdoptionPreservesAllFourVariants(t *testing.T) {
 	labels := map[string]string{"team": "identity"}
 	values := []kkComps.KongPrincipalIdentity{
 		kkComps.CreateKongPrincipalIdentityCustom(kkComps.KongPrincipalIdentityCustomResponse{
-			ID: id, Key: "employee", Value: "123", Labels: labels,
+			Type: kkComps.KongPrincipalIdentityCustomResponseTypeCustom,
+			ID:   id, Key: "employee", Value: "123", Labels: labels,
 		}),
 		kkComps.CreateKongPrincipalIdentityOidc(kkComps.KongPrincipalIdentityOIDCResponse{
-			ID: id, Issuer: "https://issuer.example.test",
+			Type: kkComps.KongPrincipalIdentityOIDCResponseTypeOidc,
+			ID:   id, Issuer: "https://issuer.example.test",
 			Claim: kkComps.KongPrincipalIdentityOIDCResponseClaim{Name: "sub", Value: "123"}, Labels: labels,
 		}),
 		kkComps.CreateKongPrincipalIdentityAuthServerClient(kkComps.KongPrincipalIdentityAuthServerClientResponse{
-			ID: id, AuthServerID: directory, ClientID: "opaque-client", Labels: labels,
+			Type: kkComps.KongPrincipalIdentityAuthServerClientResponseTypeAuthServerClient,
+			ID:   id, AuthServerID: directory, ClientID: "opaque-client", Labels: labels,
 		}),
 		kkComps.CreateKongPrincipalIdentityControlPlaneConsumer(kkComps.KongPrincipalIdentityCPConsumerResponse{
-			ID: id, ControlPlaneID: directory, ConsumerID: principal, Labels: labels,
+			Type: kkComps.KongPrincipalIdentityCPConsumerResponseTypeControlPlaneConsumer,
+			ID:   id, ControlPlaneID: directory, ConsumerID: principal, Labels: labels,
 		}),
 	}
 	for _, value := range values {

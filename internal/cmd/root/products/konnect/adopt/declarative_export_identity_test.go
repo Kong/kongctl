@@ -38,7 +38,8 @@ func TestIdentityAdoptionExportsOnlySelectedChildren(t *testing.T) {
 				result, err = adoptIdentityPrincipal(ctx, api, adoptionGatewayID, adoptionChildID, "worker-ref", "team-a", false)
 			case resources.ResourceTypeIdentityPrincipalIdentity:
 				current := kkComps.CreateKongPrincipalIdentityCustom(kkComps.KongPrincipalIdentityCustomResponse{
-					ID: adoptionChildID, Key: "login", Value: "worker", Labels: map[string]string{"keep": "public"},
+					Type: kkComps.KongPrincipalIdentityCustomResponseTypeCustom,
+					ID:   adoptionChildID, Key: "login", Value: "worker", Labels: map[string]string{"keep": "public"},
 				})
 				api := &fixture.PrincipalIdentitiesAPI{Parents: map[string][]kkComps.KongPrincipalIdentity{
 					adoptionGatewayID + "/" + adoptionChildID: {current},

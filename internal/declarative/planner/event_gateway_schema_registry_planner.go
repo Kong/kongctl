@@ -293,8 +293,8 @@ func (p *Planner) shouldUpdateSchemaRegistry(
 	}
 
 	// Compare type (structural)
-	if current.Type != conf.GetType() {
-		changes[FieldType] = FieldChange{Old: current.Type, New: conf.GetType()}
+	if current.Type != string(conf.GetType()) {
+		changes[FieldType] = FieldChange{Old: current.Type, New: string(conf.GetType())}
 	}
 
 	// Compare config fields using RawConfig (SDK Config struct is opaque/empty).
@@ -329,8 +329,8 @@ func (p *Planner) shouldUpdateSchemaRegistry(
 		desiredAuth := desiredConf.Authentication.SchemaRegistryAuthenticationBasic
 		if currentAuth, ok := current.RawConfig[FieldAuthentication].(map[string]any); ok {
 			currentAuthType, _ := currentAuth[FieldType].(string)
-			if currentAuthType != desiredAuth.GetType() {
-				changes["config.authentication.type"] = FieldChange{Old: currentAuthType, New: desiredAuth.GetType()}
+			if currentAuthType != string(desiredAuth.GetType()) {
+				changes["config.authentication.type"] = FieldChange{Old: currentAuthType, New: string(desiredAuth.GetType())}
 			}
 
 			currentUsername, _ := currentAuth["username"].(string)
@@ -391,7 +391,7 @@ func buildSchemaRegistryFields(sr resources.EventGatewaySchemaRegistryResource) 
 	}
 
 	fields[FieldName] = conf.Name
-	fields[FieldType] = conf.GetType()
+	fields[FieldType] = string(conf.GetType())
 
 	if conf.Description != nil {
 		fields[FieldDescription] = *conf.Description

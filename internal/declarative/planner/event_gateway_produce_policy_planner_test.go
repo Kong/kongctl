@@ -25,6 +25,7 @@ func modifyHeadersResource(
 	return resources.EventGatewayProducePolicyResource{
 		EventGatewayProducePolicyCreate: kkComps.EventGatewayProducePolicyCreate{
 			EventGatewayModifyHeadersPolicyCreate: &kkComps.EventGatewayModifyHeadersPolicyCreate{
+				Type:        kkComps.EventGatewayModifyHeadersPolicyCreateTypeModifyHeaders,
 				Name:        new(name),
 				Description: new(desc),
 				Enabled:     new(enabled),
@@ -168,11 +169,13 @@ func TestShouldUpdateProducePolicy_SchemaValidationConfigChanged(t *testing.T) {
 	desired := resources.EventGatewayProducePolicyResource{
 		EventGatewayProducePolicyCreate: kkComps.EventGatewayProducePolicyCreate{
 			EventGatewayProduceSchemaValidationPolicy: &kkComps.EventGatewayProduceSchemaValidationPolicy{
+				Type:        kkComps.EventGatewayProduceSchemaValidationPolicyTypeSchemaValidation,
 				Name:        new("sv-policy"),
 				Description: new("schema val desc"),
 				Enabled:     new(true),
 				Config: kkComps.CreateEventGatewayProduceSchemaValidationPolicyConfigJSON(
 					kkComps.EventGatewayProduceSchemaValidationPolicyJSONConfig{
+						Type:                kkComps.EventGatewayProduceSchemaValidationPolicyJSONConfigTypeJSON,
 						KeyValidationAction: &keyActionMark,
 					},
 				),
@@ -242,6 +245,7 @@ func TestShouldUpdateProducePolicy_SchemaRegistryReferenceMatchesExpandedCurrent
 						Ref: "schema-registry-ref",
 						SchemaRegistryCreate: kkComps.CreateSchemaRegistryCreateConfluent(
 							kkComps.SchemaRegistryConfluent{
+								Type: kkComps.SchemaRegistryConfluentTypeConfluent,
 								Name: "schema-registry-name",
 							},
 						),
@@ -300,6 +304,7 @@ func TestShouldUpdateProducePolicy_SchemaRegistryReferenceChanged(t *testing.T) 
 						Ref: "new-schema-registry-ref",
 						SchemaRegistryCreate: kkComps.CreateSchemaRegistryCreateConfluent(
 							kkComps.SchemaRegistryConfluent{
+								Type: kkComps.SchemaRegistryConfluentTypeConfluent,
 								Name: "new-schema-registry-name",
 							},
 						),

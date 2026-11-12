@@ -166,7 +166,7 @@ func TestAIGatewayWriteOnlyFieldsPlanSecretOnlyUpdates(t *testing.T) {
 			selector:     "config.server.tools_list_auth.client_secret",
 			resourceSet: mcp(
 				"upstream-server",
-				`{"url":"https://example.test","tools_cache_ttl_seconds":60,
+				`{"url":"https://example.test","route":{"paths":["/mcp"]},"tools_cache_ttl_seconds":60,
  "server":{"tools_list_auth":{"type":"credentials","client_id":"client","client_secret":"SECRET",
  "token_endpoint":"https://example.test/token"}}}`,
 			),
@@ -489,7 +489,10 @@ func TestAIGatewayWriteOnlyFieldsPlanSecretOnlyUpdates(t *testing.T) {
 					config := map[string]any{"auth": map[string]any{"type": "basic", "headers": []any{}}}
 					if kind == resources.ResourceTypeAIGatewayMCPServer {
 						entityType = "upstream-server"
-						config = map[string]any{"url": "https://upstream.test", "tools_cache_ttl_seconds": 60}
+						config = map[string]any{
+							"url": "https://upstream.test", "tools_cache_ttl_seconds": 60,
+							"route": map[string]any{"paths": []any{"/mcp"}},
+						}
 					}
 					data, err := json.Marshal(map[string]any{
 						"ref": "token-vault-user", "ai_gateway": testAIGatewaySecretRef, "name": "user",

@@ -184,7 +184,9 @@ func TestGeneratePlan_PortalCustomDomain(t *testing.T) {
 				CreatePortalCustomDomainRequest: kkComps.CreatePortalCustomDomainRequest{
 					Hostname: "developer.example.com",
 					Enabled:  true,
-					Ssl:      kkComps.CreateCreatePortalCustomDomainSSLHTTP(kkComps.HTTP{}),
+					Ssl: kkComps.CreateCreatePortalCustomDomainSSLHTTP(kkComps.HTTP{
+						DomainVerificationMethod: kkComps.CreatePortalCustomDomainSSLStandardDomainVerificationMethodHTTP,
+					}),
 				},
 			},
 		},
@@ -679,7 +681,9 @@ func TestPlanPortalCustomDomain_NoChangeWhenStateMatches(t *testing.T) {
 			CreatePortalCustomDomainRequest: kkComps.CreatePortalCustomDomainRequest{
 				Hostname: "developer.example.com",
 				Enabled:  true,
-				Ssl:      kkComps.CreateCreatePortalCustomDomainSSLHTTP(kkComps.HTTP{}),
+				Ssl: kkComps.CreateCreatePortalCustomDomainSSLHTTP(kkComps.HTTP{
+					DomainVerificationMethod: kkComps.CreatePortalCustomDomainSSLStandardDomainVerificationMethodHTTP,
+				}),
 			},
 		},
 	}
@@ -738,7 +742,9 @@ func TestPlanPortalCustomDomain_UpdateEnabled(t *testing.T) {
 			CreatePortalCustomDomainRequest: kkComps.CreatePortalCustomDomainRequest{
 				Hostname: "developer.example.com",
 				Enabled:  true,
-				Ssl:      kkComps.CreateCreatePortalCustomDomainSSLHTTP(kkComps.HTTP{}),
+				Ssl: kkComps.CreateCreatePortalCustomDomainSSLHTTP(kkComps.HTTP{
+					DomainVerificationMethod: kkComps.CreatePortalCustomDomainSSLStandardDomainVerificationMethodHTTP,
+				}),
 			},
 		},
 	}
@@ -811,7 +817,9 @@ func TestPlanPortalCustomDomain_ReplaceOnHostnameChange(t *testing.T) {
 			CreatePortalCustomDomainRequest: kkComps.CreatePortalCustomDomainRequest{
 				Hostname: "developer.example.com",
 				Enabled:  true,
-				Ssl:      kkComps.CreateCreatePortalCustomDomainSSLHTTP(kkComps.HTTP{}),
+				Ssl: kkComps.CreateCreatePortalCustomDomainSSLHTTP(kkComps.HTTP{
+					DomainVerificationMethod: kkComps.CreatePortalCustomDomainSSLStandardDomainVerificationMethodHTTP,
+				}),
 			},
 		},
 	}
@@ -917,7 +925,9 @@ func TestPlanPortalCustomDomain_CreateWhenAbsent(t *testing.T) {
 			CreatePortalCustomDomainRequest: kkComps.CreatePortalCustomDomainRequest{
 				Hostname: "developer.example.com",
 				Enabled:  true,
-				Ssl:      kkComps.CreateCreatePortalCustomDomainSSLHTTP(kkComps.HTTP{}),
+				Ssl: kkComps.CreateCreatePortalCustomDomainSSLHTTP(kkComps.HTTP{
+					DomainVerificationMethod: kkComps.CreatePortalCustomDomainSSLStandardDomainVerificationMethodHTTP,
+				}),
 			},
 		},
 	}

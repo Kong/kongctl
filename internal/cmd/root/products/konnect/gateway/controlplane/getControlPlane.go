@@ -89,8 +89,8 @@ func controlPlaneToDisplayRecord(c *kkComps.ControlPlane) textDisplayRecord {
 	}
 
 	clusterType := missing
-	if c.Config.ClusterType != "" {
-		clusterType = string(c.Config.ClusterType)
+	if c.Config.ClusterType != nil && *c.Config.ClusterType != "" {
+		clusterType = string(*c.Config.ClusterType)
 	}
 
 	labels := missing

@@ -117,7 +117,9 @@ func TestAIGatewayTokenVaultReferenceDoesNotCauseDrift(t *testing.T) {
 	store := resources.AIGatewayDatastoreResource{
 		BaseResource: resources.BaseResource{Ref: "local-store"}, AIGateway: "gateway",
 		CreateAIGatewayDatastoreRequest: kkComps.CreateCreateAIGatewayDatastoreRequestTokenVault(
-			kkComps.TokenVaultDatastore{Name: "api-store"},
+			kkComps.TokenVaultDatastore{
+				Type: kkComps.TokenVaultDatastoreTypeTokenVault, Name: "api-store",
+			},
 		),
 	}
 	rs := &resources.ResourceSet{AIGatewayDatastores: []resources.AIGatewayDatastoreResource{store}}
@@ -156,7 +158,9 @@ func TestAIGateway23ReferenceNormalizationAcrossAliases(t *testing.T) {
 			store := resources.AIGatewayDatastoreResource{
 				BaseResource: resources.BaseResource{Ref: "store"}, AIGateway: "platform",
 				CreateAIGatewayDatastoreRequest: kkComps.CreateCreateAIGatewayDatastoreRequestTokenVault(
-					kkComps.TokenVaultDatastore{Name: "api-store"},
+					kkComps.TokenVaultDatastore{
+						Type: kkComps.TokenVaultDatastoreTypeTokenVault, Name: "api-store",
+					},
 				),
 			}
 			rs := &resources.ResourceSet{
@@ -183,7 +187,9 @@ func TestAIGatewayDatastoreDeleteRejectsPlannedAliasedReference(t *testing.T) {
 	store := resources.AIGatewayDatastoreResource{
 		BaseResource: resources.BaseResource{Ref: "store"}, AIGateway: "platform",
 		CreateAIGatewayDatastoreRequest: kkComps.CreateCreateAIGatewayDatastoreRequestTokenVault(
-			kkComps.TokenVaultDatastore{Name: "api-store"},
+			kkComps.TokenVaultDatastore{
+				Type: kkComps.TokenVaultDatastoreTypeTokenVault, Name: "api-store",
+			},
 		),
 	}
 	calls := 0

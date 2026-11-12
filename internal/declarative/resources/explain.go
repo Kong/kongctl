@@ -1583,6 +1583,11 @@ func autoExplainValueNode(
 		node.Additional = child
 	case reflect.String:
 		node.Kind = explainKindString
+		if value, ok := sdkDiscriminatorValues[typ]; ok {
+			node.Const = value
+			node.Enum = []any{value}
+			node.Literal = value
+		}
 	case reflect.Bool:
 		node.Kind = explainKindBoolean
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,

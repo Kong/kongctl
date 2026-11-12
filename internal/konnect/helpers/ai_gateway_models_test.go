@@ -73,8 +73,11 @@ func TestAIGatewayModelAPIImplCreateAiGatewayModelAddsTargetsToSDKRequest(t *tes
 		BodyParam: &bodyParam,
 		Values:    []string{"support-gpt"},
 	}
-	targetConfig := kkComps.CreateAIGatewayTargetConfigOpenai(kkComps.AIGatewayTargetOpenaiConfig{})
+	targetConfig := kkComps.CreateAIGatewayTargetConfigOpenai(kkComps.AIGatewayTargetOpenaiConfig{
+		Type: kkComps.AIGatewayTargetOpenaiConfigTypeOpenai,
+	})
 	req := kkComps.CreateCreateAIGatewayModelRequestModel(kkComps.AIGatewayModelModel{
+		Type:        kkComps.AIGatewayModelModelTypeModel,
 		DisplayName: "Support GPT",
 		Name:        "support-gpt",
 		Config: kkComps.AIGatewayModelModelConfig{

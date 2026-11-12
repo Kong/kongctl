@@ -158,8 +158,12 @@ func TestOIDCHeaderExplainRetainsTypedConfig(t *testing.T) {
 	require.Equal(t, explainKindString, header.Node.Kind)
 	require.True(t, header.Node.Nullable)
 	require.False(t, header.Required)
-	require.IsType(t, &kkComps.AIGWOpenIDConnectGeneratedConfig{}, kkComps.AIGatewayAuthStrategyOpenIDConnect{}.Config)
-	response := kkComps.AIGatewayAuthStrategyOpenIDConnectResponse{}
+	require.IsType(t, &kkComps.AIGWOpenIDConnectGeneratedConfig{}, kkComps.AIGatewayAuthStrategyOpenIDConnect{
+		Type: kkComps.AIGatewayAuthStrategyOpenIDConnectTypeOpenidConnect,
+	}.Config)
+	response := kkComps.AIGatewayAuthStrategyOpenIDConnectResponse{
+		Type: kkComps.AIGatewayAuthStrategyOpenIDConnectResponseTypeOpenidConnect,
+	}
 	require.IsType(t, &kkComps.AIGWOpenIDConnectGeneratedConfigOutput{}, response.Config)
 }
 

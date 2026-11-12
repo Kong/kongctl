@@ -81,7 +81,8 @@ func TestNewCatalogFieldWritePlans(t *testing.T) {
 						CreatePortalCustomDomainRequest: kkComps.CreatePortalCustomDomainRequest{
 							Hostname: "developer.example.com", Enabled: true,
 							Ssl: kkComps.CreateCreatePortalCustomDomainSSLCustomCertificate(kkComps.CustomCertificate{
-								CustomCertificate: "public-certificate", CustomPrivateKey: placeholder,
+								DomainVerificationMethod: kkComps.DomainVerificationMethodCustomCertificate,
+								CustomCertificate:        "public-certificate", CustomPrivateKey: placeholder,
 							}),
 						},
 					}
@@ -96,7 +97,9 @@ func TestNewCatalogFieldWritePlans(t *testing.T) {
 						CreateBackendClusterRequest: kkComps.CreateBackendClusterRequest{
 							Name: "backend",
 							Authentication: kkComps.CreateBackendClusterAuthenticationSchemeSaslPlain(
-								kkComps.BackendClusterAuthenticationSaslPlain{Username: "user", Password: placeholder},
+								kkComps.BackendClusterAuthenticationSaslPlain{
+									Type: kkComps.BackendClusterAuthenticationSaslPlainTypeSaslPlain, Username: "user", Password: placeholder,
+								},
 							),
 						},
 					}
@@ -154,19 +157,25 @@ func TestBackendOrdinaryUpdateStripsDeferredPasswords(t *testing.T) {
 					}
 					if kind == "sasl_plain" {
 						current.Authentication = kkComps.CreateBackendClusterAuthenticationSensitiveDataAwareSchemeSaslPlain(
-							kkComps.BackendClusterAuthenticationSaslPlainSensitiveDataAware{Username: "user"},
+							kkComps.BackendClusterAuthenticationSaslPlainSensitiveDataAware{
+								Type: kkComps.BackendClusterAuthenticationSaslPlainSensitiveDataAwareTypeSaslPlain, Username: "user",
+							},
 						)
 						desired.Authentication = kkComps.CreateBackendClusterAuthenticationSchemeSaslPlain(
-							kkComps.BackendClusterAuthenticationSaslPlain{Username: username, Password: placeholder},
+							kkComps.BackendClusterAuthenticationSaslPlain{
+								Type: kkComps.BackendClusterAuthenticationSaslPlainTypeSaslPlain, Username: username, Password: placeholder,
+							},
 						)
 					} else {
 						current.Authentication = kkComps.CreateBackendClusterAuthenticationSensitiveDataAwareSchemeSaslScram(
 							kkComps.BackendClusterAuthenticationSaslScramSensitiveDataAware{
+								Type:     kkComps.BackendClusterAuthenticationSaslScramSensitiveDataAwareTypeSaslScram,
 								Username: "user", Algorithm: kkComps.BackendClusterAuthenticationSaslScramSensitiveDataAwareAlgorithmSha256,
 							},
 						)
 						desired.Authentication = kkComps.CreateBackendClusterAuthenticationSchemeSaslScram(
 							kkComps.BackendClusterAuthenticationSaslScram{
+								Type:     kkComps.BackendClusterAuthenticationSaslScramTypeSaslScram,
 								Username: username, Password: placeholder,
 								Algorithm: kkComps.BackendClusterAuthenticationSaslScramAlgorithmSha256,
 							},
@@ -221,10 +230,14 @@ func TestBackendDeferredPasswordDoesNotCauseDrift(t *testing.T) {
 	placeholder, err := tags.BuildSecretPlaceholder(envSecretExpression("PASSWORD"))
 	require.NoError(t, err)
 	current := kkComps.CreateBackendClusterAuthenticationSensitiveDataAwareSchemeSaslPlain(
-		kkComps.BackendClusterAuthenticationSaslPlainSensitiveDataAware{Username: "user"},
+		kkComps.BackendClusterAuthenticationSaslPlainSensitiveDataAware{
+			Type: kkComps.BackendClusterAuthenticationSaslPlainSensitiveDataAwareTypeSaslPlain, Username: "user",
+		},
 	)
 	desired := kkComps.CreateBackendClusterAuthenticationSchemeSaslPlain(
-		kkComps.BackendClusterAuthenticationSaslPlain{Username: "user", Password: placeholder},
+		kkComps.BackendClusterAuthenticationSaslPlain{
+			Type: kkComps.BackendClusterAuthenticationSaslPlainTypeSaslPlain, Username: "user", Password: placeholder,
+		},
 	)
 	require.True(t, compareAuthenticationSchemes(current, desired))
 	desired.BackendClusterAuthenticationSaslPlain.Username = "another-user"

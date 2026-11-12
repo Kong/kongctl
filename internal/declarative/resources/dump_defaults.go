@@ -332,22 +332,7 @@ func parseDumpDefault(field reflect.StructField) (*dumpDefault, error) {
 }
 
 func dumpConstDiscriminator(typ reflect.Type) (string, string, bool) {
-	typ = derefDumpType(typ)
-	if typ.Kind() != reflect.Struct {
-		return "", "", false
-	}
-	for field := range typ.Fields() {
-		value, ok := field.Tag.Lookup("const")
-		if !ok {
-			continue
-		}
-		name, _, skip := dumpFieldName(field)
-		if skip || name == "" {
-			continue
-		}
-		return name, value, true
-	}
-	return "", "", false
+	return explainConstDiscriminator(typ)
 }
 
 func applyDumpDefaultRules(resourceType ResourceType, schema *dumpSchema, rules map[string]dumpDefaultRule) error {

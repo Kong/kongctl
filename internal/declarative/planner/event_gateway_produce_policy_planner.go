@@ -557,22 +557,22 @@ func (p *Planner) producePolicyToFields(policy resources.EventGatewayProducePoli
 
 func producePolicyType(policy resources.EventGatewayProducePolicyResource) string {
 	if policy.EventGatewayModifyHeadersPolicyCreate != nil {
-		return policy.EventGatewayModifyHeadersPolicyCreate.GetType()
+		return string(policy.EventGatewayModifyHeadersPolicyCreate.GetType())
 	}
 	if policy.EventGatewayProduceSchemaValidationPolicy != nil {
-		return policy.EventGatewayProduceSchemaValidationPolicy.GetType()
+		return string(policy.EventGatewayProduceSchemaValidationPolicy.GetType())
 	}
 	if policy.EventGatewayEncryptPolicy != nil {
-		return policy.EventGatewayEncryptPolicy.GetType()
+		return string(policy.EventGatewayEncryptPolicy.GetType())
 	}
 	if policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate != nil {
-		return policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate.GetType()
+		return string(policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate.GetType())
 	}
 	if policy.EventGatewayParsedRecordTranscodeProducePolicyCreate != nil {
-		return policy.EventGatewayParsedRecordTranscodeProducePolicyCreate.GetType()
+		return string(policy.EventGatewayParsedRecordTranscodeProducePolicyCreate.GetType())
 	}
 	if policy.EventGatewayParsedRecordMaskFieldsProducePolicyCreate != nil {
-		return policy.EventGatewayParsedRecordMaskFieldsProducePolicyCreate.GetType()
+		return string(policy.EventGatewayParsedRecordMaskFieldsProducePolicyCreate.GetType())
 	}
 	return ""
 }

@@ -217,7 +217,9 @@ func TestBuildEventGatewayVirtualClustersPreservesTopicAliases(t *testing.T) {
 				},
 				Authentication: []kkComps.VirtualClusterAuthenticationSensitiveDataAwareScheme{
 					kkComps.CreateVirtualClusterAuthenticationSensitiveDataAwareSchemeAnonymous(
-						kkComps.VirtualClusterAuthenticationAnonymous{},
+						kkComps.VirtualClusterAuthenticationAnonymous{
+							Type: kkComps.VirtualClusterAuthenticationAnonymousTypeAnonymous,
+						},
 					),
 				},
 				TopicAliases: []kkComps.VirtualClusterTopicAlias{{

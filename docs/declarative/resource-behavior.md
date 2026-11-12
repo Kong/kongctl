@@ -91,6 +91,9 @@ AI Gateway nodes are imperative, read-only resources. Inspect them with
 
 ## AI Gateway MCP server replacements
 
+Listener configurations require an explicit `config.route`. kongctl does not
+derive a route when one is omitted.
+
 MCP server names are immutable: a name change in `sync` creates a new server and
 deletes the old one. For enabled `listener`, `conversion-listener`, and
 `passthrough-listener` servers in the same gateway, kongctl creates the
@@ -333,6 +336,14 @@ planning children, because disabled Vaults hide those collections. Public-key
 their respective remote identities; local refs do not imply remote names.
 Static credential changes require explicit secret-write selection. Consent,
 OAuth user authorizations and runtime token retrieval are separate workflows.
+
+Trusted IdP `jit.mapping.identifier` selects the token claim used to identify
+principals, for example `sub` or `oid`. kongctl preserves omission instead of
+injecting the SDK's `sub` default, and sends explicit values unchanged. Changing
+the claim can cause existing principals to stop resolving; subsequent exchanges
+may provision new principals or fail. This API replaces mappings: omission does
+not guarantee preservation of a remote custom identifier. The service controls
+omission behavior.
 
 Apply preserves undeclared resources. Sync only prunes explicitly scoped
 collections; omission preserves them. Parent deletion requires independently

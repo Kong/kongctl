@@ -44,6 +44,7 @@ func TestShouldUpdateClusterPolicy_NoChanges(t *testing.T) {
 	desired := resources.EventGatewayClusterPolicyResource{
 		EventGatewayClusterPolicyModify: kkComps.EventGatewayClusterPolicyModify{
 			EventGatewayACLsPolicy: &kkComps.EventGatewayACLsPolicy{
+				Type:        kkComps.EventGatewayACLsPolicyTypeAcls,
 				Name:        &name,
 				Description: &desc,
 				Enabled:     &enabled,
@@ -109,6 +110,7 @@ func TestShouldUpdateClusterPolicy_DescriptionChanged(t *testing.T) {
 	desired := resources.EventGatewayClusterPolicyResource{
 		EventGatewayClusterPolicyModify: kkComps.EventGatewayClusterPolicyModify{
 			EventGatewayACLsPolicy: &kkComps.EventGatewayACLsPolicy{
+				Type:        kkComps.EventGatewayACLsPolicyTypeAcls,
 				Name:        &name,
 				Description: &newDesc,
 				Enabled:     &enabled,
@@ -178,6 +180,7 @@ func TestShouldUpdateClusterPolicy_ConfigChangedNestedField(t *testing.T) {
 	desired := resources.EventGatewayClusterPolicyResource{
 		EventGatewayClusterPolicyModify: kkComps.EventGatewayClusterPolicyModify{
 			EventGatewayACLsPolicy: &kkComps.EventGatewayACLsPolicy{
+				Type:        kkComps.EventGatewayACLsPolicyTypeAcls,
 				Name:        &name,
 				Description: &desc,
 				Enabled:     &enabled,

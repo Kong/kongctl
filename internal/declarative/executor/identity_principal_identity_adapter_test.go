@@ -183,7 +183,8 @@ func TestProtectedIdentityPayloadReferencesAreNoOpsBeforeNamespacePlanning(t *te
 		}, ManagedBy: resources.BuildPrincipalManagedBy("principal-team", "person", true, "old"),
 	}
 	identity := kkComps.CreateKongPrincipalIdentityCustom(kkComps.KongPrincipalIdentityCustomResponse{
-		ID: "731559d3-39bd-48c7-b33c-eb192847eb22", Key: "employee", Value: "123",
+		Type: kkComps.KongPrincipalIdentityCustomResponseTypeCustom,
+		ID:   "731559d3-39bd-48c7-b33c-eb192847eb22", Key: "employee", Value: "123",
 		Labels: map[string]string{
 			"principal": principalID,
 		}, ManagedBy: resources.BuildPrincipalManagedBy("association-team", "employee", true, "old"),
@@ -242,6 +243,7 @@ func TestIdentitySavedMutationRejectsLateOwnershipProtectionAndDuplicates(t *tes
 				const id = "731559d3-39bd-48c7-b33c-eb192847eb22"
 				metadata := resources.BuildPrincipalManagedBy("identity-team", "employee", false, "old")
 				current := kkComps.KongPrincipalIdentityCustomResponse{
+					Type:      kkComps.KongPrincipalIdentityCustomResponseTypeCustom,
 					ID:        id,
 					Key:       "employee",
 					Value:     "123",

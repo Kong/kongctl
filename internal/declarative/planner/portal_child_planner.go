@@ -1595,7 +1595,7 @@ func (p *Planner) planPortalCustomDomainCreate(
 	switch {
 	case domain.Ssl.CustomCertificate != nil:
 		sslFields := map[string]any{
-			"domain_verification_method": domain.Ssl.CustomCertificate.GetDomainVerificationMethod(),
+			"domain_verification_method": string(domain.Ssl.CustomCertificate.GetDomainVerificationMethod()),
 			"custom_certificate":         domain.Ssl.CustomCertificate.GetCustomCertificate(),
 			"custom_private_key":         domain.Ssl.CustomCertificate.GetCustomPrivateKey(),
 		}
@@ -1605,7 +1605,7 @@ func (p *Planner) planPortalCustomDomainCreate(
 		fields[FieldSSL] = sslFields
 	case domain.Ssl.HTTP != nil:
 		fields[FieldSSL] = map[string]any{
-			"domain_verification_method": domain.Ssl.HTTP.GetDomainVerificationMethod(),
+			"domain_verification_method": string(domain.Ssl.HTTP.GetDomainVerificationMethod()),
 		}
 	}
 
@@ -3098,9 +3098,9 @@ func (p *Planner) desiredPortalCustomDomainSSLConfig(
 		if value := domain.Ssl.CustomCertificate.GetSkipCaCheck(); value != nil {
 			skip = *value
 		}
-		return strings.ToLower(domain.Ssl.CustomCertificate.GetDomainVerificationMethod()), skip
+		return strings.ToLower(string(domain.Ssl.CustomCertificate.GetDomainVerificationMethod())), skip
 	case domain.Ssl.HTTP != nil:
-		return strings.ToLower(domain.Ssl.HTTP.GetDomainVerificationMethod()), false
+		return strings.ToLower(string(domain.Ssl.HTTP.GetDomainVerificationMethod())), false
 	default:
 		return "", false
 	}

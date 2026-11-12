@@ -128,7 +128,10 @@ func TestBackendAWSIAMRejectsMalformedAuthentication(t *testing.T) {
 		},
 		"typed empty arn": kkComps.CreateBackendClusterAuthenticationSchemeSaslAwsIam(
 			kkComps.BackendClusterAuthenticationSaslAwsIam{
-				SaslAwsIam: kkComps.CreateSaslAwsIamAssumeRole(kkComps.BackendClusterAuthenticationSaslAwsIamAssumeRole{}),
+				Type: kkComps.BackendClusterAuthenticationSaslAwsIamTypeSaslAwsIam,
+				SaslAwsIam: kkComps.CreateSaslAwsIamAssumeRole(kkComps.BackendClusterAuthenticationSaslAwsIamAssumeRole{
+					Type: kkComps.BackendClusterAuthenticationSaslAwsIamAssumeRoleTypeAssumeRole,
+				}),
 			},
 		),
 	} {

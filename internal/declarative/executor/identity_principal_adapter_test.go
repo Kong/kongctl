@@ -351,7 +351,8 @@ func TestPrincipalSavedDeleteRechecksIdentityChildren(t *testing.T) {
 				}
 				identities.Data = []kkComps.KongPrincipalIdentity{
 					kkComps.CreateKongPrincipalIdentityCustom(kkComps.KongPrincipalIdentityCustomResponse{
-						ID: "731559d3-39bd-48c7-b33c-eb192847eb22", Key: "employee", Value: "123", ManagedBy: metadata,
+						Type: kkComps.KongPrincipalIdentityCustomResponseTypeCustom,
+						ID:   "731559d3-39bd-48c7-b33c-eb192847eb22", Key: "employee", Value: "123", ManagedBy: metadata,
 					}),
 				}
 			}

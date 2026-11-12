@@ -325,7 +325,8 @@ func TestPrincipalDeletionRequiresEmptyIdentityCollection(t *testing.T) {
 				}
 				identities.Data = []kkComps.KongPrincipalIdentity{
 					kkComps.CreateKongPrincipalIdentityCustom(kkComps.KongPrincipalIdentityCustomResponse{
-						ID: "1248f559-063b-4f10-9098-9e6553b21d9c", Key: "employee", Value: "123", ManagedBy: metadata,
+						Type: kkComps.KongPrincipalIdentityCustomResponseTypeCustom,
+						ID:   "1248f559-063b-4f10-9098-9e6553b21d9c", Key: "employee", Value: "123", ManagedBy: metadata,
 					}),
 				}
 			}

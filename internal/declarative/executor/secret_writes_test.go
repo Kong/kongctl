@@ -253,6 +253,7 @@ func TestPayloadValidationInjectsSecretPlaceholderWithoutResolvingSource(t *test
 func TestPayloadValidationNormalizesSchemaRegistrySDKConfigBeforeSecretInjection(t *testing.T) {
 	authentication := kkComps.CreateSchemaRegistryAuthenticationSchemeBasic(
 		kkComps.SchemaRegistryAuthenticationBasic{
+			Type:     kkComps.SchemaRegistryAuthenticationBasicTypeBasic,
 			Username: "testuser",
 			Password: "***",
 		},

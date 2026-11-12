@@ -21,7 +21,8 @@ func NormalizeJIT(value *kkComps.TrustedIdpJit) *kkComps.TrustedIdpJit {
 	} else {
 		mapping.Metadata = maps.Clone(mapping.Metadata)
 	}
-	if mapping.Metadata == nil && mapping.Email == nil && mapping.Groups == nil && mapping.DisplayName == nil {
+	if mapping.Metadata == nil && mapping.Email == nil && mapping.Groups == nil && mapping.DisplayName == nil &&
+		mapping.Identifier == nil {
 		return nil
 	}
 	return &kkComps.TrustedIdpJit{Mapping: &mapping}

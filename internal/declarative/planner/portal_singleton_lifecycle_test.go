@@ -28,7 +28,9 @@ func TestPortalSingletonLifecycleSelectionAndObservation(t *testing.T) {
 						Ref: ref, Portal: "portal",
 						CreatePortalCustomDomainRequest: kkComps.CreatePortalCustomDomainRequest{
 							Hostname: "developer.example.com", Enabled: true,
-							Ssl: kkComps.CreateCreatePortalCustomDomainSSLHTTP(kkComps.HTTP{}),
+							Ssl: kkComps.CreateCreatePortalCustomDomainSSLHTTP(kkComps.HTTP{
+								DomainVerificationMethod: kkComps.CreatePortalCustomDomainSSLStandardDomainVerificationMethodHTTP,
+							}),
 						},
 					})
 				}

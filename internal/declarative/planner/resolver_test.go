@@ -874,6 +874,7 @@ func TestResolveReferences_EventGatewayProducePolicyNestedSchemaRegistryReferenc
 						Ref: "schema-registry-ref",
 						SchemaRegistryCreate: kkComps.CreateSchemaRegistryCreateConfluent(
 							kkComps.SchemaRegistryConfluent{
+								Type: kkComps.SchemaRegistryConfluentTypeConfluent,
 								Name: "schema-registry-name",
 							},
 						),

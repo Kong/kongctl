@@ -522,6 +522,7 @@ func testAIGatewayModel(id string, name string) kkComps.AIGatewayModel {
 	return kkComps.AIGatewayModel{
 		Type: kkComps.AIGatewayModelTypeModel,
 		AIGatewayModelAIGatewayModelModel: &kkComps.AIGatewayModelAIGatewayModelModel{
+			Type:        kkComps.AIGatewayModelModelAIGatewayModelTypeModel,
 			ID:          id,
 			Name:        name,
 			DisplayName: name,

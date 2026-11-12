@@ -111,6 +111,7 @@ func TestIdentityAdoptionDryRunsNeverWrite(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, principal.Writes)
 	identityValue := kkComps.CreateKongPrincipalIdentityCustom(kkComps.KongPrincipalIdentityCustomResponse{
+		Type:  kkComps.KongPrincipalIdentityCustomResponseTypeCustom,
 		ID:    adoptionChildID,
 		Value: "public-value",
 	})
