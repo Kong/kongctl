@@ -222,8 +222,8 @@
     },
     {
       "file": "models/components/createprincipalkeybodyv1.go",
-      "before": "import (\n\t\"github.com/Kong/sdk-konnect-go/internal/utils\"\n\t\"time\"\n)",
-      "after": "import (\n\t\"github.com/Kong/sdk-konnect-go/internal/utils\"\n\t\"github.com/Kong/sdk-konnect-go/optionalnullable\"\n\t\"time\"\n)",
+      "before": "import (\n\t\"encoding/json\"\n\t\"fmt\"\n\t\"github.com/Kong/sdk-konnect-go/internal/utils\"\n\t\"time\"\n)",
+      "after": "import (\n\t\"encoding/json\"\n\t\"fmt\"\n\t\"github.com/Kong/sdk-konnect-go/internal/utils\"\n\t\"github.com/Kong/sdk-konnect-go/optionalnullable\"\n\t\"time\"\n)",
       "optional_file": true
     },
     {
@@ -240,8 +240,8 @@
     },
     {
       "file": "models/components/createprincipalkeybodyimported.go",
-      "before": "import (\n\t\"github.com/Kong/sdk-konnect-go/internal/utils\"\n\t\"time\"\n)",
-      "after": "import (\n\t\"github.com/Kong/sdk-konnect-go/internal/utils\"\n\t\"github.com/Kong/sdk-konnect-go/optionalnullable\"\n\t\"time\"\n)",
+      "before": "import (\n\t\"encoding/json\"\n\t\"fmt\"\n\t\"github.com/Kong/sdk-konnect-go/internal/utils\"\n\t\"time\"\n)",
+      "after": "import (\n\t\"encoding/json\"\n\t\"fmt\"\n\t\"github.com/Kong/sdk-konnect-go/internal/utils\"\n\t\"github.com/Kong/sdk-konnect-go/optionalnullable\"\n\t\"time\"\n)",
       "optional_file": true
     },
     {
