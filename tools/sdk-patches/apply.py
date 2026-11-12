@@ -49,147 +49,15 @@ def configure_workflow(text, manifest):
 
 def replace_tag(text, patch):
     before, after = patch["before"], patch["after"]
+    count = patch.get("count", 1)
     optional_field = patch.get("optional_field")
     if optional_field and not re.search(r"^\s*" + re.escape(optional_field) + r"\s", text, re.M):
         return text
-    if text.count(before) == 1 and after not in text:
-        return text.replace(before, after, 1)
-    if text.count(after) == 1 and before not in text.replace(after, "", 1):
+    if text.count(before) == count and after not in text:
+        return text.replace(before, after, count)
+    if text.count(after) == count and before not in text.replace(after, ""):
         return text
-    raise ValueError(f"{patch['file']}: expected exactly one original or patched field; SDK schema may have changed")
-
-
-FIELD = re.compile(r'^\t(\w+)\s+([^`\n]+?)\s+`([^`]+)`$', re.M)
-WRAPPER = "optionalnullable.OptionalNullable["
-
-
-def typed_presence(text, policy):
-    """Preserve presence only for explicitly selected generated fields."""
-    models = policy["models"]
-    found = set(re.findall(r"^type (\w+) struct ", text, re.M))
-    if not set(models).issubset(found):
-        raise ValueError(f"{policy['file']}: config model inventory changed")
-    docs = {}
-    for name, model in models.items():
-        pattern = r"^type " + re.escape(name) + r" struct \{(.*?)^\}"
-        match = re.search(pattern, text, re.M | re.S)
-        body = match[1]
-        fields = []
-        optional = {}
-        for field in FIELD.finditer(body):
-            field_name, typ, tags = field.groups()
-            if field_name == "AdditionalProperties":
-                if typ.strip() != "map[string]any" or tags != 'additionalProperties:"true" json:"-"':
-                    raise ValueError(f"{name}: unexpected additional properties field")
-                continue
-            key_match = re.search(r'json:"([^",]+)', tags)
-            if key_match is None or key_match[1] == "-":
-                raise ValueError(f"{name}.{field_name}: missing or unsupported json tag")
-            key = key_match[1]
-            original = typ.strip()
-            if original.startswith(WRAPPER):
-                inner = original[len(WRAPPER):-1]
-                original = inner if inner.startswith(("[]", "map[")) else "*" + inner
-            fields.append([field_name, original, key])
-            if key in model["fields"]:
-                if not original.startswith(("*", "[]", "map[")):
-                    raise ValueError(f"{name}.{field_name}: optional field shape changed")
-                inner = original.removeprefix("*")
-                optional[field_name] = (original, WRAPPER + inner + "]", key)
-        digest = hashlib.sha256(json.dumps(fields, separators=(",", ":")).encode()).hexdigest()
-        if digest != model["fields_sha256"]:
-            raise ValueError(
-                f"{name}: generated fields changed; SDK schema may have changed; "
-                f"expected fields_sha256={model['fields_sha256']}, computed fields_sha256={digest}; "
-                f"review normalized fields: {json.dumps(fields, separators=(',', ':'))}"
-            )
-        if {entry[2] for entry in optional.values()} != set(model["fields"]):
-            raise ValueError(f"{name}: selected optional fields changed")
-        required = re.search(
-            r"func \(\w+ \*" + re.escape(name) +
-            r"\) UnmarshalJSON.*?utils.UnmarshalJSON\([^\n]+false, ([^\n]+)\);", text, re.S,
-        )
-        if required is None or re.findall(r'"([^"]+)"', required[1]) != model["required"]:
-            raise ValueError(f"{name}: required fields changed")
-
-        def patch_field(field):
-            field_name, _, tags = field.groups()
-            if field_name not in optional:
-                return field[0]
-            _, wrapped, key = optional[field_name]
-            tags = re.sub(r'default:"[^"]*"\s*', "", tags)
-            tags = re.sub(r'json:"[^"]+"', f'json:"{key},omitempty"', tags)
-            return f"\t{field_name} {wrapped} `{tags}`"
-
-        body = FIELD.sub(patch_field, body)
-        text = text[:match.start(1)] + body + text[match.end(1):]
-        for field_name, (original, _, _) in optional.items():
-            getter = re.search(
-                r"func \((\w+) \*" + re.escape(name) + r"\) Get" + re.escape(field_name) +
-                r"\(\) ([^\n{]+) \{(.*?)^\}", text, re.M | re.S,
-            )
-            if getter is None or getter[2].strip() != original:
-                raise ValueError(f"{name}.Get{field_name}: getter shape changed")
-            receiver = getter[1]
-            start = f"if {receiver} == nil {{ return nil }}"
-            old = start + f" return {receiver}.{field_name}"
-            new = start + f" value, _ := {receiver}.{field_name}.Get()"
-            if original.startswith("*"):
-                new += " return value"
-            else:
-                new += " if value == nil { return nil }; return *value"
-            compact = lambda value: re.sub(r"\s+", "", value).replace(";", "")
-            if compact(getter[3]) not in (compact(old), compact(new)):
-                raise ValueError(f"{name}.Get{field_name}: getter body changed")
-            new = new.replace(" } value", " }\nvalue").replace("() return", "()\nreturn")
-            new = new.replace("() if", "()\nif").replace(" }; return", " }\nreturn")
-            text = text[:getter.start(3)] + "\n" + new + "\n" + text[getter.end(3):]
-        docs[name] = optional
-    text = add_go_import(text, "github.com/Kong/sdk-konnect-go/optionalnullable")
-    text = subprocess.check_output(["gofmt"], input=text, text=True)
-    return text, docs
-
-
-def add_go_import(text, path):
-    if re.search(r'^\s*(?:import\s+)?"' + re.escape(path) + r'"\s*$', text, re.M):
-        return text
-    block = re.search(r'^import\s*\(\s*\n', text, re.M)
-    if block:
-        return text[:block.end()] + f'\t"{path}"\n' + text[block.end():]
-    single = re.search(r'^import[ \t]+((?:[\w.]+[ \t]+)?"[^"\n]+")\s*$', text, re.M)
-    if single:
-        return text[:single.start()] + f'import (\n\t{single[1]}\n\t"{path}"\n)\n' + text[single.end():]
-    raise ValueError(f"cannot add Go import {path}: unsupported import declaration")
-
-
-def typed_presence_docs(text, optional):
-    sections = list(re.finditer(r'^## Fields\s*\n.*?(?=^#{1,2} |\Z)', text, re.M | re.S))
-    if len(sections) != 1:
-        raise ValueError("expected one config documentation Fields section")
-    section = sections[0]
-    tables = list(re.finditer(r'^\|[^\n]*\n(?:^\|[^\n]*(?:\n|$))+', section[0], re.M))
-    if not tables:
-        raise ValueError("missing config documentation Fields table")
-    table_match = tables[0]
-    table = table_match[0]
-    for name, (original, wrapped, _) in optional.items():
-        pattern = r"^(\|\s*`" + re.escape(name) + r"`\s*\|)([^|]*)(\|.*)$"
-
-        def replace_type(match):
-            link = re.search(r'\]\(([^)]+)\)', match[2])
-            value = f"`{wrapped}`"
-            inner = original.lstrip("*[]")
-            if link:
-                value = f"[{value}]({link[1]})"
-            elif re.fullmatch(r"[A-Z]\w*", inner):
-                value = f"[{value}](../../models/components/{inner.lower()}.md)"
-            return match[1] + " " + value + " " + match[3]
-
-        table, count = re.subn(pattern, replace_type, table, flags=re.M)
-        if count != 1:
-            raise ValueError(f"missing or duplicate config documentation field {name}")
-    updated = section[0][:table_match.start()] + table + section[0][table_match.end():]
-    return text[:section.start()] + updated + text[section.end():]
+    raise ValueError(f"{patch['file']}: expected exactly {count} original or patched occurrences; SDK schema may have changed")
 
 
 def post_generate(sdk, manifest):
@@ -206,14 +74,6 @@ def post_generate(sdk, manifest):
             continue
         text = replacements[path] if path in replacements else path.read_text()
         replacements[path] = replace_doc_section(text, patch)
-    for policy in manifest.get("typed_presence", []):
-        path = sdk / policy["file"]
-        source = replacements[path] if path in replacements else path.read_text()
-        replacements[path], models = typed_presence(source, policy)
-        if directory := policy.get("docs_directory"):
-            for name, optional in models.items():
-                doc = sdk / directory / (name.lower() + ".md")
-                replacements[doc] = typed_presence_docs(doc.read_text(), optional)
     for path, text in replacements.items():
         path.write_text(text)
 
@@ -257,7 +117,7 @@ def configure_makefile(text, manifest):
         )
     else:
         text = text.replace("$(wildcard .speakeasy/overlays/*.yaml)", "$(wildcard kongctl-patches/overlays/*.yaml)")
-    if manifest.get("typed_presence"):
+    if manifest.get("tests"):
         test_hook = "\t$(MAKE) test.kongctl-patches\n"
         if test_hook not in text:
             text = text.replace(POST_GENERATE, POST_GENERATE + test_hook, 1)

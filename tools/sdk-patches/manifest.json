@@ -327,6 +327,37 @@
       "before": "func (u *UpdatePrincipalKeyBody) GetName() *string {",
       "after": "func (u *UpdatePrincipalKeyBody) GetName() optionalnullable.OptionalNullable[string] {",
       "optional_file": true
+    },
+    {
+      "file": "models/components/aigwopenidconnectgeneratedconfigoutput.go",
+      "before": "import (\n\t\"github.com/Kong/sdk-konnect-go/internal/utils\"\n)",
+      "after": "import (\n\t\"github.com/Kong/sdk-konnect-go/internal/utils\"\n\t\"github.com/Kong/sdk-konnect-go/optionalnullable\"\n)"
+    },
+    {
+      "file": "models/components/aigwopenidconnectgeneratedconfigoutput.go",
+      "before": "\tUpstreamAccessTokenHeader *string `default:\"authorization:bearer\" json:\"upstream_access_token_header\"`",
+      "after": "\tUpstreamAccessTokenHeader optionalnullable.OptionalNullable[string] `json:\"upstream_access_token_header,omitempty\"`",
+      "count": 2
+    },
+    {
+      "file": "models/components/aigwopenidconnectgeneratedconfigoutput.go",
+      "before": "func (a *AIGWOpenIDConnectGeneratedConfigOutput) GetUpstreamAccessTokenHeader() *string {\n\tif a == nil {\n\t\treturn nil\n\t}\n\treturn a.UpstreamAccessTokenHeader\n}",
+      "after": "func (a *AIGWOpenIDConnectGeneratedConfigOutput) GetUpstreamAccessTokenHeader() *string {\n\tif a == nil {\n\t\treturn nil\n\t}\n\tvalue, _ := a.UpstreamAccessTokenHeader.Get()\n\treturn value\n}"
+    },
+    {
+      "file": "docs/models/components/aigwopenidconnectgeneratedconfigoutput.md",
+      "before": "| `UpstreamAccessTokenHeader`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | `*string`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |",
+      "after": "| `UpstreamAccessTokenHeader`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | `optionalnullable.OptionalNullable[string]` |"
+    },
+    {
+      "file": "models/components/aigwopenidconnectgeneratedconfigoutput.go",
+      "before": "func (a *AIGWOpenIDConnectGeneratedConfig) GetUpstreamAccessTokenHeader() *string {\n\tif a == nil {\n\t\treturn nil\n\t}\n\treturn a.UpstreamAccessTokenHeader\n}",
+      "after": "func (a *AIGWOpenIDConnectGeneratedConfig) GetUpstreamAccessTokenHeader() *string {\n\tif a == nil {\n\t\treturn nil\n\t}\n\tvalue, _ := a.UpstreamAccessTokenHeader.Get()\n\treturn value\n}"
+    },
+    {
+      "file": "docs/models/components/aigwopenidconnectgeneratedconfig.md",
+      "before": "| `UpstreamAccessTokenHeader`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | `*string`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |",
+      "after": "| `UpstreamAccessTokenHeader`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | `optionalnullable.OptionalNullable[string]` |"
     }
   ],
   "tests": {
@@ -392,34 +423,6 @@
         "github.com/Kong/sdk-konnect-go/optionalnullable"
       ],
       "optional_file": true
-    }
-  ],
-  "typed_presence": [
-    {
-      "file": "models/components/aigwopenidconnectgeneratedconfigoutput.go",
-      "docs_directory": "docs/models/components",
-      "models": {
-        "AIGWOpenIDConnectGeneratedConfigOutput": {
-          "fields_sha256": "216d648ea88985a045fc042590ab68c6d92fd5be598cfa0f8e7a1af597eabce1",
-          "required": [
-            "cache_tokens_salt",
-            "issuer"
-          ],
-          "fields": [
-            "upstream_access_token_header"
-          ]
-        },
-        "AIGWOpenIDConnectGeneratedConfig": {
-          "fields_sha256": "28c2bac687e60c39b61dc1ed6aa0c9dd2c853bf1f323f66713a70b8c51b3555b",
-          "required": [
-            "cache_tokens_salt",
-            "issuer"
-          ],
-          "fields": [
-            "upstream_access_token_header"
-          ]
-        }
-      }
     }
   ]
 }

@@ -102,9 +102,11 @@ when presence matters. Go constructors assigning this field use
 
 All other OIDC fields retain their generated types, getters, JSON tags, and
 SDK defaults. Nested models and unknown-field handling remain unchanged. The
-patch does not change the global SDK serializer. The policy selects the single
-JSON field explicitly in both config models and checks generated field
-inventories, required fields, and getter shapes before applying it.
+patch does not change the global SDK serializer. Existing `post_generation`
+entries replace the import, the two field declarations, their getters, and
+the two documentation type cells. The shared field replacement declares
+`count: 2`; all other replacements require exactly one match by default.
+Missing, extra, or partially patched matches fail before any files are written.
 
 Wire regressions compare all non-header output against fixtures recorded with
 the unmodified v0.84.0 OIDC models. They cover minimal configs, existing access
@@ -114,11 +116,9 @@ case also checks omitted/null/default/custom header values. The baseline
 fixture intentionally includes existing SDK defaults and empty-array omission;
 only `upstream_access_token_header` is excluded from the baseline comparison.
 
-On a field-inventory mismatch, the patch reports expected and computed
-`fields_sha256` values and the normalized `[name, original-type, json-key]`
-field list. Review upstream schema, required fields, and getters before
-updating a fingerprint. Remove this correction when upstream preserves this
-field's presence without inventing a default.
+Review changed generated text before updating the literal replacements when
+upgrading the SDK. Remove this correction when upstream preserves this field's
+presence without inventing a default.
 
 Typed construction tests use `kongctl_sdk_patched` because Speakeasy compiles
 an intermediate unpatched SDK before the post-generation hook runs.
