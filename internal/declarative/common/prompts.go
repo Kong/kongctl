@@ -627,6 +627,12 @@ func willBeProtected(change planner.PlannedChange) bool {
 // displayFieldChanges shows detailed field-level changes for update operations
 func displayFieldChanges(out io.Writer, change planner.PlannedChange, indent string) {
 	hasFieldChanges := len(change.SecretWrites) > 0
+	if change.ConsumePolicyOrder != nil {
+		if order, ok := change.ChangedFields[planner.FieldPolicyOrder]; ok {
+			fmt.Fprintf(out, "%s%s: %v → %v\n", indent, planner.FieldPolicyOrder, order.Old, order.New)
+			hasFieldChanges = true
+		}
+	}
 
 	// Collect and sort field names for consistent output
 	fieldNames := make([]string, 0, len(change.Fields))

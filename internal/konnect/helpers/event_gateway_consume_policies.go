@@ -34,6 +34,17 @@ type EventGatewayConsumePolicyAPI interface {
 		request kkOps.DeleteEventGatewayVirtualClusterConsumePolicyRequest,
 		opts ...kkOps.Option,
 	) (*kkOps.DeleteEventGatewayVirtualClusterConsumePolicyResponse, error)
+	GetEventGatewayVirtualClusterConsumePolicyChain(
+		ctx context.Context,
+		request kkOps.GetEventGatewayVirtualClusterConsumePolicyChainRequest,
+		opts ...kkOps.Option,
+	) (*kkOps.GetEventGatewayVirtualClusterConsumePolicyChainResponse, error)
+
+	MoveEventGatewayVirtualClusterConsumePolicy(
+		ctx context.Context,
+		request kkOps.MoveEventGatewayVirtualClusterConsumePolicyRequest,
+		opts ...kkOps.Option,
+	) (*kkOps.MoveEventGatewayVirtualClusterConsumePolicyResponse, error)
 }
 
 // EventGatewayConsumePolicyAPIImpl provides an implementation of the EventGatewayConsumePolicyAPI interface.
@@ -93,3 +104,23 @@ func (a *EventGatewayConsumePolicyAPIImpl) DeleteEventGatewayVirtualClusterConsu
 
 // Compile-time interface assertion
 var _ EventGatewayConsumePolicyAPI = &EventGatewayConsumePolicyAPIImpl{}
+
+func (a *EventGatewayConsumePolicyAPIImpl) GetEventGatewayVirtualClusterConsumePolicyChain(
+	ctx context.Context,
+	request kkOps.GetEventGatewayVirtualClusterConsumePolicyChainRequest,
+	opts ...kkOps.Option,
+) (*kkOps.GetEventGatewayVirtualClusterConsumePolicyChainResponse, error) {
+	return a.SDK.EventGatewayVirtualClusterConsumePolicies.GetEventGatewayVirtualClusterConsumePolicyChain(
+		ctx, request.GatewayID, request.VirtualClusterID, opts...,
+	)
+}
+
+func (a *EventGatewayConsumePolicyAPIImpl) MoveEventGatewayVirtualClusterConsumePolicy(
+	ctx context.Context,
+	request kkOps.MoveEventGatewayVirtualClusterConsumePolicyRequest,
+	opts ...kkOps.Option,
+) (*kkOps.MoveEventGatewayVirtualClusterConsumePolicyResponse, error) {
+	return a.SDK.EventGatewayVirtualClusterConsumePolicies.MoveEventGatewayVirtualClusterConsumePolicy(
+		ctx, request, opts...,
+	)
+}

@@ -85,6 +85,14 @@ func (p *Planner) planConsumePolicyChangesForExistingVirtualCluster(
 		"current_count", len(currentPolicies),
 	)
 
+	if len(desired) > 0 {
+		currentPolicies, err = p.client.OrderEventGatewayConsumePolicies(ctx, gatewayID, virtualClusterID, currentPolicies)
+		if err != nil {
+			return err
+		}
+	}
+	changeStart := len(plan.Changes)
+
 	// 2. Index current policies by name
 	currentByName := make(map[string]state.EventGatewayConsumePolicyInfo)
 	for _, policy := range currentPolicies {
@@ -183,6 +191,8 @@ func (p *Planner) planConsumePolicyChangesForExistingVirtualCluster(
 		}
 	}
 	adjustEventGatewayPolicyDeleteDependencies(plan.Changes, ResourceTypeEventGatewayConsumePolicy, parents)
+	p.planConsumePolicyOrder(namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef, virtualClusterName,
+		desired, currentPolicies, changeStart, plan)
 	return nil
 }
 
@@ -214,12 +224,15 @@ func (p *Planner) planConsumePolicyCreatesForNewVirtualCluster(
 		dependsOn = []string{virtualClusterChangeID}
 	}
 
+	changeStart := len(plan.Changes)
 	for _, policy := range policies {
 		p.planConsumePolicyCreate(
 			namespace, "", gatewayRef, "", virtualClusterRef, virtualClusterName,
 			policy, dependsOn, plan,
 		)
 	}
+	p.planConsumePolicyOrder(namespace, "", gatewayRef, "", virtualClusterRef, virtualClusterName,
+		policies, nil, changeStart, plan)
 	return nil
 }
 
@@ -576,15 +589,13 @@ func (p *Planner) shouldUpdateConsumePolicy(
 	}
 
 	desiredParentPolicyID := consumePolicyParentPolicyID(desired)
-	if desiredParentPolicyID != "" && !tags.IsRefPlaceholder(desiredParentPolicyID) {
-		currentParentPolicyID := ""
-		if current.ParentPolicyID != nil {
-			currentParentPolicyID = *current.ParentPolicyID
-		}
-		if currentParentPolicyID != desiredParentPolicyID {
-			needsUpdate = true
-			changes[FieldParentPolicyID] = FieldChange{Old: currentParentPolicyID, New: desiredParentPolicyID}
-		}
+	currentParentPolicyID := ""
+	if current.ParentPolicyID != nil {
+		currentParentPolicyID = *current.ParentPolicyID
+	}
+	if currentParentPolicyID != desiredParentPolicyID {
+		needsUpdate = true
+		changes[FieldParentPolicyID] = FieldChange{Old: currentParentPolicyID, New: desiredParentPolicyID}
 	}
 
 	// Compare name

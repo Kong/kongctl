@@ -60,6 +60,9 @@ kongctl apply --plan plan.json
 
 Saved apply, sync, and delete plans require the matching execution command.
 
+For Event Gateway consume policy ordering, including saved plans and dump, see
+[consume policy order](event-gateway-consume-policy-order.md).
+
 ## Find Detailed Behavior
 
 Read the topic matching your task. Each page includes examples and the technical

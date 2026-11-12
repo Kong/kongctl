@@ -1368,8 +1368,21 @@ steps:
           - select: plan.summary
             expect:
               fields:
-                total_changes: 2
+                total_changes: 3
                 by_action.CREATE: 2
+                by_action.UPDATE: 1
+          - select: plan.changes[?consume_policy_order] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                consume_policy_order.names:
+                  - external-sync-consume-policy
+                  - external-consume-schema
+                changed_fields.policy_order.old:
+                  - external-sync-consume-policy
+                changed_fields.policy_order.new:
+                  - external-sync-consume-policy
+                  - external-consume-schema
           - select: plan.changes[?resource_type=='event_gateway' || resource_type=='event_gateway_virtual_cluster']
             expect:
               fields:
@@ -1378,7 +1391,7 @@ steps:
             expect:
               fields:
                 failed: 0
-                applied: 2
+                applied: 3
       - name: verify-consume
         run:
           - get

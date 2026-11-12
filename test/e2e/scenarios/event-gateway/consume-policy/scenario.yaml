@@ -1534,3 +1534,301 @@ steps:
             expect:
               fields:
                 "@": 0
+  - name: 021-011-order-create
+    inputOverlayDirs:
+      - overlays/011-order-create
+    commands:
+      - name: 001-save-order-plan
+        run:
+          - plan
+          - --mode
+          - apply
+          - -f
+          - '{{ .workdir }}/config.yaml'
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/order-plan.json"
+      - name: 002-execute-saved-order-plan
+        run:
+          - apply
+          - --plan
+          - '{{ .workdir }}/order-plan.json'
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+      - name: 003-order-converged
+        run:
+          - plan
+          - --mode
+          - apply
+          - -f
+          - '{{ .workdir }}/config.yaml'
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+      - name: 004-dump-ordered-chain
+        run:
+          - dump
+          - declarative
+          - --resources
+          - event_gateways
+          - --filter-name
+          - '{{ .vars.egwName }}'
+          - --include-child-resources
+          - --default-namespace
+          - event-gateways-vc-consume-policy-comprehensive-test
+          - --output-file
+          - '{{ .workdir }}/ordered-dump.yaml'
+        outputFormat: disable
+        assertions:
+          - select: event_gateways[0].virtual_clusters[0].consume_policies[].name
+            expect:
+              fields:
+                '@':
+                  - order-a
+                  - order-schema
+                  - order-child-a
+                  - order-child-b
+                  - order-b
+            source:
+              artifact:
+                path: '{{ .workdir }}/ordered-dump.yaml'
+                parseAs: yaml
+      - name: 005-dump-reload-noop
+        run:
+          - plan
+          - --mode
+          - apply
+          - -f
+          - '{{ .workdir }}/ordered-dump.yaml'
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+  - name: 022-012-order-reverse
+    inputOverlayDirs:
+      - overlays/012-order-reverse
+    commands:
+      - name: 001-save-order-plan
+        run:
+          - plan
+          - --mode
+          - apply
+          - -f
+          - '{{ .workdir }}/config.yaml'
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/order-plan.json"
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.UPDATE: 2
+          - select: changes[?consume_policy_order.parent_name=='order-schema'] | [0].changed_fields.policy_order
+            expect:
+              fields:
+                old:
+                  - order-child-a
+                  - order-child-b
+                new:
+                  - order-child-b
+                  - order-child-a
+      - name: 001-review-order-diff
+        run:
+          - diff
+          - --plan
+          - '{{ .workdir }}/order-plan.json'
+        outputFormat: text
+        parseAs: raw
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                contains(@, 'policy_order'): true
+                contains(@, 'order-child-a'): true
+                contains(@, 'order-child-b'): true
+      - name: 002-execute-saved-order-plan
+        run:
+          - apply
+          - --plan
+          - '{{ .workdir }}/order-plan.json'
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+      - name: 003-order-converged
+        run:
+          - plan
+          - --mode
+          - apply
+          - -f
+          - '{{ .workdir }}/config.yaml'
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+      - name: 004-dump-ordered-chain
+        run:
+          - dump
+          - declarative
+          - --resources
+          - event_gateways
+          - --filter-name
+          - '{{ .vars.egwName }}'
+          - --include-child-resources
+          - --default-namespace
+          - event-gateways-vc-consume-policy-comprehensive-test
+          - --output-file
+          - '{{ .workdir }}/ordered-dump.yaml'
+        outputFormat: disable
+        assertions:
+          - select: event_gateways[0].virtual_clusters[0].consume_policies[].name
+            expect:
+              fields:
+                '@':
+                  - order-b
+                  - order-schema
+                  - order-child-b
+                  - order-child-a
+                  - order-a
+            source:
+              artifact:
+                path: '{{ .workdir }}/ordered-dump.yaml'
+                parseAs: yaml
+      - name: 005-dump-reload-noop
+        run:
+          - plan
+          - --mode
+          - apply
+          - -f
+          - '{{ .workdir }}/ordered-dump.yaml'
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+  - name: 023-013-order-recreate
+    inputOverlayDirs:
+      - overlays/013-order-recreate
+    commands:
+      - name: 001-save-order-plan
+        run:
+          - plan
+          - --mode
+          - sync
+          - -f
+          - '{{ .workdir }}/config.yaml'
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/order-plan.json"
+      - name: 002-execute-saved-order-plan
+        run:
+          - sync
+          - --plan
+          - '{{ .workdir }}/order-plan.json'
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+      - name: 003-order-converged
+        run:
+          - plan
+          - --mode
+          - sync
+          - -f
+          - '{{ .workdir }}/config.yaml'
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+      - name: 004-dump-ordered-chain
+        run:
+          - dump
+          - declarative
+          - --resources
+          - event_gateways
+          - --filter-name
+          - '{{ .vars.egwName }}'
+          - --include-child-resources
+          - --default-namespace
+          - event-gateways-vc-consume-policy-comprehensive-test
+          - --output-file
+          - '{{ .workdir }}/ordered-dump.yaml'
+        outputFormat: disable
+        assertions:
+          - select: event_gateways[0].virtual_clusters[0].consume_policies[].name
+            expect:
+              fields:
+                '@':
+                  - order-c
+                  - order-schema
+                  - order-child-b
+                  - order-a
+                  - order-child-a
+            source:
+              artifact:
+                path: '{{ .workdir }}/ordered-dump.yaml'
+                parseAs: yaml
+      - name: 005-dump-reload-noop
+        run:
+          - plan
+          - --mode
+          - apply
+          - -f
+          - '{{ .workdir }}/ordered-dump.yaml'
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+      - name: 006-delete-for-dump-reconstruction
+        run:
+          - delete
+          - -f
+          - '{{ .workdir }}/ordered-dump.yaml'
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+      - name: 007-reconstruct-dumped-chain
+        run:
+          - apply
+          - -f
+          - '{{ .workdir }}/ordered-dump.yaml'
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+      - name: 008-reconstructed-chain-converged
+        run:
+          - plan
+          - --mode
+          - apply
+          - -f
+          - '{{ .workdir }}/ordered-dump.yaml'
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0

@@ -187,6 +187,7 @@ const (
 	FieldParentPageID                 = "parent_page_id"
 	FieldParentPath                   = "parent_path"
 	FieldParentPolicyID               = "parent_policy_id"
+	FieldPolicyOrder                  = "policy_order"
 	FieldPortalID                     = "portal_id"
 	FieldRoleName                     = "role_name"
 	FieldControlPlane                 = "control_plane"
