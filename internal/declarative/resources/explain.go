@@ -1517,6 +1517,7 @@ func autoExplainValueNode(
 	typ = derefExplainType(typ)
 	if optionalnullable.IsOptionalNullableType(typ) {
 		nullable = true
+		// IsOptionalNullableType verifies map[bool]*T before we unwrap T.
 		typ = typ.Elem().Elem()
 	}
 
