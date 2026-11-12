@@ -112,6 +112,11 @@ JSON decoding, response round trips, nested properties, null, false, empty
 arrays, and explicit values equal to API defaults. Remove the correction when
 upstream generated models preserve these states without inventing defaults.
 
+Typed construction tests use `kongctl_sdk_patched` because Speakeasy compiles
+an intermediate unpatched SDK before the post-generation hook runs. Run the
+explicit tagged test against the final patched SDK; the normal wire tests
+also run without the tag and exercise JSON decoding and HTTP serialization.
+
 The internal-only `CreatePortal.create_default_content` field also stays
 omitted when unset. Its tag replacement skips public SDKs where the field is
 absent, but fails on unexpected tags or types when the field is present.
@@ -143,6 +148,7 @@ mise trust
 mise install
 CGO_ENABLED=0 GOFLAGS=-buildvcs=false mise exec -- make generate.sdk
 CGO_ENABLED=0 go test . ./models/... ./internal/... ./pkg/...
+CGO_ENABLED=0 go test -tags=kongctl_sdk_patched .
 make test.unit
 ```
 
