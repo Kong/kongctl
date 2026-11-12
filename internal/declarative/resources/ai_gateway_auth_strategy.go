@@ -294,7 +294,15 @@ func aiGatewayAuthStrategyExplainNode(_ ExplainBuildContext) (*ExplainNode, erro
 	if err != nil {
 		return nil, err
 	}
-
+	config, ok := openIDConnectSDK.lookup([]string{aiGatewayAuthStrategyFieldConfig})
+	if !ok {
+		return nil, fmt.Errorf("OIDC config schema is missing")
+	}
+	// Declarations retain strict nested fields. The SDK still preserves newer
+	// server fields when serializing observed state for full PUT updates.
+	for _, field := range config.Properties {
+		closeNestedOIDCConfigObjects(field.Node)
+	}
 	openIDConnect := aiGatewayAuthStrategySDKExplainBranch(
 		openIDConnectSDK,
 		aiGatewayAuthStrategyTypeOpenIDConnect,
@@ -352,6 +360,22 @@ func aiGatewayAuthStrategyExplainNode(_ ExplainBuildContext) (*ExplainNode, erro
 	)
 
 	return explainUnionNode(keyAuth, openIDConnect), nil
+}
+
+func closeNestedOIDCConfigObjects(node *ExplainNode) {
+	if node == nil {
+		return
+	}
+	if node.Kind == explainKindObject && len(node.Properties) > 0 {
+		node.Additional = nil
+	}
+	for _, field := range node.Properties {
+		closeNestedOIDCConfigObjects(field.Node)
+	}
+	closeNestedOIDCConfigObjects(node.Items)
+	for _, branch := range node.OneOf {
+		closeNestedOIDCConfigObjects(branch)
+	}
 }
 
 func aiGatewayAuthStrategySDKExplainBranch(

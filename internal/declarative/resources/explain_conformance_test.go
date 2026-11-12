@@ -2,6 +2,7 @@ package resources
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -75,9 +76,17 @@ func TestAIGatewayCustomExplainSchemasTrackSDKShapes(t *testing.T) {
 					t,
 					aiGatewayAuthStrategyExplainBranch(t, actual, "key-auth"),
 				)
-				assertCustomExplainPreservesSDKOpenness[kkComps.AIGatewayAuthStrategyOpenIDConnect](
-					t, aiGatewayAuthStrategyExplainBranch(t, actual, "openid-connect"),
-				)
+				oidc := aiGatewayAuthStrategyExplainBranch(t, actual, "openid-connect")
+				config, ok := oidc.property(aiGatewayAuthStrategyFieldConfig)
+				require.True(t, ok)
+				require.NotNil(t, config.Node.Additional)
+				for _, path := range [][]string{{"principals"}, {"principals", "jit"}, {"redis"}, {"token_exchange"}} {
+					nested, ok := config.Node.lookup(path)
+					require.True(t, ok)
+					require.Nil(t, nested.Additional)
+					require.Equal(t, explainKindObject, nested.Kind)
+					require.Equal(t, "object", explainTypeLabel(nested))
+				}
 			},
 			actual: func() (*ExplainNode, error) {
 				return aiGatewayAuthStrategyExplainNode(ExplainBuildContext{})
@@ -140,10 +149,11 @@ func TestAIGatewayAuthStrategyExplainBranchesTrackSDKRequestShapes(t *testing.T)
 		allowOverlay,
 	)
 	oidc := aiGatewayAuthStrategyExplainBranch(t, node, "openid-connect")
-	assertCustomExplainDeeplySupportsSDKShape[kkComps.AIGatewayAuthStrategyOpenIDConnect](t, oidc, allowOverlay)
+	assertCustomExplainDeeplySupportsSDKShape[kkComps.AIGatewayAuthStrategyOpenIDConnect](
+		t, oidc, allowOverlay, "config.",
+	)
 	config, ok := oidc.property(aiGatewayAuthStrategyFieldConfig)
 	require.True(t, ok)
-	assertCustomExplainDeeplySupportsSDKShape[kkComps.AIGWOpenIDConnectGeneratedConfig](t, config.Node, nil)
 	require.IsType(t, &kkComps.AIGWOpenIDConnectGeneratedConfig{}, kkComps.AIGatewayAuthStrategyOpenIDConnect{}.Config)
 	response := kkComps.AIGatewayAuthStrategyOpenIDConnectResponse{}
 	require.IsType(t, &kkComps.AIGWOpenIDConnectGeneratedConfigOutput{}, response.Config)
@@ -241,11 +251,12 @@ func assertCustomExplainDeeplySupportsSDKShape[T any](
 	t *testing.T,
 	actual *ExplainNode,
 	allowExtra func(string, string) bool,
+	closedSDKPaths ...string,
 ) {
 	t.Helper()
 	expected, err := autoExplainConcreteNode[T](nil)
 	require.NoError(t, err)
-	assertExplainNodeDeeplySupportsSDKShape(t, "", expected, actual, allowExtra)
+	assertExplainNodeDeeplySupportsSDKShape(t, "", expected, actual, allowExtra, closedSDKPaths...)
 }
 
 func assertExplainNodeDeeplySupportsSDKShape(
@@ -254,11 +265,13 @@ func assertExplainNodeDeeplySupportsSDKShape(
 	expected *ExplainNode,
 	actual *ExplainNode,
 	allowExtra func(string, string) bool,
+	closedSDKPaths ...string,
 ) {
 	t.Helper()
 	require.NotNilf(t, actual, "custom Explain field %q has no schema", path)
 	require.Equalf(t, expected.Kind, actual.Kind, "custom Explain field %q has an incompatible kind", path)
-	if expected.Additional != nil {
+	closed := slices.ContainsFunc(closedSDKPaths, func(prefix string) bool { return strings.HasPrefix(path, prefix) })
+	if expected.Additional != nil && !closed {
 		require.NotNilf(t, actual.Additional, "custom Explain field %q closes an SDK-open object", path)
 	}
 	if expected.Const != nil {
@@ -292,6 +305,7 @@ func assertExplainNodeDeeplySupportsSDKShape(
 			expectedField.Node,
 			actualField.Node,
 			allowExtra,
+			closedSDKPaths...,
 		)
 	}
 	for _, actualField := range actual.Properties {
@@ -308,11 +322,11 @@ func assertExplainNodeDeeplySupportsSDKShape(
 
 	if expected.Items != nil {
 		require.NotNilf(t, actual.Items, "custom Explain array field %q has no item schema", path)
-		assertExplainNodeDeeplySupportsSDKShape(t, path+"[]", expected.Items, actual.Items, allowExtra)
+		assertExplainNodeDeeplySupportsSDKShape(t, path+"[]", expected.Items, actual.Items, allowExtra, closedSDKPaths...)
 	}
 	require.Lenf(t, actual.OneOf, len(expected.OneOf), "custom Explain union field %q has incompatible branches", path)
 	for i := range expected.OneOf {
-		assertExplainNodeDeeplySupportsSDKShape(t, path, expected.OneOf[i], actual.OneOf[i], allowExtra)
+		assertExplainNodeDeeplySupportsSDKShape(t, path, expected.OneOf[i], actual.OneOf[i], allowExtra, closedSDKPaths...)
 	}
 }
 

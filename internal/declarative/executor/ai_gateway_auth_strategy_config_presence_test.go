@@ -25,6 +25,9 @@ func TestAIGatewayOIDCConfigPresenceThroughSavedPlanAndMetadataStamp(t *testing.
 		{name: "null", extra: map[string]any{"upstream_access_token_header": nil}},
 		{name: "explicit-default", extra: map[string]any{"upstream_access_token_header": "authorization:bearer"}},
 		{name: "server-extension", extra: map[string]any{"future_server_option": map[string]any{"enabled": true}}},
+		{name: "nested-server-extension", extra: map[string]any{"principals": map[string]any{
+			"enabled": true, "future_server_option": map[string]any{"enabled": false},
+		}}},
 		{name: "executor-key-names", extra: map[string]any{
 			planner.FieldAIGatewayID: "config-gateway", planner.FieldAIGatewayConsumerID: "config-consumer",
 			planner.FieldCurrentLabels: map[string]any{"owner": "config-owner"},
