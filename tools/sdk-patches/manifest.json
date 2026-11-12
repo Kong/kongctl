@@ -327,6 +327,36 @@
       "before": "func (u *UpdatePrincipalKeyBody) GetName() *string {",
       "after": "func (u *UpdatePrincipalKeyBody) GetName() optionalnullable.OptionalNullable[string] {",
       "optional_file": true
+    },
+    {
+      "file": "models/components/aigatewayauthstrategyopenidconnect.go",
+      "before": "\tConfig     *AIGWOpenIDConnectGeneratedConfig             `json:\"config,omitempty\"`",
+      "after": "\tConfig     map[string]any                                `json:\"config,omitempty\"`"
+    },
+    {
+      "file": "models/components/aigatewayauthstrategyopenidconnect.go",
+      "before": "func (a *AIGatewayAuthStrategyOpenIDConnect) GetConfig() *AIGWOpenIDConnectGeneratedConfig {",
+      "after": "func (a *AIGatewayAuthStrategyOpenIDConnect) GetConfig() map[string]any {"
+    },
+    {
+      "file": "models/components/aigatewayauthstrategyopenidconnectresponse.go",
+      "before": "\tConfig     *AIGWOpenIDConnectGeneratedConfigOutput  `json:\"config,omitempty\"`",
+      "after": "\tConfig     map[string]any                           `json:\"config,omitempty\"`"
+    },
+    {
+      "file": "models/components/aigatewayauthstrategyopenidconnectresponse.go",
+      "before": "func (a *AIGatewayAuthStrategyOpenIDConnectResponse) GetConfig() *AIGWOpenIDConnectGeneratedConfigOutput {",
+      "after": "func (a *AIGatewayAuthStrategyOpenIDConnectResponse) GetConfig() map[string]any {"
+    },
+    {
+      "file": "docs/models/components/aigatewayauthstrategyopenidconnect.md",
+      "before": "[*components.AIGWOpenIDConnectGeneratedConfig](../../models/components/aigwopenidconnectgeneratedconfig.md)",
+      "after": "map[string]any"
+    },
+    {
+      "file": "docs/models/components/aigatewayauthstrategyopenidconnectresponse.md",
+      "before": "[*components.AIGWOpenIDConnectGeneratedConfigOutput](../../models/components/aigwopenidconnectgeneratedconfigoutput.md)",
+      "after": "map[string]any"
     }
   ],
   "tests": {
@@ -343,7 +373,8 @@
     "tests/identity_cursor_query_test.go.txt": "identity_cursor_query_kongctl_test.go",
     "tests/identity_credential_expiration_test.go.txt": "identity_credential_expiration_kongctl_test.go",
     "tests/identity_key_metadata_test.go.txt": "identity_key_metadata_kongctl_test.go",
-    "tests/ai_gateway_update_defaults_test.go.txt": "ai_gateway_update_defaults_kongctl_test.go"
+    "tests/ai_gateway_update_defaults_test.go.txt": "ai_gateway_update_defaults_kongctl_test.go",
+    "tests/ai_gateway_oidc_config_presence_test.go.txt": "kongctl_ai_gateway_oidc_config_presence_test.go"
   },
   "post_generation_doc_sections": [
     {

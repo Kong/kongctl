@@ -96,6 +96,25 @@ class PatchTests(unittest.TestCase):
             patches.post_generate(sdk, {"post_generation": [patch]})
             self.assertEqual(target.read_text(), patch["after"])
 
+    def test_oidc_configs_and_getters_preserve_presence(self):
+        for model in ["aigatewayauthstrategyopenidconnect", "aigatewayauthstrategyopenidconnectresponse"]:
+            filename = "models/components/" + model + ".go"
+            selected = [patch for patch in self.manifest["post_generation"] if patch["file"] == filename]
+            self.assertEqual(len(selected), 2)
+            with tempfile.TemporaryDirectory() as directory:
+                sdk = Path(directory)
+                target = sdk / filename
+                target.parent.mkdir(parents=True)
+                target.write_text("\n".join(patch["before"] for patch in selected))
+                manifest = {"post_generation": selected}
+                patches.post_generate(sdk, manifest)
+                result = target.read_text()
+                self.assertIn("GetConfig() map[string]any {", result)
+                self.assertEqual(result.count("map[string]any"), 2)
+                self.assertNotIn("*AIGWOpenIDConnectGeneratedConfig", result)
+                patches.post_generate(sdk, manifest)
+                self.assertEqual(target.read_text(), result)
+
     def test_multiple_replacements_in_one_file_accumulate_and_fail_atomically(self):
         with tempfile.TemporaryDirectory() as directory:
             sdk = Path(directory)
