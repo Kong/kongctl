@@ -97,8 +97,8 @@ models use the SDK's `optionalnullable.OptionalNullable[T]` wrapper with
 `omitempty`, without serializer default tags. Required fields stay unchanged.
 The wrapper preserves omission, explicit null, and typed values, including
 false and empty arrays. Existing typed getters retain their return types;
-callers can inspect the field's `IsSet`/`IsNull` methods for presence. Go callers
-constructing optional fields use `optionalnullable.From` instead of assigning
+callers can inspect the field's `IsSet`/`IsNull` methods for presence. Go
+callers constructing optional fields use `optionalnullable.From` instead of assigning
 bare pointers or slices. This is a scoped model correction, not a change to the
 SDK's global JSON serializer or other resources.
 
@@ -112,10 +112,22 @@ JSON decoding, response round trips, nested properties, null, false, empty
 arrays, and explicit values equal to API defaults. Remove the correction when
 upstream generated models preserve these states without inventing defaults.
 
+The SDK retains nested server extensions for response/full-PUT round trips.
+kongctl declaration schemas still reject unknown keys in modeled nested
+objects, preserving typo detection; the top-level config remains extensible.
+
+On a field-inventory mismatch, the patch reports expected and computed
+`fields_sha256` values and the normalized `[name, original-type, json-key]`
+field list. Review the upstream schema diff, required fields, and getters
+before updating a model's fingerprint in `manifest.json`. Re-run the patch
+and wire tests after reviewing the new contract; do not accept a digest alone.
+
 Typed construction tests use `kongctl_sdk_patched` because Speakeasy compiles
 an intermediate unpatched SDK before the post-generation hook runs. Run the
-explicit tagged test against the final patched SDK; the normal wire tests
-also run without the tag and exercise JSON decoding and HTTP serialization.
+explicit tagged test against the final patched SDK; `make generate.sdk` now
+runs it automatically through `make test.kongctl-patches` immediately after
+the patch hook. The normal wire tests also run without the tag and exercise
+JSON decoding and HTTP serialization.
 
 The internal-only `CreatePortal.create_default_content` field also stays
 omitted when unset. Its tag replacement skips public SDKs where the field is

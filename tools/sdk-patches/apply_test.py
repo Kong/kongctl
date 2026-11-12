@@ -136,6 +136,7 @@ func (s *Sample) GetHeader() *string {
         result, models = patches.typed_presence(source, policy)
         self.assertRegex(result, r'Issuer\s+string\s+`json:"issuer"`')
         self.assertIn("optionalnullable.OptionalNullable[bool]", result)
+        self.assertIn('"github.com/Kong/sdk-konnect-go/optionalnullable"', result)
         self.assertIn("optionalnullable.OptionalNullable[[]string]", result)
         self.assertIn("optionalnullable.OptionalNullable[string]", result)
         self.assertNotIn('default:', result)
@@ -160,7 +161,7 @@ func (s *Sample) GetHeader() *string {
     def test_typed_presence_docs_are_repeatable(self):
         source, policy = self.typed_config_fixture()
         _, models = patches.typed_presence(source, policy)
-        doc = "| Field | Type | Required | Description |\n| --- | --- | --- | --- |\n"
+        doc = "# Sample\n\n## Fields\n\n| Field | Type | Required | Description |\n| --- | --- | --- | --- |\n"
         for name in ["Issuer", "Flag", "Scopes", "Header"]:
             doc += f"| `{name}` | old | optional | Description |\n"
         updated = patches.typed_presence_docs(doc, models["Sample"])
@@ -168,6 +169,51 @@ func (s *Sample) GetHeader() *string {
         self.assertIn("`AdditionalProperties`", updated)
         self.assertIn("| `Issuer` | old |", updated)
         self.assertEqual(patches.typed_presence_docs(updated, models["Sample"]), updated)
+
+    def test_typed_presence_reports_missing_json_tag_and_new_digest(self):
+        source, policy = self.typed_config_fixture()
+        with self.assertRaisesRegex(ValueError, r"Sample.Flag: missing.*json tag"):
+            patches.typed_presence(source.replace('default:"true" json:"flag"', 'default:"true"'), policy)
+        with self.assertRaisesRegex(ValueError, r"computed fields_sha256=[0-9a-f]{64}; review normalized fields"):
+            patches.typed_presence(source.replace("Flag *bool", "Flag *int"), policy)
+
+    def test_typed_presence_supports_single_and_block_imports(self):
+        source, policy = self.typed_config_fixture()
+        for form in ['import (\n"github.com/Kong/sdk-konnect-go/internal/utils"\n)',
+                     'import(\n"github.com/Kong/sdk-konnect-go/internal/utils"\n)',
+                     'import "github.com/Kong/sdk-konnect-go/internal/utils"']:
+            candidate = source.replace('import "github.com/Kong/sdk-konnect-go/internal/utils"', form)
+            result, _ = patches.typed_presence(candidate, policy)
+            self.assertEqual(result.count('"github.com/Kong/sdk-konnect-go/optionalnullable"'), 1)
+            self.assertEqual(patches.typed_presence(result, policy)[0], result)
+        with self.assertRaisesRegex(ValueError, "unsupported import declaration"):
+            patches.typed_presence(source.replace('import "github.com/Kong/sdk-konnect-go/internal/utils"', ''), policy)
+
+    def test_typed_presence_docs_preserve_links_and_scope_fields_table(self):
+        doc = ("# Example\n\n## Fields\n\n| Field | Type | Required | Description |\n"
+               "| --- | --- | --- | --- |\n"
+               "| `Key` | [*components.ClientJwk](../../models/components/clientjwk.md) | optional | A key |\n"
+               "\n## Other table\n\n| Field | Type |\n| --- | --- |\n| `Key` | unchanged |\n")
+        optional = {"Key": ("*ClientJwk", "optionalnullable.OptionalNullable[ClientJwk]", "key")}
+        result = patches.typed_presence_docs(doc, optional)
+        fields, other = result.split("## Other table")
+        self.assertIn("[`optionalnullable.OptionalNullable[ClientJwk]`](../../models/components/clientjwk.md)", fields)
+        self.assertIn("`AdditionalProperties`", fields)
+        self.assertNotIn("`AdditionalProperties`", other)
+        self.assertIn("| `Key` | unchanged |", other)
+        self.assertEqual(patches.typed_presence_docs(result, optional), result)
+        # Restore links in docs produced by an older version of this patch.
+        plain = doc.replace("[*components.ClientJwk](../../models/components/clientjwk.md)",
+                            "`optionalnullable.OptionalNullable[ClientJwk]`")
+        self.assertIn("../../models/components/clientjwk.md", patches.typed_presence_docs(plain, optional))
+
+    def test_generation_runs_typed_tests_only_after_post_generation_patch(self):
+        original = "generate.sdk.speakeasy: speakeasy\ngenerate.sdk:\n\t$(MAKE) _generate.omitempty\n\tgo mod tidy\n"
+        result = patches.configure_makefile(original, self.manifest)
+        self.assertLess(result.index(patches.POST_GENERATE), result.index("\t$(MAKE) test.kongctl-patches"))
+        self.assertLess(result.index("\t$(MAKE) test.kongctl-patches"), result.index("\tgo mod tidy"))
+        self.assertIn("go test -count=1 -tags=kongctl_sdk_patched .", result)
+        self.assertEqual(patches.configure_makefile(result, self.manifest), result)
 
     def test_multiple_replacements_in_one_file_accumulate_and_fail_atomically(self):
         with tempfile.TemporaryDirectory() as directory:

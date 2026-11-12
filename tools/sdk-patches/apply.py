@@ -82,7 +82,10 @@ def typed_presence(text, policy):
                 if typ.strip() != "map[string]any" or tags != 'additionalProperties:"true" json:"-"':
                     raise ValueError(f"{name}: unexpected additional properties field")
                 continue
-            key = re.search(r'json:"([^",]+)', tags)[1]
+            key_match = re.search(r'json:"([^",]+)', tags)
+            if key_match is None or key_match[1] == "-":
+                raise ValueError(f"{name}.{field_name}: missing or unsupported json tag")
+            key = key_match[1]
             original = typ.strip()
             if original.startswith(WRAPPER):
                 inner = original[len(WRAPPER):-1]
@@ -95,7 +98,11 @@ def typed_presence(text, policy):
                 optional[field_name] = (original, WRAPPER + inner + "]", key)
         digest = hashlib.sha256(json.dumps(fields, separators=(",", ":")).encode()).hexdigest()
         if digest != model["fields_sha256"]:
-            raise ValueError(f"{name}: generated fields changed; SDK schema may have changed")
+            raise ValueError(
+                f"{name}: generated fields changed; SDK schema may have changed; "
+                f"expected fields_sha256={model['fields_sha256']}, computed fields_sha256={digest}; "
+                f"review normalized fields: {json.dumps(fields, separators=(',', ':'))}"
+            )
         required = re.search(
             r"func \(\w+ \*" + re.escape(name) +
             r"\) UnmarshalJSON.*?utils.UnmarshalJSON\([^\n]+false, ([^\n]+)\);", text, re.S,
@@ -138,26 +145,53 @@ def typed_presence(text, policy):
             new = new.replace("() if", "()\nif").replace(" }; return", " }\nreturn")
             text = text[:getter.start(3)] + "\n" + new + "\n" + text[getter.end(3):]
         docs[name] = optional
-    if '"github.com/Kong/sdk-konnect-go/optionalnullable"' not in text:
-        text = text.replace('import (\n', 'import (\n\t"github.com/Kong/sdk-konnect-go/optionalnullable"\n', 1)
+    text = add_go_import(text, "github.com/Kong/sdk-konnect-go/optionalnullable")
     text = subprocess.check_output(["gofmt"], input=text, text=True)
     return text, docs
 
 
+def add_go_import(text, path):
+    if re.search(r'^\s*(?:import\s+)?"' + re.escape(path) + r'"\s*$', text, re.M):
+        return text
+    block = re.search(r'^import\s*\(\s*\n', text, re.M)
+    if block:
+        return text[:block.end()] + f'\t"{path}"\n' + text[block.end():]
+    single = re.search(r'^import[ \t]+((?:[\w.]+[ \t]+)?"[^"\n]+")\s*$', text, re.M)
+    if single:
+        return text[:single.start()] + f'import (\n\t{single[1]}\n\t"{path}"\n)\n' + text[single.end():]
+    raise ValueError(f"cannot add Go import {path}: unsupported import declaration")
+
+
 def typed_presence_docs(text, optional):
-    for name, (_, wrapped, _) in optional.items():
-        pattern = r"^(\|\s*`" + re.escape(name) + r"`\s*\|)[^|]*(\|.*)$"
-        text, count = re.subn(pattern, lambda match: match[1] + f" `{wrapped}` " + match[2], text, flags=re.M)
+    sections = list(re.finditer(r'^## Fields\s*\n.*?(?=^#{1,2} |\Z)', text, re.M | re.S))
+    if len(sections) != 1:
+        raise ValueError("expected one config documentation Fields section")
+    section = sections[0]
+    tables = list(re.finditer(r'^\|[^\n]*\n(?:^\|[^\n]*(?:\n|$))+', section[0], re.M))
+    if not tables:
+        raise ValueError("missing config documentation Fields table")
+    table_match = tables[0]
+    table = table_match[0]
+    for name, (original, wrapped, _) in optional.items():
+        pattern = r"^(\|\s*`" + re.escape(name) + r"`\s*\|)([^|]*)(\|.*)$"
+
+        def replace_type(match):
+            link = re.search(r'\]\(([^)]+)\)', match[2])
+            value = f"`{wrapped}`"
+            inner = original.lstrip("*[]")
+            if link:
+                value = f"[{value}]({link[1]})"
+            elif re.fullmatch(r"[A-Z]\w*", inner):
+                value = f"[{value}](../../models/components/{inner.lower()}.md)"
+            return match[1] + " " + value + " " + match[3]
+
+        table, count = re.subn(pattern, replace_type, table, flags=re.M)
         if count != 1:
             raise ValueError(f"missing or duplicate config documentation field {name}")
-    if "`AdditionalProperties`" not in text:
-        rows = list(re.finditer(r"^\|.*$", text, re.M))
-        if not rows:
-            raise ValueError("missing config documentation table")
-        index = rows[-1].end()
-        row = "\n| `AdditionalProperties` | map[string]any | :heavy_minus_sign: | Additional API fields preserved alongside typed fields. |"
-        text = text[:index] + row + text[index:]
-    return text
+    if "`AdditionalProperties`" not in table:
+        table = table.rstrip("\n") + "\n| `AdditionalProperties` | map[string]any | :heavy_minus_sign: | Additional API fields preserved alongside typed fields. |\n"
+    updated = section[0][:table_match.start()] + table + section[0][table_match.end():]
+    return text[:section.start()] + updated + text[section.end():]
 
 
 def post_generate(sdk, manifest):
@@ -205,6 +239,38 @@ def replace_doc_section(text, patch):
     return text[:section.start()] + updated + text[section.end():]
 
 
+def configure_makefile(text, manifest):
+    anchor = "\t$(MAKE) _generate.omitempty\n"
+    if text.count(anchor) != 1:
+        raise ValueError("expected one upstream post-generation hook in SDK Makefile")
+    if POST_GENERATE not in text:
+        text = text.replace(anchor, anchor + POST_GENERATE, 1)
+    generation = r"^generate\.sdk\.speakeasy: speakeasy(?: validate\.kongctl-overlays)?$"
+    text, count = re.subn(generation, "generate.sdk.speakeasy: speakeasy validate.kongctl-overlays", text, flags=re.M)
+    if count != 1:
+        raise ValueError("expected one Speakeasy generation target in SDK Makefile")
+    if ".PHONY: validate.kongctl-overlays\n" not in text:
+        text += (
+            "\n.PHONY: validate.kongctl-overlays\nvalidate.kongctl-overlays:\n"
+            "\t@for overlay in $(sort $(wildcard kongctl-patches/overlays/*.yaml)); do \\\n"
+            "\t\tspeakeasy overlay validate --overlay $$overlay; \\\n"
+            "\t\tspeakeasy overlay apply --strict --schema $(OPENAPI_FILE) --overlay $$overlay --out /dev/null; \\\n"
+            "\tdone\n"
+        )
+    else:
+        text = text.replace("$(wildcard .speakeasy/overlays/*.yaml)", "$(wildcard kongctl-patches/overlays/*.yaml)")
+    if manifest.get("typed_presence"):
+        test_hook = "\t$(MAKE) test.kongctl-patches\n"
+        if test_hook not in text:
+            text = text.replace(POST_GENERATE, POST_GENERATE + test_hook, 1)
+        if ".PHONY: test.kongctl-patches\n" not in text:
+            text += (
+                "\n.PHONY: test.kongctl-patches\ntest.kongctl-patches:\n"
+                "\tCGO_ENABLED=0 go test -count=1 -tags=kongctl_sdk_patched .\n"
+            )
+    return text
+
+
 def prepare(sdk, manifest):
     if sdk == BUNDLE or BUNDLE.is_relative_to(sdk):
         raise ValueError("prepare must run from the kongctl source bundle, targeting a separate SDK checkout")
@@ -215,26 +281,7 @@ def prepare(sdk, manifest):
     workflow = sdk / ".speakeasy/workflow.yaml"
     workflow_text = configure_workflow(workflow.read_text(), manifest)
     makefile = sdk / "Makefile"
-    make_text = makefile.read_text()
-    anchor = "\t$(MAKE) _generate.omitempty\n"
-    if make_text.count(anchor) != 1:
-        raise ValueError("expected one upstream post-generation hook in SDK Makefile")
-    if POST_GENERATE not in make_text:
-        make_text = make_text.replace(anchor, anchor + POST_GENERATE, 1)
-    generation = r"^generate\.sdk\.speakeasy: speakeasy(?: validate\.kongctl-overlays)?$"
-    make_text, count = re.subn(generation, "generate.sdk.speakeasy: speakeasy validate.kongctl-overlays", make_text, flags=re.M)
-    if count != 1:
-        raise ValueError("expected one Speakeasy generation target in SDK Makefile")
-    if ".PHONY: validate.kongctl-overlays\n" not in make_text:
-        make_text += (
-            "\n.PHONY: validate.kongctl-overlays\nvalidate.kongctl-overlays:\n"
-            "\t@for overlay in $(sort $(wildcard kongctl-patches/overlays/*.yaml)); do \\\n"
-            "\t\tspeakeasy overlay validate --overlay $$overlay; \\\n"
-            "\t\tspeakeasy overlay apply --strict --schema $(OPENAPI_FILE) --overlay $$overlay --out /dev/null; \\\n"
-            "\tdone\n"
-        )
-    else:
-        make_text = make_text.replace("$(wildcard .speakeasy/overlays/*.yaml)", "$(wildcard kongctl-patches/overlays/*.yaml)")
+    make_text = configure_makefile(makefile.read_text(), manifest)
     mise = sdk / ".mise/config.toml"
     mise_text, count = re.subn(r'^version = "[^"]+"$', f'version = "{manifest["speakeasy_version"]}"', mise.read_text(), flags=re.M)
     if count != 1:
