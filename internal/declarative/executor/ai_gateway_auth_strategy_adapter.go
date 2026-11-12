@@ -194,6 +194,15 @@ func aiGatewayAuthStrategyPayloadFromFields(fields map[string]any) (map[string]a
 		return nil, fmt.Errorf("config is required")
 	}
 
+	// Validate against the generated plugin schema without serializing its
+	// defaults into the presence-preserving request config.
+	if providerType == "openid-connect" {
+		var validation kkComps.AIGWOpenIDConnectGeneratedConfig
+		if err := mapAIGatewaySDKRequest("AI Gateway auth strategy config", config, &validation); err != nil {
+			return nil, err
+		}
+	}
+
 	payload := map[string]any{
 		planner.FieldName:        name,
 		planner.FieldType:        providerType,

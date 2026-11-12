@@ -144,8 +144,8 @@ func TestAIGatewayAuthStrategyAdapterMapsInjectedClientSecrets(t *testing.T) {
 	require.NotNil(t, request.AIGatewayAuthStrategyOpenIDConnect.Config)
 	assert.Equal(
 		t,
-		[]string{"first", "second"},
-		request.AIGatewayAuthStrategyOpenIDConnect.Config.ClientSecret,
+		[]any{"first", "second"},
+		request.AIGatewayAuthStrategyOpenIDConnect.Config["client_secret"],
 	)
 }
 
@@ -180,8 +180,8 @@ func TestAIGatewayAuthStrategyAdapterPreservesVaultReferenceBesideInjectedSecret
 	require.NotNil(t, request.AIGatewayAuthStrategyOpenIDConnect.Config)
 	assert.Equal(
 		t,
-		[]string{reference, "fallback"},
-		request.AIGatewayAuthStrategyOpenIDConnect.Config.ClientSecret,
+		[]any{reference, "fallback"},
+		request.AIGatewayAuthStrategyOpenIDConnect.Config["client_secret"],
 	)
 }
 
