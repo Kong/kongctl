@@ -1,5 +1,25 @@
 # Organization teams dump replay
 
+## Refresh pending
+
+The validated recording below predates assigned-role page-size propagation
+and the three-minute budget for the 153-write pagination setup command.
+Its replacement is required before this PR is ready; replay eligibility and
+strict validation remain enabled.
+
+The latest [recording run][pending] passed the live assertions and final
+reset in attempts 1 and 2, but cassette validation rejected transient HTTP
+responses. Attempt 3 failed with a recorder timeout. No candidate from these
+attempts was published or promoted. Resume with a fresh successful recording,
+review its ordering, and complete candidate and committed isolated replays.
+
+The live boundary checks also exposed the assigned-role endpoint's maximum
+page size of 100. Larger CLI settings now cap role requests at 100 and fetch
+the remaining pages. The previous recording's request counts and timings
+below describe the earlier implementation.
+
+## Previous validated recording
+
 The [live recording][record] captured 397 exchanges under the primary
 acceptance organization lock with successful before/after resets. Its
 scenario passed in 122.049 seconds. Selected users are existing lookup
@@ -82,3 +102,4 @@ require a new recording in the same PR; replay eligibility is unchanged.
 
 [record]: https://github.com/Kong/kongctl/actions/runs/43497700222
 [replay]: https://github.com/Kong/kongctl/actions/runs/43499384606
+[pending]: https://github.com/Kong/kongctl/actions/runs/43521889115
