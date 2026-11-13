@@ -94,9 +94,10 @@ compiled binaries without Konnect credentials or external networking.
 
 For readiness dispatches, replay execution and verification load scripts,
 parser dependencies, and the isolation wrapper from the default branch. A
-separate `scenario-data` checkout supplies the admitted revision's inventory,
-inputs, and cassettes through `--root`; its scripts and Makefile are never
-executed outside isolation. The compiled PR binaries execute only inside the
+separate `scenario-data` artifact from the admitted build supplies its
+inventory, inputs, and cassettes through `--root`. The job's admitted head SHA
+is supplied as `--commit` for provenance; replay jobs never check out the PR
+or execute its scripts or Makefile outside isolation. The compiled PR binaries execute only inside the
 loopback network namespace with a clean environment and dropped capabilities.
 
 The final verifier independently checks the routing plan, replay job outcome,

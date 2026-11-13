@@ -6,6 +6,7 @@ import hashlib
 import importlib.util
 import os
 from pathlib import Path
+import re
 import statistics
 import subprocess
 
@@ -99,12 +100,15 @@ def main():
     parser.add_argument("--mode", choices=("pr", "live"), default="live")
     parser.add_argument("--root", type=Path, default=REPLAY.ROOT,
                         help="scenario data checkout; never used to load executable code")
+    parser.add_argument("--commit", help="admitted head SHA for scenario data downloaded as an artifact")
     parser.add_argument("--plan", type=Path, default=Path("e2e-routing.json"))
     parser.add_argument("--results", type=Path, default=Path(".e2e-artifacts/pr-replay"))
     parser.add_argument("--baseline", type=Path, help="optional frozen live observations for the run summary")
     parser.add_argument("--summary-output", type=Path, help="write Markdown here instead of the Actions summary")
     args = parser.parse_args()
     args.root = args.root.resolve()
+    if args.commit is not None and not re.fullmatch(r"[0-9a-f]{40}", args.commit):
+        parser.error("--commit must be a full lowercase Git SHA")
     if args.command == "allocation":
         print(allocation_id(args.root, args.mode))
         return
@@ -119,7 +123,8 @@ def main():
     plan = REPLAY.parse_json(args.plan.read_bytes())
     if plan != make_plan(args.root, args.mode):
         raise ValueError("routing plan differs from checked-out scenario inventory")
-    commit = subprocess.check_output(["git", "-C", str(args.root), "rev-parse", "HEAD"], text=True).strip()
+    commit = args.commit or subprocess.check_output(
+        ["git", "-C", str(args.root), "rev-parse", "HEAD"], text=True).strip()
     if args.command == "verify":
         verify_results(plan, args.results, commit, os.environ["GITHUB_RUN_ID"])
         return
