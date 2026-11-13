@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	adoptCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt/common"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/segmentio/cli"
@@ -182,7 +183,7 @@ func printChildAdoptions(setup adoptCommon.AdoptRunSetup, results []*adoptCommon
 	if handled, err := adoptCommon.PrintDryRun(setup.Helper, setup.OutType); handled {
 		return err
 	}
-	if setup.OutType.String() == "text" {
+	if setup.OutType == cmdCommon.TEXT {
 		for _, result := range results {
 			if err := adoptCommon.PrintAdoptResult(setup.Helper, setup.OutType, result, result.ResourceType); err != nil {
 				return err

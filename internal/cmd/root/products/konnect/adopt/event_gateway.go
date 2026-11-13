@@ -138,12 +138,7 @@ func adoptEventGatewayControlPlane(
 		return nil, cmdpkg.PrepareExecutionErrorMsg(helper, "update Event Gateway Control Plane failed")
 	}
 
-	ns := namespace
-	if updated.Labels != nil {
-		if v, ok := updated.Labels[labels.NamespaceKey]; ok && v != "" {
-			ns = v
-		}
-	}
+	ns := adoptCommon.NamespaceFromLabels(updated.Labels, namespace)
 
 	return adoptCommon.FinishAdoption(ctx, &adoptCommon.AdoptResult{
 		ResourceType: "event_gateway",

@@ -260,7 +260,7 @@ func runListByName(name string, strategyType string, kkClient helpers.AppAuthStr
 
 		// Filter by name since SDK doesn't support name filtering directly
 		for _, strategy := range res.GetListAppAuthStrategiesResponse().Data {
-			strategyName := getStrategyName(strategy)
+			strategyName := extractAuthStrategyVariant(strategy).name
 			if strategyName == name {
 				return &strategy, nil
 			}
@@ -404,16 +404,6 @@ func runGet(id string, kkClient helpers.AppAuthStrategiesAPI, helper cmd.Helper,
 	return &strategy, nil
 }
 
-// Helper function to get strategy name from union type
-func getStrategyName(strategy kkComps.AppAuthStrategy) string {
-	if strategy.AppAuthStrategyKeyAuthResponseAppAuthStrategyKeyAuthResponse != nil {
-		return strategy.AppAuthStrategyKeyAuthResponseAppAuthStrategyKeyAuthResponse.Name
-	} else if strategy.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyOpenIDConnectResponse != nil {
-		return strategy.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyOpenIDConnectResponse.Name
-	}
-	return ""
-}
-
 func (c *getAuthStrategyCmd) validate(helper cmd.Helper) error {
 	if len(helper.GetArgs()) > 1 {
 		return &cmd.ConfigurationError{
@@ -482,28 +472,12 @@ func (c *getAuthStrategyCmd) runE(cobraCmd *cobra.Command, args []string) error 
 	if len(helper.GetArgs()) == 1 { // validate above checks that args is 0 or 1
 		id := strings.TrimSpace(helper.GetArgs()[0])
 
-		isUUID := util.IsValidUUID(id)
-
-		if !isUUID {
-			// If the ID is not a UUID, then it is a name
-			// search for the auth strategy by name
-			strategy, err := runListByName(id, c.strategyType, sdk.GetAppAuthStrategiesAPI(), helper, cfg)
-			if err != nil {
-				return err
-			}
-			return tableview.RenderForFormat(
-				helper,
-				false,
-				outType,
-				printer,
-				helper.GetStreams(),
-				authStrategyToDisplayRecord(*strategy),
-				strategy,
-				"",
-				tableview.WithRootLabel(helper.GetCmd().Name()),
-			)
+		var strategy *kkComps.AppAuthStrategy
+		if util.IsValidUUID(id) {
+			strategy, err = runGet(id, sdk.GetAppAuthStrategiesAPI(), helper)
+		} else {
+			strategy, err = runListByName(id, c.strategyType, sdk.GetAppAuthStrategiesAPI(), helper, cfg)
 		}
-		strategy, err := runGet(id, sdk.GetAppAuthStrategiesAPI(), helper)
 		if err != nil {
 			return err
 		}

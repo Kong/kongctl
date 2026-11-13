@@ -1,12 +1,13 @@
 package lint
 
 import (
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
-	"sort"
+	"slices"
 
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
@@ -306,14 +307,14 @@ func Inputs(
 // sortResults sorts linting results by file, then line, then column for
 // deterministic output.
 func sortResults(results []Result) {
-	sort.Slice(results, func(i, j int) bool {
-		if results[i].File != results[j].File {
-			return results[i].File < results[j].File
+	slices.SortFunc(results, func(a, b Result) int {
+		if c := cmp.Compare(a.File, b.File); c != 0 {
+			return c
 		}
-		if results[i].Line != results[j].Line {
-			return results[i].Line < results[j].Line
+		if c := cmp.Compare(a.Line, b.Line); c != 0 {
+			return c
 		}
-		return results[i].Column < results[j].Column
+		return cmp.Compare(a.Column, b.Column)
 	})
 }
 

@@ -133,12 +133,7 @@ func adoptDashboard(
 		return nil, fmt.Errorf("update dashboard response missing dashboard data")
 	}
 
-	ns := namespace
-	if updated.Labels != nil {
-		if v, ok := updated.Labels[labels.NamespaceKey]; ok && v != "" {
-			ns = v
-		}
-	}
+	ns := adoptCommon.NamespaceFromLabels(updated.Labels, namespace)
 
 	return adoptCommon.FinishAdoption(ctx, &adoptCommon.AdoptResult{
 		ResourceType: "dashboard",

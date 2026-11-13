@@ -134,16 +134,7 @@ func MapAIGatewayToDeclarativeResource(gateway kkComps.AIGateway) declresources.
 		result.Labels = labels
 	}
 
-	if ns := strings.TrimSpace(gateway.Labels[decllabels.NamespaceKey]); ns != "" {
-		result.Kongctl = &declresources.KongctlMeta{Namespace: stringPointer(ns)}
-	}
-	if gateway.Labels[decllabels.ProtectedKey] == decllabels.TrueValue {
-		if result.Kongctl == nil {
-			result.Kongctl = &declresources.KongctlMeta{}
-		}
-		protected := true
-		result.Kongctl.Protected = &protected
-	}
+	result.Kongctl = KongctlMetaFromLabels(gateway.Labels)
 
 	return result
 }
@@ -218,7 +209,7 @@ func MapKeyAuthStrategyToDeclarativeResource(
 
 	resource := declresources.ApplicationAuthStrategyResource{
 		BaseResource: declresources.BaseResource{
-			Ref:     BuildAuthStrategyRef(resp.ID, resp.Name),
+			Ref:     BuildRef(resp.ID, resp.Name),
 			Kongctl: KongctlMetaFromLabels(resp.Labels),
 		},
 		CreateAppAuthStrategyRequest: kkComps.CreateCreateAppAuthStrategyRequestKeyAuth(req),
@@ -254,7 +245,7 @@ func MapOIDCStrategyToDeclarativeResource(
 
 	resource := declresources.ApplicationAuthStrategyResource{
 		BaseResource: declresources.BaseResource{
-			Ref:     BuildAuthStrategyRef(resp.ID, resp.Name),
+			Ref:     BuildRef(resp.ID, resp.Name),
 			Kongctl: KongctlMetaFromLabels(resp.Labels),
 		},
 		CreateAppAuthStrategyRequest: kkComps.CreateCreateAppAuthStrategyRequestOpenidConnect(req),
@@ -263,14 +254,7 @@ func MapOIDCStrategyToDeclarativeResource(
 	return resource, nil
 }
 
-func BuildAuthStrategyRef(id, name string) string {
-	if trimmed := strings.TrimSpace(id); trimmed != "" {
-		return trimmed
-	}
-	return strings.TrimSpace(name)
-}
-
-func BuildDCRProviderRef(id, name string) string {
+func BuildRef(id, name string) string {
 	if trimmed := strings.TrimSpace(id); trimmed != "" {
 		return trimmed
 	}
@@ -460,7 +444,7 @@ func FetchControlPlaneGroupMembers(
 func MapNormalizedDCRProvider(provider helpers.NormalizedDCRProviderPayload) declresources.DCRProviderResource {
 	resource := declresources.DCRProviderResource{
 		BaseResource: declresources.BaseResource{
-			Ref:     BuildDCRProviderRef(provider.ID, provider.Name),
+			Ref:     BuildRef(provider.ID, provider.Name),
 			Kongctl: KongctlMetaFromLabels(provider.Labels),
 		},
 		Name:         provider.Name,

@@ -388,9 +388,7 @@ func aiGatewayAuthStrategyToDisplayRecord(
 	raw := aiGatewayAuthStrategyRawMap(provider)
 
 	id := aiGatewayAuthStrategyStringFieldFromRaw(raw, aiGatewayFieldID)
-	if id != "" {
-		id = strings.TrimSpace(id)
-	} else {
+	if id == "" {
 		id = aiGatewayMissingValue
 	}
 
@@ -493,18 +491,9 @@ func aiGatewayAuthStrategyRedactedRawMap(provider kkComps.AIGatewayAuthStrategy)
 }
 
 func redactAIGatewayAuthStrategySecrets(value any) map[string]any {
-	raw, ok := value.(map[string]any)
+	result, ok := redactAIGatewayAuthStrategyValue(value).(map[string]any)
 	if !ok {
 		return map[string]any{}
-	}
-
-	result := make(map[string]any, len(raw))
-	for key, val := range raw {
-		if strings.EqualFold(key, "client_secret") {
-			result[key] = "[redacted]"
-			continue
-		}
-		result[key] = redactAIGatewayAuthStrategyValue(val)
 	}
 	return result
 }

@@ -670,12 +670,10 @@ func (r *ReferenceResolver) extractFieldFromResource(resource resources.Resource
 // findFieldByJSONTag finds a struct field by its JSON tag
 func (r *ReferenceResolver) findFieldByJSONTag(val reflect.Value, jsonTag string) reflect.Value {
 	t := val.Type()
-	for i := 0; i < t.NumField(); i++ {
+	for i := range t.NumField() {
 		field := t.Field(i)
 		tag := field.Tag.Get("json")
-		if idx := strings.Index(tag, ","); idx != -1 {
-			tag = tag[:idx]
-		}
+		tag, _, _ = strings.Cut(tag, ",")
 		if tag == jsonTag {
 			return val.Field(i)
 		}

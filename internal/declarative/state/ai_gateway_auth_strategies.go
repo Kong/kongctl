@@ -160,7 +160,7 @@ func (c *Client) CreateAIGatewayAuthStrategy(
 		return "", err
 	}
 
-	resourceName := aiGatewayAuthStrategyCreateRequestName(req)
+	resourceName := aiGatewayAuthStrategyRequestName(req)
 	resp, err := c.aiGatewayAuthStrategiesAPI.CreateAiGatewayAuthStrategy(ctx, gatewayID, req)
 	if err != nil {
 		return "", WrapAPIError(err, "create AI Gateway Auth Strategy", &ErrorWrapperOptions{
@@ -195,7 +195,7 @@ func (c *Client) UpdateAIGatewayAuthStrategy(
 		return "", err
 	}
 
-	resourceName := aiGatewayAuthStrategyUpdateRequestName(req)
+	resourceName := aiGatewayAuthStrategyRequestName(req)
 	resp, err := c.aiGatewayAuthStrategiesAPI.UpdateAiGatewayAuthStrategy(
 		ctx,
 		kkOps.UpdateAiGatewayAuthStrategyRequest{
@@ -247,19 +247,7 @@ func aiGatewayAuthStrategyRawMap(provider kkComps.AIGatewayAuthStrategy) (map[st
 	return raw, nil
 }
 
-func aiGatewayAuthStrategyCreateRequestName(req kkComps.CreateAIGatewayAuthStrategyRequest) string {
-	data, err := json.Marshal(req)
-	if err != nil {
-		return ""
-	}
-	var raw map[string]any
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return ""
-	}
-	return stringFromRaw(raw["name"])
-}
-
-func aiGatewayAuthStrategyUpdateRequestName(req kkComps.UpdateAIGatewayAuthStrategyRequest) string {
+func aiGatewayAuthStrategyRequestName(req any) string {
 	data, err := json.Marshal(req)
 	if err != nil {
 		return ""

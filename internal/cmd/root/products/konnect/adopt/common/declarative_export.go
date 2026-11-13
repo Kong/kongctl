@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -336,7 +337,7 @@ func (e *AdoptionExport) externalParent(parent AdoptionParent) (string, error) {
 
 func (e *AdoptionExport) render(selected []exportedDeclaration) ([]byte, error) {
 	root := &yamlv3.Node{Kind: yamlv3.MappingNode, Tag: "!!map"}
-	for _, declaration := range append(append([]exportedDeclaration(nil), e.parents...), selected...) {
+	for _, declaration := range slices.Concat(e.parents, selected) {
 		data, err := yaml.Marshal(declaration.fields)
 		if err != nil {
 			return nil, fmt.Errorf("cannot marshal declarative adoption output")

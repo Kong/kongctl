@@ -93,6 +93,14 @@ func ReadAdoptFlags(cmd *cobra.Command) (AdoptFlags, error) {
 	return flags, nil
 }
 
+// NamespaceFromLabels returns the response namespace when present, or the fallback.
+func NamespaceFromLabels(responseLabels map[string]string, fallback string) string {
+	if value := responseLabels[labels.NamespaceKey]; value != "" {
+		return value
+	}
+	return fallback
+}
+
 func PointerLabelMap(existing map[string]string, namespace string) map[string]*string {
 	result := make(map[string]*string, len(existing))
 	for k, v := range existing {
