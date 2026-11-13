@@ -1,28 +1,8 @@
 # Organization teams dump replay
 
-## Refresh pending
-
-The validated recording below predates assigned-role page-size propagation
-and the three-minute budget for the 153-write pagination setup command.
-Its replacement is required before this PR is ready; replay eligibility and
-strict validation remain enabled.
-
-The latest [recording run][pending] passed the live assertions and final
-reset in attempts 1 and 2, but cassette validation rejected transient HTTP
-responses. Attempt 3 failed with a recorder timeout. No candidate from these
-attempts was published or promoted. Resume with a fresh successful recording,
-review its ordering, and complete candidate and committed isolated replays.
-
-The live boundary checks also exposed the assigned-role endpoint's maximum
-page size of 100. Larger CLI settings now cap role requests at 100 and fetch
-the remaining pages. The previous recording's request counts and timings
-below describe the earlier implementation.
-
-## Previous validated recording
-
-The [live recording][record] captured 397 exchanges under the primary
+The [live recording][record] captured 504 exchanges under the primary
 acceptance organization lock with successful before/after resets. Its
-scenario passed in 122.049 seconds. Selected users are existing lookup
+scenario passed in 135.877 seconds. Selected users are existing lookup
 subjects, not created users. Live runs still require their email inputs;
 replay uses reserved synthetic identities without Konnect credentials.
 
@@ -34,17 +14,32 @@ memberships, dump/no-op planning, a reset boundary, reconstruction from the
 dump, and final read-back.
 
 A separate namespace contains 51 APIs and one team with 101 assigned Admin
-and Viewer roles. This exceeds the reader's requested 100-role page size.
-Five dumps use `--page-size` values 1, 10, 99, 100 and 101 and must export all
-101 assignments. Both apply and sync plans use the complete original
-manifest and must report zero changes, independently of dump output.
+and Viewer roles. Five dumps use `--page-size` values 1, 10, 99, 100 and
+101 and must export all 101 assignments. Both apply and sync plans use the
+complete original manifest and must report zero changes, independently of
+dump output.
+
+The recording verifies the actual assigned-role HTTP requests:
+
+| Configured page size | Role request size | Pages | Returned role counts |
+| --- | --- | --- | --- |
+| 1 | 1 | 101 | One role on every page |
+| 10 | 10 | 11 | Ten roles on ten pages, then one |
+| 99 | 99 | 2 | 99, 2 |
+| 100 | 100 | 2 | 100, 1 |
+| 101 | 100 | 2 | 100, 1 |
+
+Konnect rejects assigned-role page sizes above 100. The reader caps larger
+CLI settings for this endpoint and continues paging; the team collection
+still receives the configured size. No pagination reads are skipped.
 
 Two subsequent syncs each remove exactly one assignment. Dump and no-op
-apply/sync planning are repeated at 100 and 99 roles. The recording proves
-two assigned-role requests at 101 roles (100 plus 1), and exactly one at
-100 and 99. No page request, assertion, state transition or reset is skipped.
-Unit tests additionally cover empty collections, 1-item pages, boundaries
-around 10 and 200, capped response sizes and later-page failures.
+apply/sync planning are repeated at 100 and 99 roles. Each of those role
+collections takes exactly one page, with no extra empty-page request.
+Deletion lookup stops on the page containing the target, while planning
+reads every page. Unit tests additionally cover empty collections, 1-item
+pages, boundaries around 10 and 200, capped responses, larger configured
+page sizes, and later-page failures.
 
 ## Command boundaries and ordering
 
@@ -60,15 +55,19 @@ around 10 and 200, capped response sizes and later-page failures.
 | 68-82 | Reconstruct teams and memberships from the dump |
 | 83-94 | Read back reconstructed teams and memberships |
 | 95-249 | Bootstrap pagination APIs, team and 101 roles |
-| 250-279 | Five dumps with different page-size settings |
-| 280-283, 284-287 | Original 101-role manifest apply and sync plans |
-| 288-296 | Remove one assignment to reach 100 roles |
-| 297-301 | Dump exactly 100 roles |
-| 302-304, 305-307 | Original 100-role manifest apply and sync plans |
-| 308-314 | Remove one assignment to reach 99 roles |
-| 315-319 | Dump 99 roles |
-| 320-322, 323-325 | Original 99-role manifest apply and sync plans |
-| 326-397 | Final reset, including all 51 APIs |
+| 250-354 | Dump 101 roles with page size 1 |
+| 355-369 | Dump 101 roles with page size 10 |
+| 370-375 | Dump 101 roles with page size 99 |
+| 376-381 | Dump 101 roles with page size 100 |
+| 382-387 | Dump 101 roles with page size 101 |
+| 388-391, 392-395 | Original 101-role manifest apply and sync plans |
+| 396-403 | Remove one assignment to reach 100 roles |
+| 404-408 | Dump exactly 100 roles |
+| 409-411, 412-414 | Original 100-role manifest apply and sync plans |
+| 415-421 | Remove one assignment to reach 99 roles |
+| 422-426 | Dump 99 roles |
+| 427-429, 430-432 | Original 99-role manifest apply and sync plans |
+| 433-504 | Final reset, including all 51 APIs |
 
 Reviewed phases are bound to the exact candidate SHA-256:
 
@@ -81,25 +80,23 @@ Reviewed phases are bound to the exact candidate SHA-256:
 | 51-63 | Mid-round-trip reset resource inventory |
 | 77-82 | Independent reconstruction operations |
 | 87-91 | Team/user reads during the verification dump |
-| 330-342 | Final reset resource inventory |
+| 437-449 | Final reset resource inventory |
 
 The bulk pagination bootstrap uses `maxConcurrency: 1` to keep its creation
-order deterministic. Those requests, all pagination reads and both
-single-assignment deletions remain strictly ordered. Every phase is
-bounded to one command; parent creation, repeated-target order and
-read-before-delete dependencies remain enforced by the existing matcher.
-No matcher or sanitization rules were changed.
+order deterministic. Its 153 writes have a three-minute command budget.
+Those requests, all pagination reads and both single-assignment deletions
+remain strictly ordered. Every phase is bounded to one command; parent
+creation, repeated-target order and read-before-delete dependencies remain
+enforced by the existing matcher. No matching or sanitization rules changed.
 
-The [isolated validation][replay] matched all 397 exchanges three times
-with only loopback networking before promotion. Scenario durations were
-7.356, 7.398 and 7.340 seconds. Packing preserves all requests, responses,
-ordering and provenance. A separate validation of the committed packed
-representation is linked in the PR.
+The [isolated candidate validation][replay] matched all 504 exchanges three
+times with only loopback networking before promotion. Packing preserves
+all requests, responses, ordering and provenance. The committed packed
+representation is verified separately in isolated CI.
 
 Only eligible PRs replay this scenario. Main and force-live runs remain
 live and require the registered users. Input, command or assertion changes
 require a new recording in the same PR; replay eligibility is unchanged.
 
-[record]: https://github.com/Kong/kongctl/actions/runs/43497700222
-[replay]: https://github.com/Kong/kongctl/actions/runs/43499384606
-[pending]: https://github.com/Kong/kongctl/actions/runs/43521889115
+[record]: https://github.com/Kong/kongctl/actions/runs/43527056354
+[replay]: https://github.com/Kong/kongctl/actions/runs/43528255273
