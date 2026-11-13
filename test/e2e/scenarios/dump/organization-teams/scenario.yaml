@@ -257,6 +257,7 @@ steps:
   - name: 004-bootstrap-pagination
     commands:
       - name: 000-sync-pagination-fixture
+        maxConcurrency: 1
         outputFormat: json
         run:
           - sync
@@ -277,7 +278,6 @@ steps:
                 status: success
 
   - name: 005-verify-101-role-boundary
-    skipInputs: true
     commands:
       - name: 000-dump-101-roles-page-size-1
         outputFormat: none
@@ -437,7 +437,6 @@ steps:
                 total_changes: 0
 
   - name: 006-verify-100-role-boundary
-    skipInputs: true
     commands:
       - name: 000-sync-to-100-roles
         outputFormat: json
@@ -525,7 +524,6 @@ steps:
                 total_changes: 0
 
   - name: 007-verify-99-role-boundary
-    skipInputs: true
     commands:
       - name: 000-sync-to-99-roles
         outputFormat: json
