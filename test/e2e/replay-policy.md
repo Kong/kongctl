@@ -93,7 +93,8 @@ enters their reset or scenario code. The separate replay job uses the same
 compiled binaries without Konnect credentials or external networking.
 
 For readiness dispatches, replay execution and verification load scripts,
-parser dependencies, and the isolation wrapper from the default branch. A
+parser dependencies, and the isolation wrapper from the workflow's pinned
+revision (the default branch for automatic dispatch). A
 separate `scenario-data` artifact from the admitted build supplies its
 inventory, inputs, and cassettes through `--root`. The job's admitted head SHA
 is supplied as `--commit` for provenance; replay jobs never check out the PR

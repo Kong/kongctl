@@ -131,7 +131,7 @@ class RoutingTest(unittest.TestCase):
         self.assertIn("SCENARIO_COMMIT: ${{ needs.e2e-needed.outputs.checkout_ref }}", replay_job)
         self.assertNotIn("needs.e2e-needed.outputs.checkout_repository", replay_job)
         for job in (replay_job, suite.split("  e2e-replay-verify:", 1)[1].split("  e2e-verify:", 1)[0]):
-            self.assertIn("ref: ${{ github.event.repository.default_branch }}", job)
+            self.assertIn("ref: ${{ github.workflow_sha }}", job)
             self.assertIn("path: scenario-data", job)
             self.assertNotIn("ref: ${{ needs.e2e-needed.outputs.checkout_ref }}", job)
             self.assertIn('--commit "$SCENARIO_COMMIT"', job)

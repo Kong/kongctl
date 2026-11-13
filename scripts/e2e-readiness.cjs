@@ -1,4 +1,4 @@
-// Trusted controller code: always load this module from the default branch.
+// Load this module from the same trusted revision as the workflow definition.
 const PREREQUISITES = ['CI Test', 'Checks'];
 const REQUIRED = new RegExp(
   '^(go\\.mod|go\\.sum|[^/]+\\.go|internal/.*|test/e2e/.*|Makefile|' +
@@ -89,13 +89,25 @@ function api(github, context) {
 async function admit({github, context, core}) {
   const client = api(github, context);
   const s = await client.snapshot(Number(process.env.READINESS_PR));
-  const accepted = !s.fork && s.required && s.ready && s.pr.head.sha === process.env.READINESS_SHA &&
-    s.environment === process.env.READINESS_ENV && s.mode === process.env.READINESS_MODE;
+  let reason = '';
+  if (s.pr.head.sha !== process.env.READINESS_SHA) {
+    reason = `Queued SHA ${process.env.READINESS_SHA}; current PR head ${s.pr.head.sha}.`;
+  } else if (s.pr.state !== 'open') {
+    reason = 'PR is no longer open.';
+  } else if (s.fork) {
+    reason = 'Fork PR requires exact-SHA trusted maintainer execution.';
+  } else if (s.environment !== process.env.READINESS_ENV || s.mode !== process.env.READINESS_MODE) {
+    reason = 'Target environment or live/replay requirement changed while queued.';
+  } else if (!s.required || !s.ready) {
+    reason = 'PR no longer requires E2E or its review/CI readiness changed while queued.';
+  }
+  const accepted = !reason;
   core.setOutput('attempt', process.env.GITHUB_RUN_ATTEMPT);
   core.setOutput('accepted', String(accepted));
+  core.setOutput('reason', reason);
   core.setOutput('sha', s.pr.head.sha);
   core.setOutput('mode', s.mode);
-  core.info(accepted ? `Admitted ${s.key}` : 'Readiness changed while queued; skipping expensive work.');
+  core.info(accepted ? `Admitted ${s.key}` : `Skipping expensive work: ${reason}`);
 }
 
 async function reconcile({github, context, core}) {
@@ -118,6 +130,7 @@ async function reconcile({github, context, core}) {
   const runs = await client.paginate(github.rest.actions.listWorkflowRuns, {
     workflow_id: 'e2e.yaml', event: 'workflow_dispatch',
   });
+  let deployed;
   const base = `https://github.com/${context.repo.owner}/${context.repo.repo}`;
   for (const {number} of pulls) {
     let s = await client.snapshot(number);
@@ -141,7 +154,11 @@ async function reconcile({github, context, core}) {
         const verify = jobs.find(job => job.name === 'Verify scenario results and coverage');
         // A successful workflow with skipped validation is not evidence of a pass.
         const needed = jobs.find(job => job.name === 'Determine scenario requirement');
-        skipped = needed?.conclusion === 'success' && verify?.conclusion === 'skipped';
+        const revisionSkipped = jobs.some(job => job.conclusion === 'success' &&
+          job.steps?.some(step => step.name === 'Recheck PR head before scenarios' && step.conclusion === 'success') &&
+          job.steps?.some(step => step.name === 'Run assigned Konnect scenarios' && step.conclusion === 'skipped'));
+        skipped = run.conclusion !== 'cancelled' && needed?.conclusion === 'success' &&
+          (verify?.conclusion === 'skipped' || revisionSkipped);
         state = run.conclusion === 'success' && verify?.conclusion === 'success' ? 'success' : 'failure';
         description = state === 'success'
           ? 'E2E validation passed.' : 'E2E failed or cancelled; retry via readiness controller.';
@@ -160,13 +177,29 @@ async function reconcile({github, context, core}) {
       // Re-fetch before reserving. All controller executions share one queue.
       const current = await client.snapshot(number);
       if (current.key !== s.key || !current.ready || !current.required) continue;
-      await client.status(s.pr.head.sha, s.statusContext, 'pending', `Reserved ${process.env.GITHUB_RUN_ID}`, url);
-      await github.rest.actions.createWorkflowDispatch({...context.repo, workflow_id: 'e2e.yaml',
-        ref: context.payload.repository.default_branch,
-        inputs: {dispatch_source: 'readiness', readiness_pr: String(number), readiness_sha: s.pr.head.sha,
-          readiness_mode: s.mode, readiness_ticket: process.env.GITHUB_RUN_ID, konnect_environment: s.environment}});
-      state = 'pending';
-      description = 'E2E validation scheduled.';
+      if (deployed === undefined) {
+        try {
+          await github.rest.repos.getContent({...context.repo, path: 'scripts/e2e-readiness.cjs',
+            ref: context.payload.repository.default_branch});
+          deployed = true;
+        } catch (error) {
+          if (error.status !== 404) throw error;
+          deployed = false;
+        }
+      }
+      if (!deployed) {
+        state = 'pending';
+        description = 'Awaiting readiness controller default-branch deployment.';
+        core.info(description);
+      } else {
+        await client.status(s.pr.head.sha, s.statusContext, 'pending', `Reserved ${process.env.GITHUB_RUN_ID}`, url);
+        await github.rest.actions.createWorkflowDispatch({...context.repo, workflow_id: 'e2e.yaml',
+          ref: context.payload.repository.default_branch,
+          inputs: {dispatch_source: 'readiness', readiness_pr: String(number), readiness_sha: s.pr.head.sha,
+            readiness_mode: s.mode, readiness_ticket: process.env.GITHUB_RUN_ID, konnect_environment: s.environment}});
+        state = 'pending';
+        description = 'E2E validation scheduled.';
+      }
     }
     // This is the only writer of the aggregate PR gate. Scenario jobs only
     // publish keyed fork evidence; old automatic runs cannot overwrite it.

@@ -618,6 +618,26 @@ select separate evidence; old runs cannot overwrite the new requirement.
 Returning to a previously validated equivalent requirement reuses its result.
 The controller alone writes the aggregate `E2E Required` PR merge gate.
 
+Queued historical runs can remain visible in Actions. When the environment
+queue opens, admission compares the queued SHA with the current PR head and
+skips obsolete revisions before building. Each live shard checks the PR head
+again after its org lock opens, immediately before scenarios and resets.
+A stale or closed PR produces a notice and an admission artifact containing
+the queued/current SHAs and reason. The consolidated summary says
+`SUPERSEDED`, rather than `NOT REQUIRED`, and includes the skip evidence.
+No stale result can satisfy the current revision's merge gate. Runs that
+already started mutating an org finish normally, including cleanup; the
+controller never cancels them to make room for a newer commit. Manual branch
+runs without a PR number remain explicit requests to validate that revision.
+
+Controller and replay tooling checkouts pin `github.workflow_sha`, matching
+the workflow definition rather than an event's PR code or moving branch tip.
+Automatic scenario dispatch still targets the default branch. Before the
+controller is deployed there, a branch evaluation leaves the gate pending
+with an explicit deployment message and makes no dispatch reservation. This
+lets the introducing PR exercise its controller without loading a module
+that does not yet exist on `main`.
+
 Dispatch reservations are commit statuses under `E2E Validation / ...`.
 A single controller queue serializes evaluations; reservations deduplicate
 bursts even before dispatched runs become visible. A skipped admission is

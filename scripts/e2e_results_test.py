@@ -76,6 +76,59 @@ class ResultsTest(unittest.TestCase):
                 self.assertNotIn('GITHUB_STEP_SUMMARY', step.get('run', ''))
                 self.assertNotIn('core.summary', step.get('with', {}).get('script', ''))
 
+    def test_org_lock_admission_guards_remote_scenarios(self):
+        guard = self.step('e2e', 'Recheck PR head before scenarios')
+        steps = self.jobs['e2e']['steps']
+        self.assertLess(steps.index(guard), steps.index(self.step('e2e', 'Run assigned Konnect scenarios')))
+        self.assertEqual("steps.revision.outputs.accepted != 'false'",
+                         self.step('e2e', 'Run assigned Konnect scenarios')['if'])
+        self.assertEqual('revision', guard['id'])
+        self.assertEqual('read', self.jobs['e2e']['permissions']['pull-requests'])
+
+    def test_org_lock_guard_checks_api_head_and_records_skip_evidence(self):
+        step = self.step('e2e', 'Recheck PR head before scenarios')
+        script = step['with']['script']
+        harness = r"""
+const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+const outputs = {};
+const notices = [];
+const github = {rest: {pulls: {get: async args => {
+  if (args.pull_number !== 12) throw new Error('wrong PR');
+  if (process.env.API_FAILURE === 'true') throw new Error('API unavailable');
+  return {data: {number: 12, state: process.env.PR_STATE, head: {sha: process.env.CURRENT_SHA}}};
+}}}};
+const core = {setOutput: (key, value) => {outputs[key] = value;}, notice: value => notices.push(value)};
+new AsyncFunction('github', 'context', 'core', 'require', process.env.GUARD_SCRIPT)(
+  github, {repo: {owner: 'Kong', repo: 'kongctl'}, runId: 99}, core, require
+).then(() => console.log(JSON.stringify({outputs, notices}))).catch(error => {
+  console.error(error.message); process.exitCode = 1;
+});
+"""
+        for state, head, failure in [('open', 'old', False), ('open', 'new', False),
+                                     ('closed', 'old', False), ('open', 'old', True)]:
+            with self.subTest(state=state, head=head, failure=failure), tempfile.TemporaryDirectory() as temporary:
+                result = subprocess.run(['node', '-e', harness], capture_output=True, text=True, env={
+                    **os.environ, 'GUARD_SCRIPT': script, 'VALIDATION_PR': '12', 'VALIDATION_SHA': 'old',
+                    'CURRENT_SHA': head, 'PR_STATE': state, 'API_FAILURE': str(failure).lower(),
+                    'KONGCTL_E2E_ARTIFACTS_DIR': temporary, 'KONGCTL_E2E_MATRIX_ORG': 'org',
+                    'GITHUB_RUN_ATTEMPT': '1',
+                })
+                if failure:
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn('API unavailable', result.stderr)
+                    continue
+                self.assertEqual(result.returncode, 0, result.stderr)
+                data = json.loads(result.stdout)
+                accepted = state == 'open' and head == 'old'
+                self.assertEqual(str(accepted).lower(), data['outputs']['accepted'])
+                evidence = Path(temporary) / 'e2e-admission.json'
+                self.assertEqual(not accepted, evidence.exists())
+                if not accepted:
+                    record = json.loads(evidence.read_text())
+                    self.assertEqual(99, record['run_id'])
+                    self.assertIn(f'current head {head}', record['reason'])
+                    self.assertIn('queued SHA old', data['notices'][0])
+
     def artifact_name(self, attempt, org):
         name = self.step('e2e', 'Upload scenario results and diagnostics')['with']['name']
         return (name.replace('${{ github.run_id }}', '123')

@@ -15,13 +15,16 @@ function fixture() {
 
 function fake() {
   const {pr, approval, ci} = fixture();
-  const state = {pr, reviews: [approval], ci, runs: [], statuses: [], dispatches: [],
+  const state = {deployed: true, pr, reviews: [approval], ci, runs: [], statuses: [], dispatches: [],
     threads: [], decision: 'APPROVED', files: [{filename: 'main.go'}], jobs: [], outputs: {}};
   const method = name => Object.assign(() => {}, {method: name});
   const github = {rest: {
     pulls: {get: async () => ({data: structuredClone(state.pr)}), list: method('pulls'),
       listFiles: method('files'), listReviews: method('reviews')},
-    repos: {listCommitStatusesForRef: method('statuses'), createCommitStatus: async status => {
+    repos: {getContent: async () => {
+      if (!state.deployed) throw Object.assign(new Error('Not found'), {status: 404});
+      return {data: {type: 'file'}};
+    }, listCommitStatusesForRef: method('statuses'), createCommitStatus: async status => {
       state.statuses.unshift(status);
     }},
     actions: {listWorkflowRunsForRepo: method('ci'), listWorkflowRuns: method('runs'),
@@ -282,4 +285,61 @@ test('rerunning a successful run temporarily invalidates its evidence', async ()
   await reconcile(f);
   assert.equal(gate(f).state, 'pending');
   assert.equal(f.state.dispatches.length, 1);
+});
+
+
+test('controller checkout matches its workflow revision before the module exists on main', () => {
+  const {readFileSync} = require('node:fs');
+  const {resolve} = require('node:path');
+  const workflow = readFileSync(resolve(__dirname, '../../.github/workflows/e2e-required-status.yaml'), 'utf8');
+  const checkout = workflow.split('      - name: Checkout trusted controller')[1].split('      - name:')[0];
+  assert.ok(checkout.includes('ref: ${{ github.workflow_sha }}'));
+});
+
+test('undeployed default branch defers dispatch without reserving or falsely passing validation', async () => {
+  const f = fake();
+  f.state.deployed = false;
+  await reconcile(f);
+  assert.equal(f.state.dispatches.length, 0);
+  assert.equal(gate(f).state, 'pending');
+  assert.match(gate(f).description, /default.branch deployment/);
+  assert.ok(!f.state.statuses.some(status => status.context === requirement(f.state.pr).statusContext));
+  f.state.deployed = true;
+  await reconcile(f);
+  assert.equal(f.state.dispatches.length, 1);
+});
+
+
+test('a queue of revisions admits only the current head and explains each stale skip', async () => {
+  const f = fake();
+  const current = f.state.pr.head.sha;
+  Object.assign(process.env, {READINESS_PR: '12', READINESS_ENV: 'com', READINESS_MODE: 'pr'});
+  for (const sha of ['b'.repeat(40), 'c'.repeat(40), current]) {
+    process.env.READINESS_SHA = sha;
+    await admit(f);
+    assert.equal(f.state.outputs.accepted, String(sha === current));
+    if (sha !== current) {
+      assert.ok(f.state.outputs.reason.includes(sha));
+      assert.ok(f.state.outputs.reason.includes(current));
+    }
+  }
+  assert.equal(f.state.statuses.length, 0);
+});
+
+test('an org-lock revision skip is retried when current readiness returns', async () => {
+  const f = fake();
+  await reconcile(f);
+  f.state.runs = [dispatchedRun(f, 'failure')];
+  f.state.jobs = [
+    {name: 'Determine scenario requirement', conclusion: 'success'},
+    {name: 'Verify scenario results and coverage', conclusion: 'failure'},
+    {name: 'Run scenarios — org', conclusion: 'success', steps: [
+      {name: 'Recheck PR head before scenarios', conclusion: 'success'},
+      {name: 'Run assigned Konnect scenarios', conclusion: 'skipped'},
+    ]},
+  ];
+  process.env.GITHUB_RUN_ID = '101';
+  await reconcile(f);
+  assert.equal(f.state.dispatches.length, 2);
+  assert.equal(gate(f).state, 'pending');
 });
