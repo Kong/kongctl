@@ -1,62 +1,84 @@
 # Organization teams dump replay
 
-The [live recording][record] captured 114 exchanges under the existing
-primary acceptance organization lock with successful before/after resets.
-The selected users are pre-registered lookup targets, not created users.
-Their email inputs remain required for live runs. Replay supplies reserved
-synthetic identities and needs neither credentials nor registered users.
+The [live recording][record] captured 397 exchanges under the primary
+acceptance organization lock with successful before/after resets. Its
+scenario passed in 122.049 seconds. Selected users are existing lookup
+subjects, not created users. Live runs still require their email inputs;
+replay uses reserved synthetic identities without Konnect credentials.
 
-## Coverage and ordering
+## Coverage
 
-Coverage retains temporary system-account creation, both teams and their
-roles, user and system-account memberships, dump/no-op planning, a real
-reset boundary, reconstruction from the dump, and final read-back.
+The original membership and reconstruction coverage remains: temporary
+system-account creation, both teams and their roles, user and account
+memberships, dump/no-op planning, a reset boundary, reconstruction from the
+dump, and final read-back.
 
-Unlike the other replay scenarios, all three in-scenario resets execute
-against the proxy. Initial reset consumes 1-16; initial account creation
-is 17; bootstrap sync is 18-30; dump and no-op plan are 31-39 and 40-46.
-The mid-run reset consumes 47-66, including membership removal (49),
-system-account deletion (64), and both team deletions (65-66). Account
-recreation (67) precedes reconstruction (68-82). Read-back occupies 83-94;
-final reset consumes 95-114. No reset or state transition is skipped.
+A separate namespace contains 51 APIs and one team with 101 assigned Admin
+and Viewer roles. This exceeds the reader's requested 100-role page size.
+Five dumps use `--page-size` values 1, 10, 99, 100 and 101 and must export all
+101 assignments. Both apply and sync plans use the complete original
+manifest and must report zero changes, independently of dump output.
 
-Reviewed phases are bound to the exact recording SHA-256:
+Two subsequent syncs each remove exactly one assignment. Dump and no-op
+apply/sync planning are repeated at 100 and 99 roles. The recording proves
+two assigned-role requests at 101 roles (100 plus 1), and exactly one at
+100 and 99. No page request, assertion, state transition or reset is skipped.
+Unit tests additionally cover empty collections, 1-item pages, boundaries
+around 10 and 200, capped response sizes and later-page failures.
+
+## Command boundaries and ordering
+
+| Exchanges | Scenario operation |
+| --- | --- |
+| 1-16 | Initial reset |
+| 17 | Create temporary system account |
+| 18-30 | Bootstrap teams, roles and memberships |
+| 31-39 | Original organization-team dump |
+| 40-46 | No-op plan from that dump |
+| 47-66 | Reset before reconstruction |
+| 67 | Recreate temporary system account |
+| 68-82 | Reconstruct teams and memberships from the dump |
+| 83-94 | Read back reconstructed teams and memberships |
+| 95-249 | Bootstrap pagination APIs, team and 101 roles |
+| 250-279 | Five dumps with different page-size settings |
+| 280-283, 284-287 | Original 101-role manifest apply and sync plans |
+| 288-296 | Remove one assignment to reach 100 roles |
+| 297-301 | Dump exactly 100 roles |
+| 302-304, 305-307 | Original 100-role manifest apply and sync plans |
+| 308-314 | Remove one assignment to reach 99 roles |
+| 315-319 | Dump 99 roles |
+| 320-322, 323-325 | Original 99-role manifest apply and sync plans |
+| 326-397 | Final reset, including all 51 APIs |
+
+Reviewed phases are bound to the exact candidate SHA-256:
 
 | Exchanges | Independent work within one command |
 | --- | --- |
 | 4-16 | Initial reset resource inventory |
 | 25-30 | Independent team creation and assignments |
-| 32-36 | Team/user reads during initial dump |
+| 32-36 | Team/user reads during the initial dump |
 | 43-46 | Team/user/account reads in the no-op plan |
 | 51-63 | Mid-round-trip reset resource inventory |
 | 77-82 | Independent reconstruction operations |
 | 87-91 | Team/user reads during the verification dump |
-| 99-111 | Final reset resource inventory |
+| 330-342 | Final reset resource inventory |
 
-Command boundaries were checked against local replay harness timestamps.
-All other exchanges stay strictly ordered. Parent creation, repeated-target
-ordering, and read-before-delete dependencies remain enforced. The sole
-empty-response create exception is distinct users added to the same team;
-matching still checks the exact user ID, method, endpoint, path, and body.
+The bulk pagination bootstrap uses `maxConcurrency: 1` to keep its creation
+order deterministic. Those requests, all pagination reads and both
+single-assignment deletions remain strictly ordered. Every phase is
+bounded to one command; parent creation, repeated-target order and
+read-before-delete dependencies remain enforced by the existing matcher.
+No matcher or sanitization rules were changed.
 
-The refreshed recording passed [isolated validation][replay] three times
-with only loopback networking. Candidate data is sanitized before
-publication; no real user emails, profile names, or
-real-to-synthetic mappings are committed. Full user collections, active
-states, memberships, and roles remain represented.
-
-## Measurements
-
-The three isolated replays matched all 114 exchanges. Scenario durations
-were 1.276, 1.280, 1.474 seconds; wrapper durations were
-1.862, 1.870, 2.159 seconds. Recording timings include proxy overhead
-and are not a normal live baseline. These numbers measure execution work,
-not workflow wall-clock savings; setup and shared live-shard resets remain.
+The [isolated validation][replay] matched all 397 exchanges three times
+with only loopback networking before promotion. Scenario durations were
+7.356, 7.398 and 7.340 seconds. Packing preserves all requests, responses,
+ordering and provenance. A separate validation of the committed packed
+representation is linked in the PR.
 
 Only eligible PRs replay this scenario. Main and force-live runs remain
-live and still require the registered users. Changes to inputs, commands,
-or assertions require a new recording in the same PR. See the repository
-replay policy for the identity and environment-input restrictions.
+live and require the registered users. Input, command or assertion changes
+require a new recording in the same PR; replay eligibility is unchanged.
 
-[record]: https://github.com/Kong/kongctl/actions/runs/35553690971
-[replay]: https://github.com/Kong/kongctl/actions/runs/35554100472
+[record]: https://github.com/Kong/kongctl/actions/runs/43497700222
+[replay]: https://github.com/Kong/kongctl/actions/runs/43499384606
