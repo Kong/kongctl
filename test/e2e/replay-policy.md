@@ -92,6 +92,13 @@ exactly once, removes replay scenarios before weighted allocation, and never
 enters their reset or scenario code. The separate replay job uses the same
 compiled binaries without Konnect credentials or external networking.
 
+For readiness dispatches, replay execution and verification load scripts,
+parser dependencies, and the isolation wrapper from the default branch. A
+separate `scenario-data` checkout supplies the admitted revision's inventory,
+inputs, and cassettes through `--root`; its scripts and Makefile are never
+executed outside isolation. The compiled PR binaries execute only inside the
+loopback network namespace with a clean environment and dropped capabilities.
+
 The final verifier independently checks the routing plan, replay job outcome,
 recorded/isolated replay results, and exact live manifest/result coverage.
 Missing, duplicated, skipped or failed replay scenarios fail `E2E Required`.

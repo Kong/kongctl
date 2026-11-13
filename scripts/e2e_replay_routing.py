@@ -104,6 +104,7 @@ def main():
     parser.add_argument("--baseline", type=Path, help="optional frozen live observations for the run summary")
     parser.add_argument("--summary-output", type=Path, help="write Markdown here instead of the Actions summary")
     args = parser.parse_args()
+    args.root = args.root.resolve()
     if args.command == "allocation":
         print(allocation_id(args.root, args.mode))
         return
@@ -126,8 +127,11 @@ def main():
     for name in plan["replay"]:
         scenario = name.removesuffix("/scenario.yaml")
         output = args.results / scenario
-        subprocess.run(["bash", "scripts/e2e-replay-isolated.sh", "--scenario", scenario,
-                        "--test-binary", "e2e.test", "--output-dir", str(output)], check=True)
+        wrapper = Path(__file__).with_name("e2e-replay-isolated.sh").resolve()
+        subprocess.run(["bash", str(wrapper), "--scenario", scenario, "--root", str(args.root),
+                        "--binary", str(REPLAY.ROOT / "kongctl"),
+                        "--test-binary", str(REPLAY.ROOT / "e2e.test"),
+                        "--output-dir", str(output.resolve())], check=True)
         summaries.append(REPLAY.parse_json((output / "summary.json").read_bytes()))
     REPLAY.write_json(args.results / "replay-results.json", {
         "commit": commit, "run_id": os.environ["GITHUB_RUN_ID"],
