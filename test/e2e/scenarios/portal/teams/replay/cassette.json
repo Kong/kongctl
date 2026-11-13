@@ -1,11 +1,11 @@
 {
   "schema_version": 2,
   "scenario": "portal/teams",
-  "inputs_sha256": "sha256:741602061bffb16c415dce24f057688f55a718a36657654dc3abc80fe6443537",
+  "inputs_sha256": "sha256:574abc185ddd2d1d9ec2d37d11f486514465ceeceab64e0a121d4d37d63bd159",
   "source": {
     "kind": "recorded",
-    "commit": "155dfd8599c2d844c707069fc1e662f2d4dc1a14",
-    "run_url": "https://github.com/Kong/kongctl/actions/runs/41902501492"
+    "commit": "fc28c6988751dbdac28726c6c87305a5f9dedf54",
+    "run_url": "https://github.com/Kong/kongctl/actions/runs/43494073814"
   },
   "interactions": [
     {
@@ -68,7 +68,7 @@
           "name": "Developer Portal",
           "display_name": "Developer Portal",
           "description": "Portal for testing team management",
-          "default_domain": "4f828eecf001.us.kongportals.com",
+          "default_domain": "ef39a3ec2f36.us.kongportals.com",
           "authentication_enabled": false,
           "rbac_enabled": false,
           "auto_approve_developers": false,
@@ -79,9 +79,9 @@
           "labels": {
             "KONGCTL-namespace": "portal-teams-test"
           },
-          "updated_at": "2026-11-04T20:19:14.839Z",
-          "created_at": "2026-11-04T20:19:14.839Z",
-          "canonical_domain": "4f828eecf001.us.kongportals.com",
+          "updated_at": "2026-11-13T19:57:39.202Z",
+          "created_at": "2026-11-13T19:57:39.202Z",
+          "canonical_domain": "ef39a3ec2f36.us.kongportals.com",
           "sipr_enabled": false,
           "notifications_developer_pii_visibility_enabled": false
         },
@@ -104,12 +104,38 @@
         "status": 201,
         "body": {
           "can_own_applications": false,
-          "created_at": "2026-11-04T20:19:15.347920116Z",
+          "created_at": "2026-11-13T19:57:39.694062829Z",
           "description": "Mobile app developers",
           "id": "00000000-0000-4000-8000-000000000002",
           "konnect_managed": false,
           "name": "Mobile Team",
-          "updated_at": "2026-11-04T20:19:15.347920257Z"
+          "updated_at": "2026-11-13T19:57:39.694063058Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "POST",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
+        "query": [],
+        "body": {
+          "can_own_applications": true,
+          "description": "Backend developers working on APIs",
+          "name": "Backend Team"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "can_own_applications": true,
+          "created_at": "2026-11-13T19:57:39.875797171Z",
+          "description": "Backend developers working on APIs",
+          "id": "00000000-0000-4000-8000-000000000003",
+          "konnect_managed": false,
+          "name": "Backend Team",
+          "updated_at": "2026-11-13T19:57:39.875797373Z"
         },
         "content_type": "application/json"
       }
@@ -130,38 +156,12 @@
         "status": 201,
         "body": {
           "can_own_applications": false,
-          "created_at": "2026-11-04T20:19:15.553514577Z",
+          "created_at": "2026-11-13T19:57:40.091459614Z",
           "description": "Frontend developers building UIs",
-          "id": "00000000-0000-4000-8000-000000000003",
+          "id": "00000000-0000-4000-8000-000000000004",
           "konnect_managed": false,
           "name": "Frontend Team",
-          "updated_at": "2026-11-04T20:19:15.55351472Z"
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "POST",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
-        "query": [],
-        "body": {
-          "can_own_applications": false,
-          "description": "Backend developers working on APIs",
-          "name": "Backend Team"
-        }
-      },
-      "response": {
-        "status": 201,
-        "body": {
-          "can_own_applications": false,
-          "created_at": "2026-11-04T20:19:15.737001032Z",
-          "description": "Backend developers working on APIs",
-          "id": "00000000-0000-4000-8000-000000000004",
-          "konnect_managed": false,
-          "name": "Backend Team",
-          "updated_at": "2026-11-04T20:19:15.737001157Z"
+          "updated_at": "2026-11-13T19:57:40.091459751Z"
         },
         "content_type": "application/json"
       }
@@ -210,10 +210,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "4f828eecf001.us.kongportals.com",
-              "default_domain": "4f828eecf001.us.kongportals.com",
-              "created_at": "2026-11-04T20:19:14.839Z",
-              "updated_at": "2026-11-04T20:19:14.839Z",
+              "canonical_domain": "ef39a3ec2f36.us.kongportals.com",
+              "default_domain": "ef39a3ec2f36.us.kongportals.com",
+              "created_at": "2026-11-13T19:57:39.202Z",
+              "updated_at": "2026-11-13T19:57:39.202Z",
               "labels": {
                 "KONGCTL-namespace": "portal-teams-test"
               }
@@ -252,31 +252,31 @@
         "body": {
           "data": [
             {
-              "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.737001Z",
+              "can_own_applications": true,
+              "created_at": "2026-11-13T19:57:39.875797Z",
               "description": "Backend developers working on APIs",
-              "id": "00000000-0000-4000-8000-000000000004",
-              "konnect_managed": false,
-              "name": "Backend Team",
-              "updated_at": "2026-11-04T20:19:15.737001Z"
-            },
-            {
-              "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.553514Z",
-              "description": "Frontend developers building UIs",
               "id": "00000000-0000-4000-8000-000000000003",
               "konnect_managed": false,
-              "name": "Frontend Team",
-              "updated_at": "2026-11-04T20:19:15.553514Z"
+              "name": "Backend Team",
+              "updated_at": "2026-11-13T19:57:39.875797Z"
             },
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.34792Z",
+              "created_at": "2026-11-13T19:57:40.091459Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-13T19:57:40.091459Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-13T19:57:39.694062Z",
               "description": "Mobile app developers",
               "id": "00000000-0000-4000-8000-000000000002",
               "konnect_managed": false,
               "name": "Mobile Team",
-              "updated_at": "2026-11-04T20:19:15.34792Z"
+              "updated_at": "2026-11-13T19:57:39.694063Z"
             }
           ],
           "meta": {
@@ -334,10 +334,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "4f828eecf001.us.kongportals.com",
-              "default_domain": "4f828eecf001.us.kongportals.com",
-              "created_at": "2026-11-04T20:19:14.839Z",
-              "updated_at": "2026-11-04T20:19:14.839Z",
+              "canonical_domain": "ef39a3ec2f36.us.kongportals.com",
+              "default_domain": "ef39a3ec2f36.us.kongportals.com",
+              "created_at": "2026-11-13T19:57:39.202Z",
+              "updated_at": "2026-11-13T19:57:39.202Z",
               "labels": {
                 "KONGCTL-namespace": "portal-teams-test"
               }
@@ -376,31 +376,31 @@
         "body": {
           "data": [
             {
-              "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.737001Z",
+              "can_own_applications": true,
+              "created_at": "2026-11-13T19:57:39.875797Z",
               "description": "Backend developers working on APIs",
-              "id": "00000000-0000-4000-8000-000000000004",
-              "konnect_managed": false,
-              "name": "Backend Team",
-              "updated_at": "2026-11-04T20:19:15.737001Z"
-            },
-            {
-              "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.553514Z",
-              "description": "Frontend developers building UIs",
               "id": "00000000-0000-4000-8000-000000000003",
               "konnect_managed": false,
-              "name": "Frontend Team",
-              "updated_at": "2026-11-04T20:19:15.553514Z"
+              "name": "Backend Team",
+              "updated_at": "2026-11-13T19:57:39.875797Z"
             },
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.34792Z",
+              "created_at": "2026-11-13T19:57:40.091459Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-13T19:57:40.091459Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-13T19:57:39.694062Z",
               "description": "Mobile app developers",
               "id": "00000000-0000-4000-8000-000000000002",
               "konnect_managed": false,
               "name": "Mobile Team",
-              "updated_at": "2026-11-04T20:19:15.34792Z"
+              "updated_at": "2026-11-13T19:57:39.694063Z"
             }
           ],
           "meta": {
@@ -418,20 +418,20 @@
       "request": {
         "endpoint": "regional",
         "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000004",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000003",
         "query": [],
         "body": null
       },
       "response": {
         "status": 200,
         "body": {
-          "can_own_applications": false,
-          "created_at": "2026-11-04T20:19:15.737001Z",
+          "can_own_applications": true,
+          "created_at": "2026-11-13T19:57:39.875797Z",
           "description": "Backend developers working on APIs",
-          "id": "00000000-0000-4000-8000-000000000004",
+          "id": "00000000-0000-4000-8000-000000000003",
           "konnect_managed": false,
           "name": "Backend Team",
-          "updated_at": "2026-11-04T20:19:15.737001Z"
+          "updated_at": "2026-11-13T19:57:39.875797Z"
         },
         "content_type": "application/json"
       }
@@ -480,10 +480,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "4f828eecf001.us.kongportals.com",
-              "default_domain": "4f828eecf001.us.kongportals.com",
-              "created_at": "2026-11-04T20:19:14.839Z",
-              "updated_at": "2026-11-04T20:19:14.839Z",
+              "canonical_domain": "ef39a3ec2f36.us.kongportals.com",
+              "default_domain": "ef39a3ec2f36.us.kongportals.com",
+              "created_at": "2026-11-13T19:57:39.202Z",
+              "updated_at": "2026-11-13T19:57:39.202Z",
               "labels": {
                 "KONGCTL-namespace": "portal-teams-test"
               }
@@ -522,31 +522,31 @@
         "body": {
           "data": [
             {
-              "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.737001Z",
+              "can_own_applications": true,
+              "created_at": "2026-11-13T19:57:39.875797Z",
               "description": "Backend developers working on APIs",
-              "id": "00000000-0000-4000-8000-000000000004",
-              "konnect_managed": false,
-              "name": "Backend Team",
-              "updated_at": "2026-11-04T20:19:15.737001Z"
-            },
-            {
-              "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.553514Z",
-              "description": "Frontend developers building UIs",
               "id": "00000000-0000-4000-8000-000000000003",
               "konnect_managed": false,
-              "name": "Frontend Team",
-              "updated_at": "2026-11-04T20:19:15.553514Z"
+              "name": "Backend Team",
+              "updated_at": "2026-11-13T19:57:39.875797Z"
             },
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.34792Z",
+              "created_at": "2026-11-13T19:57:40.091459Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-13T19:57:40.091459Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-13T19:57:39.694062Z",
               "description": "Mobile app developers",
               "id": "00000000-0000-4000-8000-000000000002",
               "konnect_managed": false,
               "name": "Mobile Team",
-              "updated_at": "2026-11-04T20:19:15.34792Z"
+              "updated_at": "2026-11-13T19:57:39.694063Z"
             }
           ],
           "meta": {
@@ -604,10 +604,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "4f828eecf001.us.kongportals.com",
-              "default_domain": "4f828eecf001.us.kongportals.com",
-              "created_at": "2026-11-04T20:19:14.839Z",
-              "updated_at": "2026-11-04T20:19:14.839Z",
+              "canonical_domain": "ef39a3ec2f36.us.kongportals.com",
+              "default_domain": "ef39a3ec2f36.us.kongportals.com",
+              "created_at": "2026-11-13T19:57:39.202Z",
+              "updated_at": "2026-11-13T19:57:39.202Z",
               "labels": {
                 "KONGCTL-namespace": "portal-teams-test"
               }
@@ -646,31 +646,31 @@
         "body": {
           "data": [
             {
-              "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.737001Z",
+              "can_own_applications": true,
+              "created_at": "2026-11-13T19:57:39.875797Z",
               "description": "Backend developers working on APIs",
-              "id": "00000000-0000-4000-8000-000000000004",
-              "konnect_managed": false,
-              "name": "Backend Team",
-              "updated_at": "2026-11-04T20:19:15.737001Z"
-            },
-            {
-              "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.553514Z",
-              "description": "Frontend developers building UIs",
               "id": "00000000-0000-4000-8000-000000000003",
               "konnect_managed": false,
-              "name": "Frontend Team",
-              "updated_at": "2026-11-04T20:19:15.553514Z"
+              "name": "Backend Team",
+              "updated_at": "2026-11-13T19:57:39.875797Z"
             },
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.34792Z",
+              "created_at": "2026-11-13T19:57:40.091459Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-13T19:57:40.091459Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-13T19:57:39.694062Z",
               "description": "Mobile app developers",
               "id": "00000000-0000-4000-8000-000000000002",
               "konnect_managed": false,
               "name": "Mobile Team",
-              "updated_at": "2026-11-04T20:19:15.34792Z"
+              "updated_at": "2026-11-13T19:57:39.694063Z"
             }
           ],
           "meta": {
@@ -728,10 +728,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "4f828eecf001.us.kongportals.com",
-              "default_domain": "4f828eecf001.us.kongportals.com",
-              "created_at": "2026-11-04T20:19:14.839Z",
-              "updated_at": "2026-11-04T20:19:14.839Z",
+              "canonical_domain": "ef39a3ec2f36.us.kongportals.com",
+              "default_domain": "ef39a3ec2f36.us.kongportals.com",
+              "created_at": "2026-11-13T19:57:39.202Z",
+              "updated_at": "2026-11-13T19:57:39.202Z",
               "labels": {
                 "KONGCTL-namespace": "portal-teams-test"
               }
@@ -770,31 +770,31 @@
         "body": {
           "data": [
             {
-              "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.737001Z",
+              "can_own_applications": true,
+              "created_at": "2026-11-13T19:57:39.875797Z",
               "description": "Backend developers working on APIs",
-              "id": "00000000-0000-4000-8000-000000000004",
-              "konnect_managed": false,
-              "name": "Backend Team",
-              "updated_at": "2026-11-04T20:19:15.737001Z"
-            },
-            {
-              "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.553514Z",
-              "description": "Frontend developers building UIs",
               "id": "00000000-0000-4000-8000-000000000003",
               "konnect_managed": false,
-              "name": "Frontend Team",
-              "updated_at": "2026-11-04T20:19:15.553514Z"
+              "name": "Backend Team",
+              "updated_at": "2026-11-13T19:57:39.875797Z"
             },
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.34792Z",
+              "created_at": "2026-11-13T19:57:40.091459Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-13T19:57:40.091459Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-13T19:57:39.694062Z",
               "description": "Mobile app developers",
               "id": "00000000-0000-4000-8000-000000000002",
               "konnect_managed": false,
               "name": "Mobile Team",
-              "updated_at": "2026-11-04T20:19:15.34792Z"
+              "updated_at": "2026-11-13T19:57:39.694063Z"
             }
           ],
           "meta": {
@@ -812,9 +812,10 @@
       "request": {
         "endpoint": "regional",
         "method": "PATCH",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000004",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000003",
         "query": [],
         "body": {
+          "can_own_applications": false,
           "description": "Updated: Backend API developers"
         }
       },
@@ -822,12 +823,12 @@
         "status": 200,
         "body": {
           "can_own_applications": false,
-          "created_at": "2026-11-04T20:19:15.737001Z",
+          "created_at": "2026-11-13T19:57:39.875797Z",
           "description": "Updated: Backend API developers",
-          "id": "00000000-0000-4000-8000-000000000004",
+          "id": "00000000-0000-4000-8000-000000000003",
           "konnect_managed": false,
           "name": "Backend Team",
-          "updated_at": "2026-11-04T20:19:18.863542Z"
+          "updated_at": "2026-11-13T19:57:43.603242Z"
         },
         "content_type": "application/json"
       }
@@ -876,10 +877,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "4f828eecf001.us.kongportals.com",
-              "default_domain": "4f828eecf001.us.kongportals.com",
-              "created_at": "2026-11-04T20:19:14.839Z",
-              "updated_at": "2026-11-04T20:19:14.839Z",
+              "canonical_domain": "ef39a3ec2f36.us.kongportals.com",
+              "default_domain": "ef39a3ec2f36.us.kongportals.com",
+              "created_at": "2026-11-13T19:57:39.202Z",
+              "updated_at": "2026-11-13T19:57:39.202Z",
               "labels": {
                 "KONGCTL-namespace": "portal-teams-test"
               }
@@ -919,30 +920,30 @@
           "data": [
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.737001Z",
+              "created_at": "2026-11-13T19:57:39.875797Z",
               "description": "Updated: Backend API developers",
-              "id": "00000000-0000-4000-8000-000000000004",
-              "konnect_managed": false,
-              "name": "Backend Team",
-              "updated_at": "2026-11-04T20:19:18.863542Z"
-            },
-            {
-              "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.553514Z",
-              "description": "Frontend developers building UIs",
               "id": "00000000-0000-4000-8000-000000000003",
               "konnect_managed": false,
-              "name": "Frontend Team",
-              "updated_at": "2026-11-04T20:19:15.553514Z"
+              "name": "Backend Team",
+              "updated_at": "2026-11-13T19:57:43.603242Z"
             },
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.34792Z",
+              "created_at": "2026-11-13T19:57:40.091459Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-13T19:57:40.091459Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-13T19:57:39.694062Z",
               "description": "Mobile app developers",
               "id": "00000000-0000-4000-8000-000000000002",
               "konnect_managed": false,
               "name": "Mobile Team",
-              "updated_at": "2026-11-04T20:19:15.34792Z"
+              "updated_at": "2026-11-13T19:57:39.694063Z"
             }
           ],
           "meta": {
@@ -1000,10 +1001,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "4f828eecf001.us.kongportals.com",
-              "default_domain": "4f828eecf001.us.kongportals.com",
-              "created_at": "2026-11-04T20:19:14.839Z",
-              "updated_at": "2026-11-04T20:19:14.839Z",
+              "canonical_domain": "ef39a3ec2f36.us.kongportals.com",
+              "default_domain": "ef39a3ec2f36.us.kongportals.com",
+              "created_at": "2026-11-13T19:57:39.202Z",
+              "updated_at": "2026-11-13T19:57:39.202Z",
               "labels": {
                 "KONGCTL-namespace": "portal-teams-test"
               }
@@ -1043,30 +1044,30 @@
           "data": [
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.737001Z",
+              "created_at": "2026-11-13T19:57:39.875797Z",
               "description": "Updated: Backend API developers",
-              "id": "00000000-0000-4000-8000-000000000004",
-              "konnect_managed": false,
-              "name": "Backend Team",
-              "updated_at": "2026-11-04T20:19:18.863542Z"
-            },
-            {
-              "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.553514Z",
-              "description": "Frontend developers building UIs",
               "id": "00000000-0000-4000-8000-000000000003",
               "konnect_managed": false,
-              "name": "Frontend Team",
-              "updated_at": "2026-11-04T20:19:15.553514Z"
+              "name": "Backend Team",
+              "updated_at": "2026-11-13T19:57:43.603242Z"
             },
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.34792Z",
+              "created_at": "2026-11-13T19:57:40.091459Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-13T19:57:40.091459Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-13T19:57:39.694062Z",
               "description": "Mobile app developers",
               "id": "00000000-0000-4000-8000-000000000002",
               "konnect_managed": false,
               "name": "Mobile Team",
-              "updated_at": "2026-11-04T20:19:15.34792Z"
+              "updated_at": "2026-11-13T19:57:39.694063Z"
             }
           ],
           "meta": {
@@ -1124,10 +1125,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "4f828eecf001.us.kongportals.com",
-              "default_domain": "4f828eecf001.us.kongportals.com",
-              "created_at": "2026-11-04T20:19:14.839Z",
-              "updated_at": "2026-11-04T20:19:14.839Z",
+              "canonical_domain": "ef39a3ec2f36.us.kongportals.com",
+              "default_domain": "ef39a3ec2f36.us.kongportals.com",
+              "created_at": "2026-11-13T19:57:39.202Z",
+              "updated_at": "2026-11-13T19:57:39.202Z",
               "labels": {
                 "KONGCTL-namespace": "portal-teams-test"
               }
@@ -1167,30 +1168,30 @@
           "data": [
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.737001Z",
+              "created_at": "2026-11-13T19:57:39.875797Z",
               "description": "Updated: Backend API developers",
-              "id": "00000000-0000-4000-8000-000000000004",
-              "konnect_managed": false,
-              "name": "Backend Team",
-              "updated_at": "2026-11-04T20:19:18.863542Z"
-            },
-            {
-              "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.553514Z",
-              "description": "Frontend developers building UIs",
               "id": "00000000-0000-4000-8000-000000000003",
               "konnect_managed": false,
-              "name": "Frontend Team",
-              "updated_at": "2026-11-04T20:19:15.553514Z"
+              "name": "Backend Team",
+              "updated_at": "2026-11-13T19:57:43.603242Z"
             },
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.34792Z",
+              "created_at": "2026-11-13T19:57:40.091459Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-13T19:57:40.091459Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-13T19:57:39.694062Z",
               "description": "Mobile app developers",
               "id": "00000000-0000-4000-8000-000000000002",
               "konnect_managed": false,
               "name": "Mobile Team",
-              "updated_at": "2026-11-04T20:19:15.34792Z"
+              "updated_at": "2026-11-13T19:57:39.694063Z"
             }
           ],
           "meta": {
@@ -1248,10 +1249,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "4f828eecf001.us.kongportals.com",
-              "default_domain": "4f828eecf001.us.kongportals.com",
-              "created_at": "2026-11-04T20:19:14.839Z",
-              "updated_at": "2026-11-04T20:19:14.839Z",
+              "canonical_domain": "ef39a3ec2f36.us.kongportals.com",
+              "default_domain": "ef39a3ec2f36.us.kongportals.com",
+              "created_at": "2026-11-13T19:57:39.202Z",
+              "updated_at": "2026-11-13T19:57:39.202Z",
               "labels": {
                 "KONGCTL-namespace": "portal-teams-test"
               }
@@ -1312,10 +1313,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "4f828eecf001.us.kongportals.com",
-              "default_domain": "4f828eecf001.us.kongportals.com",
-              "created_at": "2026-11-04T20:19:14.839Z",
-              "updated_at": "2026-11-04T20:19:14.839Z",
+              "canonical_domain": "ef39a3ec2f36.us.kongportals.com",
+              "default_domain": "ef39a3ec2f36.us.kongportals.com",
+              "created_at": "2026-11-13T19:57:39.202Z",
+              "updated_at": "2026-11-13T19:57:39.202Z",
               "labels": {
                 "KONGCTL-namespace": "portal-teams-test"
               }
@@ -1355,30 +1356,30 @@
           "data": [
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.737001Z",
+              "created_at": "2026-11-13T19:57:39.875797Z",
               "description": "Updated: Backend API developers",
-              "id": "00000000-0000-4000-8000-000000000004",
-              "konnect_managed": false,
-              "name": "Backend Team",
-              "updated_at": "2026-11-04T20:19:18.863542Z"
-            },
-            {
-              "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.553514Z",
-              "description": "Frontend developers building UIs",
               "id": "00000000-0000-4000-8000-000000000003",
               "konnect_managed": false,
-              "name": "Frontend Team",
-              "updated_at": "2026-11-04T20:19:15.553514Z"
+              "name": "Backend Team",
+              "updated_at": "2026-11-13T19:57:43.603242Z"
             },
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.34792Z",
+              "created_at": "2026-11-13T19:57:40.091459Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-13T19:57:40.091459Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-13T19:57:39.694062Z",
               "description": "Mobile app developers",
               "id": "00000000-0000-4000-8000-000000000002",
               "konnect_managed": false,
               "name": "Mobile Team",
-              "updated_at": "2026-11-04T20:19:15.34792Z"
+              "updated_at": "2026-11-13T19:57:39.694063Z"
             }
           ],
           "meta": {
@@ -1450,10 +1451,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "4f828eecf001.us.kongportals.com",
-              "default_domain": "4f828eecf001.us.kongportals.com",
-              "created_at": "2026-11-04T20:19:14.839Z",
-              "updated_at": "2026-11-04T20:19:14.839Z",
+              "canonical_domain": "ef39a3ec2f36.us.kongportals.com",
+              "default_domain": "ef39a3ec2f36.us.kongportals.com",
+              "created_at": "2026-11-13T19:57:39.202Z",
+              "updated_at": "2026-11-13T19:57:39.202Z",
               "labels": {
                 "KONGCTL-namespace": "portal-teams-test"
               }
@@ -1493,21 +1494,21 @@
           "data": [
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.737001Z",
+              "created_at": "2026-11-13T19:57:39.875797Z",
               "description": "Updated: Backend API developers",
-              "id": "00000000-0000-4000-8000-000000000004",
+              "id": "00000000-0000-4000-8000-000000000003",
               "konnect_managed": false,
               "name": "Backend Team",
-              "updated_at": "2026-11-04T20:19:18.863542Z"
+              "updated_at": "2026-11-13T19:57:43.603242Z"
             },
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.553514Z",
+              "created_at": "2026-11-13T19:57:40.091459Z",
               "description": "Frontend developers building UIs",
-              "id": "00000000-0000-4000-8000-000000000003",
+              "id": "00000000-0000-4000-8000-000000000004",
               "konnect_managed": false,
               "name": "Frontend Team",
-              "updated_at": "2026-11-04T20:19:15.553514Z"
+              "updated_at": "2026-11-13T19:57:40.091459Z"
             }
           ],
           "meta": {
@@ -1565,10 +1566,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "4f828eecf001.us.kongportals.com",
-              "default_domain": "4f828eecf001.us.kongportals.com",
-              "created_at": "2026-11-04T20:19:14.839Z",
-              "updated_at": "2026-11-04T20:19:14.839Z",
+              "canonical_domain": "ef39a3ec2f36.us.kongportals.com",
+              "default_domain": "ef39a3ec2f36.us.kongportals.com",
+              "created_at": "2026-11-13T19:57:39.202Z",
+              "updated_at": "2026-11-13T19:57:39.202Z",
               "labels": {
                 "KONGCTL-namespace": "portal-teams-test"
               }
@@ -1608,21 +1609,21 @@
           "data": [
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.737001Z",
+              "created_at": "2026-11-13T19:57:39.875797Z",
               "description": "Updated: Backend API developers",
-              "id": "00000000-0000-4000-8000-000000000004",
+              "id": "00000000-0000-4000-8000-000000000003",
               "konnect_managed": false,
               "name": "Backend Team",
-              "updated_at": "2026-11-04T20:19:18.863542Z"
+              "updated_at": "2026-11-13T19:57:43.603242Z"
             },
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.553514Z",
+              "created_at": "2026-11-13T19:57:40.091459Z",
               "description": "Frontend developers building UIs",
-              "id": "00000000-0000-4000-8000-000000000003",
+              "id": "00000000-0000-4000-8000-000000000004",
               "konnect_managed": false,
               "name": "Frontend Team",
-              "updated_at": "2026-11-04T20:19:15.553514Z"
+              "updated_at": "2026-11-13T19:57:40.091459Z"
             }
           ],
           "meta": {
@@ -1680,10 +1681,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "4f828eecf001.us.kongportals.com",
-              "default_domain": "4f828eecf001.us.kongportals.com",
-              "created_at": "2026-11-04T20:19:14.839Z",
-              "updated_at": "2026-11-04T20:19:14.839Z",
+              "canonical_domain": "ef39a3ec2f36.us.kongportals.com",
+              "default_domain": "ef39a3ec2f36.us.kongportals.com",
+              "created_at": "2026-11-13T19:57:39.202Z",
+              "updated_at": "2026-11-13T19:57:39.202Z",
               "labels": {
                 "KONGCTL-namespace": "portal-teams-test"
               }
@@ -1716,12 +1717,12 @@
         "status": 201,
         "body": {
           "can_own_applications": false,
-          "created_at": "2026-11-04T20:19:23.066041028Z",
+          "created_at": "2026-11-13T19:57:48.235855744Z",
           "description": "Quality Assurance team",
           "id": "00000000-0000-4000-8000-000000000005",
           "konnect_managed": false,
           "name": "QA Team",
-          "updated_at": "2026-11-04T20:19:23.066041171Z"
+          "updated_at": "2026-11-13T19:57:48.235855937Z"
         },
         "content_type": "application/json"
       }
@@ -1770,10 +1771,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "4f828eecf001.us.kongportals.com",
-              "default_domain": "4f828eecf001.us.kongportals.com",
-              "created_at": "2026-11-04T20:19:14.839Z",
-              "updated_at": "2026-11-04T20:19:14.839Z",
+              "canonical_domain": "ef39a3ec2f36.us.kongportals.com",
+              "default_domain": "ef39a3ec2f36.us.kongportals.com",
+              "created_at": "2026-11-13T19:57:39.202Z",
+              "updated_at": "2026-11-13T19:57:39.202Z",
               "labels": {
                 "KONGCTL-namespace": "portal-teams-test"
               }
@@ -1813,30 +1814,30 @@
           "data": [
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.737001Z",
+              "created_at": "2026-11-13T19:57:39.875797Z",
               "description": "Updated: Backend API developers",
-              "id": "00000000-0000-4000-8000-000000000004",
-              "konnect_managed": false,
-              "name": "Backend Team",
-              "updated_at": "2026-11-04T20:19:18.863542Z"
-            },
-            {
-              "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.553514Z",
-              "description": "Frontend developers building UIs",
               "id": "00000000-0000-4000-8000-000000000003",
               "konnect_managed": false,
-              "name": "Frontend Team",
-              "updated_at": "2026-11-04T20:19:15.553514Z"
+              "name": "Backend Team",
+              "updated_at": "2026-11-13T19:57:43.603242Z"
             },
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:23.066041Z",
+              "created_at": "2026-11-13T19:57:40.091459Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-13T19:57:40.091459Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-13T19:57:48.235855Z",
               "description": "Quality Assurance team",
               "id": "00000000-0000-4000-8000-000000000005",
               "konnect_managed": false,
               "name": "QA Team",
-              "updated_at": "2026-11-04T20:19:23.066041Z"
+              "updated_at": "2026-11-13T19:57:48.235855Z"
             }
           ],
           "meta": {
@@ -1926,10 +1927,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "4f828eecf001.us.kongportals.com",
-              "default_domain": "4f828eecf001.us.kongportals.com",
-              "created_at": "2026-11-04T20:19:14.839Z",
-              "updated_at": "2026-11-04T20:19:14.839Z",
+              "canonical_domain": "ef39a3ec2f36.us.kongportals.com",
+              "default_domain": "ef39a3ec2f36.us.kongportals.com",
+              "created_at": "2026-11-13T19:57:39.202Z",
+              "updated_at": "2026-11-13T19:57:39.202Z",
               "labels": {
                 "KONGCTL-namespace": "portal-teams-test"
               }
@@ -1969,30 +1970,30 @@
           "data": [
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.737001Z",
+              "created_at": "2026-11-13T19:57:39.875797Z",
               "description": "Updated: Backend API developers",
-              "id": "00000000-0000-4000-8000-000000000004",
-              "konnect_managed": false,
-              "name": "Backend Team",
-              "updated_at": "2026-11-04T20:19:18.863542Z"
-            },
-            {
-              "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.553514Z",
-              "description": "Frontend developers building UIs",
               "id": "00000000-0000-4000-8000-000000000003",
               "konnect_managed": false,
-              "name": "Frontend Team",
-              "updated_at": "2026-11-04T20:19:15.553514Z"
+              "name": "Backend Team",
+              "updated_at": "2026-11-13T19:57:43.603242Z"
             },
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:23.066041Z",
+              "created_at": "2026-11-13T19:57:40.091459Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-13T19:57:40.091459Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-13T19:57:48.235855Z",
               "description": "Quality Assurance team",
               "id": "00000000-0000-4000-8000-000000000005",
               "konnect_managed": false,
               "name": "QA Team",
-              "updated_at": "2026-11-04T20:19:23.066041Z"
+              "updated_at": "2026-11-13T19:57:48.235855Z"
             }
           ],
           "meta": {
@@ -2010,7 +2011,7 @@
       "request": {
         "endpoint": "regional",
         "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000005/assigned-roles",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000003/assigned-roles",
         "query": [
           [
             "page[number]",
@@ -2074,7 +2075,7 @@
       "request": {
         "endpoint": "regional",
         "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000003/assigned-roles",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000005/assigned-roles",
         "query": [
           [
             "page[number]",
@@ -2126,8 +2127,8 @@
           "labels": {
             "KONGCTL-namespace": "portal-teams-test"
           },
-          "created_at": "2026-11-04T20:19:25.413Z",
-          "updated_at": "2026-11-04T20:19:25.413Z",
+          "created_at": "2026-11-13T19:57:50.878Z",
+          "updated_at": "2026-11-13T19:57:50.878Z",
           "slug": "roles-api",
           "api_spec_ids": [],
           "implementation_mode": null,
@@ -2135,34 +2136,6 @@
           "portals": [],
           "attributes": {},
           "images": null
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "POST",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000003/assigned-roles",
-        "query": [],
-        "body": {
-          "entity_id": "00000000-0000-4000-8000-000000000006",
-          "entity_region": "us",
-          "entity_type_name": "Services",
-          "role_name": "API Consumer"
-        }
-      },
-      "response": {
-        "status": 201,
-        "body": {
-          "id": "00000000-0000-4000-8000-000000000007",
-          "role_name": "API Consumer",
-          "entity_id": "00000000-0000-4000-8000-000000000006",
-          "entity_ids": [
-            "00000000-0000-4000-8000-000000000006"
-          ],
-          "entity_type_name": "Services",
-          "entity_region": "us"
         },
         "content_type": "application/json"
       }
@@ -2183,7 +2156,7 @@
       "response": {
         "status": 201,
         "body": {
-          "id": "00000000-0000-4000-8000-000000000008",
+          "id": "00000000-0000-4000-8000-000000000007",
           "role_name": "API Viewer",
           "entity_id": "00000000-0000-4000-8000-000000000006",
           "entity_ids": [
@@ -2200,6 +2173,34 @@
         "endpoint": "regional",
         "method": "POST",
         "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000004/assigned-roles",
+        "query": [],
+        "body": {
+          "entity_id": "00000000-0000-4000-8000-000000000006",
+          "entity_region": "us",
+          "entity_type_name": "Services",
+          "role_name": "API Consumer"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000008",
+          "role_name": "API Consumer",
+          "entity_id": "00000000-0000-4000-8000-000000000006",
+          "entity_ids": [
+            "00000000-0000-4000-8000-000000000006"
+          ],
+          "entity_type_name": "Services",
+          "entity_region": "us"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "POST",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000003/assigned-roles",
         "query": [],
         "body": {
           "entity_id": "00000000-0000-4000-8000-000000000006",
@@ -2267,10 +2268,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "4f828eecf001.us.kongportals.com",
-              "default_domain": "4f828eecf001.us.kongportals.com",
-              "created_at": "2026-11-04T20:19:14.839Z",
-              "updated_at": "2026-11-04T20:19:14.839Z",
+              "canonical_domain": "ef39a3ec2f36.us.kongportals.com",
+              "default_domain": "ef39a3ec2f36.us.kongportals.com",
+              "created_at": "2026-11-13T19:57:39.202Z",
+              "updated_at": "2026-11-13T19:57:39.202Z",
               "labels": {
                 "KONGCTL-namespace": "portal-teams-test"
               }
@@ -2310,30 +2311,30 @@
           "data": [
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.737001Z",
+              "created_at": "2026-11-13T19:57:39.875797Z",
               "description": "Updated: Backend API developers",
-              "id": "00000000-0000-4000-8000-000000000004",
-              "konnect_managed": false,
-              "name": "Backend Team",
-              "updated_at": "2026-11-04T20:19:18.863542Z"
-            },
-            {
-              "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.553514Z",
-              "description": "Frontend developers building UIs",
               "id": "00000000-0000-4000-8000-000000000003",
               "konnect_managed": false,
-              "name": "Frontend Team",
-              "updated_at": "2026-11-04T20:19:15.553514Z"
+              "name": "Backend Team",
+              "updated_at": "2026-11-13T19:57:43.603242Z"
             },
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:23.066041Z",
+              "created_at": "2026-11-13T19:57:40.091459Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-13T19:57:40.091459Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-13T19:57:48.235855Z",
               "description": "Quality Assurance team",
               "id": "00000000-0000-4000-8000-000000000005",
               "konnect_managed": false,
               "name": "QA Team",
-              "updated_at": "2026-11-04T20:19:23.066041Z"
+              "updated_at": "2026-11-13T19:57:48.235855Z"
             }
           ],
           "meta": {
@@ -2351,7 +2352,7 @@
       "request": {
         "endpoint": "regional",
         "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000004/assigned-roles",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000003/assigned-roles",
         "query": [
           [
             "page[number]",
@@ -2419,8 +2420,8 @@
               "labels": {
                 "KONGCTL-namespace": "portal-teams-test"
               },
-              "created_at": "2026-11-04T20:19:25.413Z",
-              "updated_at": "2026-11-04T20:19:25.413Z",
+              "created_at": "2026-11-13T19:57:50.878Z",
+              "updated_at": "2026-11-13T19:57:50.878Z",
               "slug": "roles-api",
               "api_spec_ids": [],
               "implementation_mode": null,
@@ -2485,10 +2486,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "4f828eecf001.us.kongportals.com",
-              "default_domain": "4f828eecf001.us.kongportals.com",
-              "created_at": "2026-11-04T20:19:14.839Z",
-              "updated_at": "2026-11-04T20:19:14.839Z",
+              "canonical_domain": "ef39a3ec2f36.us.kongportals.com",
+              "default_domain": "ef39a3ec2f36.us.kongportals.com",
+              "created_at": "2026-11-13T19:57:39.202Z",
+              "updated_at": "2026-11-13T19:57:39.202Z",
               "labels": {
                 "KONGCTL-namespace": "portal-teams-test"
               }
@@ -2528,30 +2529,30 @@
           "data": [
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.737001Z",
+              "created_at": "2026-11-13T19:57:39.875797Z",
               "description": "Updated: Backend API developers",
-              "id": "00000000-0000-4000-8000-000000000004",
-              "konnect_managed": false,
-              "name": "Backend Team",
-              "updated_at": "2026-11-04T20:19:18.863542Z"
-            },
-            {
-              "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.553514Z",
-              "description": "Frontend developers building UIs",
               "id": "00000000-0000-4000-8000-000000000003",
               "konnect_managed": false,
-              "name": "Frontend Team",
-              "updated_at": "2026-11-04T20:19:15.553514Z"
+              "name": "Backend Team",
+              "updated_at": "2026-11-13T19:57:43.603242Z"
             },
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:23.066041Z",
+              "created_at": "2026-11-13T19:57:40.091459Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-13T19:57:40.091459Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-13T19:57:48.235855Z",
               "description": "Quality Assurance team",
               "id": "00000000-0000-4000-8000-000000000005",
               "konnect_managed": false,
               "name": "QA Team",
-              "updated_at": "2026-11-04T20:19:23.066041Z"
+              "updated_at": "2026-11-13T19:57:48.235855Z"
             }
           ],
           "meta": {
@@ -2594,50 +2595,7 @@
           },
           "data": [
             {
-              "id": "00000000-0000-4000-8000-000000000008",
-              "role_name": "API Viewer",
-              "entity_region": "us",
-              "entity_type_name": "Services",
-              "entity_id": "00000000-0000-4000-8000-000000000006",
-              "entity_ids": [
-                "00000000-0000-4000-8000-000000000006"
-              ]
-            }
-          ]
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000004/assigned-roles",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 100,
-              "total": 1
-            }
-          },
-          "data": [
-            {
-              "id": "00000000-0000-4000-8000-000000000009",
+              "id": "00000000-0000-4000-8000-000000000007",
               "role_name": "API Viewer",
               "entity_region": "us",
               "entity_type_name": "Services",
@@ -2680,7 +2638,50 @@
           },
           "data": [
             {
-              "id": "00000000-0000-4000-8000-000000000007",
+              "id": "00000000-0000-4000-8000-000000000009",
+              "role_name": "API Viewer",
+              "entity_region": "us",
+              "entity_type_name": "Services",
+              "entity_id": "00000000-0000-4000-8000-000000000006",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000006"
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000004/assigned-roles",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000008",
               "role_name": "API Consumer",
               "entity_region": "us",
               "entity_type_name": "Services",
@@ -2738,10 +2739,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "4f828eecf001.us.kongportals.com",
-              "default_domain": "4f828eecf001.us.kongportals.com",
-              "created_at": "2026-11-04T20:19:14.839Z",
-              "updated_at": "2026-11-04T20:19:14.839Z",
+              "canonical_domain": "ef39a3ec2f36.us.kongportals.com",
+              "default_domain": "ef39a3ec2f36.us.kongportals.com",
+              "created_at": "2026-11-13T19:57:39.202Z",
+              "updated_at": "2026-11-13T19:57:39.202Z",
               "labels": {
                 "KONGCTL-namespace": "portal-teams-test"
               }
@@ -2791,10 +2792,10 @@
           },
           "auto_approve_developers": false,
           "auto_approve_applications": false,
-          "canonical_domain": "4f828eecf001.us.kongportals.com",
-          "default_domain": "4f828eecf001.us.kongportals.com",
-          "created_at": "2026-11-04T20:19:14.839Z",
-          "updated_at": "2026-11-04T20:19:14.839Z",
+          "canonical_domain": "ef39a3ec2f36.us.kongportals.com",
+          "default_domain": "ef39a3ec2f36.us.kongportals.com",
+          "created_at": "2026-11-13T19:57:39.202Z",
+          "updated_at": "2026-11-13T19:57:39.202Z",
           "labels": {
             "KONGCTL-namespace": "portal-teams-test"
           }
@@ -2905,30 +2906,30 @@
           "data": [
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.737001Z",
+              "created_at": "2026-11-13T19:57:39.875797Z",
               "description": "Updated: Backend API developers",
-              "id": "00000000-0000-4000-8000-000000000004",
-              "konnect_managed": false,
-              "name": "Backend Team",
-              "updated_at": "2026-11-04T20:19:18.863542Z"
-            },
-            {
-              "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.553514Z",
-              "description": "Frontend developers building UIs",
               "id": "00000000-0000-4000-8000-000000000003",
               "konnect_managed": false,
-              "name": "Frontend Team",
-              "updated_at": "2026-11-04T20:19:15.553514Z"
+              "name": "Backend Team",
+              "updated_at": "2026-11-13T19:57:43.603242Z"
             },
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:23.066041Z",
+              "created_at": "2026-11-13T19:57:40.091459Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-13T19:57:40.091459Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-13T19:57:48.235855Z",
               "description": "Quality Assurance team",
               "id": "00000000-0000-4000-8000-000000000005",
               "konnect_managed": false,
               "name": "QA Team",
-              "updated_at": "2026-11-04T20:19:23.066041Z"
+              "updated_at": "2026-11-13T19:57:48.235855Z"
             }
           ],
           "meta": {
@@ -2946,7 +2947,7 @@
       "request": {
         "endpoint": "regional",
         "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000004/assigned-roles",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000003/assigned-roles",
         "query": [
           [
             "page[number]",
@@ -2989,7 +2990,7 @@
       "request": {
         "endpoint": "regional",
         "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000003/assigned-roles",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000004/assigned-roles",
         "query": [
           [
             "page[number]",
@@ -3014,7 +3015,7 @@
           },
           "data": [
             {
-              "id": "00000000-0000-4000-8000-000000000007",
+              "id": "00000000-0000-4000-8000-000000000008",
               "role_name": "API Consumer",
               "entity_region": "us",
               "entity_type_name": "Services",
@@ -3057,7 +3058,7 @@
           },
           "data": [
             {
-              "id": "00000000-0000-4000-8000-000000000008",
+              "id": "00000000-0000-4000-8000-000000000007",
               "role_name": "API Viewer",
               "entity_region": "us",
               "entity_type_name": "Services",
@@ -3174,7 +3175,7 @@
         "body": {
           "status": 404,
           "title": "Not Found",
-          "instance": "kong:trace:12018111303163728589",
+          "instance": "kong:trace:15989863227571226177",
           "detail": "custom domain not found"
         },
         "content_type": "application/problem+json"
@@ -3193,7 +3194,7 @@
         "body": {
           "status": 404,
           "title": "Not Found",
-          "instance": "kong:trace:6334399222760977455",
+          "instance": "kong:trace:0000000000000000000",
           "detail": "Portal email config not found"
         },
         "content_type": "application/problem+json"
@@ -3294,8 +3295,8 @@
               "labels": {
                 "KONGCTL-namespace": "portal-teams-test"
               },
-              "created_at": "2026-11-04T20:19:25.413Z",
-              "updated_at": "2026-11-04T20:19:25.413Z",
+              "created_at": "2026-11-13T19:57:50.878Z",
+              "updated_at": "2026-11-13T19:57:50.878Z",
               "slug": "roles-api",
               "api_spec_ids": [],
               "implementation_mode": null,
@@ -3465,8 +3466,8 @@
               "labels": {
                 "KONGCTL-namespace": "portal-teams-test"
               },
-              "created_at": "2026-11-04T20:19:25.413Z",
-              "updated_at": "2026-11-04T20:19:25.413Z",
+              "created_at": "2026-11-13T19:57:50.878Z",
+              "updated_at": "2026-11-13T19:57:50.878Z",
               "slug": "roles-api",
               "api_spec_ids": [],
               "implementation_mode": null,
@@ -3531,10 +3532,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "4f828eecf001.us.kongportals.com",
-              "default_domain": "4f828eecf001.us.kongportals.com",
-              "created_at": "2026-11-04T20:19:14.839Z",
-              "updated_at": "2026-11-04T20:19:14.839Z",
+              "canonical_domain": "ef39a3ec2f36.us.kongportals.com",
+              "default_domain": "ef39a3ec2f36.us.kongportals.com",
+              "created_at": "2026-11-13T19:57:39.202Z",
+              "updated_at": "2026-11-13T19:57:39.202Z",
               "labels": {
                 "KONGCTL-namespace": "portal-teams-test"
               }
@@ -3610,30 +3611,30 @@
           "data": [
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.737001Z",
+              "created_at": "2026-11-13T19:57:39.875797Z",
               "description": "Updated: Backend API developers",
-              "id": "00000000-0000-4000-8000-000000000004",
-              "konnect_managed": false,
-              "name": "Backend Team",
-              "updated_at": "2026-11-04T20:19:18.863542Z"
-            },
-            {
-              "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.553514Z",
-              "description": "Frontend developers building UIs",
               "id": "00000000-0000-4000-8000-000000000003",
               "konnect_managed": false,
-              "name": "Frontend Team",
-              "updated_at": "2026-11-04T20:19:15.553514Z"
+              "name": "Backend Team",
+              "updated_at": "2026-11-13T19:57:43.603242Z"
             },
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:23.066041Z",
+              "created_at": "2026-11-13T19:57:40.091459Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-13T19:57:40.091459Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-13T19:57:48.235855Z",
               "description": "Quality Assurance team",
               "id": "00000000-0000-4000-8000-000000000005",
               "konnect_managed": false,
               "name": "QA Team",
-              "updated_at": "2026-11-04T20:19:23.066041Z"
+              "updated_at": "2026-11-13T19:57:48.235855Z"
             }
           ],
           "meta": {
@@ -3651,50 +3652,7 @@
       "request": {
         "endpoint": "regional",
         "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000005/assigned-roles",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 100,
-              "total": 1
-            }
-          },
-          "data": [
-            {
-              "id": "00000000-0000-4000-8000-000000000008",
-              "role_name": "API Viewer",
-              "entity_region": "us",
-              "entity_type_name": "Services",
-              "entity_id": "00000000-0000-4000-8000-000000000006",
-              "entity_ids": [
-                "00000000-0000-4000-8000-000000000006"
-              ]
-            }
-          ]
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000004/assigned-roles",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000003/assigned-roles",
         "query": [
           [
             "page[number]",
@@ -3737,7 +3695,50 @@
       "request": {
         "endpoint": "regional",
         "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000003/assigned-roles",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000004/assigned-roles",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000008",
+              "role_name": "API Consumer",
+              "entity_region": "us",
+              "entity_type_name": "Services",
+              "entity_id": "00000000-0000-4000-8000-000000000006",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000006"
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000005/assigned-roles",
         "query": [
           [
             "page[number]",
@@ -3763,7 +3764,7 @@
           "data": [
             {
               "id": "00000000-0000-4000-8000-000000000007",
-              "role_name": "API Consumer",
+              "role_name": "API Viewer",
               "entity_region": "us",
               "entity_type_name": "Services",
               "entity_id": "00000000-0000-4000-8000-000000000006",
@@ -3837,8 +3838,8 @@
               "labels": {
                 "KONGCTL-namespace": "portal-teams-test"
               },
-              "created_at": "2026-11-04T20:19:25.413Z",
-              "updated_at": "2026-11-04T20:19:25.413Z",
+              "created_at": "2026-11-13T19:57:50.878Z",
+              "updated_at": "2026-11-13T19:57:50.878Z",
               "slug": "roles-api",
               "api_spec_ids": [],
               "implementation_mode": null,
@@ -3903,10 +3904,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "4f828eecf001.us.kongportals.com",
-              "default_domain": "4f828eecf001.us.kongportals.com",
-              "created_at": "2026-11-04T20:19:14.839Z",
-              "updated_at": "2026-11-04T20:19:14.839Z",
+              "canonical_domain": "ef39a3ec2f36.us.kongportals.com",
+              "default_domain": "ef39a3ec2f36.us.kongportals.com",
+              "created_at": "2026-11-13T19:57:39.202Z",
+              "updated_at": "2026-11-13T19:57:39.202Z",
               "labels": {
                 "KONGCTL-namespace": "portal-teams-test"
               }
@@ -3946,30 +3947,30 @@
           "data": [
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.737001Z",
+              "created_at": "2026-11-13T19:57:39.875797Z",
               "description": "Updated: Backend API developers",
-              "id": "00000000-0000-4000-8000-000000000004",
-              "konnect_managed": false,
-              "name": "Backend Team",
-              "updated_at": "2026-11-04T20:19:18.863542Z"
-            },
-            {
-              "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.553514Z",
-              "description": "Frontend developers building UIs",
               "id": "00000000-0000-4000-8000-000000000003",
               "konnect_managed": false,
-              "name": "Frontend Team",
-              "updated_at": "2026-11-04T20:19:15.553514Z"
+              "name": "Backend Team",
+              "updated_at": "2026-11-13T19:57:43.603242Z"
             },
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:23.066041Z",
+              "created_at": "2026-11-13T19:57:40.091459Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-13T19:57:40.091459Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-13T19:57:48.235855Z",
               "description": "Quality Assurance team",
               "id": "00000000-0000-4000-8000-000000000005",
               "konnect_managed": false,
               "name": "QA Team",
-              "updated_at": "2026-11-04T20:19:23.066041Z"
+              "updated_at": "2026-11-13T19:57:48.235855Z"
             }
           ],
           "meta": {
@@ -4012,50 +4013,7 @@
           },
           "data": [
             {
-              "id": "00000000-0000-4000-8000-000000000009",
-              "role_name": "API Viewer",
-              "entity_region": "us",
-              "entity_type_name": "Services",
-              "entity_id": "00000000-0000-4000-8000-000000000006",
-              "entity_ids": [
-                "00000000-0000-4000-8000-000000000006"
-              ]
-            }
-          ]
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000003/assigned-roles",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 100,
-              "total": 1
-            }
-          },
-          "data": [
-            {
-              "id": "00000000-0000-4000-8000-000000000007",
+              "id": "00000000-0000-4000-8000-000000000008",
               "role_name": "API Consumer",
               "entity_region": "us",
               "entity_type_name": "Services",
@@ -4098,7 +4056,50 @@
           },
           "data": [
             {
-              "id": "00000000-0000-4000-8000-000000000008",
+              "id": "00000000-0000-4000-8000-000000000007",
+              "role_name": "API Viewer",
+              "entity_region": "us",
+              "entity_type_name": "Services",
+              "entity_id": "00000000-0000-4000-8000-000000000006",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000006"
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000003/assigned-roles",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000009",
               "role_name": "API Viewer",
               "entity_region": "us",
               "entity_type_name": "Services",
@@ -4156,10 +4157,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "4f828eecf001.us.kongportals.com",
-              "default_domain": "4f828eecf001.us.kongportals.com",
-              "created_at": "2026-11-04T20:19:14.839Z",
-              "updated_at": "2026-11-04T20:19:14.839Z",
+              "canonical_domain": "ef39a3ec2f36.us.kongportals.com",
+              "default_domain": "ef39a3ec2f36.us.kongportals.com",
+              "created_at": "2026-11-13T19:57:39.202Z",
+              "updated_at": "2026-11-13T19:57:39.202Z",
               "labels": {
                 "KONGCTL-namespace": "portal-teams-test"
               }
@@ -4220,10 +4221,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "4f828eecf001.us.kongportals.com",
-              "default_domain": "4f828eecf001.us.kongportals.com",
-              "created_at": "2026-11-04T20:19:14.839Z",
-              "updated_at": "2026-11-04T20:19:14.839Z",
+              "canonical_domain": "ef39a3ec2f36.us.kongportals.com",
+              "default_domain": "ef39a3ec2f36.us.kongportals.com",
+              "created_at": "2026-11-13T19:57:39.202Z",
+              "updated_at": "2026-11-13T19:57:39.202Z",
               "labels": {
                 "KONGCTL-namespace": "portal-teams-test"
               }
@@ -4269,7 +4270,7 @@
           },
           "data": [
             {
-              "id": "00000000-0000-4000-8000-000000000008",
+              "id": "00000000-0000-4000-8000-000000000007",
               "role_name": "API Viewer",
               "entity_region": "us",
               "entity_type_name": "Services",
@@ -4287,7 +4288,7 @@
       "request": {
         "endpoint": "regional",
         "method": "DELETE",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000005/assigned-roles/00000000-0000-4000-8000-000000000008",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000005/assigned-roles/00000000-0000-4000-8000-000000000007",
         "query": [],
         "body": null
       },
@@ -4341,10 +4342,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "4f828eecf001.us.kongportals.com",
-              "default_domain": "4f828eecf001.us.kongportals.com",
-              "created_at": "2026-11-04T20:19:14.839Z",
-              "updated_at": "2026-11-04T20:19:14.839Z",
+              "canonical_domain": "ef39a3ec2f36.us.kongportals.com",
+              "default_domain": "ef39a3ec2f36.us.kongportals.com",
+              "created_at": "2026-11-13T19:57:39.202Z",
+              "updated_at": "2026-11-13T19:57:39.202Z",
               "labels": {
                 "KONGCTL-namespace": "portal-teams-test"
               }
@@ -4384,30 +4385,30 @@
           "data": [
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.737001Z",
+              "created_at": "2026-11-13T19:57:39.875797Z",
               "description": "Updated: Backend API developers",
-              "id": "00000000-0000-4000-8000-000000000004",
-              "konnect_managed": false,
-              "name": "Backend Team",
-              "updated_at": "2026-11-04T20:19:18.863542Z"
-            },
-            {
-              "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.553514Z",
-              "description": "Frontend developers building UIs",
               "id": "00000000-0000-4000-8000-000000000003",
               "konnect_managed": false,
-              "name": "Frontend Team",
-              "updated_at": "2026-11-04T20:19:15.553514Z"
+              "name": "Backend Team",
+              "updated_at": "2026-11-13T19:57:43.603242Z"
             },
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:23.066041Z",
+              "created_at": "2026-11-13T19:57:40.091459Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-13T19:57:40.091459Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-13T19:57:48.235855Z",
               "description": "Quality Assurance team",
               "id": "00000000-0000-4000-8000-000000000005",
               "konnect_managed": false,
               "name": "QA Team",
-              "updated_at": "2026-11-04T20:19:23.066041Z"
+              "updated_at": "2026-11-13T19:57:48.235855Z"
             }
           ],
           "meta": {
@@ -4482,8 +4483,8 @@
               "labels": {
                 "KONGCTL-namespace": "portal-teams-test"
               },
-              "created_at": "2026-11-04T20:19:25.413Z",
-              "updated_at": "2026-11-04T20:19:25.413Z",
+              "created_at": "2026-11-13T19:57:50.878Z",
+              "updated_at": "2026-11-13T19:57:50.878Z",
               "slug": "roles-api",
               "api_spec_ids": [],
               "implementation_mode": null,
@@ -4548,10 +4549,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "4f828eecf001.us.kongportals.com",
-              "default_domain": "4f828eecf001.us.kongportals.com",
-              "created_at": "2026-11-04T20:19:14.839Z",
-              "updated_at": "2026-11-04T20:19:14.839Z",
+              "canonical_domain": "ef39a3ec2f36.us.kongportals.com",
+              "default_domain": "ef39a3ec2f36.us.kongportals.com",
+              "created_at": "2026-11-13T19:57:39.202Z",
+              "updated_at": "2026-11-13T19:57:39.202Z",
               "labels": {
                 "KONGCTL-namespace": "portal-teams-test"
               }
@@ -4591,30 +4592,30 @@
           "data": [
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.737001Z",
+              "created_at": "2026-11-13T19:57:39.875797Z",
               "description": "Updated: Backend API developers",
-              "id": "00000000-0000-4000-8000-000000000004",
-              "konnect_managed": false,
-              "name": "Backend Team",
-              "updated_at": "2026-11-04T20:19:18.863542Z"
-            },
-            {
-              "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:15.553514Z",
-              "description": "Frontend developers building UIs",
               "id": "00000000-0000-4000-8000-000000000003",
               "konnect_managed": false,
-              "name": "Frontend Team",
-              "updated_at": "2026-11-04T20:19:15.553514Z"
+              "name": "Backend Team",
+              "updated_at": "2026-11-13T19:57:43.603242Z"
             },
             {
               "can_own_applications": false,
-              "created_at": "2026-11-04T20:19:23.066041Z",
+              "created_at": "2026-11-13T19:57:40.091459Z",
+              "description": "Frontend developers building UIs",
+              "id": "00000000-0000-4000-8000-000000000004",
+              "konnect_managed": false,
+              "name": "Frontend Team",
+              "updated_at": "2026-11-13T19:57:40.091459Z"
+            },
+            {
+              "can_own_applications": false,
+              "created_at": "2026-11-13T19:57:48.235855Z",
               "description": "Quality Assurance team",
               "id": "00000000-0000-4000-8000-000000000005",
               "konnect_managed": false,
               "name": "QA Team",
-              "updated_at": "2026-11-04T20:19:23.066041Z"
+              "updated_at": "2026-11-13T19:57:48.235855Z"
             }
           ],
           "meta": {
@@ -4632,7 +4633,7 @@
       "request": {
         "endpoint": "regional",
         "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000004/assigned-roles",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000003/assigned-roles",
         "query": [
           [
             "page[number]",
@@ -4675,7 +4676,7 @@
       "request": {
         "endpoint": "regional",
         "method": "GET",
-        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000003/assigned-roles",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams/00000000-0000-4000-8000-000000000004/assigned-roles",
         "query": [
           [
             "page[number]",
@@ -4700,7 +4701,7 @@
           },
           "data": [
             {
-              "id": "00000000-0000-4000-8000-000000000007",
+              "id": "00000000-0000-4000-8000-000000000008",
               "role_name": "API Consumer",
               "entity_region": "us",
               "entity_type_name": "Services",
