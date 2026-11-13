@@ -5,7 +5,7 @@ go 1.26.10
 require github.com/kong/kongctl v1.28.1
 
 require (
-	github.com/Kong/sdk-konnect-go v0.84.1-0.20261112154232-92b33d2ef4fd // indirect
+	github.com/Kong/sdk-konnect-go v0.86.2-0.20261112224339-3db039d099b6 // indirect
 	github.com/ajg/form v1.9.0 // indirect
 	github.com/alecthomas/chroma/v2 v2.27.0 // indirect
 	github.com/dlclark/regexp2/v2 v2.2.1 // indirect

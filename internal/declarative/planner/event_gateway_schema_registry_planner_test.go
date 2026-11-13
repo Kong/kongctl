@@ -75,6 +75,7 @@ func schemaRegistryStateWithPassword(password string) state.EventGatewaySchemaRe
 func schemaRegistryResourceWithPassword(password string) resources.EventGatewaySchemaRegistryResource {
 	authentication := kkComps.CreateSchemaRegistryAuthenticationSchemeBasic(
 		kkComps.SchemaRegistryAuthenticationBasic{
+			Type:     kkComps.SchemaRegistryAuthenticationBasicTypeBasic,
 			Username: "testuser",
 			Password: password,
 		},
@@ -84,6 +85,7 @@ func schemaRegistryResourceWithPassword(password string) resources.EventGatewayS
 		Ref: "schema-registry",
 		SchemaRegistryCreate: kkComps.CreateSchemaRegistryCreateConfluent(
 			kkComps.SchemaRegistryConfluent{
+				Type: kkComps.SchemaRegistryConfluentTypeConfluent,
 				Name: "schema-registry",
 				Config: kkComps.SchemaRegistryConfluentConfig{
 					SchemaType:     kkComps.SchemaTypeJSON,

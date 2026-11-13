@@ -222,8 +222,8 @@
     },
     {
       "file": "models/components/createprincipalkeybodyv1.go",
-      "before": "import (\n\t\"github.com/Kong/sdk-konnect-go/internal/utils\"\n\t\"time\"\n)",
-      "after": "import (\n\t\"github.com/Kong/sdk-konnect-go/internal/utils\"\n\t\"github.com/Kong/sdk-konnect-go/optionalnullable\"\n\t\"time\"\n)",
+      "before": "import (\n\t\"encoding/json\"\n\t\"fmt\"\n\t\"github.com/Kong/sdk-konnect-go/internal/utils\"\n\t\"time\"\n)",
+      "after": "import (\n\t\"encoding/json\"\n\t\"fmt\"\n\t\"github.com/Kong/sdk-konnect-go/internal/utils\"\n\t\"github.com/Kong/sdk-konnect-go/optionalnullable\"\n\t\"time\"\n)",
       "optional_file": true
     },
     {
@@ -240,8 +240,8 @@
     },
     {
       "file": "models/components/createprincipalkeybodyimported.go",
-      "before": "import (\n\t\"github.com/Kong/sdk-konnect-go/internal/utils\"\n\t\"time\"\n)",
-      "after": "import (\n\t\"github.com/Kong/sdk-konnect-go/internal/utils\"\n\t\"github.com/Kong/sdk-konnect-go/optionalnullable\"\n\t\"time\"\n)",
+      "before": "import (\n\t\"encoding/json\"\n\t\"fmt\"\n\t\"github.com/Kong/sdk-konnect-go/internal/utils\"\n\t\"time\"\n)",
+      "after": "import (\n\t\"encoding/json\"\n\t\"fmt\"\n\t\"github.com/Kong/sdk-konnect-go/internal/utils\"\n\t\"github.com/Kong/sdk-konnect-go/optionalnullable\"\n\t\"time\"\n)",
       "optional_file": true
     },
     {
@@ -358,6 +358,13 @@
       "file": "docs/models/components/aigwopenidconnectgeneratedconfig.md",
       "before": "| `UpstreamAccessTokenHeader`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | `*string`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |",
       "after": "| `UpstreamAccessTokenHeader`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | `optionalnullable.OptionalNullable[string]` |"
+    },
+    {
+      "file": "models/components/trustedidpjitmapping.go",
+      "before": "Identifier *string `default:\"sub\" json:\"identifier\"`",
+      "after": "Identifier *string `json:\"identifier,omitempty\"`",
+      "optional_field": "Identifier",
+      "optional_file": true
     }
   ],
   "tests": {
@@ -377,7 +384,8 @@
     "tests/ai_gateway_update_defaults_test.go.txt": "ai_gateway_update_defaults_kongctl_test.go",
     "tests/ai_gateway_oidc_config_presence_test.go.txt": "kongctl_ai_gateway_oidc_config_presence_test.go",
     "tests/ai_gateway_oidc_config_typed_test.go.txt": "kongctl_ai_gateway_oidc_config_typed_test.go",
-    "tests/ai_gateway_oidc_config_baseline.json": "kongctl_oidc_config_baseline.json"
+    "tests/ai_gateway_oidc_config_baseline.json": "kongctl_oidc_config_baseline.json",
+    "tests/identity_identifier_defaults_test.go.txt": "identity_identifier_defaults_kongctl_test.go"
   },
   "post_generation_doc_sections": [
     {

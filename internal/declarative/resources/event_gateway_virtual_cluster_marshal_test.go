@@ -22,7 +22,9 @@ func TestEventGatewayVirtualClusterResourceMarshalJSONIncludesTopicAliases(t *te
 			),
 			Authentication: []kkComps.VirtualClusterAuthenticationScheme{
 				kkComps.CreateVirtualClusterAuthenticationSchemeAnonymous(
-					kkComps.VirtualClusterAuthenticationAnonymous{},
+					kkComps.VirtualClusterAuthenticationAnonymous{
+						Type: kkComps.VirtualClusterAuthenticationAnonymousTypeAnonymous,
+					},
 				),
 			},
 			TopicAliases: []kkComps.VirtualClusterTopicAlias{{

@@ -5,3 +5,5 @@ info:
 actions:
   - target: $.components.schemas.PortalCustomizationV3.properties.theme.properties.name.default
     remove: true
+  - target: $.components.schemas.PortalCustomizationTheme.properties.name.default
+    remove: true

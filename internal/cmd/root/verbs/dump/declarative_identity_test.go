@@ -169,14 +169,17 @@ func TestIdentityDumpKeepsUnownedAndWorkspaceAssociationsExternal(t *testing.T) 
 	const workspaceID = "4248f559-063b-4f10-9098-9e6553b21d9b"
 	identities := []kkComps.KongPrincipalIdentity{
 		kkComps.CreateKongPrincipalIdentityCustom(kkComps.KongPrincipalIdentityCustomResponse{
-			ID: ownedID, Key: "employee", Value: "123",
+			Type: kkComps.KongPrincipalIdentityCustomResponseTypeCustom,
+			ID:   ownedID, Key: "employee", Value: "123",
 			ManagedBy: resources.BuildPrincipalManagedBy("identity-team", "employee", true, "old"),
 		}),
 		kkComps.CreateKongPrincipalIdentityCustom(kkComps.KongPrincipalIdentityCustomResponse{
-			ID: unownedID, Key: "external", Value: "456",
+			Type: kkComps.KongPrincipalIdentityCustomResponseTypeCustom,
+			ID:   unownedID, Key: "external", Value: "456",
 		}),
 		kkComps.CreateKongPrincipalIdentityControlPlaneConsumer(kkComps.KongPrincipalIdentityCPConsumerResponse{
-			ID: workspaceID, ControlPlaneID: directory.ID, ConsumerID: unownedID, WorkspaceID: new("inspected-workspace"),
+			Type: kkComps.KongPrincipalIdentityCPConsumerResponseTypeControlPlaneConsumer,
+			ID:   workspaceID, ControlPlaneID: directory.ID, ConsumerID: unownedID, WorkspaceID: new("inspected-workspace"),
 			ManagedBy: resources.BuildPrincipalManagedBy("identity-team", "workspace-link", false, "old"),
 		}),
 	}
@@ -260,8 +263,10 @@ func TestGroupDumpUsesSafeRefsAndKeepsUnsupportedGroupsExternal(t *testing.T) {
 	api := &fixture.GroupAPI{Directories: map[string][]helpers.IdentityGroup{directory.ID: {owned, team}}}
 	const principalID = "1248f559-063b-4f10-9098-9e6553b21d9b"
 	api.Memberships = map[string][]kkComps.KongGroupMembershipEntry{owned.ID: {{
-		ID:     "2248f559-063b-4f10-9098-9e6553b21d9b",
-		Member: kkComps.KongGroupMember{Type: kkComps.KongGroupMembershipTypePrincipal, ID: principalID},
+		ID: "2248f559-063b-4f10-9098-9e6553b21d9b",
+		Member: kkComps.KongGroupMember{
+			Type: kkComps.KongGroupMembershipTypePrincipal, ID: principalID,
+		},
 	}}}
 	client := state.NewClient(state.ClientConfig{
 		IdentityDirectoriesAPI: &fixture.DirectoryAPI{Directories: []kkComps.KongDirectory{directory}},

@@ -1760,7 +1760,9 @@ func buildPortalCustomDomain(
 	method := strings.ToLower(strings.TrimSpace(domain.DomainVerificationMethod))
 	switch method {
 	case "http":
-		ssl := kkComps.CreateCreatePortalCustomDomainSSLHTTP(kkComps.HTTP{})
+		ssl := kkComps.CreateCreatePortalCustomDomainSSLHTTP(kkComps.HTTP{
+			DomainVerificationMethod: kkComps.CreatePortalCustomDomainSSLStandardDomainVerificationMethodHTTP,
+		})
 		resource := declresources.PortalCustomDomainResource{
 			CreatePortalCustomDomainRequest: kkComps.CreatePortalCustomDomainRequest{
 				Hostname: domain.Hostname,

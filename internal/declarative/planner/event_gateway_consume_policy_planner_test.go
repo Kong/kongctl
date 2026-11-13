@@ -48,6 +48,7 @@ func TestShouldUpdateConsumePolicy_NoChanges(t *testing.T) {
 	desired := resources.EventGatewayConsumePolicyResource{
 		EventGatewayConsumePolicyCreate: kkComps.CreateEventGatewayConsumePolicyCreateSchemaValidation(
 			kkComps.EventGatewayConsumeSchemaValidationPolicy{
+				Type:        kkComps.EventGatewayConsumeSchemaValidationPolicyTypeSchemaValidation,
 				Name:        &name,
 				Description: &desc,
 				Enabled:     &enabled,
@@ -57,6 +58,7 @@ func TestShouldUpdateConsumePolicy_NoChanges(t *testing.T) {
 				},
 				Config: kkComps.CreateEventGatewayConsumeSchemaValidationPolicyConfigJSON(
 					kkComps.EventGatewayConsumeSchemaValidationPolicyJSONConfig{
+						Type:                  kkComps.EventGatewayConsumeSchemaValidationPolicyJSONConfigTypeJSON,
 						KeyValidationAction:   &keyAction,   //nolint:staticcheck // Legacy field compatibility.
 						ValueValidationAction: &valueAction, //nolint:staticcheck // Legacy field compatibility.
 					},
@@ -97,11 +99,14 @@ func TestShouldUpdateConsumePolicy_DescriptionChanged(t *testing.T) {
 	desired := resources.EventGatewayConsumePolicyResource{
 		EventGatewayConsumePolicyCreate: kkComps.CreateEventGatewayConsumePolicyCreateSchemaValidation(
 			kkComps.EventGatewayConsumeSchemaValidationPolicy{
+				Type:        kkComps.EventGatewayConsumeSchemaValidationPolicyTypeSchemaValidation,
 				Name:        &name,
 				Description: &newDesc,
 				Enabled:     &enabled,
 				Config: kkComps.CreateEventGatewayConsumeSchemaValidationPolicyConfigJSON(
-					kkComps.EventGatewayConsumeSchemaValidationPolicyJSONConfig{},
+					kkComps.EventGatewayConsumeSchemaValidationPolicyJSONConfig{
+						Type: kkComps.EventGatewayConsumeSchemaValidationPolicyJSONConfigTypeJSON,
+					},
 				),
 			},
 		),
@@ -144,11 +149,13 @@ func TestShouldUpdateConsumePolicy_ConfigChangedNestedField(t *testing.T) {
 	desired := resources.EventGatewayConsumePolicyResource{
 		EventGatewayConsumePolicyCreate: kkComps.CreateEventGatewayConsumePolicyCreateSchemaValidation(
 			kkComps.EventGatewayConsumeSchemaValidationPolicy{
+				Type:        kkComps.EventGatewayConsumeSchemaValidationPolicyTypeSchemaValidation,
 				Name:        &name,
 				Description: &desc,
 				Enabled:     &enabled,
 				Config: kkComps.CreateEventGatewayConsumeSchemaValidationPolicyConfigJSON(
 					kkComps.EventGatewayConsumeSchemaValidationPolicyJSONConfig{
+						Type:                kkComps.EventGatewayConsumeSchemaValidationPolicyJSONConfigTypeJSON,
 						KeyValidationAction: &newKeyAction, //nolint:staticcheck // Legacy field compatibility.
 					},
 				),
@@ -185,11 +192,14 @@ func TestShouldUpdateConsumePolicy_TypeChanged(t *testing.T) {
 	desired := resources.EventGatewayConsumePolicyResource{
 		EventGatewayConsumePolicyCreate: kkComps.CreateEventGatewayConsumePolicyCreateSchemaValidation(
 			kkComps.EventGatewayConsumeSchemaValidationPolicy{
+				Type:        kkComps.EventGatewayConsumeSchemaValidationPolicyTypeSchemaValidation,
 				Name:        &name,
 				Description: &desc,
 				Enabled:     &enabled,
 				Config: kkComps.CreateEventGatewayConsumeSchemaValidationPolicyConfigJSON(
-					kkComps.EventGatewayConsumeSchemaValidationPolicyJSONConfig{},
+					kkComps.EventGatewayConsumeSchemaValidationPolicyJSONConfig{
+						Type: kkComps.EventGatewayConsumeSchemaValidationPolicyJSONConfigTypeJSON,
+					},
 				),
 			},
 		),

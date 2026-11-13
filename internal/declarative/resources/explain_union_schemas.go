@@ -64,6 +64,9 @@ func explainConstDiscriminator(typ reflect.Type) (string, string, bool) {
 		}
 		value := field.Tag.Get("const")
 		if value == "" {
+			value = sdkDiscriminatorValues[derefExplainType(field.Type)]
+		}
+		if value == "" {
 			continue
 		}
 		name, _, _, skip := explainFieldName(field, "json")

@@ -78,7 +78,9 @@ func TestAIGatewayModelsRejectIncompletePagination(t *testing.T) {
 				}
 				return &kkOps.ListAiGatewayModelsResponse{ListAIGatewayModelsResponse: &kkComps.ListAIGatewayModelsResponse{
 					Data: []kkComps.AIGatewayModel{kkComps.CreateAIGatewayModelModel(
-						kkComps.AIGatewayModelAIGatewayModelModel{ID: "model"},
+						kkComps.AIGatewayModelAIGatewayModelModel{
+							Type: kkComps.AIGatewayModelModelAIGatewayModelTypeModel, ID: "model",
+						},
 					)},
 					Meta: kkComps.CursorMeta{Page: kkComps.CursorMetaPage{Next: &tc.next[calls-1]}},
 				}}, nil
@@ -125,7 +127,9 @@ func TestAIGatewayModelViewIncludesEveryPage(t *testing.T) {
 				for i := range count {
 					name := fmt.Sprintf("model-%d-%d", calls, i)
 					body.Data = append(body.Data, kkComps.CreateAIGatewayModelModel(
-						kkComps.AIGatewayModelAIGatewayModelModel{ID: name, Name: name},
+						kkComps.AIGatewayModelAIGatewayModelModel{
+							Type: kkComps.AIGatewayModelModelAIGatewayModelTypeModel, ID: name, Name: name,
+						},
 					))
 				}
 				return &kkOps.ListAiGatewayModelsResponse{ListAIGatewayModelsResponse: body}, nil

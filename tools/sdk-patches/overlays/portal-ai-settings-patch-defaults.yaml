@@ -5,7 +5,3 @@ info:
 actions:
   - target: $.components.schemas.AISettingsRequestFeatures.properties.mcp_server.properties.write_operations_enabled.default
     remove: true
-  - target: $.components.schemas.PortalAgentDisplayNameNullable.default
-    remove: true
-  - target: $.components.schemas.PortalAgentAudienceNullable.default
-    remove: true

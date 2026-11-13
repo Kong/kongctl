@@ -16,6 +16,7 @@ func TestGetAIGatewayAuthStrategyPreservesAccessControlConfig(t *testing.T) {
 	optional := false
 	provider := kkComps.CreateAIGatewayAuthStrategyOpenidConnect(
 		kkComps.AIGatewayAuthStrategyOpenIDConnectResponse{
+			Type:        kkComps.AIGatewayAuthStrategyOpenIDConnectResponseTypeOpenidConnect,
 			ID:          "provider-id",
 			Name:        "support-oidc",
 			DisplayName: "Support OIDC",

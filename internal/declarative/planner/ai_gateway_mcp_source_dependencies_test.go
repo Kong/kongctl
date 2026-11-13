@@ -20,6 +20,7 @@ func TestMCPSourceRenamePlan(t *testing.T) {
 			payload[FieldType] = kind
 			if kind == "upstream-server" {
 				payload[FieldConfig].(map[string]any)["tools_cache_ttl_seconds"] = 60
+				payload[FieldConfig].(map[string]any)["route"] = map[string]any{"paths": []any{"/mcp"}}
 			}
 			payload[FieldID] = "source-id"
 			payload["created_at"] = "2026-01-01T00:00:00Z"

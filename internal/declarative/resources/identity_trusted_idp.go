@@ -232,6 +232,7 @@ func identityTrustedIDPExplainNode(ctx ExplainBuildContext) (*ExplainNode, error
 	for _, path := range []string{
 		"jit_provisioning_enabled", "vault_access_enabled", "jit", "jit.mapping",
 		"jit.mapping.email", "jit.mapping.groups", "jit.mapping.display_name",
+		"jit.mapping.identifier",
 	} {
 		if child, ok := node.lookup(strings.Split(path, ".")); ok {
 			child.Nullable = false

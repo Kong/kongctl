@@ -483,25 +483,25 @@ func (p *Planner) extractConsumePolicyConfig(
 
 func consumePolicyType(policy resources.EventGatewayConsumePolicyResource) string {
 	if policy.EventGatewayModifyHeadersPolicyCreate != nil {
-		return policy.EventGatewayModifyHeadersPolicyCreate.GetType()
+		return string(policy.EventGatewayModifyHeadersPolicyCreate.GetType())
 	}
 	if policy.EventGatewayConsumeSchemaValidationPolicy != nil {
-		return policy.EventGatewayConsumeSchemaValidationPolicy.GetType()
+		return string(policy.EventGatewayConsumeSchemaValidationPolicy.GetType())
 	}
 	if policy.EventGatewayDecryptPolicy != nil {
-		return policy.EventGatewayDecryptPolicy.GetType()
+		return string(policy.EventGatewayDecryptPolicy.GetType())
 	}
 	if policy.EventGatewaySkipRecordPolicyCreate != nil {
-		return policy.EventGatewaySkipRecordPolicyCreate.GetType()
+		return string(policy.EventGatewaySkipRecordPolicyCreate.GetType())
 	}
 	if policy.EventGatewayParsedRecordDecryptFieldsPolicyCreate != nil {
-		return policy.EventGatewayParsedRecordDecryptFieldsPolicyCreate.GetType()
+		return string(policy.EventGatewayParsedRecordDecryptFieldsPolicyCreate.GetType())
 	}
 	if policy.EventGatewayParsedRecordTranscodeConsumePolicyCreate != nil {
-		return policy.EventGatewayParsedRecordTranscodeConsumePolicyCreate.GetType()
+		return string(policy.EventGatewayParsedRecordTranscodeConsumePolicyCreate.GetType())
 	}
 	if policy.EventGatewayParsedRecordMaskFieldsConsumePolicyCreate != nil {
-		return policy.EventGatewayParsedRecordMaskFieldsConsumePolicyCreate.GetType()
+		return string(policy.EventGatewayParsedRecordMaskFieldsConsumePolicyCreate.GetType())
 	}
 	return ""
 }

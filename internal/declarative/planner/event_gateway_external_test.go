@@ -308,6 +308,7 @@ func TestPlanner_SyncInlineExternalVirtualClusterPlansRootPolicy(t *testing.T) {
 			VirtualCluster: namedExternalPlaceholder(t, "!lookup", "external-vc"),
 			EventGatewayClusterPolicyModify: kkComps.CreateEventGatewayClusterPolicyModifyAcls(
 				kkComps.EventGatewayACLsPolicy{
+					Type:    kkComps.EventGatewayACLsPolicyTypeAcls,
 					Name:    &policyName,
 					Enabled: &enabled,
 					Config:  kkComps.EventGatewayACLPolicyConfig{},
@@ -518,6 +519,7 @@ func externalEventGatewayResourceSet() *resources.ResourceSet {
 								Ref: "cluster-policy-ref",
 								EventGatewayClusterPolicyModify: kkComps.CreateEventGatewayClusterPolicyModifyAcls(
 									kkComps.EventGatewayACLsPolicy{
+										Type:    kkComps.EventGatewayACLsPolicyTypeAcls,
 										Name:    &name,
 										Enabled: &enabled,
 										Config:  kkComps.EventGatewayACLPolicyConfig{},

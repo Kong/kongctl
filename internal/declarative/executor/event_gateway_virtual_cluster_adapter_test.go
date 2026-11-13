@@ -179,7 +179,9 @@ func TestBuildVirtualClusterAuthentication_UnsupportedType(t *testing.T) {
 
 func TestConvertToVirtualClusterSensitiveDataAwareAuth_ClientCertificate(t *testing.T) {
 	auth := kkComps.CreateVirtualClusterAuthenticationSchemeClientCertificate(
-		kkComps.VirtualClusterAuthenticationClientCertificate{},
+		kkComps.VirtualClusterAuthenticationClientCertificate{
+			Type: kkComps.VirtualClusterAuthenticationClientCertificateTypeClientCertificate,
+		},
 	)
 
 	result, err := convertToVirtualClusterSensitiveDataAwareAuth(auth)
@@ -206,6 +208,7 @@ func TestConvertToVirtualClusterSensitiveDataAwareAuth_PreservesFetchKongIdentit
 			name: "sasl_plain",
 			auth: kkComps.CreateVirtualClusterAuthenticationSchemeSaslPlain(
 				kkComps.VirtualClusterAuthenticationSaslPlain{
+					Type:                       kkComps.VirtualClusterAuthenticationSaslPlainTypeSaslPlain,
 					Mediation:                  kkComps.VirtualClusterAuthenticationSaslPlainMediationPassthrough,
 					FetchKongIdentityPrincipal: fetch,
 				},
@@ -218,6 +221,7 @@ func TestConvertToVirtualClusterSensitiveDataAwareAuth_PreservesFetchKongIdentit
 			name: "sasl_scram",
 			auth: kkComps.CreateVirtualClusterAuthenticationSchemeSaslScram(
 				kkComps.VirtualClusterAuthenticationSaslScram{
+					Type:                       kkComps.VirtualClusterAuthenticationSaslScramTypeSaslScram,
 					Algorithm:                  kkComps.VirtualClusterAuthenticationSaslScramAlgorithmSha256,
 					FetchKongIdentityPrincipal: fetch,
 				},

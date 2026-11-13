@@ -18,7 +18,9 @@ func buildCreatePortalCustomDomainSSL(data map[string]any) (kkComps.CreatePortal
 
 	switch method {
 	case "http":
-		ssl := kkComps.CreateCreatePortalCustomDomainSSLHTTP(kkComps.HTTP{})
+		ssl := kkComps.CreateCreatePortalCustomDomainSSLHTTP(kkComps.HTTP{
+			DomainVerificationMethod: kkComps.CreatePortalCustomDomainSSLStandardDomainVerificationMethodHTTP,
+		})
 		return ssl, true, nil
 	case "custom_certificate":
 		certValue, _ := data["custom_certificate"].(string)
@@ -32,8 +34,9 @@ func buildCreatePortalCustomDomainSSL(data map[string]any) (kkComps.CreatePortal
 		}
 
 		cert := kkComps.CustomCertificate{
-			CustomCertificate: certValue,
-			CustomPrivateKey:  keyValue,
+			DomainVerificationMethod: kkComps.DomainVerificationMethodCustomCertificate,
+			CustomCertificate:        certValue,
+			CustomPrivateKey:         keyValue,
 		}
 		if skip, ok := data["skip_ca_check"].(bool); ok {
 			cert.SkipCaCheck = &skip

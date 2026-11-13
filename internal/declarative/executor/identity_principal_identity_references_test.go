@@ -35,7 +35,8 @@ func TestSavedTargetDeleteRechecksLateIdentityReferences(t *testing.T) {
 				api.Data = []kkComps.KongPrincipalIdentity{
 					kkComps.CreateKongPrincipalIdentityAuthServerClient(
 						kkComps.KongPrincipalIdentityAuthServerClientResponse{
-							ID: "731559d3-39bd-48c7-b33c-eb192847eb22", AuthServerID: server, ClientID: "opaque-client",
+							Type: kkComps.KongPrincipalIdentityAuthServerClientResponseTypeAuthServerClient,
+							ID:   "731559d3-39bd-48c7-b33c-eb192847eb22", AuthServerID: server, ClientID: "opaque-client",
 						},
 					),
 				}

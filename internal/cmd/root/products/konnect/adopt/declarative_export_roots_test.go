@@ -165,7 +165,7 @@ func TestControlPlaneGroupExportPreservesMemberships(t *testing.T) {
 		setup, export := childExportTestSetup(t, dryRun, "")
 		api := &controlPlaneAPIStub{t: t, control: &kkComps.ControlPlane{
 			ID: adoptionChildID, Name: "group",
-			Config: kkComps.ControlPlaneConfig{ClusterType: kkComps.ControlPlaneClusterTypeClusterTypeControlPlaneGroup},
+			Config: kkComps.ControlPlaneConfig{ClusterType: new(kkComps.ControlPlaneClusterTypeClusterTypeControlPlaneGroup)},
 		}}
 		groups := &adoptionMembershipAPI{}
 		result, err := adoptControlPlane(setup.Helper, api, "team-a", false, adoptionChildID, groups)

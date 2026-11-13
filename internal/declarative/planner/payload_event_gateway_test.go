@@ -85,7 +85,9 @@ func TestPayloadBinderPreservesNestedProducePolicySchemaRegistryReference(t *tes
 		EventGatewaySchemaRegistries: []resources.EventGatewaySchemaRegistryResource{{
 			Ref: "registry", EventGateway: gateway.Ref,
 			SchemaRegistryCreate: kkComps.CreateSchemaRegistryCreateConfluent(
-				kkComps.SchemaRegistryConfluent{Name: "remote-registry"},
+				kkComps.SchemaRegistryConfluent{
+					Type: kkComps.SchemaRegistryConfluentTypeConfluent, Name: "remote-registry",
+				},
 			),
 		}},
 	}

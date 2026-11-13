@@ -210,6 +210,7 @@ ai_gateways:
           - name: remote-tool
         config:
           url: https://mcp.example.com/mcp
+          route: {paths: [/mcp]}
 `
 
 	_, err := New().LoadFromSources(
@@ -232,6 +233,7 @@ ai_gateways:
         display_name: Support Passthrough
         config:
           url: https://mcp.example.com/mcp
+          route: {paths: [/mcp]}
           route:
             protocols: [https]
 `
@@ -255,6 +257,7 @@ ai_gateway_mcp_servers:
     display_name: Tools
     config:
       url: https://tools.example.com
+      route: {paths: [/tools]}
     tools: []
 `, serverType)
 

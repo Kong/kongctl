@@ -305,7 +305,9 @@ func MapControlPlaneToDeclarativeResource(
 
 	mapped.Kongctl = KongctlMetaFromLabels(cp.Labels)
 
-	if len(memberIDs) > 0 && cp.Config.ClusterType == kkComps.ControlPlaneClusterTypeClusterTypeControlPlaneGroup {
+	if len(memberIDs) > 0 &&
+		cp.Config.ClusterType != nil &&
+		*cp.Config.ClusterType == kkComps.ControlPlaneClusterTypeClusterTypeControlPlaneGroup {
 		mapped.Members = make([]declresources.ControlPlaneGroupMember, 0, len(memberIDs))
 		for _, id := range memberIDs {
 			mapped.Members = append(mapped.Members, declresources.ControlPlaneGroupMember{ID: id})
@@ -352,7 +354,8 @@ func Root(payload any) (declresources.Resource, error) {
 		r := MapOrganizationTeamToDeclarativeResource(value)
 		return &r, nil
 	case kkComps.ControlPlane:
-		if value.Config.ClusterType == kkComps.ControlPlaneClusterTypeClusterTypeControlPlaneGroup {
+		if value.Config.ClusterType != nil &&
+			*value.Config.ClusterType == kkComps.ControlPlaneClusterTypeClusterTypeControlPlaneGroup {
 			return nil, fmt.Errorf("control plane group export requires a declaration with verified memberships")
 		}
 		r := MapControlPlaneToDeclarativeResource(value, nil)

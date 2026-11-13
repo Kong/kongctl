@@ -10,7 +10,9 @@ import (
 func TestEventGatewayBackendClusterResourceMarshalJSONIncludesMetadata(t *testing.T) {
 	desc := "cluster"
 	meta := int64(60)
-	auth := kkComps.CreateBackendClusterAuthenticationSchemeAnonymous(kkComps.BackendClusterAuthenticationAnonymous{})
+	auth := kkComps.CreateBackendClusterAuthenticationSchemeAnonymous(kkComps.BackendClusterAuthenticationAnonymous{
+		Type: kkComps.BackendClusterAuthenticationAnonymousTypeAnonymous,
+	})
 
 	cluster := EventGatewayBackendClusterResource{
 		CreateBackendClusterRequest: kkComps.CreateBackendClusterRequest{

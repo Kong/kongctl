@@ -15,8 +15,10 @@ func TestControlPlaneProjectionParticipation(t *testing.T) {
 	first := kkComps.ProxyURL{Host: "first", Protocol: "https", Port: 443}
 	second := kkComps.ProxyURL{Host: "second", Protocol: "http", Port: 80}
 	desired := kkComps.CreateControlPlaneRequest{
-		Description: &empty, ClusterType: &cluster, AuthType: &auth, CloudGateway: &disabled,
-		ProxyUrls: []kkComps.ProxyURL{second, first},
+		Description: &empty, ClusterType: &cluster,
+		AuthType:     &auth,
+		CloudGateway: &disabled,
+		ProxyUrls:    []kkComps.ProxyURL{second, first},
 	}
 	fields := map[string]any{}
 	fieldcontracts.ExtractControlPlaneFields(desired, fields)
@@ -26,7 +28,9 @@ func TestControlPlaneProjectionParticipation(t *testing.T) {
 	require.NoError(t, fieldcontracts.MapControlPlaneCreateFields(fields, &create))
 	require.Equal(t, desired, create)
 	current := kkComps.ControlPlane{Description: "old", Config: kkComps.ControlPlaneConfig{
-		AuthType: "pinned_client_certs", CloudGateway: true, ProxyUrls: []kkComps.ProxyURL{first, second},
+		AuthType:     new(kkComps.ControlPlaneAuthTypePinnedClientCerts),
+		CloudGateway: new(true),
+		ProxyUrls:    []kkComps.ProxyURL{first, second},
 	}}
 	changes := fieldcontracts.CompareControlPlaneFields(desired, current)
 	require.Equal(t, map[string]fieldcontracts.FieldChange{
@@ -54,13 +58,15 @@ func TestControlPlaneExportOmissions(t *testing.T) {
 	}, &target)
 	require.Equal(t, kkComps.CreateControlPlaneRequest{}, target)
 	current := kkComps.ControlPlane{Description: " spaced ", Config: kkComps.ControlPlaneConfig{
-		ClusterType: "CLUSTER_TYPE_HYBRID", AuthType: "pinned_client_certs", CloudGateway: true,
-		ProxyUrls: []kkComps.ProxyURL{{Host: "proxy", Port: 443, Protocol: "https"}},
+		ClusterType:  new(kkComps.ControlPlaneClusterType("CLUSTER_TYPE_HYBRID")),
+		AuthType:     new(kkComps.ControlPlaneAuthTypePinnedClientCerts),
+		CloudGateway: new(true),
+		ProxyUrls:    []kkComps.ProxyURL{{Host: "proxy", Port: 443, Protocol: "https"}},
 	}}
 	fieldcontracts.ExportControlPlaneFields(current, &target)
 	require.Equal(t, " spaced ", *target.Description)
-	require.Equal(t, string(current.Config.ClusterType), string(*target.ClusterType))
-	require.Equal(t, string(current.Config.AuthType), string(*target.AuthType))
+	require.Equal(t, string(*current.Config.ClusterType), string(*target.ClusterType))
+	require.Equal(t, string(*current.Config.AuthType), string(*target.AuthType))
 	require.True(t, *target.CloudGateway)
 	require.Equal(t, current.Config.ProxyUrls, target.ProxyUrls)
 }

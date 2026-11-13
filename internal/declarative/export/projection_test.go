@@ -10,7 +10,7 @@ import (
 
 func TestRootRejectsControlPlaneGroupWithoutObservedMemberships(t *testing.T) {
 	current := kkComps.ControlPlane{ID: "group-id", Name: "group", Config: kkComps.ControlPlaneConfig{
-		ClusterType: kkComps.ControlPlaneClusterTypeClusterTypeControlPlaneGroup,
+		ClusterType: new(kkComps.ControlPlaneClusterTypeClusterTypeControlPlaneGroup),
 	}}
 	_, err := Root(current)
 	require.ErrorContains(t, err, "verified memberships")

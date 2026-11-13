@@ -809,7 +809,7 @@ func aiGatewayMCPServerAccessExplainNode() *ExplainNode {
 
 func aiGatewayMCPServerConfigExplainNode() *ExplainNode {
 	return explainObject(
-		explainField("route", aiGatewayRouteExplainNode(), false, false),
+		explainField("route", aiGatewayRouteExplainNode(), true, true),
 		explainField("logging", explainObject(
 			explainField("payloads", explainBoolNode("false"), false, false),
 			explainField("audits", explainBoolNode("false"), false, false),
