@@ -9,6 +9,15 @@
   ],
   "packageRules": [
     {
+      "description": "Keep locally linked Go modules in sync",
+      "matchManagers": [
+        "gomod"
+      ],
+      "postUpdateOptions": [
+        "gomodTidyAll"
+      ]
+    },
+    {
       "description": "Ignore pre-release versions until a stable tag exists",
       "ignoreUnstable": true,
       "matchPackageNames": [
