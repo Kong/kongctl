@@ -909,17 +909,21 @@ func TestPopulateOrganizationTeamChildrenIncludesEveryRolePage(t *testing.T) {
 }
 
 func TestPopulateOrganizationTeamChildrenHonorsPageSize(t *testing.T) {
-	for _, size := range []int{1, 10, 99, 100, 101} {
+	for _, size := range []int{1, 10, 99, 100, 101, 1000} {
 		t.Run(strconv.Itoa(size), func(t *testing.T) {
+			requestSize := min(size, 100)
 			var pages []int
 			server := httptest.NewServer(
 				http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					require.Equal(t, strconv.Itoa(size), r.URL.Query().Get("page[size]"))
+					if r.URL.Query().Get("page[size]") != strconv.Itoa(requestSize) {
+						http.Error(w, `{"message":"page[size] > max page size"}`, http.StatusBadRequest)
+						return
+					}
 					page, err := strconv.Atoi(r.URL.Query().Get("page[number]"))
 					require.NoError(t, err)
 					pages = append(pages, page)
 					data := make([]kkComps.AssignedRole, 0)
-					for i := (page - 1) * size; i < min(page*size, 101); i++ {
+					for i := (page - 1) * requestSize; i < min(page*requestSize, 101); i++ {
 						data = append(
 							data,
 							kkComps.AssignedRole{ID: new(fmt.Sprintf("role-%d", i))},
@@ -953,7 +957,7 @@ func TestPopulateOrganizationTeamChildrenHonorsPageSize(t *testing.T) {
 				populateOrganizationTeamChildren(t.Context(), client, teams, int64(size)),
 			)
 			require.Len(t, teams[0].Roles, 101)
-			require.Len(t, pages, (101+size-1)/size)
+			require.Len(t, pages, (101+requestSize-1)/requestSize)
 		})
 	}
 }

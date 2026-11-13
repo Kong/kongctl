@@ -97,7 +97,8 @@ func organizationAssignedRoleReader(
 ) pagination.NumberedReader[kkComps.AssignedRole] {
 	return pagination.NumberedReader[kkComps.AssignedRole]{
 		Fetch: func(ctx context.Context, size, page int64) ([]kkComps.AssignedRole, *pagination.PageMeta, error) {
-			collection, err := fetch(ctx, size, page)
+			// Identity assigned-role endpoints reject page sizes above 100.
+			collection, err := fetch(ctx, min(size, 100), page)
 			if err != nil {
 				return nil, nil, err
 			}
