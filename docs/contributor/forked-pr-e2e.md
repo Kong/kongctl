@@ -33,8 +33,12 @@ after the PR is out of draft and review comments are resolved.
      --repo Kong/kongctl \
      --ref main \
      -f trusted_pr_number=<pr-number> \
-     -f trusted_head_sha=<full-sha>
+     -f trusted_head_sha=<full-sha> \
+     -f konnect_environment=<com-or-tech>
    ```
+
+   Choose `tech` for `konnect-env:tech` PRs; otherwise use the configured
+   `KONGCTL_E2E_KONNECT_ENV` target, defaulting to `com`.
 
 5. Wait for the trusted `E2E / Scenario Suite` workflow to finish.
 

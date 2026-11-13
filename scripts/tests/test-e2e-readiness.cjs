@@ -1,6 +1,6 @@
 const {test} = require('node:test');
 const assert = require('node:assert/strict');
-const {requirement, reviewReady, ciReady, reconcile, admit, REQUIRED} = require('../e2e-readiness.cjs');
+const {requirement, reviewReady, ciReady, reconcile, admit, REQUIRED, scheduledBatch} = require('../e2e-readiness.cjs');
 
 function fixture() {
   const pr = {number: 12, state: 'open', draft: false, changed_files: 1, labels: [],
@@ -27,17 +27,23 @@ function fake() {
     }, listCommitStatusesForRef: method('statuses'), createCommitStatus: async status => {
       state.statuses.unshift(status);
     }},
-    actions: {listWorkflowRunsForRepo: method('ci'), listWorkflowRuns: method('runs'),
+    actions: {getWorkflowRun: async ({run_id}) => {
+      const run = state.runs.find(run => run.id === run_id);
+      if (!run) throw Object.assign(new Error('Not found'), {status: 404});
+      return {data: structuredClone(run)};
+    }, listWorkflowRunsForRepo: method('ci'), listWorkflowRuns: method('runs'),
       listJobsForWorkflowRun: method('jobs'), createWorkflowDispatch: async dispatch => {
         state.dispatches.push(dispatch);
         if (state.dispatchError) throw new Error('dispatch interrupted');
+        return {data: {workflow_run_id: 200}};
       }},
   }, paginate: async method => structuredClone(state[method.method]),
   graphql: async () => ({repository: {pullRequest: {reviewDecision: state.decision,
     reviewThreads: {nodes: state.threads, pageInfo: {hasNextPage: false}}}}})};
   const context = {repo: {owner: 'Kong', repo: 'kongctl'}, eventName: 'schedule',
     payload: {repository: {default_branch: 'main'}, inputs: {pr_number: '12'}}};
-  const core = {info() {}, setOutput(name, value) { state.outputs[name] = value; }};
+  const core = {warning(message) { (state.warnings ||= []).push(message); }, info() {},
+    setOutput(name, value) { state.outputs[name] = value; }};
   process.env.GITHUB_RUN_ID = '100';
   process.env.KONNECT_ENVIRONMENT = '';
   return {state, github, context, core};
@@ -47,7 +53,8 @@ function gate(f) { return f.state.statuses.find(status => status.context === 'E2
 function dispatchedRun(f, conclusion = null) {
   const inputs = f.state.dispatches.at(-1).inputs;
   return {id: 200, display_title: `${requirement(f.state.pr).title}/${inputs.readiness_ticket}`,
-    html_url: 'https://github.com/run/200', status: conclusion ? 'completed' : 'queued', conclusion};
+    html_url: 'https://github.com/Kong/kongctl/actions/runs/200',
+    status: conclusion ? 'completed' : 'queued', conclusion};
 }
 
 test('review policy requires current human approval and no blocking findings', () => {
@@ -342,4 +349,125 @@ test('an org-lock revision skip is retried when current readiness returns', asyn
   await reconcile(f);
   assert.equal(f.state.dispatches.length, 2);
   assert.equal(gate(f).state, 'pending');
+});
+
+
+for (const conclusion of ['failure', 'cancelled']) {
+  test(`${conclusion} with a reused earlier admission never triggers an automatic retry`, async () => {
+    const f = fake();
+    await reconcile(f);
+    f.state.runs = [{...dispatchedRun(f, conclusion), run_attempt: 2}];
+    f.state.jobs = [
+      {name: 'Determine scenario requirement', conclusion: 'success', run_attempt: 1},
+      {name: 'Verify scenario results and coverage', conclusion: 'skipped', run_attempt: 2},
+    ];
+    await reconcile(f);
+    await reconcile(f);
+    assert.equal(f.state.dispatches.length, 1);
+    assert.equal(gate(f).state, 'failure');
+  });
+}
+
+test('deleted reviewers cannot approve or crash readiness evaluation', () => {
+  const {pr, approval} = fixture();
+  assert.equal(reviewReady(pr, [{...approval, user: null}], null, []), false);
+  assert.equal(reviewReady(pr, [approval, {...approval, user: null, state: 'CHANGES_REQUESTED'}], null, []), false);
+  assert.equal(reviewReady(pr, [approval, {...approval, user: null}], null, []), true);
+});
+
+test('a failed PR does not abort later PRs in a scheduled sweep', async () => {
+  const f = fake();
+  f.context.payload.inputs = {};
+  f.state.pulls = [{number: 12}, {number: 13}];
+  f.github.rest.pulls.get = async ({pull_number}) => {
+    if (pull_number === 12) throw new Error('PR temporarily unavailable');
+    return {data: {...structuredClone(f.state.pr), number: pull_number}};
+  };
+  await reconcile(f);
+  assert.equal(f.state.warnings.length, 1);
+  assert.match(f.state.warnings[0], /PR #12/);
+  assert.equal(f.state.outputs.pr_number, '13');
+});
+
+test('scheduled sweeps rotate bounded batches without starving a stable open PR set', () => {
+  const pulls = Array.from({length: 20}, (_, index) => ({number: index + 1}));
+  const visited = [];
+  for (let slot = 0; slot < 4; slot++) {
+    const batch = scheduledBatch(pulls, slot * 300000);
+    assert.equal(batch.length, 5);
+    visited.push(...batch.map(pr => pr.number));
+  }
+  assert.deepEqual(visited, pulls.map(pr => pr.number));
+});
+
+test('stored run IDs avoid history and repeated terminal job/status listings', async () => {
+  const f = fake();
+  await reconcile(f);
+  assert.equal(f.state.dispatches[0].headers['X-GitHub-Api-Version'], '2026-03-10');
+  const evidence = f.state.statuses.find(status => status.context === requirement(f.state.pr).statusContext);
+  assert.equal(evidence.target_url, 'https://github.com/Kong/kongctl/actions/runs/200');
+  f.state.runs = [dispatchedRun(f, 'success')];
+  f.state.jobs = [{name: 'Verify scenario results and coverage', conclusion: 'success'}];
+  await reconcile(f);
+  const calls = [];
+  const paginate = f.github.paginate;
+  f.github.paginate = async (method, args) => { calls.push(method.method); return paginate(method, args); };
+  await reconcile(f);
+  assert.equal(gate(f).state, 'success');
+  assert.equal(calls.filter(name => name === 'statuses').length, 1);
+  assert.ok(!calls.includes('jobs'));
+  assert.ok(!calls.includes('runs'));
+});
+
+function workflowScript(file, name) {
+  const {readFileSync} = require('node:fs');
+  const {resolve} = require('node:path');
+  const source = readFileSync(resolve(__dirname, '../../.github/workflows', file), 'utf8');
+  return source.split(`      - name: ${name}\n`)[1].split('          script: |\n')[1]
+    .split(/\n(?:      -|  [a-z])/)[0].split('\n').map(line => line.replace(/^ {12}/, '')).join('\n');
+}
+
+async function runCommentScript(file, name, env, pr, body = '') {
+  Object.assign(process.env, env);
+  const writes = [];
+  const outputs = {};
+  const summary = {addHeading() {return this;}, addList() {return this;}, async write() {}};
+  const core = {setOutput(key, value) {outputs[key] = value;}, info() {}, warning() {},
+    setFailed(message) {throw new Error(message);}, summary};
+  const github = {paginate: async () => body ? [{id: 1, body, user: {login: 'github-actions[bot]'}}] : [],
+    rest: {pulls: {get: async () => ({data: pr})}, issues: {
+      listComments() {}, updateComment: async args => writes.push(args), createComment: async args => writes.push(args),
+    }, repos: {createCommitStatus: async args => writes.push(args)}}};
+  const AsyncFunction = Object.getPrototypeOf(async function() {}).constructor;
+  await new AsyncFunction('github', 'context', 'core', 'require', workflowScript(file, name))(
+    github, {repo: {owner: 'Kong', repo: 'kongctl'}, payload: {repository: {default_branch: 'main'}}}, core, require);
+  return {writes, outputs};
+}
+
+test('fork events preserve equivalent results and environment changes replace instructions', async () => {
+  const env = {PR_NUMBER: '12', PR_HEAD_SHA: 'reviewed', KONNECT_ENVIRONMENT: 'com', VALIDATION_STATE: 'success'};
+  const body = '<!-- kongctl-trusted-e2e-status -->\n- Reviewed SHA: `reviewed`\n' +
+    '- Konnect environment: `com`\nTrusted E2E passed';
+  const pr = fixture().pr;
+  const unchanged = await runCommentScript('e2e-required-status.yaml', 'Post trusted-run instructions', env, pr, body);
+  assert.equal(unchanged.writes.length, 0);
+  const legacy = await runCommentScript('e2e-required-status.yaml', 'Post trusted-run instructions',
+    env, pr, '<!-- kongctl-trusted-e2e-status -->\n- Reviewed SHA: `reviewed`\nTrusted E2E passed');
+  assert.equal(legacy.writes.length, 0);
+  const changed = await runCommentScript('e2e-required-status.yaml', 'Post trusted-run instructions',
+    {...env, KONNECT_ENVIRONMENT: 'tech', VALIDATION_STATE: ''}, pr, body);
+  assert.equal(changed.writes.length, 1);
+  assert.match(changed.writes[0].body, /konnect_environment=tech/);
+});
+
+test('a moved fork head sets superseded outputs and never posts a false failure result', async () => {
+  const pr = {...fixture().pr, head: {sha: 'new'}, labels: []};
+  const report = await runCommentScript('e2e.yaml', 'Publish “E2E Required” status',
+    {TRUSTED_DISPATCH: 'true', TRUSTED_PR_NUMBER: '12', STATUS_SHA: 'old'}, pr);
+  assert.equal(report.outputs.superseded, 'true');
+  assert.equal(report.outputs.state, 'superseded');
+  assert.equal(report.writes.length, 0);
+  const comment = await runCommentScript('e2e.yaml', 'Update trusted-run PR comment',
+    {TRUSTED_PR_NUMBER: '12', STATUS_SHA: 'old', VALIDATION_ENV: 'com', CONFIGURED_ENV: ''}, pr);
+  assert.equal(comment.writes.length, 0);
 });

@@ -135,11 +135,14 @@ jobs:
         with:
           egress-policy: audit
       - name: Checkout trusted admission controller
+        if: inputs.dispatch_source == 'readiness'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.workflow_sha }}
           persist-credentials: false
-          fetch-depth: 0
+          fetch-depth: 1
+          sparse-checkout: scripts/e2e-readiness.cjs
+          sparse-checkout-cone-mode: false
       - name: Recheck readiness after environment queue
         id: admission
         if: inputs.dispatch_source == 'readiness'
@@ -370,7 +373,7 @@ jobs:
             base_repo="$(gh api "${pr_api}" --jq '.base.repo.full_name')"
 
             if [ "${head_repo}" = "${base_repo}" ]; then
-              echo "::error::Trusted fork E2E only accepts fork pull requests. Use the normal E2E workflow for same-repo PRs."
+              echo "::error::Trusted fork E2E only accepts fork pull requests. Use the readiness controller for same-repo PRs: e2e-required-status.yaml with pr_number and retry=true."
               exit 1
             fi
             if [ "${TRUSTED_HEAD_SHA}" != "${head_sha}" ]; then
@@ -431,16 +434,10 @@ jobs:
           }
 
           changed_files="$(mktemp)"
-          git diff --name-only "${merge_base}" HEAD | tee "${changed_files}"
+          git diff --name-only -z "${merge_base}" HEAD > "${changed_files}"
+          e2e_required="$(node scripts/e2e-readiness.cjs --required-files "${changed_files}")"
 
-          e2e_pattern="$(
-            printf '%s' \
-              '^(go\.mod|go\.sum|main\.go|[^/]+\.go|internal/.*|test/e2e/.*' \
-              '|Makefile|\.goreleaser\.yml|\.github/workflows/e2e\.yaml' \
-              '|\.github/workflows/e2e-main-debounce\.yaml|scripts/e2e_run_report.*\.py|scripts/e2e_replay.*\.(py|txt)|scripts/e2e-replay-isolated\.sh)$'
-          )"
-
-          if grep -Eq "${e2e_pattern}" "${changed_files}"; then
+          if [ "${e2e_required}" = true ]; then
             if [ "${is_fork}" = "true" ]; then
               emit_outputs true false true
               echo "E2E requires maintainer-triggered trusted run for fork PR."
@@ -1638,6 +1635,7 @@ jobs:
       pull-requests: read
       statuses: write
     outputs:
+      superseded: ${{ steps.report.outputs.superseded }}
       state: ${{ steps.report.outputs.state }}
       description: ${{ steps.report.outputs.description }}
       status_sha: ${{ steps.report.outputs.status_sha }}
@@ -1688,7 +1686,14 @@ jobs:
               const {data: currentPR} = await github.rest.pulls.get({
                 ...context.repo, pull_number: Number(trustedPRNumber),
               });
-              if (currentPR.head.sha !== statusSha) return;
+              if (currentPR.head.sha !== statusSha) {
+                core.setOutput('superseded', 'true');
+                core.setOutput('state', 'superseded');
+                core.setOutput('status_sha', statusSha);
+                core.setOutput('trusted_pr_number', trustedPRNumber);
+                core.setOutput('description', `Reviewed SHA ${statusSha} superseded by ${currentPR.head.sha}.`);
+                return;
+              }
             }
 
             let state = 'success';
@@ -1757,7 +1762,10 @@ jobs:
     name: Update trusted-run PR comment
     needs:
       - e2e-required
-    if: ${{ always() && github.event_name == 'workflow_dispatch' && inputs.trusted_pr_number != '' }}
+      - e2e-needed
+    if: >-
+      always() && github.event_name == 'workflow_dispatch' && inputs.trusted_pr_number != '' &&
+      needs.e2e-required.outputs.superseded != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -1773,6 +1781,8 @@ jobs:
       - name: Update trusted-run PR comment
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
+          VALIDATION_ENV: ${{ needs.e2e-needed.outputs.konnect_environment }}
+          CONFIGURED_ENV: ${{ vars.KONGCTL_E2E_KONNECT_ENV }}
           E2E_REQUIRED_STATE: ${{ needs.e2e-required.outputs.state || 'failure' }}
           E2E_REQUIRED_DESCRIPTION: >-
             ${{
@@ -1789,6 +1799,15 @@ jobs:
             const trustedPRNumber = Number(process.env.TRUSTED_PR_NUMBER);
             const statusSha = process.env.STATUS_SHA;
             const runURL = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            const {data: currentPR} = await github.rest.pulls.get({
+              ...context.repo, pull_number: trustedPRNumber,
+            });
+            const currentEnv = currentPR.labels.some(label => label.name === 'konnect-env:tech') ||
+              process.env.CONFIGURED_ENV === 'tech' ? 'tech' : 'com';
+            if (currentPR.head.sha !== statusSha || currentEnv !== process.env.VALIDATION_ENV) {
+              core.info('Leaving the current trusted-run comment intact; validation requirements changed.');
+              return;
+            }
             const statusLabel = state === 'success'
               ? 'passed'
               : state === 'failure' || state === 'error'
@@ -1800,6 +1819,7 @@ jobs:
               '',
               `- PR: #${trustedPRNumber}`,
               `- Reviewed SHA: \`${statusSha}\``,
+              `- Konnect environment: \`${process.env.VALIDATION_ENV}\``,
               `- Trusted run: ${runURL}`,
               `- Status: \`${state}\``,
               `- Description: ${description}`,

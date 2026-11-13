@@ -605,9 +605,11 @@ can block readiness but bot approvals cannot authorize it.
 PR lifecycle events, review events, and prerequisite/scenario workflow
 completion reevaluate current API state. GitHub Actions has no review-thread
 resolution trigger, so a five-minute scheduled reconciliation also checks
-all open PRs. This covers resolved or reopened threads and fork reviews;
-scheduled execution can be delayed by GitHub. Unrelated label changes are
-ignored. `e2e:force-live` and `konnect-env:tech` changes reevaluate routing.
+up to five open PRs per tick, rotating by PR number and time slot. This
+covers resolved or reopened threads and fork reviews while bounding routine
+API cost. With twenty open PRs, each PR is revisited within four scheduled
+ticks (about twenty minutes); GitHub can delay scheduled execution. Unrelated
+label changes are ignored. `e2e:force-live` and `konnect-env:tech` changes reevaluate routing.
 
 The controller directly dispatches the default-branch scenario workflow.
 Admission rechecks readiness after acquiring the environment queue, before
@@ -617,6 +619,22 @@ mode. New commits require new validation. Environment and force-live changes
 select separate evidence; old runs cannot overwrite the new requirement.
 Returning to a previously validated equivalent requirement reuses its result.
 The controller alone writes the aggregate `E2E Required` PR merge gate.
+
+Readiness E2E validates the approved head SHA, not GitHub's synthetic merge
+commit. The ordinary `CI Test` workflow tests the PR merge snapshot, including
+the branch's controller/replay unit tests. Neither result guarantees E2E
+compatibility with later changes to the base branch. Update/rebase the PR
+for a new head revision or use merge-group validation when that integration
+boundary is required.
+
+Automatic dispatch runs default-branch workflow and replay tooling; scenario
+data and compiled CLI/test binaries come from the admitted head. This is an
+intentional trust boundary against cache poisoning in privileged dispatches.
+Changes to replay orchestration are unit-tested from the PR by ordinary CI,
+but automatic replay does not execute those new scripts outside isolation.
+A routing-plan disagreement fails closed. Maintainers can explicitly dispatch
+a reviewed branch workflow for end-to-end tooling validation before merge;
+otherwise those tooling changes first execute after deployment to `main`.
 
 Queued historical runs can remain visible in Actions. When the environment
 queue opens, admission compares the queued SHA with the current PR head and
@@ -640,7 +658,15 @@ that does not yet exist on `main`.
 
 Dispatch reservations are commit statuses under `E2E Validation / ...`.
 A single controller queue serializes evaluations; reservations deduplicate
-bursts even before dispatched runs become visible. A skipped admission is
+bursts even before dispatched runs become visible. The dispatch response's
+run ID is stored in the keyed status URL and queried directly, avoiding the
+1,000-run history listing limit. Terminal evidence records the run attempt;
+its jobs are read again only when the attempt changes. Each evaluation
+caches statuses and takes one full snapshot per PR, with another readiness
+snapshot only when admitting a new dispatch and a final lightweight PR
+identity check. A failed PR evaluation warns and leaves other PRs in the
+sweep eligible for processing. Interrupted reservations still require the
+explicit retry below. A skipped admission is
 never a successful validation and can be scheduled again when readiness
 returns. Failures and cancellations remain failed until explicitly retried:
 
@@ -655,8 +681,8 @@ for an existing run, then use the same retry command to recover. Ordinary
 events do not retry failures or ambiguous reservations. Rerunning the entire
 scenario workflow also rechecks admission. A failed-jobs-only rerun cannot
 reuse an older admission decision; use the controller retry command instead.
-Main's debounced dispatch, manual runs,
-merge groups, environment queues, and per-org locks remain supported.
+Main's debounced dispatch, manual runs, merge groups, environment queues,
+and per-org locks remain supported.
 
 Fork PRs never receive automatic secret-backed execution. The controller
 keeps their gate pending until a maintainer dispatches the trusted workflow

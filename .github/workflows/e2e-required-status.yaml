@@ -51,6 +51,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       konnect_environment: ${{ steps.status.outputs.konnect_environment }}
+      validation_state: ${{ steps.status.outputs.validation_state }}
       required: ${{ steps.status.outputs.required }}
       fork_pull_request: ${{ steps.status.outputs.fork_pull_request }}
       pr_number: ${{ steps.status.outputs.pr_number }}
@@ -96,6 +97,7 @@ jobs:
       - name: Post trusted-run instructions
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
+          VALIDATION_STATE: ${{ needs.e2e-required-status.outputs.validation_state }}
           KONNECT_ENVIRONMENT: ${{ needs.e2e-required-status.outputs.konnect_environment }}
           PR_NUMBER: ${{ needs.e2e-required-status.outputs.pr_number }}
           PR_HEAD_SHA: ${{ needs.e2e-required-status.outputs.pr_head_sha }}
@@ -118,6 +120,7 @@ jobs:
               '',
               `- PR: #${prNumber}`,
               `- Reviewed SHA: \`${prHeadSHA}\``,
+              `- Konnect environment: \`${process.env.KONNECT_ENVIRONMENT}\``,
               '- Status: `pending`',
               '- Trusted run: not started',
               '',
@@ -141,6 +144,14 @@ jobs:
                 comment.body?.includes(trustedCommentMarker) &&
                 comment.user?.login === 'github-actions[bot]'
               );
+              const sameSHA = existing?.body?.includes(`- Reviewed SHA: \`${prHeadSHA}\``);
+              const sameEnv = existing?.body?.includes(`- Konnect environment: \`${process.env.KONNECT_ENVIRONMENT}\``);
+              const legacyEvidence = !existing?.body?.includes('- Konnect environment:') &&
+                ['success', 'failure'].includes(process.env.VALIDATION_STATE);
+              if (sameSHA && (sameEnv || legacyEvidence)) {
+                core.info('Preserving the existing trusted-run comment for this revision and environment.');
+                return;
+              }
               if (existing) {
                 await github.rest.issues.updateComment({
                   owner: context.repo.owner,

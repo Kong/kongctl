@@ -364,10 +364,7 @@ def resolve_run(repo: str, workflow: str, run_ref: str, max_pages: int) -> RunIn
 
 def resolve_pr_run(repo: str, workflow: str, pr_info: PRInfo, max_pages: int) -> RunInfo:
     runs = resolve_pr_runs_from_check_runs(repo, workflow, pr_info)
-    if runs:
-        return latest_run(runs)
-
-    runs = resolve_pr_runs_from_workflow_runs(repo, workflow, pr_info, max_pages)
+    runs += resolve_pr_runs_from_workflow_runs(repo, workflow, pr_info, max_pages)
     if runs:
         return latest_run(runs)
 
@@ -397,23 +394,27 @@ def resolve_pr_runs_from_check_runs(repo: str, workflow: str, pr_info: PRInfo) -
 
 def resolve_pr_runs_from_workflow_runs(repo: str, workflow: str, pr_info: PRInfo, max_pages: int) -> list[RunInfo]:
     matched: list[RunInfo] = []
-    for page in range(1, max_pages + 1):
-        data = gh_api_json(
-            repo,
-            f"/actions/workflows/{workflow}/runs?event=pull_request&per_page=100&page={page}",
-        )
-        runs = data.get("workflow_runs", [])
-        if not runs:
-            break
-        for item in runs:
-            if workflow_run_matches_pr(item, pr_info):
-                matched.append(run_from_json(item))
-        if matched:
-            break
+    for event in ("pull_request", "workflow_dispatch"):
+        for page in range(1, max_pages + 1):
+            data = gh_api_json(
+                repo,
+                f"/actions/workflows/{workflow}/runs?event={event}&per_page=100&page={page}",
+            )
+            runs = data.get("workflow_runs", [])
+            if not runs:
+                break
+            found = [item for item in runs if workflow_run_matches_pr(item, pr_info)]
+            matched.extend(run_from_json(item) for item in found)
+            if found:
+                break
     return matched
 
 
 def workflow_run_matches_pr(data: dict[str, Any], pr_info: PRInfo) -> bool:
+    if data.get("event") == "workflow_dispatch":
+        title = str(data.get("display_title") or "")
+        return (title.startswith(f"readiness:{pr_info.number}/{pr_info.head_sha}/")
+                or title == f"PR #{pr_info.number} · trusted scenarios · {pr_info.head_sha}")
     if str(data.get("head_sha") or "") == pr_info.head_sha:
         return True
     for item in data.get("pull_requests") or []:
