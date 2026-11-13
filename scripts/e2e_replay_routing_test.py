@@ -79,20 +79,18 @@ class RoutingTest(unittest.TestCase):
         suite = (workflows / "e2e.yaml").read_text()
         status = (workflows / "e2e-required-status.yaml").read_text()
         replay_job = suite.split("  e2e-replay:", 1)[1].split("  e2e:", 1)[0]
-        self.assertIn("github.event_name == 'pull_request'", replay_job)
+        self.assertIn("inputs.dispatch_source == 'readiness'", replay_job)
         self.assertIn("needs.e2e-build.outputs.replay_mode == 'pr'", replay_job)
-        self.assertIn("ref: ${{ github.sha }}", replay_job)
-        self.assertNotIn("needs.e2e-needed.outputs.checkout_ref", replay_job)
+        self.assertIn("ref: ${{ needs.e2e-needed.outputs.checkout_ref }}", replay_job)
         self.assertNotIn("needs.e2e-needed.outputs.checkout_repository", replay_job)
         replay_verifier = suite.split("  e2e-replay-verify:", 1)[1].split("  e2e-verify:", 1)[0]
-        self.assertIn("github.event_name == 'pull_request'", replay_verifier)
-        self.assertIn("ref: ${{ github.sha }}", replay_verifier)
-        self.assertNotIn("needs.e2e-needed.outputs.checkout_ref", replay_verifier)
+        self.assertIn("inputs.dispatch_source == 'readiness'", replay_verifier)
+        self.assertIn("ref: ${{ needs.e2e-needed.outputs.checkout_ref }}", replay_verifier)
         self.assertIn("REPLAY_VERIFY_RESULT: ${{ needs.e2e-replay-verify.result }}", suite)
-        self.assertIn("currentPR.labels.some(label => label.name === 'e2e:force-live')", suite)
+        self.assertIn("needs.e2e-needed.outputs.readiness_mode == 'pr'", suite)
         self.assertIn("github.event.label.name == 'e2e:force-live'", status)
-        self.assertIn("- labeled", status)
-        self.assertIn("- unlabeled", status)
+        self.assertIn("labeled", status)
+        self.assertIn("unlabeled", status)
 
     def test_main_is_all_live_and_pr_is_an_exact_partition(self):
         live = MODULE.make_plan(MODULE.REPLAY.ROOT, "live")

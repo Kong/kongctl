@@ -1,37 +1,56 @@
 name: E2E / Required Status
-run-name: "PR #${{ github.event.pull_request.number }} · required status · ${{ github.event.action }}"
 
 on:
   pull_request_target:
-    branches: ['**']
-    types:
-      - opened
-      - reopened
-      - synchronize
-      - ready_for_review
-      - labeled
-      - unlabeled
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft, edited, labeled, unlabeled]
+  pull_request_review:
+    types: [submitted, dismissed]
+  workflow_run:
+    workflows: [CI Test, Checks, E2E / Scenario Suite]
+    types: [completed]
+  # Actions has no pull_request_review_thread trigger. Reconcile resolution,
+  # unresolution, missed events, and fork reviews using trusted default code.
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: PR to reevaluate (empty reevaluates all open PRs)
+        type: string
+        default: ''
+      retry:
+        description: Retry failed/cancelled validation or an interrupted reservation
+        type: boolean
+        default: false
 
 permissions:
+  actions: write
   contents: read
   pull-requests: read
   statuses: write
 
 env:
   DO_NOT_TRACK: "1"
+  KONNECT_ENVIRONMENT: ${{ vars.KONGCTL_E2E_KONNECT_ENV || '' }}
 
+# One writer for dispatch reservations and the aggregate status. Never cancel
+# an evaluator between reserving a key and dispatching its workflow.
 concurrency:
-  group: e2e-required-status-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  group: e2e-readiness-controller
+  queue: max
+  cancel-in-progress: false
 
 jobs:
   e2e-required-status:
-    name: Initialize “E2E Required”
+    name: Reconcile E2E readiness
     if: >-
-      (github.event.action != 'labeled' && github.event.action != 'unlabeled') ||
-      github.event.label.name == 'e2e:force-live'
+      ((github.event.action != 'labeled' && github.event.action != 'unlabeled') ||
+       github.event.label.name == 'e2e:force-live' || github.event.label.name == 'konnect-env:tech') &&
+      (github.event_name != 'pull_request_review' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     outputs:
+      konnect_environment: ${{ steps.status.outputs.konnect_environment }}
       required: ${{ steps.status.outputs.required }}
       fork_pull_request: ${{ steps.status.outputs.fork_pull_request }}
       pr_number: ${{ steps.status.outputs.pr_number }}
@@ -41,52 +60,17 @@ jobs:
         uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
         with:
           egress-policy: audit
-
-      - name: Initialize “E2E Required” status
+      - name: Checkout trusted controller
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Reconcile current PR state
         id: status
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
-            const statusContext = 'E2E Required';
-            const pr = context.payload.pull_request;
-            const runURL = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
-            const files = await github.paginate(github.rest.pulls.listFiles, {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: pr.number,
-              per_page: 100,
-            });
-            const e2ePattern = /^(go\.mod|go\.sum|main\.go|[^/]+\.go|internal\/.*|test\/e2e\/.*|Makefile|\.goreleaser\.yml|\.github\/workflows\/e2e\.yaml|\.github\/workflows\/e2e-main-debounce\.yaml|scripts\/e2e_replay.*\.py|scripts\/e2e-replay-isolated\.sh)$/;
-            const required = files.some((file) => e2ePattern.test(file.filename));
-            const forkPullRequest = pr.head.repo.full_name !== pr.base.repo.full_name;
-            const state = required ? 'pending' : 'success';
-            core.setOutput('required', String(required));
-            core.setOutput('fork_pull_request', String(forkPullRequest));
-            core.setOutput('pr_number', String(pr.number));
-            core.setOutput('pr_head_sha', pr.head.sha);
-
-            let description = 'E2E not required for this PR.';
-            let targetUrl = runURL;
-
-            if (required && forkPullRequest) {
-              description = 'Fork PR requires trusted maintainer E2E for reviewed SHA.';
-              targetUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/workflows/e2e.yaml`;
-            } else if (required) {
-              description = 'E2E required for this PR and waiting for E2E workflow.';
-              targetUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/pull/${pr.number}/checks`;
-            }
-
-            await github.rest.repos.createCommitStatus({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              sha: pr.head.sha,
-              context: statusContext,
-              state,
-              description,
-              target_url: targetUrl,
-            });
-
-            core.info(description);
+            await require('./scripts/e2e-readiness.cjs').reconcile({github, context, core});
 
   trusted-e2e-required-comment:
     name: Request trusted run for fork PR
@@ -94,6 +78,7 @@ jobs:
       - e2e-required-status
     if: >-
       ${{
+        github.event_name == 'pull_request_target' &&
         needs.e2e-required-status.outputs.required == 'true' &&
         needs.e2e-required-status.outputs.fork_pull_request == 'true'
       }}
@@ -111,6 +96,7 @@ jobs:
       - name: Post trusted-run instructions
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
+          KONNECT_ENVIRONMENT: ${{ needs.e2e-required-status.outputs.konnect_environment }}
           PR_NUMBER: ${{ needs.e2e-required-status.outputs.pr_number }}
           PR_HEAD_SHA: ${{ needs.e2e-required-status.outputs.pr_head_sha }}
         with:
@@ -124,6 +110,7 @@ jobs:
               `--ref ${defaultBranch}`,
               `-f trusted_pr_number=${prNumber}`,
               `-f trusted_head_sha=${prHeadSHA}`,
+              `-f konnect_environment=${process.env.KONNECT_ENVIRONMENT}`,
             ].join(' ');
             const body = [
               trustedCommentMarker,

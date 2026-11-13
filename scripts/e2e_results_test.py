@@ -129,6 +129,7 @@ class ResultsTest(unittest.TestCase):
                 cwd=workspace, capture_output=True, text=True,
                 env={**os.environ, 'GITHUB_WORKSPACE': str(workspace), 'GITHUB_RUN_ID': '123',
                      'GITHUB_EVENT_NAME': event, 'REPLAY_VERIFY_RESULT': 'success',
+                     'READINESS_DISPATCH': 'true' if event == 'pull_request' else 'false',
                      'GITHUB_STEP_SUMMARY': str(summary), 'RUNNER_TEMP': str(summary.parent), 'TMPDIR': str(workspace)},
             )
             return completed, summary.read_text()

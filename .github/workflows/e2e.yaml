@@ -7,8 +7,8 @@ run-name: >-
     github.event_name == 'workflow_dispatch' &&
     inputs.dispatch_source == 'main-debounce' &&
     format('main · scenarios · debounced · {0}', inputs.main_sha) ||
-    github.event_name == 'pull_request' &&
-    format('PR #{0} · scenarios · {1}', github.event.pull_request.number, github.event.action) ||
+    inputs.dispatch_source == 'readiness' &&
+    format('readiness:{0}/{1}/{2}/{3}/{4}', inputs.readiness_pr, inputs.readiness_sha, inputs.konnect_environment, inputs.readiness_mode, inputs.readiness_ticket) ||
     github.event_name == 'merge_group' &&
     format('Merge queue · scenarios · {0}', github.ref_name) ||
     format('Manual · scenarios · {0}', inputs.konnect_environment)
@@ -17,15 +17,6 @@ permissions:
   contents: read
 
 on:
-  pull_request:
-    branches: ['**']
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
-      - labeled
-      - unlabeled
   merge_group:
     types: [checks_requested]
   workflow_dispatch:
@@ -34,6 +25,22 @@ on:
         description: Internal dispatch source
         type: string
         default: ""
+      readiness_pr:
+        description: Internal same-repository PR number
+        type: string
+        default: ''
+      readiness_sha:
+        description: Internal exact PR head revision
+        type: string
+        default: ''
+      readiness_mode:
+        description: Internal routing mode (pr or live)
+        type: string
+        default: ''
+      readiness_ticket:
+        description: Internal controller reservation
+        type: string
+        default: ''
       main_sha:
         description: Main branch SHA selected by the debounce workflow
         type: string
@@ -81,10 +88,6 @@ concurrency:
       (
         inputs.konnect_environment == 'tech' ||
         (
-          github.event_name == 'pull_request' &&
-          contains(github.event.pull_request.labels.*.name, 'konnect-env:tech')
-        ) ||
-        (
           (
             inputs.konnect_environment == '' ||
             inputs.konnect_environment == 'auto'
@@ -122,13 +125,35 @@ jobs:
       checkout_repository: ${{ steps.detect.outputs.checkout_repository }}
       checkout_ref: ${{ steps.detect.outputs.checkout_ref }}
       trusted_pr_number: ${{ steps.detect.outputs.trusted_pr_number }}
+      readiness_mode: ${{ steps.admission.outputs.mode }}
+      # A failed-jobs-only rerun must not reuse an earlier admission decision.
+      admission_attempt: ${{ steps.admission.outputs.attempt }}
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
         with:
           egress-policy: audit
-      - name: Checkout
-        if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+      - name: Checkout trusted admission controller
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Recheck readiness after environment queue
+        id: admission
+        if: inputs.dispatch_source == 'readiness'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          READINESS_PR: ${{ inputs.readiness_pr }}
+          READINESS_SHA: ${{ inputs.readiness_sha }}
+          READINESS_MODE: ${{ inputs.readiness_mode }}
+          READINESS_ENV: ${{ inputs.konnect_environment }}
+          KONNECT_ENVIRONMENT: ${{ vars.KONGCTL_E2E_KONNECT_ENV || '' }}
+        with:
+          script: |
+            await require('./scripts/e2e-readiness.cjs').admit({github, context, core});
+      - name: Checkout merge group
+        if: github.event_name == 'merge_group'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
@@ -140,20 +165,12 @@ jobs:
           DISPATCH_KONNECT_ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.konnect_environment || '' }}
           CONFIGURED_KONNECT_ENVIRONMENT: ${{ vars.KONGCTL_E2E_KONNECT_ENV || '' }}
           CONFIGURED_SHARD_STRATEGY: ${{ vars.KONGCTL_E2E_SHARD_STRATEGY || 'weighted' }}
-          PR_HAS_TECH_LABEL: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'konnect-env:tech') && 'true' || 'false' }}
+          PR_HAS_TECH_LABEL: 'false'
           DEFAULT_ORGS_JSON: ${{ vars.KONGCTL_E2E_ORGS_JSON || '' }}
           COM_ORGS_JSON: ${{ vars.KONGCTL_E2E_COM_ORGS_JSON || '' }}
           PRODUCTION_ORGS_JSON: ${{ vars.KONGCTL_E2E_PRODUCTION_ORGS_JSON || '' }}
           TECH_ORGS_JSON: ${{ vars.KONGCTL_E2E_TECH_ORGS_JSON || '' }}
-          DISABLE_DEFAULT_ORG_FALLBACK: >-
-            ${{
-              (
-                github.event_name == 'pull_request' &&
-                github.event.pull_request.head.repo.full_name != github.repository
-              ) &&
-              'true' ||
-              'false'
-            }}
+          DISABLE_DEFAULT_ORG_FALLBACK: 'false'
           DEFAULT_KONNECT_BASE_URL: ${{ vars.KONGCTL_E2E_KONNECT_BASE_URL || '' }}
           DEFAULT_KONNECT_BASE_AUTH_URL: ${{ vars.KONGCTL_E2E_KONNECT_BASE_AUTH_URL || '' }}
           DEFAULT_KONNECT_MACHINE_CLIENT_ID: ${{ vars.KONGCTL_E2E_KONNECT_MACHINE_CLIENT_ID || '' }}
@@ -273,14 +290,12 @@ jobs:
         shell: bash
         env:
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-          BASE_REF: ${{ github.base_ref || '' }}
           DISPATCH_SOURCE: ${{ github.event_name == 'workflow_dispatch' && inputs.dispatch_source || '' }}
+          READINESS_ACCEPTED: ${{ steps.admission.outputs.accepted }}
+          READINESS_SHA: ${{ inputs.readiness_sha }}
           MAIN_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.main_sha || '' }}
           TRUSTED_PR_NUMBER: ${{ github.event_name == 'workflow_dispatch' && inputs.trusted_pr_number || '' }}
           TRUSTED_HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.trusted_head_sha || '' }}
-          PULL_REQUEST_NUMBER: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
-          PULL_REQUEST_HEAD_REPO: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name || '' }}
-          PULL_REQUEST_HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || '' }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
@@ -296,13 +311,6 @@ jobs:
             [ -z "${TRUSTED_PR_NUMBER}" ] && \
             [ -z "${TRUSTED_HEAD_SHA}" ]; then
             beta_mode=fail
-          fi
-
-          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ] && [ -n "${PULL_REQUEST_HEAD_SHA}" ]; then
-            status_sha="${PULL_REQUEST_HEAD_SHA}"
-            if [ -n "${PULL_REQUEST_HEAD_REPO}" ] && [ "${PULL_REQUEST_HEAD_REPO}" != "${GITHUB_REPOSITORY}" ]; then
-              is_fork=true
-            fi
           fi
 
           emit_outputs() {
@@ -324,66 +332,17 @@ jobs:
             } >> "${GITHUB_OUTPUT}"
           }
 
-          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
-            pr_api="/repos/${GITHUB_REPOSITORY}/pulls/${PULL_REQUEST_NUMBER}"
-            current_head_sha=""
-            if ! current_head_sha="$(gh api "${pr_api}" --jq '.head.sha')"; then
-              echo "::warning::Unable to query the current head for PR #${PULL_REQUEST_NUMBER}; continuing this run."
-            elif [ "${PULL_REQUEST_HEAD_SHA}" != "${current_head_sha}" ]; then
+          if [ "${DISPATCH_SOURCE}" = readiness ]; then
+            if [ "${READINESS_ACCEPTED}" != true ]; then
               superseded=true
               emit_outputs false false false
-              echo "Skipping stale PR #${PULL_REQUEST_NUMBER} commit ${PULL_REQUEST_HEAD_SHA}; current head is ${current_head_sha}."
               exit 0
             fi
-
-            newer_run_id=""
-            page=1
-            while [ -z "${newer_run_id}" ]; do
-              runs_json=""
-              if ! runs_json="$(
-                gh api \
-                  --method GET \
-                  "/repos/${GITHUB_REPOSITORY}/actions/workflows/e2e.yaml/runs" \
-                  -f event=pull_request \
-                  -f per_page=100 \
-                  -f page="${page}"
-              )"; then
-                echo "::warning::Unable to query E2E workflow runs; continuing this run."
-                break
-              fi
-
-              newer_run_id="$(
-                jq -r \
-                  --argjson run_id "${GITHUB_RUN_ID}" \
-                  --argjson pr_number "${PULL_REQUEST_NUMBER}" \
-                  '[
-                    .workflow_runs[] |
-                    select(.id > $run_id) |
-                    select(
-                      .status == "queued" or
-                      .status == "in_progress" or
-                      .status == "requested" or
-                      .status == "waiting" or
-                      .status == "pending"
-                    ) |
-                    select(any(.pull_requests[]?; .number == $pr_number))
-                  ][0].id // empty' \
-                  <<< "${runs_json}"
-              )"
-
-              run_count="$(jq '.workflow_runs | length' <<< "${runs_json}")"
-              oldest_run_id="$(jq '.workflow_runs[-1].id // 0' <<< "${runs_json}")"
-              if [ "${run_count}" -lt 100 ] || [ "${oldest_run_id}" -le "${GITHUB_RUN_ID}" ]; then
-                break
-              fi
-              page=$((page + 1))
-            done
-            if [ -n "${newer_run_id}" ]; then
-              superseded=true
-              emit_outputs false false false
-              echo "Skipping duplicate PR #${PULL_REQUEST_NUMBER} run ${GITHUB_RUN_ID}; newer run ${newer_run_id} is waiting."
-              exit 0
-            fi
+            status_sha="${READINESS_SHA}"
+            checkout_ref="${READINESS_SHA}"
+            beta_mode=warn
+            emit_outputs true true false
+            exit 0
           fi
 
           if [ -n "${TRUSTED_PR_NUMBER}" ] || [ -n "${TRUSTED_HEAD_SHA}" ]; then
@@ -454,9 +413,6 @@ jobs:
           fi
 
           base_branch="${DEFAULT_BRANCH}"
-          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ] && [ -n "${BASE_REF}" ]; then
-            base_branch="${BASE_REF}"
-          fi
 
           if ! git check-ref-format --branch "${base_branch}" >/dev/null 2>&1; then
             echo "::error::Invalid base branch ref: ${base_branch}"
@@ -501,7 +457,10 @@ jobs:
     name: Test scenario harness
     needs:
       - e2e-needed
-    if: needs.e2e-needed.outputs.run_shards == 'true'
+    if: >-
+      needs.e2e-needed.outputs.run_shards == 'true' &&
+      (inputs.dispatch_source != 'readiness' ||
+       needs.e2e-needed.outputs.admission_attempt == github.run_attempt)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -591,7 +550,10 @@ jobs:
     name: Build scenario executables
     needs:
       - e2e-needed
-    if: needs.e2e-needed.outputs.run_shards == 'true'
+    if: >-
+      needs.e2e-needed.outputs.run_shards == 'true' &&
+      (inputs.dispatch_source != 'readiness' ||
+       needs.e2e-needed.outputs.admission_attempt == github.run_attempt)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
@@ -755,10 +717,7 @@ jobs:
         id: routing
         env:
           PR_REPLAY: >-
-            ${{ github.event_name == 'pull_request' &&
-                github.event.pull_request.head.repo.full_name == github.repository &&
-                needs.e2e-needed.outputs.konnect_environment == 'com' &&
-                !contains(github.event.pull_request.labels.*.name, 'e2e:force-live') }}
+            ${{ needs.e2e-needed.outputs.readiness_mode == 'pr' }}
         run: |
           mode=live
           if [ "$PR_REPLAY" = true ]; then mode='pr'; fi
@@ -782,7 +741,8 @@ jobs:
     name: Replay approved scenarios
     needs: [e2e-needed, e2e-build, e2e-harness]
     if: >-
-      github.event_name == 'pull_request' &&
+      inputs.dispatch_source == 'readiness' &&
+      needs.e2e-needed.outputs.admission_attempt == github.run_attempt &&
       needs.e2e-build.outputs.replay_count != '0' && needs.e2e-build.outputs.replay_mode == 'pr'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -791,9 +751,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # PR-only: test the same exact merge commit as the build job. Do not
-          # accept the indirect ref used for trusted manual/fork executions.
-          ref: ${{ github.sha }}
+          # Use the same admitted revision as the build job.
+          ref: ${{ needs.e2e-needed.outputs.checkout_ref }}
           persist-credentials: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -821,7 +780,10 @@ jobs:
       - e2e-needed
       - e2e-harness
       - e2e-build
-    if: needs.e2e-needed.outputs.run_shards == 'true'
+    if: >-
+      needs.e2e-needed.outputs.run_shards == 'true' &&
+      (inputs.dispatch_source != 'readiness' ||
+       needs.e2e-needed.outputs.admission_attempt == github.run_attempt)
     runs-on: ubuntu-latest
     timeout-minutes: 60
     # Backstop serialization per target org if workflow-level serialization is
@@ -992,12 +954,6 @@ jobs:
             > "${CAP_DIR}/tcpdump.log" 2>&1 &
 
           echo "$!" > "${CAP_DIR}/tcpdump.pid"
-
-      # If you later want runs to be opt-in via label, add a guard like this:
-      # - name: Require opt-in label to run E2E
-      #   if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-e2e')
-      #   run: |
-      #     echo "Skipping E2E (no 'run-e2e' label)." && exit 0
 
       - name: Download routing plan
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -1184,14 +1140,15 @@ jobs:
     name: Verify PR replay coverage
     needs: [e2e-needed, e2e-build, e2e-replay]
     if: >-
-      always() && !cancelled() && github.event_name == 'pull_request' &&
+      always() && !cancelled() && inputs.dispatch_source == 'readiness' &&
+      needs.e2e-needed.outputs.admission_attempt == github.run_attempt &&
       needs.e2e-needed.outputs.run_shards == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ needs.e2e-needed.outputs.checkout_ref }}
           persist-credentials: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -1224,7 +1181,10 @@ jobs:
       - e2e-build
       - e2e-replay
       - e2e-replay-verify
-    if: ${{ always() && !cancelled() && needs.e2e-needed.outputs.run_shards == 'true' }}
+    if: >-
+      always() && !cancelled() && needs.e2e-needed.outputs.run_shards == 'true' &&
+      (inputs.dispatch_source != 'readiness' ||
+       needs.e2e-needed.outputs.admission_attempt == github.run_attempt)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -1260,10 +1220,11 @@ jobs:
         shell: bash
         env:
           REPLAY_VERIFY_RESULT: ${{ needs.e2e-replay-verify.result }}
+          READINESS_DISPATCH: ${{ inputs.dispatch_source == 'readiness' }}
         run: |
           set -euo pipefail
 
-          if [ "$GITHUB_EVENT_NAME" = pull_request ] && [ "$REPLAY_VERIFY_RESULT" != success ]; then
+          if [ "$READINESS_DISPATCH" = true ] && [ "$REPLAY_VERIFY_RESULT" != success ]; then
             echo '::error::PR replay coverage verification did not succeed.'
             exit 1
           fi
@@ -1308,7 +1269,7 @@ jobs:
           # The preceding check validates this partition against the complete
           # inventory and independently verifies every replay result. Live
           # manifests/results must cover exactly the remaining scenarios.
-          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+          if [ "$READINESS_DISPATCH" = true ]; then
             jq -r '.live[]' e2e-routing.json | sort > "${expected}"
           else
             find test/e2e/scenarios -name scenario.yaml -type f | \
@@ -1637,7 +1598,7 @@ jobs:
           E2E_SUPERSEDED: ${{ needs.e2e-needed.outputs.superseded }}
           E2E_TRUSTED_REQUIRED: ${{ needs.e2e-needed.outputs.trusted_e2e_required }}
           E2E_VERIFY_RESULT: ${{ needs.e2e-verify.result }}
-          E2E_REPLAY_MODE: ${{ needs.e2e-build.outputs.replay_mode }}
+          KONNECT_ENVIRONMENT: ${{ needs.e2e-needed.outputs.konnect_environment }}
           TRUSTED_DISPATCH: ${{ github.event_name == 'workflow_dispatch' && inputs.trusted_pr_number != '' && 'true' || 'false' }}
           TRUSTED_PR_NUMBER: ${{ needs.e2e-needed.outputs.trusted_pr_number || inputs.trusted_pr_number }}
           STATUS_SHA: >-
@@ -1646,10 +1607,6 @@ jobs:
               (
                 github.event_name == 'workflow_dispatch' &&
                 inputs.trusted_head_sha
-              ) ||
-              (
-                github.event_name == 'pull_request' &&
-                github.event.pull_request.head.sha
               ) ||
               github.sha
             }}
@@ -1667,22 +1624,12 @@ jobs:
             const trustedPRNumber = process.env.TRUSTED_PR_NUMBER;
             const statusSha = process.env.STATUS_SHA;
             const runURL = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
-            const pullRequest = context.payload.pull_request;
-            const forkPullRequest = eventName === 'pull_request' &&
-              pullRequest?.head?.repo?.full_name !== pullRequest?.base?.repo?.full_name;
 
-            // A force-live label can arrive after this run passed admission.
-            // Never let an older replay result overwrite its pending status.
-            if (eventName === 'pull_request' && !forkPullRequest &&
-                process.env.E2E_REPLAY_MODE === 'pr') {
+            if (trustedDispatch) {
               const {data: currentPR} = await github.rest.pulls.get({
-                owner: context.repo.owner, repo: context.repo.repo,
-                pull_number: pullRequest.number,
+                ...context.repo, pull_number: Number(trustedPRNumber),
               });
-              if (currentPR.labels.some(label => label.name === 'e2e:force-live')) {
-                core.info('Force-live requested after admission; leaving status to the live run.');
-                return;
-              }
+              if (currentPR.head.sha !== statusSha) return;
             }
 
             let state = 'success';
@@ -1715,14 +1662,14 @@ jobs:
 
             if (superseded) {
               core.info('Skipping E2E Required status update for superseded pull request run.');
-            } else if (forkPullRequest) {
-              core.warning('Skipping E2E Required status update for fork pull request.');
-            } else if (eventName === 'pull_request' || eventName === 'merge_group' || trustedDispatch) {
+            } else if (eventName === 'merge_group' || trustedDispatch) {
               await github.rest.repos.createCommitStatus({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 sha: statusSha,
-                context: statusContext,
+                context: trustedDispatch
+                  ? `E2E Validation / ${trustedPRNumber} / ${process.env.KONNECT_ENVIRONMENT} / live`
+                  : statusContext,
                 state,
                 description,
                 target_url: runURL,

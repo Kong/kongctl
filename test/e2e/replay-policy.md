@@ -81,7 +81,7 @@ There is no agent, code-path mapping, model call, or per-PR approval step.
 
 Main's debounced runs, merge queues, manual runs, trusted fork runs and `.tech`
 runs stay fully live. Add the `e2e:force-live` PR label to request an all-live
-run. Adding/removing the label triggers the existing PR workflow. Maintain
+run. Adding/removing the label reevaluates the readiness controller. Maintain
 the label with the same permissions as other workflow-control labels.
 The required status returns to pending on that label change; an already
 running replay cannot overwrite it after force-live has been requested.

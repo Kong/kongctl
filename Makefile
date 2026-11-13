@@ -127,7 +127,7 @@ refresh-e2e-weights:
 		test/e2e/baselines/post-cache-2026-09-observations.json
 
 .PHONY: test-e2e-metrics
-test-e2e-metrics: setup-e2e-replay
+test-e2e-metrics: setup-e2e-replay test-e2e-readiness
 	python3 -m unittest discover -s scripts -p 'e2e_*_test.py'
 
 # Local recording/replay tools; CI PR eligibility lives in replay-scenarios.json.
@@ -338,3 +338,7 @@ baseline-e2e-ci:
 reset-org:
 	@echo "Resetting Konnect org (requires KONGCTL_E2E_KONNECT_PAT, optional KONGCTL_E2E_KONNECT_ENV, KONGCTL_E2E_KONNECT_BASE_URL, KONGCTL_E2E_RESET)"
 	CGO_ENABLED=0 go run -tags e2e ./test/e2e/harness/cmd/reset-org --stage make-reset
+
+.PHONY: test-e2e-readiness
+test-e2e-readiness:
+	node --test scripts/tests/test-e2e-readiness.cjs
