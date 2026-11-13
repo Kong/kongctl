@@ -28,12 +28,17 @@ func TestSystemAccountAccessTokenEndpointExpansion(t *testing.T) {
 	}
 }
 
-func TestEventGatewayChildEndpointExpansion(t *testing.T) {
+func TestGatewayChildEndpointExpansion(t *testing.T) {
 	tests := []struct {
 		name     string
 		resource string
 		want     string
 	}{
+		{
+			name:     "AI Gateway consumer group",
+			resource: "ai-gateway-consumer-group",
+			want:     "/v1/ai-gateways/gateway%2F123/consumer-groups",
+		},
 		{
 			name:     "backend cluster",
 			resource: "event-gateway-backend-cluster",

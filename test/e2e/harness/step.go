@@ -439,6 +439,11 @@ var createResourceEndpoints = map[string]resourceEndpoint{
 	"ai-gateways": {Method: http.MethodPost, Path: "/v1/ai-gateways"},
 	"ai_gateways": {Method: http.MethodPost, Path: "/v1/ai-gateways"},
 	"aigw":        {Method: http.MethodPost, Path: "/v1/ai-gateways"},
+	"ai-gateway-consumer-group": {
+		Method:    http.MethodPost,
+		Path:      "/v1/ai-gateways/{gatewayId}/consumer-groups",
+		ParamKeys: []string{"gatewayId"},
+	},
 	"audit-log-destination": {
 		Method:    http.MethodPost,
 		Path:      "/v3/audit-log-destinations",

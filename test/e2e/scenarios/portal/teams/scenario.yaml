@@ -68,6 +68,7 @@ steps:
                 resource_ref: "{{ .vars.backendTeamRef }}"
                 fields.name: "Backend Team"
                 fields.description: "Backend developers working on APIs"
+                fields.can_own_applications: true
           # Verify frontend team creation
           - select: >-
               changes[?resource_type=='portal_team' && resource_ref=='{{ .vars.frontendTeamRef }}'] | [0]
@@ -120,6 +121,7 @@ steps:
               fields:
                 name: "Backend Team"
                 description: "Backend developers working on APIs"
+                can_own_applications: true
           # Verify frontend team
           - select: "[?name=='Frontend Team'] | [0]"
             expect:
@@ -148,6 +150,7 @@ steps:
               fields:
                 name: "Backend Team"
                 description: "Backend developers working on APIs"
+                can_own_applications: true
 
   - name: 002-update-team-description
     inputOverlayDirs:
@@ -182,6 +185,13 @@ steps:
               fields:
                 old: "Backend developers working on APIs"
                 new: "Updated: Backend API developers"
+          - select: >-
+              changes[?resource_type=='portal_team' &&
+                       resource_ref=='{{ .vars.backendTeamRef }}'] | [0].changed_fields.can_own_applications
+            expect:
+              fields:
+                old: true
+                new: false
 
       - name: 001-plan-update
         outputFormat: disable
@@ -206,6 +216,9 @@ steps:
                 action: UPDATE
                 resource_ref: "{{ .vars.backendTeamRef }}"
                 fields.description: "Updated: Backend API developers"
+                fields.can_own_applications: false
+                changed_fields.can_own_applications.old: true
+                changed_fields.can_own_applications.new: false
 
       - name: 002-apply-update
         outputFormat: json
@@ -237,6 +250,7 @@ steps:
               fields:
                 name: "Backend Team"
                 description: "Updated: Backend API developers"
+                can_own_applications: false
           # Verify other teams unchanged
           - select: "[?name=='Frontend Team'] | [0]"
             expect:
@@ -518,6 +532,7 @@ steps:
               fields:
                 name: "Backend Team"
                 description: "Updated: Backend API developers"
+                can_own_applications: false
           # Frontend Team is present
           - select: >-
               portals[?name=='{{ .vars.portalName }}'] | [0].teams[?name=='Frontend Team'] | [0]

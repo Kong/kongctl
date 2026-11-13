@@ -1,6 +1,30 @@
 # Portal teams replay
 
-## Apply child-scope refresh
+## Application ownership refresh
+
+The [fresh live recording][ownership-record] passed the expanded scenario
+and before/after resets under the existing acceptance-3 organization lock.
+It was captured from commit `fc28c698` for issue #2745.
+[Three network-isolated replays][ownership-replay] each consumed all 107
+exchanges and passed every assertion.
+
+Coverage now includes creating the backend team with
+`can_own_applications: true`, updating it to `false`, plan and diff field
+assertions, remote readback, and the declarative dump round trip. Later
+input overlays explicitly retain `false` to preserve the updated state.
+
+The first strict replay stopped at exchange 3 because independent team
+creations execute concurrently. Review of the fresh exchanges confirmed
+that the existing eight parallel ranges still cover the same independent
+team creations and team-role operations. The annotation was rebound to the
+exact raw candidate SHA-256; its ranges and dependencies are unchanged.
+All other exchanges remain strictly ordered.
+
+The committed cassette is the isolated workflow's validated output. It
+preserves the recording's requests, responses, media types, provenance,
+and input fingerprint. Replay eligibility and matching rules are unchanged.
+
+## Apply child-scope refresh (superseded)
 
 The [fresh live recording][refresh-record] passed all scenario assertions
 and before/after resets under the existing acceptance-3 organization lock.
@@ -109,3 +133,6 @@ PR; follow the repository replay refresh procedure.
 
 [refresh-record]: https://github.com/Kong/kongctl/actions/runs/41902501492
 [refresh-replay]: https://github.com/Kong/kongctl/actions/runs/41906270080
+
+[ownership-record]: https://github.com/Kong/kongctl/actions/runs/43494073814
+[ownership-replay]: https://github.com/Kong/kongctl/actions/runs/43497341414

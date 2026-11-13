@@ -47,7 +47,7 @@ func TestSavedPlanBatchTwoRecovery(t *testing.T) {
 		"event-gateway/static-key":             2,
 		"event-gateway/tls-trust-bundle":       3,
 		"event-gateway/topic-aliases":          2,
-		"event-gateway/virtual-cluster":        4,
+		"event-gateway/virtual-cluster":        5,
 		"plan/apply-workflow":                  1,
 		"portal/api_with_attributes":           1,
 		"portal/app-auth-strategy":             1,

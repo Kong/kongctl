@@ -88,6 +88,30 @@ steps:
             name: dashboard_id
             responsePath: id
 
+  - name: 001b-dry-run-adopt
+    skipInputs: true
+    commands:
+      - name: preview-portal-adoption
+        run: [adopt, portal, "{{ .vars.portal_id }}", --namespace, "{{ .vars.namespace }}", --dry-run]
+        assertions:
+          - expect:
+              fields:
+                dry_run: true
+                "length(changes)": 1
+                changes[0].resource_type: portal
+                changes[0].id: "{{ .vars.portal_id }}"
+                changes[0].namespace: "{{ .vars.namespace }}"
+                changes[0].metadata_location: labels
+                changes[0].before: {}
+                'changes[0].after."KONGCTL-namespace"': "{{ .vars.namespace }}"
+      - name: verify-preview-did-not-adopt
+        run: [get, portals]
+        assertions:
+          - select: "[?id=='{{ .vars.portal_id }}'] | [0]"
+            expect:
+              fields:
+                'labels."KONGCTL-namespace"': null
+
   - name: 002-adopt
     skipInputs: true
     commands:
@@ -346,6 +370,88 @@ steps:
                 namespace: "{{ .vars.overwrite_namespace }}"
                 id: "{{ .vars.dashboard_id }}"
                 resource_type: dashboard
+
+  - name: 004b-adopt-export
+    skipInputs: true
+    commands:
+      - name: export-adopted-portal
+        run:
+          - adopt
+          - portal
+          - "{{ .vars.portal_id }}"
+          - --namespace
+          - "{{ .vars.overwrite_namespace }}"
+          - --overwrite-namespace
+          - --declarative-output
+          - "{{ .workdir }}/adopted.yaml"
+        assertions:
+          - expect:
+              fields:
+                namespace: "{{ .vars.overwrite_namespace }}"
+                id: "{{ .vars.portal_id }}"
+                resource_type: portal
+          - source:
+              artifact:
+                path: "{{ .workdir }}/adopted.yaml"
+                parseAs: yaml
+            select: "portals[?ref=='{{ .vars.portal_id }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.portal_name }}"
+                kongctl.namespace: "{{ .vars.overwrite_namespace }}"
+          - source:
+              plan: [-f, "{{ .workdir }}/adopted.yaml", --mode, apply]
+            retry:
+              attempts: 3
+              interval: 1s
+              maxInterval: 2s
+            select: summary
+            expect:
+              fields:
+                total_changes: 0
+      - name: preview-control-plane-export
+        run:
+          - adopt
+          - control-plane
+          - "{{ .vars.cp_id }}"
+          - --namespace
+          - "{{ .vars.namespace }}"
+          - --overwrite-namespace
+          - --dry-run
+          - --declarative-output
+          - "{{ .workdir }}/preview.yaml"
+        assertions:
+          - expect:
+              fields:
+                dry_run: true
+                "length(changes)": 1
+                changes[0].id: "{{ .vars.cp_id }}"
+                changes[0].resource_type: control_plane
+                'changes[0].before."KONGCTL-namespace"': "{{ .vars.overwrite_namespace }}"
+                'changes[0].after."KONGCTL-namespace"': "{{ .vars.namespace }}"
+          - source:
+              artifact:
+                path: "{{ .workdir }}/preview.yaml"
+                parseAs: text
+            expect:
+              fields:
+                "starts_with(text, '# DRY RUN:')": true
+          - source:
+              artifact:
+                path: "{{ .workdir }}/preview.yaml"
+                parseAs: yaml
+            select: "control_planes[?ref=='{{ .vars.cp_id }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.cp_name }}"
+                kongctl.namespace: "{{ .vars.namespace }}"
+      - name: verify-preview-did-not-move-control-plane
+        run: [get, gateway, control-planes]
+        assertions:
+          - select: "[?id=='{{ .vars.cp_id }}'] | [0]"
+            expect:
+              fields:
+                'labels."KONGCTL-namespace"': "{{ .vars.overwrite_namespace }}"
 
   - name: 005-dump-and-plan
     skipInputs: true
