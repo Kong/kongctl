@@ -296,7 +296,7 @@ func TestListManagedPortals_ContinuesPastFilteredEmptyPage(t *testing.T) {
 								),
 							},
 							Meta: kkComps.PaginatedMeta{
-								Page: kkComps.PageMeta{Total: 200},
+								Page: kkComps.PageMeta{Total: 2},
 							},
 						},
 					}, nil
@@ -311,7 +311,7 @@ func TestListManagedPortals_ContinuesPastFilteredEmptyPage(t *testing.T) {
 								),
 							},
 							Meta: kkComps.PaginatedMeta{
-								Page: kkComps.PageMeta{Total: 200},
+								Page: kkComps.PageMeta{Total: 2},
 							},
 						},
 					}, nil
@@ -353,14 +353,14 @@ func TestListManagedControlPlanes_ContinuesPastFilteredEmptyPage(t *testing.T) {
 		ListControlPlanes(mock.Anything, mock.MatchedBy(func(req kkOps.ListControlPlanesRequest) bool {
 			return req.PageNumber != nil && *req.PageNumber == 1
 		})).
-		Return(newListControlPlanesResponse([]kkComps.ControlPlane{unmanaged}, 200), nil).
+		Return(newListControlPlanesResponse([]kkComps.ControlPlane{unmanaged}, 2), nil).
 		Once()
 
 	mockAPI.EXPECT().
 		ListControlPlanes(mock.Anything, mock.MatchedBy(func(req kkOps.ListControlPlanesRequest) bool {
 			return req.PageNumber != nil && *req.PageNumber == 2
 		})).
-		Return(newListControlPlanesResponse([]kkComps.ControlPlane{managed}, 200), nil).
+		Return(newListControlPlanesResponse([]kkComps.ControlPlane{managed}, 2), nil).
 		Once()
 
 	client := NewClient(ClientConfig{ControlPlaneAPI: mockAPI})

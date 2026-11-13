@@ -1,12 +1,15 @@
 package state
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"testing"
+
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/stretchr/testify/require"
@@ -80,7 +83,7 @@ func TestListOrganizationTeamRolesRejectsPartialResults(t *testing.T) {
 		{"empty later page", `{"data":[],"meta":{"page":{"total":29}}}`, 200, "incomplete"},
 		{"repeated page", `{"data":[{"id":"role-1"}],"meta":{"page":{"total":29}}}`, 200, "repeated ID"},
 		{"missing metadata", `{"data":[]}`, 200, "pagination metadata"},
-		{"malformed response", `{`, 200, "decode organization team roles"},
+		{"malformed response", `{`, 200, "decode organization assigned roles"},
 	} {
 		t.Run(scenario.name, func(t *testing.T) {
 			calls := 0
@@ -104,5 +107,127 @@ func TestListOrganizationTeamRolesRejectsPartialResults(t *testing.T) {
 			require.Nil(t, roles)
 			require.Equal(t, 2, calls)
 		})
+	}
+}
+
+func TestGetOrganizationTeamRoleStopsAtMatchingPage(t *testing.T) {
+	for _, tc := range []struct {
+		id    string
+		pages []int
+		found bool
+	}{
+		{"role-0", []int{1}, true}, {"role-100", []int{1, 2}, true}, {"absent", []int{1, 2}, false},
+	} {
+		t.Run(tc.id, func(t *testing.T) {
+			var pages []int
+			server := httptest.NewServer(
+				http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					page, err := strconv.Atoi(r.URL.Query().Get("page[number]"))
+					require.NoError(t, err)
+					pages = append(pages, page)
+					values := make([]kkComps.AssignedRole, 0)
+					for i := (page - 1) * 100; i < min(page*100, 101); i++ {
+						values = append(
+							values,
+							kkComps.AssignedRole{ID: new(fmt.Sprintf("role-%d", i))},
+						)
+					}
+					w.Header().Set("Content-Type", "application/json")
+					require.NoError(
+						t,
+						json.NewEncoder(w).
+							Encode(kkComps.AssignedRoleCollection{
+								Data: values,
+								Meta: &kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 101}},
+							}),
+					)
+				}),
+			)
+			defer server.Close()
+			client := NewClient(
+				ClientConfig{
+					OrganizationTeamRolesAPI: &helpers.OrganizationTeamRolesAPIImpl{
+						BaseURL:    server.URL,
+						HTTPClient: server.Client(),
+					},
+				},
+			)
+			role, err := client.GetOrganizationTeamRole(t.Context(), "team-1", tc.id)
+			require.NoError(t, err)
+			if tc.found {
+				require.NotNil(t, role)
+				require.Equal(t, tc.id, role.ID)
+			} else {
+				require.Nil(t, role)
+			}
+			require.Equal(t, tc.pages, pages)
+		})
+	}
+}
+
+type teamRolesWithoutMeta struct {
+	helpers.OrganizationTeamRolesAPI
+}
+
+func (*teamRolesWithoutMeta) ListTeamRolesPage(
+	context.Context,
+	string,
+	int64,
+	int64,
+) (*kkComps.AssignedRoleCollection, error) {
+	return &kkComps.AssignedRoleCollection{Data: []kkComps.AssignedRole{{ID: new("role-1")}}}, nil
+}
+
+func TestListOrganizationTeamRolesRejectsMetadataOmittedByOtherImplementations(t *testing.T) {
+	client := NewClient(ClientConfig{OrganizationTeamRolesAPI: &teamRolesWithoutMeta{}})
+	roles, err := client.ListOrganizationTeamRoles(t.Context(), "team-1")
+	require.ErrorContains(t, err, "missing assigned roles pagination metadata")
+	require.Nil(t, roles)
+}
+
+func TestListOrganizationUserRolesReadsEveryPage(t *testing.T) {
+	var pages []int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/v3/users/user-1/assigned-roles", r.URL.Path)
+		page, err := strconv.Atoi(r.URL.Query().Get("page[number]"))
+		require.NoError(t, err)
+		pages = append(pages, page)
+		data := make([]kkComps.AssignedRole, 0)
+		for i := (page - 1) * 10; i < min(page*10, 29); i++ {
+			data = append(data, kkComps.AssignedRole{
+				ID:             new(fmt.Sprintf("role-%d", i)),
+				RoleName:       new("Viewer"),
+				EntityID:       new(fmt.Sprintf("cp-%d", i)),
+				EntityTypeName: new("Control Planes"),
+				EntityRegion:   new(kkComps.AssignedRoleEntityRegionEu),
+			})
+		}
+		w.Header().Set("Content-Type", "application/json")
+		require.NoError(
+			t,
+			json.NewEncoder(w).
+				Encode(kkComps.AssignedRoleCollection{
+					Data: data,
+					Meta: &kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 29}},
+				}),
+		)
+	}))
+	defer server.Close()
+	client := NewClient(
+		ClientConfig{
+			OrganizationTeamRolesAPI: &helpers.OrganizationTeamRolesAPIImpl{
+				BaseURL:    server.URL,
+				HTTPClient: server.Client(),
+			},
+		},
+	)
+	roles, err := client.ListOrganizationUserRoles(t.Context(), "user-1")
+	require.NoError(t, err)
+	require.Len(t, roles, 29)
+	require.Equal(t, []int{1, 2, 3}, pages)
+	for i, role := range roles {
+		require.Equal(t, fmt.Sprintf("role-%d", i), role.ID)
+		require.Equal(t, "user-1", role.UserID)
+		require.Equal(t, "eu", role.EntityRegion)
 	}
 }

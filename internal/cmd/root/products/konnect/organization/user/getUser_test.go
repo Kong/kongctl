@@ -304,3 +304,15 @@ func usersResponse(users []kkComps.User, total int) *kkOps.ListUsersResponse {
 		},
 	}
 }
+
+func (s *stubOrganizationTeamRolesAPI) ListUserRolesPage(
+	ctx context.Context,
+	userID string,
+	_, _ int64,
+) (*kkComps.AssignedRoleCollection, error) {
+	response, err := s.ListUserRoles(ctx, userID, nil)
+	if err != nil || response == nil {
+		return nil, err
+	}
+	return response.AssignedRoleCollection, nil
+}

@@ -685,7 +685,8 @@ func (k *KonnectSDK) GetOrganizationTeamRolesAPI() OrganizationTeamRolesAPI {
 	}
 
 	return &OrganizationTeamRolesAPIImpl{
-		SDK: k.SDK, BaseURL: globalAPIBaseURL, Token: k.Token, TokenSource: k.TokenSource, HTTPClient: k.HTTPClient,
+		SDK: k.SDK, BaseURL: organizationTeamRolesBaseURL(k.BaseURL), Token: k.Token,
+		TokenSource: k.TokenSource, HTTPClient: k.HTTPClient,
 	}
 }
 

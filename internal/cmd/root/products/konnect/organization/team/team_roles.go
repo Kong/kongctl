@@ -133,16 +133,17 @@ func fetchOrganizationTeamRoles(
 		return nil, fmt.Errorf("organization team roles client is not available")
 	}
 
-	res, err := roleAPI.ListTeamRoles(helper.GetContext(), teamID, nil)
+	roles, err := helpers.ListAllOrganizationTeamRoles(helper.GetContext(), roleAPI, teamID, 100)
 	if err != nil {
 		attrs := cmd.TryConvertErrorToAttrs(err)
-		return nil, cmd.PrepareExecutionError("Failed to list organization team roles", err, helper.GetCmd(), attrs...)
+		return nil, cmd.PrepareExecutionError(
+			"Failed to list organization team roles",
+			err,
+			helper.GetCmd(),
+			attrs...,
+		)
 	}
-	if res == nil || res.AssignedRoleCollection == nil {
-		return []kkComps.AssignedRole{}, nil
-	}
-
-	return res.AssignedRoleCollection.Data, nil
+	return roles, nil
 }
 
 func organizationTeamRoleToRecord(role kkComps.AssignedRole, teamID string) organizationTeamRoleRecord {
