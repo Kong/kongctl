@@ -4,8 +4,8 @@
   "inputs_sha256": "sha256:c8860bdcaa1fa719ca80d2710712ad0e4bb552cbdb52af8858da27ca574a5ba0",
   "source": {
     "kind": "recorded",
-    "commit": "c0b9803621148ef870afb2415ac1850d7227a782",
-    "run_url": "https://github.com/Kong/kongctl/actions/runs/35553695006"
+    "commit": "84140cabbb2a30574aefaa324111f4b22aec9160",
+    "run_url": "https://github.com/Kong/kongctl/actions/runs/43512587152"
   },
   "interactions": [
     {
@@ -84,7 +84,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "google"
             },
             {
               "id": "00000000-0000-4000-8000-000000000003",
@@ -93,7 +94,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000004",
@@ -129,7 +131,8 @@
               "preferred_name": "replay-user-8",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000008",
@@ -138,7 +141,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000009",
@@ -147,7 +151,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000010",
@@ -156,7 +161,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             }
           ]
         },
@@ -345,7 +351,16 @@
         "endpoint": "global",
         "method": "GET",
         "path": "/v3/users/00000000-0000-4000-8000-000000000004/assigned-roles",
-        "query": [],
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
         "body": null
       },
       "response": {
@@ -354,7 +369,7 @@
           "meta": {
             "page": {
               "number": 1,
-              "size": 10,
+              "size": 100,
               "total": 0
             }
           },
@@ -387,8 +402,8 @@
           "labels": {
             "KONGCTL-namespace": "user-plan-apply"
           },
-          "created_at": "2026-09-21T02:23:10.777Z",
-          "updated_at": "2026-09-21T02:23:10.777Z",
+          "created_at": "2026-11-13T21:54:31.400Z",
+          "updated_at": "2026-11-13T21:54:31.400Z",
           "slug": "user-plan-apply-api",
           "api_spec_ids": [],
           "implementation_mode": null,
@@ -418,7 +433,7 @@
       "response": {
         "status": 201,
         "body": {
-          "created_at": "2026-09-21T02:23:11.116815185Z",
+          "created_at": "2026-11-13T21:54:31.817357194Z",
           "description": "Team used by the user plan apply workflow E2E scenario",
           "id": "00000000-0000-4000-8000-000000000020",
           "konnect_managed": false,
@@ -428,7 +443,7 @@
           },
           "name": "User Plan Apply Team",
           "system_team": false,
-          "updated_at": "2026-09-21T02:23:11.116815453Z"
+          "updated_at": "2026-11-13T21:54:31.81735751Z"
         },
         "content_type": "application/json"
       }
@@ -441,22 +456,6 @@
         "query": [],
         "body": {
           "id": "00000000-0000-4000-8000-000000000004"
-        }
-      },
-      "response": {
-        "status": 201,
-        "body": null,
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "POST",
-        "path": "/v3/teams/00000000-0000-4000-8000-000000000020/users",
-        "query": [],
-        "body": {
-          "id": "00000000-0000-4000-8000-000000000005"
         }
       },
       "response": {
@@ -488,8 +487,25 @@
           "entity_region": "us",
           "entity_ids": [
             "00000000-0000-4000-8000-000000000019"
-          ]
+          ],
+          "konnect_managed": false
         },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "POST",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000020/users",
+        "query": [],
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000005"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": null,
         "content_type": "application/json"
       }
     },
@@ -516,7 +532,8 @@
           "entity_region": "us",
           "entity_ids": [
             "00000000-0000-4000-8000-000000000019"
-          ]
+          ],
+          "konnect_managed": false
         },
         "content_type": "application/json"
       }
@@ -550,8 +567,8 @@
               "labels": {
                 "KONGCTL-namespace": "user-plan-apply"
               },
-              "created_at": "2026-09-21T02:23:10.777Z",
-              "updated_at": "2026-09-21T02:23:10.777Z",
+              "created_at": "2026-11-13T21:54:31.400Z",
+              "updated_at": "2026-11-13T21:54:31.400Z",
               "slug": "user-plan-apply-api",
               "api_spec_ids": [],
               "implementation_mode": null,
@@ -616,7 +633,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "google"
             },
             {
               "id": "00000000-0000-4000-8000-000000000003",
@@ -625,7 +643,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000004",
@@ -661,7 +680,8 @@
               "preferred_name": "replay-user-8",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000008",
@@ -670,7 +690,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000009",
@@ -679,7 +700,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000010",
@@ -688,7 +710,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             }
           ]
         },
@@ -717,7 +740,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-21T02:23:11.116815Z",
+              "created_at": "2026-11-13T21:54:31.817357Z",
               "description": "Team used by the user plan apply workflow E2E scenario",
               "id": "00000000-0000-4000-8000-000000000020",
               "konnect_managed": false,
@@ -727,7 +750,7 @@
               },
               "name": "User Plan Apply Team",
               "system_team": false,
-              "updated_at": "2026-09-21T02:23:11.116815Z"
+              "updated_at": "2026-11-13T21:54:31.817357Z"
             },
             {
               "created_at": "2025-09-02T15:25:34.312498Z",
@@ -826,40 +849,6 @@
         "endpoint": "global",
         "method": "GET",
         "path": "/v3/teams/00000000-0000-4000-8000-000000000020/assigned-roles",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 10,
-              "total": 1
-            }
-          },
-          "data": [
-            {
-              "id": "00000000-0000-4000-8000-000000000022",
-              "role_name": "Viewer",
-              "entity_region": "us",
-              "entity_type_name": "APIs",
-              "entity_id": "00000000-0000-4000-8000-000000000019",
-              "entity_ids": [
-                "00000000-0000-4000-8000-000000000019"
-              ]
-            }
-          ]
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "GET",
-        "path": "/v3/users/00000000-0000-4000-8000-000000000005/teams",
         "query": [
           [
             "page[number]",
@@ -884,16 +873,15 @@
           },
           "data": [
             {
-              "id": "00000000-0000-4000-8000-000000000020",
-              "name": "User Plan Apply Team",
-              "description": "Team used by the user plan apply workflow E2E scenario",
-              "system_team": false,
-              "labels": {
-                "KONGCTL-namespace": "user-plan-apply",
-                "scenario": "user-plan-apply"
-              },
-              "created_at": "2026-09-21T02:23:11Z",
-              "updated_at": "2026-09-21T02:23:11Z"
+              "id": "00000000-0000-4000-8000-000000000022",
+              "role_name": "Viewer",
+              "entity_region": "us",
+              "entity_type_name": "APIs",
+              "entity_id": "00000000-0000-4000-8000-000000000019",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000019"
+              ],
+              "konnect_managed": false
             }
           ]
         },
@@ -937,8 +925,9 @@
                 "KONGCTL-namespace": "user-plan-apply",
                 "scenario": "user-plan-apply"
               },
-              "created_at": "2026-09-21T02:23:11Z",
-              "updated_at": "2026-09-21T02:23:11Z"
+              "created_at": "2026-11-13T21:54:31Z",
+              "updated_at": "2026-11-13T21:54:31Z",
+              "konnect_managed": false
             }
           ]
         },
@@ -949,8 +938,17 @@
       "request": {
         "endpoint": "global",
         "method": "GET",
-        "path": "/v3/users/00000000-0000-4000-8000-000000000005/assigned-roles",
-        "query": [],
+        "path": "/v3/users/00000000-0000-4000-8000-000000000005/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
         "body": null
       },
       "response": {
@@ -959,11 +957,25 @@
           "meta": {
             "page": {
               "number": 1,
-              "size": 10,
-              "total": 0
+              "size": 100,
+              "total": 1
             }
           },
-          "data": []
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000020",
+              "name": "User Plan Apply Team",
+              "description": "Team used by the user plan apply workflow E2E scenario",
+              "system_team": false,
+              "labels": {
+                "KONGCTL-namespace": "user-plan-apply",
+                "scenario": "user-plan-apply"
+              },
+              "created_at": "2026-11-13T21:54:31Z",
+              "updated_at": "2026-11-13T21:54:31Z",
+              "konnect_managed": false
+            }
+          ]
         },
         "content_type": "application/json"
       }
@@ -973,7 +985,16 @@
         "endpoint": "global",
         "method": "GET",
         "path": "/v3/users/00000000-0000-4000-8000-000000000004/assigned-roles",
-        "query": [],
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
         "body": null
       },
       "response": {
@@ -982,7 +1003,7 @@
           "meta": {
             "page": {
               "number": 1,
-              "size": 10,
+              "size": 100,
               "total": 1
             }
           },
@@ -995,9 +1016,42 @@
               "entity_id": "00000000-0000-4000-8000-000000000019",
               "entity_ids": [
                 "00000000-0000-4000-8000-000000000019"
-              ]
+              ],
+              "konnect_managed": false
             }
           ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000005/assigned-roles",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 0
+            }
+          },
+          "data": []
         },
         "content_type": "application/json"
       }
@@ -1031,8 +1085,8 @@
               "labels": {
                 "KONGCTL-namespace": "user-plan-apply"
               },
-              "created_at": "2026-09-21T02:23:10.777Z",
-              "updated_at": "2026-09-21T02:23:10.777Z",
+              "created_at": "2026-11-13T21:54:31.400Z",
+              "updated_at": "2026-11-13T21:54:31.400Z",
               "slug": "user-plan-apply-api",
               "api_spec_ids": [],
               "implementation_mode": null,
@@ -1097,7 +1151,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "google"
             },
             {
               "id": "00000000-0000-4000-8000-000000000003",
@@ -1106,7 +1161,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000004",
@@ -1142,7 +1198,8 @@
               "preferred_name": "replay-user-8",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000008",
@@ -1151,7 +1208,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000009",
@@ -1160,7 +1218,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000010",
@@ -1169,7 +1228,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             }
           ]
         },
@@ -1198,7 +1258,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-21T02:23:11.116815Z",
+              "created_at": "2026-11-13T21:54:31.817357Z",
               "description": "Team used by the user plan apply workflow E2E scenario",
               "id": "00000000-0000-4000-8000-000000000020",
               "konnect_managed": false,
@@ -1208,7 +1268,7 @@
               },
               "name": "User Plan Apply Team",
               "system_team": false,
-              "updated_at": "2026-09-21T02:23:11.116815Z"
+              "updated_at": "2026-11-13T21:54:31.817357Z"
             },
             {
               "created_at": "2025-09-02T15:25:34.312498Z",
@@ -1339,8 +1399,9 @@
                 "KONGCTL-namespace": "user-plan-apply",
                 "scenario": "user-plan-apply"
               },
-              "created_at": "2026-09-21T02:23:11Z",
-              "updated_at": "2026-09-21T02:23:11Z"
+              "created_at": "2026-11-13T21:54:31Z",
+              "updated_at": "2026-11-13T21:54:31Z",
+              "konnect_managed": false
             }
           ]
         },
@@ -1384,8 +1445,9 @@
                 "KONGCTL-namespace": "user-plan-apply",
                 "scenario": "user-plan-apply"
               },
-              "created_at": "2026-09-21T02:23:11Z",
-              "updated_at": "2026-09-21T02:23:11Z"
+              "created_at": "2026-11-13T21:54:31Z",
+              "updated_at": "2026-11-13T21:54:31Z",
+              "konnect_managed": false
             }
           ]
         },
@@ -1397,7 +1459,16 @@
         "endpoint": "global",
         "method": "GET",
         "path": "/v3/users/00000000-0000-4000-8000-000000000004/assigned-roles",
-        "query": [],
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
         "body": null
       },
       "response": {
@@ -1406,7 +1477,7 @@
           "meta": {
             "page": {
               "number": 1,
-              "size": 10,
+              "size": 100,
               "total": 1
             }
           },
@@ -1419,7 +1490,8 @@
               "entity_id": "00000000-0000-4000-8000-000000000019",
               "entity_ids": [
                 "00000000-0000-4000-8000-000000000019"
-              ]
+              ],
+              "konnect_managed": false
             }
           ]
         },
@@ -1431,7 +1503,16 @@
         "endpoint": "global",
         "method": "GET",
         "path": "/v3/users/00000000-0000-4000-8000-000000000005/assigned-roles",
-        "query": [],
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
         "body": null
       },
       "response": {
@@ -1440,11 +1521,55 @@
           "meta": {
             "page": {
               "number": 1,
-              "size": 10,
+              "size": 100,
               "total": 0
             }
           },
           "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000004/assigned-roles",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000021",
+              "role_name": "Viewer",
+              "entity_region": "us",
+              "entity_type_name": "APIs",
+              "entity_id": "00000000-0000-4000-8000-000000000019",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000019"
+              ],
+              "konnect_managed": false
+            }
+          ]
         },
         "content_type": "application/json"
       }
@@ -1460,40 +1585,6 @@
       "response": {
         "status": 204,
         "body": null,
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "GET",
-        "path": "/v3/users/00000000-0000-4000-8000-000000000004/assigned-roles",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 10,
-              "total": 1
-            }
-          },
-          "data": [
-            {
-              "id": "00000000-0000-4000-8000-000000000021",
-              "role_name": "Viewer",
-              "entity_region": "us",
-              "entity_type_name": "APIs",
-              "entity_id": "00000000-0000-4000-8000-000000000019",
-              "entity_ids": [
-                "00000000-0000-4000-8000-000000000019"
-              ]
-            }
-          ]
-        },
         "content_type": "application/json"
       }
     },
@@ -1554,8 +1645,8 @@
               "labels": {
                 "KONGCTL-namespace": "user-plan-apply"
               },
-              "created_at": "2026-09-21T02:23:10.777Z",
-              "updated_at": "2026-09-21T02:23:10.777Z",
+              "created_at": "2026-11-13T21:54:31.400Z",
+              "updated_at": "2026-11-13T21:54:31.400Z",
               "slug": "user-plan-apply-api",
               "api_spec_ids": [],
               "implementation_mode": null,
@@ -1620,7 +1711,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "google"
             },
             {
               "id": "00000000-0000-4000-8000-000000000003",
@@ -1629,7 +1721,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000004",
@@ -1665,7 +1758,8 @@
               "preferred_name": "replay-user-8",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000008",
@@ -1674,7 +1768,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000009",
@@ -1683,7 +1778,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000010",
@@ -1692,7 +1788,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             }
           ]
         },
@@ -1721,7 +1818,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-21T02:23:11.116815Z",
+              "created_at": "2026-11-13T21:54:31.817357Z",
               "description": "Team used by the user plan apply workflow E2E scenario",
               "id": "00000000-0000-4000-8000-000000000020",
               "konnect_managed": false,
@@ -1731,7 +1828,7 @@
               },
               "name": "User Plan Apply Team",
               "system_team": false,
-              "updated_at": "2026-09-21T02:23:11.116815Z"
+              "updated_at": "2026-11-13T21:54:31.817357Z"
             },
             {
               "created_at": "2025-09-02T15:25:34.312498Z",
@@ -1827,6 +1924,32 @@
     },
     {
       "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000020",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "created_at": "2026-11-13T21:54:31.817357Z",
+          "description": "Team used by the user plan apply workflow E2E scenario",
+          "id": "00000000-0000-4000-8000-000000000020",
+          "konnect_managed": false,
+          "labels": {
+            "KONGCTL-namespace": "user-plan-apply",
+            "scenario": "user-plan-apply"
+          },
+          "name": "User Plan Apply Team",
+          "system_team": false,
+          "updated_at": "2026-11-13T21:54:31.817357Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
         "endpoint": "regional",
         "method": "GET",
         "path": "/v3/apis/00000000-0000-4000-8000-000000000019",
@@ -1843,8 +1966,8 @@
           "labels": {
             "KONGCTL-namespace": "user-plan-apply"
           },
-          "created_at": "2026-09-21T02:23:10.777Z",
-          "updated_at": "2026-09-21T02:23:10.777Z",
+          "created_at": "2026-11-13T21:54:31.400Z",
+          "updated_at": "2026-11-13T21:54:31.400Z",
           "slug": "user-plan-apply-api",
           "api_spec_ids": [],
           "implementation_mode": null,
@@ -1859,34 +1982,8 @@
     {
       "request": {
         "endpoint": "global",
-        "method": "GET",
-        "path": "/v3/teams/00000000-0000-4000-8000-000000000020",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "created_at": "2026-09-21T02:23:11.116815Z",
-          "description": "Team used by the user plan apply workflow E2E scenario",
-          "id": "00000000-0000-4000-8000-000000000020",
-          "konnect_managed": false,
-          "labels": {
-            "KONGCTL-namespace": "user-plan-apply",
-            "scenario": "user-plan-apply"
-          },
-          "name": "User Plan Apply Team",
-          "system_team": false,
-          "updated_at": "2026-09-21T02:23:11.116815Z"
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
         "method": "DELETE",
-        "path": "/v3/apis/00000000-0000-4000-8000-000000000019",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000020",
         "query": [],
         "body": null
       },
@@ -1898,9 +1995,9 @@
     },
     {
       "request": {
-        "endpoint": "global",
+        "endpoint": "regional",
         "method": "DELETE",
-        "path": "/v3/teams/00000000-0000-4000-8000-000000000020",
+        "path": "/v3/apis/00000000-0000-4000-8000-000000000019",
         "query": [],
         "body": null
       },
