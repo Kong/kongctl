@@ -260,6 +260,51 @@ steps:
             expect:
               fields:
                 total_changes: 0
+  - name: 002a-client-certificate-authentication
+    inputOverlayDirs:
+      - overlays/005-auth-client-cert
+    commands:
+      - name: plan-client-certificate
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/client-certificate-plan.json"
+        run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, apply]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: "changes[?resource_type=='event_gateway_virtual_cluster'] | [0]"
+            expect:
+              fields:
+                action: UPDATE
+                fields.authentication[0].type: client_certificate
+      - name: apply-client-certificate
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
+        run: [apply, --plan, "{{ .workdir }}/client-certificate-plan.json", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+      - name: verify-client-certificate
+        run: [get, event-gateway, virtual-clusters, --gateway-name, "{{ .vars.egwName }}"]
+        assertions:
+          - select: "[?name=='{{ .vars.vcRef }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.vcRef }}"
+                authentication[0].type: client_certificate
+      - name: plan-client-certificate-idempotent
+        outputFormat: disable
+        run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, apply]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
   - name: 002b-dump-round-trip
     skipInputs: true
     commands:
@@ -286,6 +331,7 @@ steps:
                 name: "{{ .vars.vcRef }}"
                 namespace.mode: enforce_prefix
                 namespace.prefix: e2e_updated_
+                authentication[0].type: client_certificate
       - name: 002-plan-from-dump
         outputFormat: disable
         run: [plan, -f, "{{ .workdir }}/dump.yaml", --mode, sync]

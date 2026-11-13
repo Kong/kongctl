@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -27,7 +28,13 @@ func TestAdoptPlanConvergence(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			cmd := sc.Steps[5].Commands[0]
+			stepIndex := slices.IndexFunc(sc.Steps, func(step Step) bool {
+				return step.Name == "005-dump-and-plan"
+			})
+			if stepIndex < 0 {
+				t.Fatal("dump-and-plan step missing")
+			}
+			cmd := sc.Steps[stepIndex].Commands[0]
 			cmd.Assertions = cmd.Assertions[len(cmd.Assertions)-1:]
 			cmd.Assertions[0].Retry = Retry{Attempts: 3, Interval: "1ms", MaxInterval: "1ms", Jitter: "0s"}
 			dir := t.TempDir()

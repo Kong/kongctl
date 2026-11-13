@@ -18,6 +18,7 @@ portals:
     teams:
       - ref: backend-team
         name: "Backend Team"
+        can_own_applications: false
         description: "Updated: Backend API developers"
 
       - ref: frontend-team

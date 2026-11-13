@@ -1,0 +1,169 @@
+vars:
+  gateway_name: adopt-children-e2e
+  child_name: adopt-children-support
+  namespace: adopt-children-team
+  overwrite_namespace: adopt-children-moved
+  parent_ref: adopted-gateway
+
+steps:
+  - name: 000-create-unmanaged-fixtures
+    skipInputs: true
+    commands:
+      - resetOrg: true
+      - name: create-gateway
+        create:
+          resource: ai_gateway
+          payload:
+            inline:
+              name: "{{ .vars.gateway_name }}"
+              display_name: Adopt Children E2E
+          recordVar:
+            name: gateway_id
+            responsePath: id
+      - name: create-unmanaged-consumer-group
+        create:
+          resource: ai-gateway-consumer-group
+          endpointParams:
+            gatewayId: "{{ .vars.gateway_id }}"
+          payload:
+            inline:
+              name: "{{ .vars.child_name }}"
+              display_name: Support Consumers
+              labels:
+                team: support
+          recordVar:
+            name: child_id
+            responsePath: id
+      - name: verify-unmanaged-child
+        run: [get, ai-gateway, consumer-groups, --gateway-name, "{{ .vars.gateway_name }}"]
+        assertions:
+          - select: "[?id=='{{ .vars.child_id }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.child_name }}"
+                'managed_by."kongctl-namespace"': null
+
+  - name: 001-adopt-child-by-name
+    skipInputs: true
+    commands:
+      - name: adopt-consumer-group
+        run:
+          - adopt
+          - ai-gateway
+          - consumer-groups
+          - "{{ .vars.child_name }}"
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - --namespace
+          - "{{ .vars.namespace }}"
+        assertions:
+          - expect:
+              fields:
+                id: "{{ .vars.child_id }}"
+                namespace: "{{ .vars.namespace }}"
+                resource_type: ai_gateway_consumer_group
+      - name: verify-child-ownership
+        run: [get, ai-gateway, consumer-groups, --gateway-id, "{{ .vars.gateway_id }}"]
+        assertions:
+          - select: "[?id=='{{ .vars.child_id }}'] | [0]"
+            expect:
+              fields:
+                'managed_by."kongctl-namespace"': "{{ .vars.namespace }}"
+                labels.team: support
+      - name: verify-parent-remains-unmanaged
+        run: [get, ai-gateways]
+        assertions:
+          - select: "[?id=='{{ .vars.gateway_id }}'] | [0]"
+            expect:
+              fields:
+                'labels."KONGCTL-namespace"': null
+
+  - name: 002-reject-namespace-overwrite
+    skipInputs: true
+    commands:
+      - name: reject-overwrite
+        run:
+          - adopt
+          - ai-gateway
+          - consumer-groups
+          - --consumer-group-id
+          - "{{ .vars.child_id }}"
+          - --gateway-id
+          - "{{ .vars.gateway_id }}"
+          - --namespace
+          - "{{ .vars.overwrite_namespace }}"
+        expectFailure:
+          exitCode: 1
+          contains: child already has namespace
+      - name: verify-rejected-overwrite-did-not-mutate
+        run: [get, ai-gateway, consumer-groups, --gateway-id, "{{ .vars.gateway_id }}"]
+        assertions:
+          - select: "[?id=='{{ .vars.child_id }}'] | [0]"
+            expect:
+              fields:
+                'managed_by."kongctl-namespace"': "{{ .vars.namespace }}"
+
+  - name: 003-overwrite-and-export
+    skipInputs: true
+    commands:
+      - name: overwrite-and-export-child
+        run:
+          - adopt
+          - ai-gateway
+          - consumer-groups
+          - --consumer-group-id
+          - "{{ .vars.child_id }}"
+          - --gateway-id
+          - "{{ .vars.gateway_id }}"
+          - --namespace
+          - "{{ .vars.overwrite_namespace }}"
+          - --overwrite-namespace
+          - --declarative-output
+          - "{{ .workdir }}/child.yaml"
+          - --parent-ref
+          - "{{ .vars.parent_ref }}"
+        assertions:
+          - expect:
+              fields:
+                id: "{{ .vars.child_id }}"
+                namespace: "{{ .vars.overwrite_namespace }}"
+                resource_type: ai_gateway_consumer_group
+          - source:
+              artifact:
+                path: "{{ .workdir }}/child.yaml"
+                parseAs: yaml
+            select: "ai_gateway_consumer_groups[?ref=='{{ .vars.child_id }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.child_name }}"
+                display_name: Support Consumers
+                ai_gateway: "{{ .vars.parent_ref }}#id"
+                kongctl.namespace: "{{ .vars.overwrite_namespace }}"
+                labels.team: support
+          - source:
+              artifact:
+                path: "{{ .workdir }}/child.yaml"
+                parseAs: text
+            expect:
+              fields:
+                "contains(text, '!ref {{ .vars.parent_ref }}#id')": true
+      - name: verify-overwritten-child-ownership
+        run: [get, ai-gateway, consumer-groups, --gateway-name, "{{ .vars.gateway_name }}"]
+        assertions:
+          - select: "[?id=='{{ .vars.child_id }}'] | [0]"
+            expect:
+              fields:
+                'managed_by."kongctl-namespace"': "{{ .vars.overwrite_namespace }}"
+                labels.team: support
+
+  - name: 004-cleanup
+    skipInputs: true
+    commands:
+      - resetOrg: true
+      - name: verify-gateway-deleted
+        run: [get, ai-gateways]
+        assertions:
+          - select: "[?id=='{{ .vars.gateway_id }}']"
+            expect:
+              fields:
+                "length(@)": 0
