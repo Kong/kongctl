@@ -12,11 +12,16 @@ test:
     resource) and is added as a member of the alpha team to exercise
     user collection in the dump code path. A temporary system account is added
     to the alpha team to verify system account dump and round-trip coverage.
+    A separate fixture exercises 99, 100 and 101 assigned roles around the
+    reader's 100-role page boundary. Dump page sizes 1, 10, 99, 100 and 101
+    must preserve all roles. Apply and sync plans use the complete original
+    manifests so matching truncation in dump and planning cannot hide a failure.
 
 vars:
   teamAlphaName: e2e-dump-org-team-alpha
   teamBetaName: e2e-dump-org-team-beta
   systemAccountName: e2e-dump-org-system-account
+  paginationTeamName: e2e-dump-org-team-pagination
 
 steps:
   - name: 000-reset-org
@@ -249,7 +254,359 @@ steps:
               fields:
                 "@": true
 
-  - name: 004-reset-cleanup
+  - name: 004-bootstrap-pagination
+    commands:
+      - name: 000-sync-pagination-fixture
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/pagination"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 153
+                by_action.CREATE: 153
+          - select: summary
+            expect:
+              fields:
+                applied: 153
+                failed: 0
+                status: success
+
+  - name: 005-verify-101-role-boundary
+    skipInputs: true
+    commands:
+      - name: 000-dump-101-roles-page-size-1
+        outputFormat: none
+        parseAs: yaml
+        run:
+          - dump
+          - declarative
+          - --resources=organization.teams
+          - "--filter-name={{ .vars.paginationTeamName }}"
+          - --include-child-resources
+          - --page-size=1
+        assertions:
+          - name: pagination-team-present
+            select: organization.teams
+            expect:
+              fields:
+                "length(@)": 1
+                "[0].name": "{{ .vars.paginationTeamName }}"
+          - name: all-assigned-roles-exported
+            select: organization.teams[0].roles
+            expect:
+              fields:
+                "length(@)": 101
+                "length([?role_name=='Admin'])": 51
+                "length([?role_name=='Viewer'])": 50
+                "length([?entity_type_name=='APIs' && entity_region=='us'])": 101
+
+      - name: 001-dump-101-roles-page-size-10
+        outputFormat: none
+        parseAs: yaml
+        run:
+          - dump
+          - declarative
+          - --resources=organization.teams
+          - "--filter-name={{ .vars.paginationTeamName }}"
+          - --include-child-resources
+          - --page-size=10
+        assertions:
+          - name: pagination-team-present
+            select: organization.teams
+            expect:
+              fields:
+                "length(@)": 1
+                "[0].name": "{{ .vars.paginationTeamName }}"
+          - name: all-assigned-roles-exported
+            select: organization.teams[0].roles
+            expect:
+              fields:
+                "length(@)": 101
+                "length([?role_name=='Admin'])": 51
+                "length([?role_name=='Viewer'])": 50
+                "length([?entity_type_name=='APIs' && entity_region=='us'])": 101
+
+      - name: 002-dump-101-roles-page-size-99
+        outputFormat: none
+        parseAs: yaml
+        run:
+          - dump
+          - declarative
+          - --resources=organization.teams
+          - "--filter-name={{ .vars.paginationTeamName }}"
+          - --include-child-resources
+          - --page-size=99
+        assertions:
+          - name: pagination-team-present
+            select: organization.teams
+            expect:
+              fields:
+                "length(@)": 1
+                "[0].name": "{{ .vars.paginationTeamName }}"
+          - name: all-assigned-roles-exported
+            select: organization.teams[0].roles
+            expect:
+              fields:
+                "length(@)": 101
+                "length([?role_name=='Admin'])": 51
+                "length([?role_name=='Viewer'])": 50
+                "length([?entity_type_name=='APIs' && entity_region=='us'])": 101
+
+      - name: 003-dump-101-roles-page-size-100
+        outputFormat: none
+        parseAs: yaml
+        run:
+          - dump
+          - declarative
+          - --resources=organization.teams
+          - "--filter-name={{ .vars.paginationTeamName }}"
+          - --include-child-resources
+          - --page-size=100
+        assertions:
+          - name: pagination-team-present
+            select: organization.teams
+            expect:
+              fields:
+                "length(@)": 1
+                "[0].name": "{{ .vars.paginationTeamName }}"
+          - name: all-assigned-roles-exported
+            select: organization.teams[0].roles
+            expect:
+              fields:
+                "length(@)": 101
+                "length([?role_name=='Admin'])": 51
+                "length([?role_name=='Viewer'])": 50
+                "length([?entity_type_name=='APIs' && entity_region=='us'])": 101
+
+      - name: 004-dump-101-roles-page-size-101
+        outputFormat: none
+        parseAs: yaml
+        run:
+          - dump
+          - declarative
+          - --resources=organization.teams
+          - "--filter-name={{ .vars.paginationTeamName }}"
+          - --include-child-resources
+          - --page-size=101
+        assertions:
+          - name: pagination-team-present
+            select: organization.teams
+            expect:
+              fields:
+                "length(@)": 1
+                "[0].name": "{{ .vars.paginationTeamName }}"
+          - name: all-assigned-roles-exported
+            select: organization.teams[0].roles
+            expect:
+              fields:
+                "length(@)": 101
+                "length([?role_name=='Admin'])": 51
+                "length([?role_name=='Viewer'])": 50
+                "length([?entity_type_name=='APIs' && entity_region=='us'])": 101
+
+      # Plan from the complete original inputs, independently of dump output.
+      - name: 005-plan-apply-original-101-role-manifest
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/pagination"
+          - --mode=apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+      - name: 006-plan-sync-original-101-role-manifest
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/pagination"
+          - --mode=sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 006-verify-100-role-boundary
+    skipInputs: true
+    commands:
+      - name: 000-sync-to-100-roles
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/pagination/base.yaml"
+          - -f
+          - "{{ .workdir }}/pagination/roles-99.yaml"
+          - -f
+          - "{{ .workdir }}/pagination/role-100.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+
+      - name: 001-dump-100-roles-page-size-100
+        outputFormat: none
+        parseAs: yaml
+        run:
+          - dump
+          - declarative
+          - --resources=organization.teams
+          - "--filter-name={{ .vars.paginationTeamName }}"
+          - --include-child-resources
+          - --page-size=100
+        assertions:
+          - name: pagination-team-present
+            select: organization.teams
+            expect:
+              fields:
+                "length(@)": 1
+                "[0].name": "{{ .vars.paginationTeamName }}"
+          - name: all-assigned-roles-exported
+            select: organization.teams[0].roles
+            expect:
+              fields:
+                "length(@)": 100
+                "length([?role_name=='Admin'])": 50
+                "length([?role_name=='Viewer'])": 50
+                "length([?entity_type_name=='APIs' && entity_region=='us'])": 100
+
+      # Plan from the complete original inputs, independently of dump output.
+      - name: 002-plan-apply-original-100-role-manifest
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/pagination/base.yaml"
+          - -f
+          - "{{ .workdir }}/pagination/roles-99.yaml"
+          - -f
+          - "{{ .workdir }}/pagination/role-100.yaml"
+          - --mode=apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+      - name: 003-plan-sync-original-100-role-manifest
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/pagination/base.yaml"
+          - -f
+          - "{{ .workdir }}/pagination/roles-99.yaml"
+          - -f
+          - "{{ .workdir }}/pagination/role-100.yaml"
+          - --mode=sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 007-verify-99-role-boundary
+    skipInputs: true
+    commands:
+      - name: 000-sync-to-99-roles
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/pagination/base.yaml"
+          - -f
+          - "{{ .workdir }}/pagination/roles-99.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+
+      - name: 001-dump-99-roles-page-size-100
+        outputFormat: none
+        parseAs: yaml
+        run:
+          - dump
+          - declarative
+          - --resources=organization.teams
+          - "--filter-name={{ .vars.paginationTeamName }}"
+          - --include-child-resources
+          - --page-size=100
+        assertions:
+          - name: pagination-team-present
+            select: organization.teams
+            expect:
+              fields:
+                "length(@)": 1
+                "[0].name": "{{ .vars.paginationTeamName }}"
+          - name: all-assigned-roles-exported
+            select: organization.teams[0].roles
+            expect:
+              fields:
+                "length(@)": 99
+                "length([?role_name=='Admin'])": 50
+                "length([?role_name=='Viewer'])": 49
+                "length([?entity_type_name=='APIs' && entity_region=='us'])": 99
+
+      # Plan from the complete original inputs, independently of dump output.
+      - name: 002-plan-apply-original-99-role-manifest
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/pagination/base.yaml"
+          - -f
+          - "{{ .workdir }}/pagination/roles-99.yaml"
+          - --mode=apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+      - name: 003-plan-sync-original-99-role-manifest
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/pagination/base.yaml"
+          - -f
+          - "{{ .workdir }}/pagination/roles-99.yaml"
+          - --mode=sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 008-reset-cleanup
     skipInputs: true
     commands:
       - resetOrg: true

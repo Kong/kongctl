@@ -17,7 +17,19 @@ func TestListOrganizationTeamRolesPaginates(t *testing.T) {
 		total, pageSize int
 		pages           []int
 	}{
-		{0, 100, []int{1}}, {10, 100, []int{1}}, {29, 10, []int{1, 2, 3}}, {200, 100, []int{1, 2}},
+		{0, 100, []int{1}},
+		{1, 100, []int{1}},
+		{9, 10, []int{1}},
+		{10, 10, []int{1}},
+		{11, 10, []int{1, 2}},
+		{29, 10, []int{1, 2, 3}},
+		{99, 100, []int{1}},
+		{100, 100, []int{1}},
+		{101, 100, []int{1, 2}},
+		{199, 100, []int{1, 2}},
+		{200, 100, []int{1, 2}},
+		{201, 100, []int{1, 2, 3}},
+		{3, 1, []int{1, 2, 3}},
 	} {
 		t.Run(fmt.Sprintf("total_%d_page_size_%d", scenario.total, scenario.pageSize), func(t *testing.T) {
 			var pages []int

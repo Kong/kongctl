@@ -1,0 +1,595 @@
+organization_team_roles:
+  - ref: pagination-api-01-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-01#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-01-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-01#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-02-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-02#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-02-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-02#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-03-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-03#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-03-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-03#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-04-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-04#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-04-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-04#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-05-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-05#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-05-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-05#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-06-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-06#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-06-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-06#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-07-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-07#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-07-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-07#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-08-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-08#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-08-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-08#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-09-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-09#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-09-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-09#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-10-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-10#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-10-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-10#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-11-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-11#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-11-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-11#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-12-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-12#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-12-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-12#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-13-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-13#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-13-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-13#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-14-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-14#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-14-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-14#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-15-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-15#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-15-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-15#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-16-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-16#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-16-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-16#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-17-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-17#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-17-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-17#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-18-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-18#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-18-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-18#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-19-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-19#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-19-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-19#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-20-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-20#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-20-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-20#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-21-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-21#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-21-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-21#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-22-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-22#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-22-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-22#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-23-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-23#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-23-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-23#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-24-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-24#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-24-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-24#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-25-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-25#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-25-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-25#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-26-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-26#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-26-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-26#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-27-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-27#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-27-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-27#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-28-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-28#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-28-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-28#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-29-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-29#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-29-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-29#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-30-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-30#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-30-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-30#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-31-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-31#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-31-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-31#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-32-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-32#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-32-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-32#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-33-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-33#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-33-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-33#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-34-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-34#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-34-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-34#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-35-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-35#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-35-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-35#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-36-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-36#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-36-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-36#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-37-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-37#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-37-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-37#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-38-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-38#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-38-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-38#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-39-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-39#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-39-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-39#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-40-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-40#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-40-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-40#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-41-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-41#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-41-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-41#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-42-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-42#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-42-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-42#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-43-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-43#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-43-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-43#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-44-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-44#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-44-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-44#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-45-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-45#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-45-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-45#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-46-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-46#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-46-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-46#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-47-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-47#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-47-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-47#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-48-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-48#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-48-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-48#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-49-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-49#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-49-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-49#id
+    entity_type_name: APIs
+    entity_region: us
+  - ref: pagination-api-50-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-50#id
+    entity_type_name: APIs
+    entity_region: us
