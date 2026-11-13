@@ -42,3 +42,21 @@ func TestFetchOrganizationTeamRolesReadsEveryPage(t *testing.T) {
 		require.Equal(t, fmt.Sprintf("role-%d", i), *role.ID)
 	}
 }
+
+func TestFetchOrganizationTeamRolesPreservesEmptyArray(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[],"meta":{"page":{"total":0}}}`))
+	}))
+	defer server.Close()
+	helper := &cmdtest.MockHelper{GetContextMock: func() context.Context { return t.Context() }}
+	roles, err := fetchOrganizationTeamRoles(
+		helper,
+		&helpers.OrganizationTeamRolesAPIImpl{BaseURL: server.URL, HTTPClient: server.Client()},
+		"team",
+	)
+	require.NoError(t, err)
+	encoded, err := json.Marshal(roles)
+	require.NoError(t, err)
+	require.JSONEq(t, `[]`, string(encoded))
+}

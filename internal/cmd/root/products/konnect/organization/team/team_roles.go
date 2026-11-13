@@ -143,6 +143,9 @@ func fetchOrganizationTeamRoles(
 			attrs...,
 		)
 	}
+	if roles == nil {
+		roles = []kkComps.AssignedRole{}
+	}
 	return roles, nil
 }
 
