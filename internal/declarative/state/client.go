@@ -5298,20 +5298,40 @@ func (c *Client) ListOrganizationTeamRoles(ctx context.Context, teamID string) (
 		return nil, err
 	}
 
-	resp, err := c.organizationTeamRolesAPI.ListTeamRoles(ctx, teamID, nil)
-	if err != nil {
-		return nil, WrapAPIError(err, "list organization team roles", &ErrorWrapperOptions{
-			ResourceType: string(resources.ResourceTypeOrganizationTeamRole),
-			UseEnhanced:  true,
-		})
+	var assignedRoles []kkComps.AssignedRole
+	seen := make(map[string]bool)
+	for page := int64(1); ; page++ {
+		if page > maxPaginationPages {
+			return nil, fmt.Errorf("organization team roles pagination exceeded safety limit of %d pages", maxPaginationPages)
+		}
+		collection, err := c.organizationTeamRolesAPI.ListTeamRolesPage(ctx, teamID, 100, page)
+		if err != nil {
+			return nil, WrapAPIError(err, "list organization team roles", &ErrorWrapperOptions{
+				ResourceType: string(resources.ResourceTypeOrganizationTeamRole),
+				UseEnhanced:  true,
+			})
+		}
+		if collection == nil {
+			return nil, fmt.Errorf("missing organization team roles response")
+		}
+		for _, role := range collection.Data {
+			id := getString(role.ID)
+			if id == "" || seen[id] {
+				return nil, fmt.Errorf("organization team roles response contains a missing or repeated ID")
+			}
+			seen[id] = true
+		}
+		assignedRoles = append(assignedRoles, collection.Data...)
+		if collection.Meta == nil || float64(len(assignedRoles)) >= collection.Meta.Page.Total {
+			break
+		}
+		if len(collection.Data) == 0 {
+			return nil, fmt.Errorf("incomplete organization team roles pagination")
+		}
 	}
 
-	if resp == nil || resp.AssignedRoleCollection == nil {
-		return []OrganizationTeamRole{}, nil
-	}
-
-	roles := make([]OrganizationTeamRole, 0, len(resp.AssignedRoleCollection.Data))
-	for _, r := range resp.AssignedRoleCollection.Data {
+	roles := make([]OrganizationTeamRole, 0, len(assignedRoles))
+	for _, r := range assignedRoles {
 		role := OrganizationTeamRole{
 			ID:             getString(r.ID),
 			RoleName:       getString(r.RoleName),

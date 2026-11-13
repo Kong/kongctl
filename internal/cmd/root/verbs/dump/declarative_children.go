@@ -1338,17 +1338,18 @@ func populateOrganizationTeamChildren(
 	teams []declresources.OrganizationTeamResource,
 ) {
 	for i := range teams {
-		roles, err := client.ListOrganizationTeamRoles(ctx, teams[i].Ref)
+		team := &teams[i]
+		roles, err := client.ListOrganizationTeamRoles(ctx, team.Ref)
 		if err != nil {
-			logWarn(logger, "failed to load organization team roles", teams[i].Ref, teams[i].Name, err)
+			logWarn(logger, "failed to load organization team roles", team.Ref, team.Name, err)
 			continue
 		}
 		if len(roles) == 0 {
 			continue
 		}
-		teams[i].Roles = make([]declresources.OrganizationTeamRoleResource, 0, len(roles))
+		team.Roles = make([]declresources.OrganizationTeamRoleResource, 0, len(roles))
 		for _, role := range roles {
-			teams[i].Roles = append(teams[i].Roles, declresources.OrganizationTeamRoleResource{
+			team.Roles = append(team.Roles, declresources.OrganizationTeamRoleResource{
 				Ref:            role.ID,
 				RoleName:       role.RoleName,
 				EntityID:       role.EntityID,

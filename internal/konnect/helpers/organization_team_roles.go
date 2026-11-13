@@ -2,14 +2,24 @@ package helpers
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"math"
+	"net/http"
+	"net/url"
 
 	kkSDK "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+
+	"github.com/kong/kongctl/internal/konnect/apiutil"
 )
 
 // OrganizationTeamRolesAPI defines the interface for organization team role operations.
 type OrganizationTeamRolesAPI interface {
+	ListTeamRolesPage(
+		ctx context.Context, teamID string, pageSize, pageNumber int64,
+	) (*kkComps.AssignedRoleCollection, error)
 	ListTeamRoles(
 		ctx context.Context,
 		teamID string,
@@ -50,7 +60,43 @@ type OrganizationTeamRolesAPI interface {
 
 // OrganizationTeamRolesAPIImpl provides an SDK-backed implementation of OrganizationTeamRolesAPI.
 type OrganizationTeamRolesAPIImpl struct {
-	SDK *kkSDK.SDK
+	SDK         *kkSDK.SDK
+	BaseURL     string
+	Token       string
+	TokenSource apiutil.TokenSource
+	HTTPClient  kkSDK.HTTPClient
+}
+
+// ListTeamRolesPage supplies pagination parameters missing from the SDK operation.
+func (o *OrganizationTeamRolesAPIImpl) ListTeamRolesPage(
+	ctx context.Context, teamID string, pageSize, pageNumber int64,
+) (*kkComps.AssignedRoleCollection, error) {
+	path := fmt.Sprintf("/v3/teams/%s/assigned-roles?page[size]=%d&page[number]=%d",
+		url.PathEscape(teamID), pageSize, pageNumber)
+	var result *apiutil.Result
+	var err error
+	if o.TokenSource != nil {
+		result, err = apiutil.RequestWithTokenSource(ctx, o.HTTPClient, http.MethodGet,
+			o.BaseURL, path, o.TokenSource, nil, nil)
+	} else {
+		result, err = apiutil.Request(ctx, o.HTTPClient, http.MethodGet, o.BaseURL, path, o.Token, nil, nil)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if result.StatusCode < http.StatusOK || result.StatusCode >= http.StatusMultipleChoices {
+		return nil, fmt.Errorf("list organization team roles failed with status %d: %s", result.StatusCode, result.Body)
+	}
+	var collection kkComps.AssignedRoleCollection
+	if err := json.Unmarshal(result.Body, &collection); err != nil {
+		return nil, fmt.Errorf("decode organization team roles: %w", err)
+	}
+	if collection.Meta == nil || collection.Meta.Page.Total < 0 ||
+		math.IsNaN(collection.Meta.Page.Total) || math.IsInf(collection.Meta.Page.Total, 0) ||
+		math.Trunc(collection.Meta.Page.Total) != collection.Meta.Page.Total {
+		return nil, fmt.Errorf("missing or invalid organization team roles pagination metadata")
+	}
+	return &collection, nil
 }
 
 func (o *OrganizationTeamRolesAPIImpl) ListTeamRoles(

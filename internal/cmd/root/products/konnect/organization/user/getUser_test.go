@@ -57,6 +57,12 @@ type stubOrganizationTeamRolesAPI struct {
 	)
 }
 
+func (s *stubOrganizationTeamRolesAPI) ListTeamRolesPage(
+	context.Context, string, int64, int64,
+) (*kkComps.AssignedRoleCollection, error) {
+	panic("ListTeamRolesPage should not be called")
+}
+
 func (s *stubOrganizationTeamRolesAPI) ListTeamRoles(
 	context.Context,
 	string,

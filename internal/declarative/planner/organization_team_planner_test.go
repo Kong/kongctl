@@ -2,15 +2,20 @@ package planner
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/stretchr/testify/require"
 )
 
@@ -31,6 +36,16 @@ type organizationTeamRolesAPIStub struct {
 		*kkOps.ListUserRolesQueryParamFilter,
 		...kkOps.Option,
 	) (*kkOps.ListUserRolesResponse, error)
+}
+
+func (s *organizationTeamRolesAPIStub) ListTeamRolesPage(
+	ctx context.Context, teamID string, _, _ int64,
+) (*kkComps.AssignedRoleCollection, error) {
+	response, err := s.ListTeamRoles(ctx, teamID, nil)
+	if err != nil || response == nil {
+		return nil, err
+	}
+	return response.AssignedRoleCollection, nil
 }
 
 type systemAccountRolesAPIStub struct {
@@ -1074,4 +1089,45 @@ func TestOrganizationTeamSyncStillListsOrganizationTeams(t *testing.T) {
 
 	require.ErrorContains(t, err, "team list called")
 	require.Equal(t, 1, listTeamCalls)
+}
+
+func TestOrganizationTeamRolePlanRecognizesAllPages(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		page, err := strconv.Atoi(r.URL.Query().Get("page[number]"))
+		require.NoError(t, err)
+		roles := make([]kkComps.AssignedRole, 0)
+		for i := (page - 1) * 10; i < min(page*10, 29); i++ {
+			role := assignedRole(fmt.Sprintf("role-%d", i), "Viewer", fmt.Sprintf("cp-%d", i), "Control Planes")
+			role.EntityRegion = new(kkComps.AssignedRoleEntityRegionEu)
+			roles = append(roles, role)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		require.NoError(t, json.NewEncoder(w).Encode(kkComps.AssignedRoleCollection{
+			Data: roles, Meta: &kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 29}},
+		}))
+	}))
+	defer server.Close()
+	client := state.NewClient(state.ClientConfig{OrganizationTeamRolesAPI: &helpers.OrganizationTeamRolesAPIImpl{
+		BaseURL: server.URL, HTTPClient: server.Client(),
+	}})
+	for _, mode := range []PlanMode{PlanModeApply, PlanModeSync} {
+		t.Run(string(mode), func(t *testing.T) {
+			p := NewPlanner(client, discardPlannerLogger())
+			team := teamRootDesired("team", false)
+			team.SetKonnectID("team-id")
+			p.resources = &resources.ResourceSet{OrganizationTeams: []resources.OrganizationTeamResource{team}}
+			for i := range 29 {
+				role := resources.OrganizationTeamRoleResource{
+					Ref: fmt.Sprintf("role-%d", i), Team: "team", RoleName: "Viewer", EntityID: fmt.Sprintf("cp-%d", i),
+					EntityTypeName: "Control Planes", EntityRegion: "eu",
+				}
+				p.resources.OrganizationTeamRoles = append(p.resources.OrganizationTeamRoles, role)
+			}
+			plan := NewPlan(CurrentPlanVersion, "test", mode)
+			teamPlanner := NewOrganizationTeamPlanner(NewBasePlanner(p)).(*OrganizationTeamPlannerImpl)
+			require.NoError(t, teamPlanner.planOrganizationTeamRoleChanges(t.Context(), "default", p.resources.OrganizationTeams,
+				map[string]state.OrganizationTeam{}, plan))
+			require.Empty(t, plan.Changes)
+		})
+	}
 }

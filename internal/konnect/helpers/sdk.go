@@ -684,7 +684,9 @@ func (k *KonnectSDK) GetOrganizationTeamRolesAPI() OrganizationTeamRolesAPI {
 		return nil
 	}
 
-	return &OrganizationTeamRolesAPIImpl{SDK: k.SDK}
+	return &OrganizationTeamRolesAPIImpl{
+		SDK: k.SDK, BaseURL: globalAPIBaseURL, Token: k.Token, TokenSource: k.TokenSource, HTTPClient: k.HTTPClient,
+	}
 }
 
 // GetOrganizationUsersAPI returns the implementation of the OrganizationUsersAPI interface.
