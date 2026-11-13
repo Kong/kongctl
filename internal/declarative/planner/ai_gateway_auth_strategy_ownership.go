@@ -112,7 +112,7 @@ func (p *Planner) reconcileOwnedAIGatewayAuthStrategies(
 				)
 			}
 			// Use the observed public payload for a protection-only PUT; secret values remain omitted.
-			fields = authStrategyObservedFields(*full)
+			fields = AIGatewayAuthStrategyObservedFields(*full)
 			fields[FieldManagedBy] = strategy.ManagedBy
 		}
 		// Leave omitted labels out of the plan so execution preserves the latest public labels.
@@ -154,7 +154,8 @@ func (p *Planner) reconcileOwnedAIGatewayAuthStrategies(
 	return nil
 }
 
-func authStrategyObservedFields(strategy state.AIGatewayAuthStrategy) map[string]any {
+// AIGatewayAuthStrategyObservedFields returns the public fields used for owned child updates.
+func AIGatewayAuthStrategyObservedFields(strategy state.AIGatewayAuthStrategy) map[string]any {
 	return map[string]any{
 		FieldName: strategy.Name, FieldType: strategy.Type, FieldDisplayName: strategy.DisplayName,
 		FieldConfig: strategy.Config, FieldLabels: strategy.Labels, FieldManagedBy: strategy.ManagedBy,

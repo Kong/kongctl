@@ -137,12 +137,7 @@ func adoptAIGateway(
 		return nil, fmt.Errorf("update AI Gateway response missing AI Gateway data")
 	}
 
-	ns := namespace
-	if updated.Labels != nil {
-		if v, ok := updated.Labels[labels.NamespaceKey]; ok && v != "" {
-			ns = v
-		}
-	}
+	ns := adoptCommon.NamespaceFromLabels(updated.Labels, namespace)
 
 	return adoptCommon.FinishAdoption(ctx, &adoptCommon.AdoptResult{
 		ResourceType: string(resources.ResourceTypeAIGateway),

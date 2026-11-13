@@ -1030,15 +1030,7 @@ func compareVirtualClusterNamespaces(
 		return false
 	}
 
-	if current.Mode != desired.Mode {
-		return false
-	}
-
-	if current.Prefix != desired.Prefix {
-		return false
-	}
-
-	return true
+	return current.Mode == desired.Mode && current.Prefix == desired.Prefix
 }
 
 func compareTopicAliases(
@@ -1057,7 +1049,7 @@ func compareTopicAliases(
 	for i := range currentAliases {
 		if currentAliases[i].Alias != desiredAliases[i].Alias ||
 			currentAliases[i].Topic != desiredAliases[i].Topic ||
-			!topicAliasConditionPtrEqual(currentAliases[i].Condition, desiredAliases[i].Condition) ||
+			stringPtrValue(currentAliases[i].Condition) != stringPtrValue(desiredAliases[i].Condition) ||
 			!topicAliasConflictPtrEqual(currentAliases[i].Conflict, desiredAliases[i].Conflict) {
 			return false
 		}
@@ -1077,10 +1069,6 @@ func compareTopicAlias(a, b components.VirtualClusterTopicAlias) int {
 		return c
 	}
 	return cmp.Compare(string(topicAliasConflictPtrValue(a.Conflict)), string(topicAliasConflictPtrValue(b.Conflict)))
-}
-
-func topicAliasConditionPtrEqual(a *string, b *string) bool {
-	return stringPtrValue(a) == stringPtrValue(b)
 }
 
 func topicAliasConflictPtrEqual(

@@ -15,40 +15,40 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewDirectPortalCmd() (*cobra.Command, error) {
-	addFlags := func(_ verbs.VerbValue, cmd *cobra.Command) {
-		cmd.Flags().String(common.BaseURLFlagName, "",
-			fmt.Sprintf(`Base URL for Konnect API requests.
+func konnectAddFlags(_ verbs.VerbValue, cmd *cobra.Command) {
+	cmd.Flags().String(common.BaseURLFlagName, "",
+		fmt.Sprintf(`Base URL for Konnect API requests.
 - Config path: [ %s ]
 - Default   : [ %s ]`,
-				common.BaseURLConfigPath, common.BaseURLDefault))
+			common.BaseURLConfigPath, common.BaseURLDefault))
 
-		cmd.Flags().String(
-			common.RegionFlagName, "",
-			fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
+	cmd.Flags().String(
+		common.RegionFlagName, "",
+		fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
 - Config path: [ %s ]`,
-				common.BaseURLFlagName, common.RegionConfigPath),
-		)
+			common.BaseURLFlagName, common.RegionConfigPath),
+	)
 
-		cmd.Flags().String(common.PATFlagName, "",
-			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI.
+	cmd.Flags().String(common.PATFlagName, "",
+		fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI.
 Setting this value overrides tokens obtained from the login command.
 - Config path: [ %s ]`,
-				common.PATConfigPath))
-	}
+			common.PATConfigPath))
+}
 
-	preRunE := func(c *cobra.Command, args []string) error {
-		ctx := c.Context()
-		if ctx == nil {
-			ctx = context.Background()
-		}
-		ctx = context.WithValue(ctx, products.Product, konnect.Product)
-		ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactory())
-		c.SetContext(ctx)
-		return bindKonnectFlags(c, args)
+func konnectPreRunE(c *cobra.Command, args []string) error {
+	ctx := c.Context()
+	if ctx == nil {
+		ctx = context.Background()
 	}
+	ctx = context.WithValue(ctx, products.Product, konnect.Product)
+	ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactory())
+	c.SetContext(ctx)
+	return bindKonnectFlags(c, args)
+}
 
-	cmd, err := konnectadopt.NewPortalCmd(Verb, &cobra.Command{}, addFlags, preRunE)
+func NewDirectPortalCmd() (*cobra.Command, error) {
+	cmd, err := konnectadopt.NewPortalCmd(Verb, &cobra.Command{}, konnectAddFlags, konnectPreRunE)
 	if err != nil {
 		return nil, err
 	}
@@ -60,39 +60,7 @@ Setting this value overrides tokens obtained from the login command.
 }
 
 func NewDirectControlPlaneCmd() (*cobra.Command, error) {
-	addFlags := func(_ verbs.VerbValue, cmd *cobra.Command) {
-		cmd.Flags().String(common.BaseURLFlagName, "",
-			fmt.Sprintf(`Base URL for Konnect API requests.
-- Config path: [ %s ]
-- Default   : [ %s ]`,
-				common.BaseURLConfigPath, common.BaseURLDefault))
-
-		cmd.Flags().String(
-			common.RegionFlagName, "",
-			fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
-- Config path: [ %s ]`,
-				common.BaseURLFlagName, common.RegionConfigPath),
-		)
-
-		cmd.Flags().String(common.PATFlagName, "",
-			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI.
-Setting this value overrides tokens obtained from the login command.
-- Config path: [ %s ]`,
-				common.PATConfigPath))
-	}
-
-	preRunE := func(c *cobra.Command, args []string) error {
-		ctx := c.Context()
-		if ctx == nil {
-			ctx = context.Background()
-		}
-		ctx = context.WithValue(ctx, products.Product, konnect.Product)
-		ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactory())
-		c.SetContext(ctx)
-		return bindKonnectFlags(c, args)
-	}
-
-	cmd, err := konnectadopt.NewControlPlaneCmd(Verb, &cobra.Command{}, addFlags, preRunE)
+	cmd, err := konnectadopt.NewControlPlaneCmd(Verb, &cobra.Command{}, konnectAddFlags, konnectPreRunE)
 	if err != nil {
 		return nil, err
 	}
@@ -104,39 +72,7 @@ Setting this value overrides tokens obtained from the login command.
 }
 
 func NewDirectAPICmd() (*cobra.Command, error) {
-	addFlags := func(_ verbs.VerbValue, cmd *cobra.Command) {
-		cmd.Flags().String(common.BaseURLFlagName, "",
-			fmt.Sprintf(`Base URL for Konnect API requests.
-- Config path: [ %s ]
-- Default   : [ %s ]`,
-				common.BaseURLConfigPath, common.BaseURLDefault))
-
-		cmd.Flags().String(
-			common.RegionFlagName, "",
-			fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
-- Config path: [ %s ]`,
-				common.BaseURLFlagName, common.RegionConfigPath),
-		)
-
-		cmd.Flags().String(common.PATFlagName, "",
-			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI.
-Setting this value overrides tokens obtained from the login command.
-- Config path: [ %s ]`,
-				common.PATConfigPath))
-	}
-
-	preRunE := func(c *cobra.Command, args []string) error {
-		ctx := c.Context()
-		if ctx == nil {
-			ctx = context.Background()
-		}
-		ctx = context.WithValue(ctx, products.Product, konnect.Product)
-		ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactory())
-		c.SetContext(ctx)
-		return bindKonnectFlags(c, args)
-	}
-
-	cmd, err := konnectadopt.NewAPICmd(Verb, &cobra.Command{}, addFlags, preRunE)
+	cmd, err := konnectadopt.NewAPICmd(Verb, &cobra.Command{}, konnectAddFlags, konnectPreRunE)
 	if err != nil {
 		return nil, err
 	}
@@ -148,39 +84,7 @@ Setting this value overrides tokens obtained from the login command.
 }
 
 func NewDirectEventGatewayCmd() (*cobra.Command, error) {
-	addFlags := func(_ verbs.VerbValue, cmd *cobra.Command) {
-		cmd.Flags().String(common.BaseURLFlagName, "",
-			fmt.Sprintf(`Base URL for Konnect API requests.
-- Config path: [ %s ]
-- Default   : [ %s ]`,
-				common.BaseURLConfigPath, common.BaseURLDefault))
-
-		cmd.Flags().String(
-			common.RegionFlagName, "",
-			fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
-- Config path: [ %s ]`,
-				common.BaseURLFlagName, common.RegionConfigPath),
-		)
-
-		cmd.Flags().String(common.PATFlagName, "",
-			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI.
-Setting this value overrides tokens obtained from the login command.
-- Config path: [ %s ]`,
-				common.PATConfigPath))
-	}
-
-	preRunE := func(c *cobra.Command, args []string) error {
-		ctx := c.Context()
-		if ctx == nil {
-			ctx = context.Background()
-		}
-		ctx = context.WithValue(ctx, products.Product, konnect.Product)
-		ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactory())
-		c.SetContext(ctx)
-		return bindKonnectFlags(c, args)
-	}
-
-	cmd, err := konnectadopt.NewEventGatewayControlPlaneCmd(Verb, &cobra.Command{}, addFlags, preRunE)
+	cmd, err := konnectadopt.NewEventGatewayControlPlaneCmd(Verb, &cobra.Command{}, konnectAddFlags, konnectPreRunE)
 	if err != nil {
 		return nil, err
 	}
@@ -192,39 +96,7 @@ Setting this value overrides tokens obtained from the login command.
 }
 
 func NewDirectAIGatewayCmd() (*cobra.Command, error) {
-	addFlags := func(_ verbs.VerbValue, cmd *cobra.Command) {
-		cmd.Flags().String(common.BaseURLFlagName, "",
-			fmt.Sprintf(`Base URL for Konnect API requests.
-- Config path: [ %s ]
-- Default   : [ %s ]`,
-				common.BaseURLConfigPath, common.BaseURLDefault))
-
-		cmd.Flags().String(
-			common.RegionFlagName, "",
-			fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
-- Config path: [ %s ]`,
-				common.BaseURLFlagName, common.RegionConfigPath),
-		)
-
-		cmd.Flags().String(common.PATFlagName, "",
-			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI.
-Setting this value overrides tokens obtained from the login command.
-- Config path: [ %s ]`,
-				common.PATConfigPath))
-	}
-
-	preRunE := func(c *cobra.Command, args []string) error {
-		ctx := c.Context()
-		if ctx == nil {
-			ctx = context.Background()
-		}
-		ctx = context.WithValue(ctx, products.Product, konnect.Product)
-		ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactory())
-		c.SetContext(ctx)
-		return bindKonnectFlags(c, args)
-	}
-
-	cmd, err := konnectadopt.NewAIGatewayCmd(Verb, &cobra.Command{}, addFlags, preRunE)
+	cmd, err := konnectadopt.NewAIGatewayCmd(Verb, &cobra.Command{}, konnectAddFlags, konnectPreRunE)
 	if err != nil {
 		return nil, err
 	}
@@ -273,39 +145,7 @@ Setting this value overrides tokens obtained from the login command.
 }
 
 func NewDirectAuthStrategyCmd() (*cobra.Command, error) {
-	addFlags := func(_ verbs.VerbValue, cmd *cobra.Command) {
-		cmd.Flags().String(common.BaseURLFlagName, "",
-			fmt.Sprintf(`Base URL for Konnect API requests.
-- Config path: [ %s ]
-- Default   : [ %s ]`,
-				common.BaseURLConfigPath, common.BaseURLDefault))
-
-		cmd.Flags().String(
-			common.RegionFlagName, "",
-			fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
-- Config path: [ %s ]`,
-				common.BaseURLFlagName, common.RegionConfigPath),
-		)
-
-		cmd.Flags().String(common.PATFlagName, "",
-			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI.
-Setting this value overrides tokens obtained from the login command.
-- Config path: [ %s ]`,
-				common.PATConfigPath))
-	}
-
-	preRunE := func(c *cobra.Command, args []string) error {
-		ctx := c.Context()
-		if ctx == nil {
-			ctx = context.Background()
-		}
-		ctx = context.WithValue(ctx, products.Product, konnect.Product)
-		ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactory())
-		c.SetContext(ctx)
-		return bindKonnectFlags(c, args)
-	}
-
-	cmd, err := konnectadopt.NewAuthStrategyCmd(Verb, &cobra.Command{}, addFlags, preRunE)
+	cmd, err := konnectadopt.NewAuthStrategyCmd(Verb, &cobra.Command{}, konnectAddFlags, konnectPreRunE)
 	if err != nil {
 		return nil, err
 	}
@@ -317,39 +157,7 @@ Setting this value overrides tokens obtained from the login command.
 }
 
 func NewDirectDCRProviderCmd() (*cobra.Command, error) {
-	addFlags := func(_ verbs.VerbValue, cmd *cobra.Command) {
-		cmd.Flags().String(common.BaseURLFlagName, "",
-			fmt.Sprintf(`Base URL for Konnect API requests.
-- Config path: [ %s ]
-- Default   : [ %s ]`,
-				common.BaseURLConfigPath, common.BaseURLDefault))
-
-		cmd.Flags().String(
-			common.RegionFlagName, "",
-			fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
-- Config path: [ %s ]`,
-				common.BaseURLFlagName, common.RegionConfigPath),
-		)
-
-		cmd.Flags().String(common.PATFlagName, "",
-			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI.
-Setting this value overrides tokens obtained from the login command.
-- Config path: [ %s ]`,
-				common.PATConfigPath))
-	}
-
-	preRunE := func(c *cobra.Command, args []string) error {
-		ctx := c.Context()
-		if ctx == nil {
-			ctx = context.Background()
-		}
-		ctx = context.WithValue(ctx, products.Product, konnect.Product)
-		ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactory())
-		c.SetContext(ctx)
-		return bindKonnectFlags(c, args)
-	}
-
-	cmd, err := konnectadopt.NewDCRProviderCmd(Verb, &cobra.Command{}, addFlags, preRunE)
+	cmd, err := konnectadopt.NewDCRProviderCmd(Verb, &cobra.Command{}, konnectAddFlags, konnectPreRunE)
 	if err != nil {
 		return nil, err
 	}
@@ -361,39 +169,7 @@ Setting this value overrides tokens obtained from the login command.
 }
 
 func NewDirectAnalyticsCmd() (*cobra.Command, error) {
-	addFlags := func(_ verbs.VerbValue, cmd *cobra.Command) {
-		cmd.Flags().String(common.BaseURLFlagName, "",
-			fmt.Sprintf(`Base URL for Konnect API requests.
-- Config path: [ %s ]
-- Default   : [ %s ]`,
-				common.BaseURLConfigPath, common.BaseURLDefault))
-
-		cmd.Flags().String(
-			common.RegionFlagName, "",
-			fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
-- Config path: [ %s ]`,
-				common.BaseURLFlagName, common.RegionConfigPath),
-		)
-
-		cmd.Flags().String(common.PATFlagName, "",
-			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI.
-Setting this value overrides tokens obtained from the login command.
-- Config path: [ %s ]`,
-				common.PATConfigPath))
-	}
-
-	preRunE := func(c *cobra.Command, args []string) error {
-		ctx := c.Context()
-		if ctx == nil {
-			ctx = context.Background()
-		}
-		ctx = context.WithValue(ctx, products.Product, konnect.Product)
-		ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactory())
-		c.SetContext(ctx)
-		return bindKonnectFlags(c, args)
-	}
-
-	cmd, err := konnectadopt.NewAnalyticsCmd(Verb, &cobra.Command{}, addFlags, preRunE)
+	cmd, err := konnectadopt.NewAnalyticsCmd(Verb, &cobra.Command{}, konnectAddFlags, konnectPreRunE)
 	if err != nil {
 		return nil, err
 	}

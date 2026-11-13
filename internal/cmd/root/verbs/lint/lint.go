@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
@@ -167,10 +168,7 @@ func runLint(command *cobra.Command, _ []string) error {
 	}
 
 	// Validate fail-severity value
-	validSeverities := map[string]bool{
-		"error": true, "warn": true, "info": true, "hint": true,
-	}
-	if !validSeverities[failSeverity] {
+	if !slices.Contains([]string{"error", "warn", "info", "hint"}, failSeverity) {
 		return &cmd.ConfigurationError{
 			Err: fmt.Errorf(
 				"invalid --fail-severity %q, must be one of: error, warn, info, hint",

@@ -127,12 +127,7 @@ func adoptTeam(
 		return nil, fmt.Errorf("update organization_team response missing team data")
 	}
 
-	ns := namespace
-	if updated.Labels != nil {
-		if v, ok := updated.Labels[labels.NamespaceKey]; ok && v != "" {
-			ns = v
-		}
-	}
+	ns := adoptCommon.NamespaceFromLabels(updated.Labels, namespace)
 
 	return adoptCommon.FinishAdoption(ctx, &adoptCommon.AdoptResult{
 		ResourceType: "organization_team",

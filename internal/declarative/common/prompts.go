@@ -7,7 +7,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
-	"sort"
+	"slices"
 	"strings"
 	"syscall"
 
@@ -45,7 +45,7 @@ func ConfirmExecution(plan *planner.Plan, _, stderr io.Writer, stdin io.Reader) 
 		for ns := range deletesByNamespace {
 			namespaces = append(namespaces, ns)
 		}
-		sort.Strings(namespaces)
+		slices.Sort(namespaces)
 
 		// Display deletions by namespace
 		for _, namespace := range namespaces {
@@ -169,7 +169,7 @@ func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 	}
 
 	// Sort namespaces for consistent output
-	sort.Strings(namespaces)
+	slices.Sort(namespaces)
 
 	// Display changes organized by namespace, then by resource type (FIRST)
 	fmt.Fprintln(out, "\nRESOURCE CHANGES")
@@ -500,7 +500,7 @@ func formatResourceName(change planner.PlannedChange) string {
 			parts = append(parts, fmt.Sprintf("%s=%s", key, value))
 		}
 		if len(parts) > 0 {
-			sort.Strings(parts) // Consistent ordering
+			slices.Sort(parts) // Consistent ordering
 			return strings.Join(parts, ", ")
 		}
 	}
@@ -564,7 +564,7 @@ func displaySummary(plan *planner.Plan, out io.Writer) {
 		for resourceType := range plan.Summary.ByResource {
 			resourceTypes = append(resourceTypes, resourceType)
 		}
-		sort.Strings(resourceTypes)
+		slices.Sort(resourceTypes)
 
 		for _, resourceType := range resourceTypes {
 			count := plan.Summary.ByResource[resourceType]
@@ -643,7 +643,7 @@ func displayFieldChanges(out io.Writer, change planner.PlannedChange, indent str
 		}
 		fieldNames = append(fieldNames, field)
 	}
-	sort.Strings(fieldNames)
+	slices.Sort(fieldNames)
 
 	for _, field := range fieldNames {
 		value := change.Fields[field]
@@ -723,7 +723,7 @@ func displayDependencies(out io.Writer, change planner.PlannedChange,
 		for dep := range depMap {
 			deps = append(deps, dep)
 		}
-		sort.Strings(deps) // Consistent ordering
+		slices.Sort(deps) // Consistent ordering
 		fmt.Fprintf(out, "%sdepends on: %s\n", indent, strings.Join(deps, ", "))
 	}
 }

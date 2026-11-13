@@ -104,10 +104,11 @@ func (a *AIGatewayAuthStrategyAdapter) Update(
 	if current == nil {
 		return "", fmt.Errorf("AI Gateway auth strategy no longer exists")
 	}
-	payload, err = prepareOwnedMappedChildUpdate("AI Gateway auth strategy", map[string]any{
-		planner.FieldName: current.Name, planner.FieldType: current.Type, planner.FieldDisplayName: current.DisplayName,
-		planner.FieldConfig: current.Config, planner.FieldLabels: current.Labels, planner.FieldManagedBy: current.ManagedBy,
-	}, payload, execCtx, planner.FieldType)
+	payload, err = prepareOwnedMappedChildUpdate(
+		"AI Gateway auth strategy",
+		planner.AIGatewayAuthStrategyObservedFields(*current),
+		payload, execCtx, planner.FieldType,
+	)
 	if err != nil {
 		return "", err
 	}
