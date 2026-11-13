@@ -257,6 +257,7 @@ steps:
   - name: 004-bootstrap-pagination
     commands:
       - name: 000-sync-pagination-fixture
+        timeout: 3m
         maxConcurrency: 1
         outputFormat: json
         run:
