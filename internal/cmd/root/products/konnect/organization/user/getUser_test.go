@@ -57,6 +57,12 @@ type stubOrganizationTeamRolesAPI struct {
 	)
 }
 
+func (s *stubOrganizationTeamRolesAPI) ListTeamRolesPage(
+	context.Context, string, int64, int64,
+) (*kkComps.AssignedRoleCollection, error) {
+	panic("ListTeamRolesPage should not be called")
+}
+
 func (s *stubOrganizationTeamRolesAPI) ListTeamRoles(
 	context.Context,
 	string,
@@ -297,4 +303,16 @@ func usersResponse(users []kkComps.User, total int) *kkOps.ListUsersResponse {
 			},
 		},
 	}
+}
+
+func (s *stubOrganizationTeamRolesAPI) ListUserRolesPage(
+	ctx context.Context,
+	userID string,
+	_, _ int64,
+) (*kkComps.AssignedRoleCollection, error) {
+	response, err := s.ListUserRoles(ctx, userID, nil)
+	if err != nil || response == nil {
+		return nil, err
+	}
+	return response.AssignedRoleCollection, nil
 }

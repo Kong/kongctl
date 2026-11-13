@@ -1169,6 +1169,24 @@ class ReplayTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "HTTP protocol rejected"):
             handler.server.engine.verify()
 
+    def test_proxy_exchange_reports_exception_type_without_upstream_content(self):
+        for error in [TimeoutError("upstream-secret"),
+                      json.JSONDecodeError("upstream-secret", "private-body", 0)]:
+            with self.subTest(error=type(error).__name__):
+                handler = MODULE.InnerHandler.__new__(MODULE.InnerHandler)
+                handler.tunnel_host = "global.api.konghq.com"
+                handler.headers = {"Host": handler.tunnel_host}
+                handler.rfile = MagicMock()
+                handler.command = "GET"
+                handler.path = "/v3/teams"
+                handler.server = MagicMock()
+                handler.server.engine.exchange.side_effect = error
+                handler.send_error = MagicMock()
+                handler.exchange()
+                handler.server.engine.fail.assert_called_once_with(
+                    f"proxy exchange failed ({type(error).__name__})")
+                self.assertTrue(handler.close_connection)
+
     def test_environment_does_not_inherit_credentials_or_skip_switches(self):
         with patch.dict(os.environ, {"KONGCTL_DEFAULT_KONNECT_PAT": "real-secret",
                                     "KONGCTL_E2E_SKIP_STEPS": "*", "NO_PROXY": "*", "GH_TOKEN": "secret"}):

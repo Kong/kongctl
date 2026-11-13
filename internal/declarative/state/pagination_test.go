@@ -123,20 +123,14 @@ func TestPaginateAll_PartialError(t *testing.T) {
 }
 
 func TestPaginateAll_NilMeta(t *testing.T) {
-	lister := func(_ context.Context, _, pageNumber int64) ([]string, *PageMeta, error) {
-		if pageNumber > 1 {
-			return []string{}, nil, nil
-		}
-		return []string{"item1"}, nil, nil // Nil meta should break
-	}
-
-	result, err := PaginateAll(context.Background(), lister)
-	if err != nil {
-		t.Fatalf("Expected no error, got: %v", err)
-	}
-
-	if len(result) != 1 {
-		t.Fatalf("Expected 1 item, got %d", len(result))
+	_, err := PaginateAll(
+		t.Context(),
+		func(context.Context, int64, int64) ([]string, *PageMeta, error) {
+			return []string{"item1"}, nil, nil
+		},
+	)
+	if err == nil || !strings.Contains(err.Error(), "missing pagination metadata") {
+		t.Fatalf("expected missing metadata error, got %v", err)
 	}
 }
 
@@ -148,9 +142,9 @@ func TestPaginateAll_DoesNotStopOnFilteredEmptyPage(t *testing.T) {
 
 		switch pageNumber {
 		case 1:
-			return nil, &PageMeta{Total: 200}, nil
+			return nil, &PageMeta{Total: 200, RawCount: 100}, nil
 		case 2:
-			return []string{"managed-item"}, &PageMeta{Total: 200}, nil
+			return []string{"managed-item"}, &PageMeta{Total: 200, RawCount: 100}, nil
 		default:
 			return nil, nil, fmt.Errorf("unexpected page request: %d", pageNumber)
 		}
@@ -210,7 +204,7 @@ func TestPaginateAll_ReturnsExplicitErrorWhenPageLimitExceeded(t *testing.T) {
 			return nil, nil, sentinel
 		}
 
-		return nil, &PageMeta{Total: 1_000_000_000}, nil
+		return nil, &PageMeta{Total: 1_000_000_000, RawCount: 100}, nil
 	}
 
 	result, err := PaginateAll(t.Context(), lister)
@@ -240,7 +234,7 @@ func TestPaginateAllFiltered_Success(t *testing.T) {
 	lister := func(_ context.Context, _, pageNumber int64, filter func(string) bool) ([]string, *PageMeta, error) {
 		pageIndex := int(pageNumber - 1)
 		if pageIndex >= len(mockData) {
-			return []string{}, &PageMeta{Total: 105.0}, nil
+			return nil, nil, fmt.Errorf("unexpected page %d", pageNumber)
 		}
 
 		page := mockData[pageIndex]
@@ -253,7 +247,7 @@ func TestPaginateAllFiltered_Success(t *testing.T) {
 			}
 		}
 
-		meta := &PageMeta{Total: 105.0}
+		meta := &PageMeta{Total: 5, RawCount: len(page)}
 		return filtered, meta, nil
 	}
 
@@ -293,10 +287,10 @@ func TestPaginateAllFiltered_DoesNotSilentlyTruncateAfter10Pages(t *testing.T) {
 
 		candidate := fmt.Sprintf("item%d", pageNumber)
 		if !filter(candidate) {
-			return nil, &PageMeta{Total: 1100}, nil
+			return nil, &PageMeta{Total: 11, RawCount: 1}, nil
 		}
 
-		return []string{candidate}, &PageMeta{Total: 1100}, nil
+		return []string{candidate}, &PageMeta{Total: 11, RawCount: 1}, nil
 	}
 
 	result, err := PaginateAllFiltered(t.Context(), lister, func(string) bool {
@@ -331,10 +325,10 @@ func TestPaginateAllFiltered_ReturnsExplicitErrorWhenPageLimitExceeded(t *testin
 
 		candidate := fmt.Sprintf("item-%d", pageNumber)
 		if !filter(candidate) {
-			return nil, &PageMeta{Total: 1_000_000_000}, nil
+			return nil, &PageMeta{Total: 1_000_000_000, RawCount: 100}, nil
 		}
 
-		return nil, &PageMeta{Total: 1_000_000_000}, nil
+		return nil, &PageMeta{Total: 1_000_000_000, RawCount: 100}, nil
 	}
 
 	result, err := PaginateAllFiltered(t.Context(), lister, func(string) bool { return true })
@@ -418,5 +412,25 @@ func BenchmarkPaginateAll_LargeDataset(b *testing.B) {
 		if len(result) != totalItems {
 			b.Fatalf("Expected %d items, got %d", totalItems, len(result))
 		}
+	}
+}
+
+func TestPaginateAllFilteredCountsCappedRawPages(t *testing.T) {
+	var pages []int64
+	lister := func(_ context.Context, _, page int64, filter func(int) bool) ([]int, *PageMeta, error) {
+		pages = append(pages, page)
+		var values []int
+		start := int(page-1) * 10
+		end := min(start+10, 25)
+		for i := start; i < end; i++ {
+			if filter(i) {
+				values = append(values, i)
+			}
+		}
+		return values, &PageMeta{Total: 25, RawCount: end - start}, nil
+	}
+	values, err := PaginateAllFiltered(t.Context(), lister, func(i int) bool { return i == 24 })
+	if err != nil || len(values) != 1 || values[0] != 24 || len(pages) != 3 {
+		t.Fatalf("values=%v pages=%v err=%v", values, pages, err)
 	}
 }

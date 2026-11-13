@@ -1,0 +1,7 @@
+organization_team_roles:
+  - ref: pagination-api-50-viewer
+    team: pagination-team
+    role_name: Viewer
+    entity_id: !ref pagination-api-50#id
+    entity_type_name: APIs
+    entity_region: us

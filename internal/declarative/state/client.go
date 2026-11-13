@@ -678,7 +678,10 @@ func (c *Client) ListManagedPortals(ctx context.Context, namespaces []string) ([
 		}
 
 		// Extract pagination metadata
-		meta := &PageMeta{Total: resp.ListPortalsResponse.Meta.Page.Total}
+		meta := &PageMeta{
+			Total:    resp.ListPortalsResponse.Meta.Page.Total,
+			RawCount: len(resp.ListPortalsResponse.Data),
+		}
 
 		return filteredPortals, meta, nil
 	}
@@ -728,7 +731,10 @@ func (c *Client) ListAllPortals(ctx context.Context) ([]Portal, error) {
 		}
 
 		// Extract pagination metadata
-		meta := &PageMeta{Total: resp.ListPortalsResponse.Meta.Page.Total}
+		meta := &PageMeta{
+			Total:    resp.ListPortalsResponse.Meta.Page.Total,
+			RawCount: len(resp.ListPortalsResponse.Data),
+		}
 
 		return allPortals, meta, nil
 	}
@@ -888,7 +894,10 @@ func (c *Client) DeletePortal(ctx context.Context, id string, force bool) error 
 // ListManagedControlPlanes returns all KONGCTL-managed control planes in the specified namespaces
 // If namespaces is empty, no resources are returned (breaking change from previous behavior)
 // To get all managed resources across all namespaces, pass []string{"*"}
-func (c *Client) ListManagedControlPlanes(ctx context.Context, namespaces []string) ([]ControlPlane, error) {
+func (c *Client) ListManagedControlPlanes(
+	ctx context.Context,
+	namespaces []string,
+) ([]ControlPlane, error) {
 	// Validate API client
 	if err := ValidateAPIClient(c.controlPlaneAPI, "Control Plane API"); err != nil {
 		return nil, err
@@ -927,7 +936,10 @@ func (c *Client) ListManagedControlPlanes(ctx context.Context, namespaces []stri
 			}
 		}
 
-		meta := &PageMeta{Total: resp.ListControlPlanesResponse.Meta.Page.Total}
+		meta := &PageMeta{
+			Total:    resp.ListControlPlanesResponse.Meta.Page.Total,
+			RawCount: len(resp.ListControlPlanesResponse.Data),
+		}
 
 		return filtered, meta, nil
 	}
@@ -1485,7 +1497,10 @@ func (c *Client) ListManagedAPIs(ctx context.Context, namespaces []string) ([]AP
 		}
 
 		// Extract pagination metadata
-		meta := &PageMeta{Total: resp.ListAPIResponse.Meta.Page.Total}
+		meta := &PageMeta{
+			Total:    resp.ListAPIResponse.Meta.Page.Total,
+			RawCount: len(resp.ListAPIResponse.Data),
+		}
 
 		return filteredAPIs, meta, nil
 	}
@@ -1683,7 +1698,10 @@ func (c *Client) DeleteAPI(ctx context.Context, id string) error {
 
 // ListManagedCatalogServices returns all KONGCTL-managed catalog services in the specified namespaces.
 // If namespaces is empty, no resources are returned. To get all managed resources, pass []string{"*"}.
-func (c *Client) ListManagedCatalogServices(ctx context.Context, namespaces []string) ([]CatalogService, error) {
+func (c *Client) ListManagedCatalogServices(
+	ctx context.Context,
+	namespaces []string,
+) ([]CatalogService, error) {
 	if err := ValidateAPIClient(c.catalogServiceAPI, "Catalog Service API"); err != nil {
 		return nil, err
 	}
@@ -1719,7 +1737,10 @@ func (c *Client) ListManagedCatalogServices(ctx context.Context, namespaces []st
 			}
 		}
 
-		meta := &PageMeta{Total: resp.ListCatalogServicesResponse.Meta.Page.Total}
+		meta := &PageMeta{
+			Total:    resp.ListCatalogServicesResponse.Meta.Page.Total,
+			RawCount: len(resp.ListCatalogServicesResponse.Data),
+		}
 		return filtered, meta, nil
 	}
 
@@ -1847,7 +1868,10 @@ func (c *Client) DeleteCatalogService(ctx context.Context, id string) error {
 
 // ListManagedAIGateways returns all KONGCTL-managed AI Gateways in the specified namespaces.
 // If namespaces is empty, no resources are returned. To get all managed resources, pass []string{"*"}.
-func (c *Client) ListManagedAIGateways(ctx context.Context, namespaces []string) ([]AIGateway, error) {
+func (c *Client) ListManagedAIGateways(
+	ctx context.Context,
+	namespaces []string,
+) ([]AIGateway, error) {
 	if err := ValidateAPIClient(c.aiGatewayAPI, "AI Gateway API"); err != nil {
 		return nil, err
 	}
@@ -1878,7 +1902,10 @@ func (c *Client) ListManagedAIGateways(ctx context.Context, namespaces []string)
 			}
 		}
 
-		meta := &PageMeta{Total: resp.ListAIGatewaysResponse.Meta.Page.Total}
+		meta := &PageMeta{
+			Total:    resp.ListAIGatewaysResponse.Meta.Page.Total,
+			RawCount: len(resp.ListAIGatewaysResponse.Data),
+		}
 		return filtered, meta, nil
 	}
 
@@ -1913,7 +1940,10 @@ func (c *Client) ListAllAIGateways(ctx context.Context) ([]AIGateway, error) {
 			})
 		}
 
-		meta := &PageMeta{Total: resp.ListAIGatewaysResponse.Meta.Page.Total}
+		meta := &PageMeta{
+			Total:    resp.ListAIGatewaysResponse.Meta.Page.Total,
+			RawCount: len(resp.ListAIGatewaysResponse.Data),
+		}
 		return gateways, meta, nil
 	}
 
@@ -2261,7 +2291,10 @@ func aiGatewayModelUpdateRequestName(req kkComps.UpdateAIGatewayModelRequest) st
 
 // ListManagedDashboards returns all KONGCTL-managed dashboards in the specified namespaces.
 // If namespaces is empty, no resources are returned. To get all managed resources, pass []string{"*"}.
-func (c *Client) ListManagedDashboards(ctx context.Context, namespaces []string) ([]Dashboard, error) {
+func (c *Client) ListManagedDashboards(
+	ctx context.Context,
+	namespaces []string,
+) ([]Dashboard, error) {
 	if err := ValidateAPIClient(c.dashboardsAPI, "Dashboards API"); err != nil {
 		return nil, err
 	}
@@ -2301,7 +2334,7 @@ func (c *Client) ListManagedDashboards(ctx context.Context, namespaces []string)
 		if resp.Object.Meta != nil {
 			total = resp.Object.Meta.Page.Total
 		}
-		meta := &PageMeta{Total: total}
+		meta := &PageMeta{Total: total, RawCount: len(resp.Object.Data)}
 		return filtered, meta, nil
 	}
 
@@ -3056,14 +3089,20 @@ func (c *Client) ListManagedAuthStrategies(
 			// Check if resource has a namespace label (new criteria for managed resources)
 			if labels.IsManagedResource(strategy.NormalizedLabels) {
 				// Filter by namespace if specified
-				if shouldIncludeNamespace(strategy.NormalizedLabels[labels.NamespaceKey], namespaces) {
+				if shouldIncludeNamespace(
+					strategy.NormalizedLabels[labels.NamespaceKey],
+					namespaces,
+				) {
 					filteredStrategies = append(filteredStrategies, *strategy)
 				}
 			}
 		}
 
 		// Extract pagination metadata
-		meta := &PageMeta{Total: resp.ListAppAuthStrategiesResponse.Meta.Page.Total}
+		meta := &PageMeta{
+			Total:    resp.ListAppAuthStrategiesResponse.Meta.Page.Total,
+			RawCount: len(resp.ListAppAuthStrategiesResponse.Data),
+		}
 
 		return filteredStrategies, meta, nil
 	}
@@ -3073,7 +3112,9 @@ func (c *Client) ListManagedAuthStrategies(
 
 // ListAllApplicationAuthStrategies returns all application auth strategies,
 // including resources not managed by kongctl.
-func (c *Client) ListAllApplicationAuthStrategies(ctx context.Context) ([]ApplicationAuthStrategy, error) {
+func (c *Client) ListAllApplicationAuthStrategies(
+	ctx context.Context,
+) ([]ApplicationAuthStrategy, error) {
 	if err := ValidateAPIClient(c.appAuthAPI, "app auth API"); err != nil {
 		return nil, err
 	}
@@ -3090,13 +3131,20 @@ func (c *Client) ListAllApplicationAuthStrategies(ctx context.Context) ([]Applic
 			return []ApplicationAuthStrategy{}, &PageMeta{Total: 0}, nil
 		}
 
-		strategies := make([]ApplicationAuthStrategy, 0, len(resp.ListAppAuthStrategiesResponse.Data))
+		strategies := make(
+			[]ApplicationAuthStrategy,
+			0,
+			len(resp.ListAppAuthStrategiesResponse.Data),
+		)
 		for _, candidate := range resp.ListAppAuthStrategiesResponse.Data {
 			if strategy := c.extractAuthStrategyFromUnion(candidate); strategy != nil {
 				strategies = append(strategies, *strategy)
 			}
 		}
-		return strategies, &PageMeta{Total: resp.ListAppAuthStrategiesResponse.Meta.Page.Total}, nil
+		return strategies, &PageMeta{
+			Total:    resp.ListAppAuthStrategiesResponse.Meta.Page.Total,
+			RawCount: len(resp.ListAppAuthStrategiesResponse.Data),
+		}, nil
 	}
 
 	return PaginateAll(ctx, lister)
@@ -3397,7 +3445,7 @@ func (c *Client) ListManagedDCRProviders(
 			}
 		}
 
-		meta := &PageMeta{Total: resp.Total}
+		meta := &PageMeta{Total: resp.Total, RawCount: len(resp.Data)}
 		return filtered, meta, nil
 	}
 
@@ -5186,7 +5234,11 @@ func (c *Client) DeletePortalTeam(ctx context.Context, portalID string, teamID s
 }
 
 // ListPortalTeamRoles returns all assigned roles for a portal team
-func (c *Client) ListPortalTeamRoles(ctx context.Context, portalID string, teamID string) ([]PortalTeamRole, error) {
+func (c *Client) ListPortalTeamRoles(
+	ctx context.Context,
+	portalID string,
+	teamID string,
+) ([]PortalTeamRole, error) {
 	if c.portalTeamRolesAPI == nil {
 		return nil, fmt.Errorf("portal team roles API not configured")
 	}
@@ -5225,7 +5277,10 @@ func (c *Client) ListPortalTeamRoles(ctx context.Context, portalID string, teamI
 			allRoles = append(allRoles, role)
 		}
 
-		meta := &PageMeta{Total: resp.AssignedPortalRoleCollectionResponse.Meta.Page.Total}
+		meta := &PageMeta{
+			Total:    resp.AssignedPortalRoleCollectionResponse.Meta.Page.Total,
+			RawCount: len(resp.AssignedPortalRoleCollectionResponse.Data),
+		}
 
 		return allRoles, meta, nil
 	}
@@ -5293,39 +5348,69 @@ func (c *Client) RemovePortalTeamRole(ctx context.Context, portalID string, team
 }
 
 // ListOrganizationTeamRoles returns all assigned roles for an organization team.
-func (c *Client) ListOrganizationTeamRoles(ctx context.Context, teamID string) ([]OrganizationTeamRole, error) {
+func (c *Client) ListOrganizationTeamRoles(
+	ctx context.Context,
+	teamID string,
+) ([]OrganizationTeamRole, error) {
+	return c.ListOrganizationTeamRolesWithPageSize(ctx, teamID, 100)
+}
+
+// ListOrganizationTeamRolesWithPageSize honors the dump request page size.
+func (c *Client) ListOrganizationTeamRolesWithPageSize(
+	ctx context.Context,
+	teamID string,
+	pageSize int64,
+) ([]OrganizationTeamRole, error) {
 	if err := ValidateAPIClient(c.organizationTeamRolesAPI, "organization team roles API"); err != nil {
 		return nil, err
 	}
-
-	resp, err := c.organizationTeamRolesAPI.ListTeamRoles(ctx, teamID, nil)
+	assignedRoles, err := helpers.ListAllOrganizationTeamRoles(
+		ctx,
+		c.organizationTeamRolesAPI,
+		teamID,
+		pageSize,
+	)
 	if err != nil {
 		return nil, WrapAPIError(err, "list organization team roles", &ErrorWrapperOptions{
-			ResourceType: string(resources.ResourceTypeOrganizationTeamRole),
-			UseEnhanced:  true,
+			ResourceType: string(resources.ResourceTypeOrganizationTeamRole), UseEnhanced: true,
 		})
 	}
 
-	if resp == nil || resp.AssignedRoleCollection == nil {
-		return []OrganizationTeamRole{}, nil
+	roles := make([]OrganizationTeamRole, 0, len(assignedRoles))
+	for _, r := range assignedRoles {
+		roles = append(roles, organizationTeamRoleFromSDK(teamID, r))
 	}
-
-	roles := make([]OrganizationTeamRole, 0, len(resp.AssignedRoleCollection.Data))
-	for _, r := range resp.AssignedRoleCollection.Data {
-		role := OrganizationTeamRole{
-			ID:             getString(r.ID),
-			RoleName:       getString(r.RoleName),
-			EntityID:       getString(r.EntityID),
-			EntityTypeName: getString(r.EntityTypeName),
-			TeamID:         teamID,
-		}
-		if r.EntityRegion != nil {
-			role.EntityRegion = string(*r.EntityRegion)
-		}
-		roles = append(roles, role)
-	}
-
 	return roles, nil
+}
+
+func organizationTeamRoleFromSDK(teamID string, r kkComps.AssignedRole) OrganizationTeamRole {
+	role := OrganizationTeamRole{
+		ID: getString(r.ID), RoleName: getString(r.RoleName), EntityID: getString(r.EntityID),
+		EntityTypeName: getString(r.EntityTypeName), TeamID: teamID,
+	}
+	if r.EntityRegion != nil {
+		role.EntityRegion = string(*r.EntityRegion)
+	}
+	return role
+}
+
+// GetOrganizationTeamRole stops reading pages once the requested assignment is found.
+func (c *Client) GetOrganizationTeamRole(
+	ctx context.Context,
+	teamID, roleID string,
+) (*OrganizationTeamRole, error) {
+	if err := ValidateAPIClient(c.organizationTeamRolesAPI, "organization team roles API"); err != nil {
+		return nil, err
+	}
+	role, err := helpers.FindOrganizationTeamRole(ctx, c.organizationTeamRolesAPI, teamID, roleID)
+	if err != nil {
+		return nil, fmt.Errorf("find organization team role: %w", err)
+	}
+	if role == nil {
+		return nil, nil
+	}
+	result := organizationTeamRoleFromSDK(teamID, *role)
+	return &result, nil
 }
 
 // AssignOrganizationTeamRole assigns a role to an organization team.
@@ -5563,24 +5648,29 @@ func (c *Client) RemoveOrganizationUserFromTeam(ctx context.Context, userID stri
 }
 
 // ListOrganizationUserRoles returns all assigned roles for an organization user.
-func (c *Client) ListOrganizationUserRoles(ctx context.Context, userID string) ([]OrganizationUserRole, error) {
+func (c *Client) ListOrganizationUserRoles(
+	ctx context.Context,
+	userID string,
+) ([]OrganizationUserRole, error) {
 	if err := ValidateAPIClient(c.organizationTeamRolesAPI, "organization team roles API"); err != nil {
 		return nil, err
 	}
 
-	resp, err := c.organizationTeamRolesAPI.ListUserRoles(ctx, userID, nil)
+	assignedRoles, err := helpers.ListAllOrganizationUserRoles(
+		ctx,
+		c.organizationTeamRolesAPI,
+		userID,
+		100,
+	)
 	if err != nil {
 		return nil, WrapAPIError(err, "list organization user roles", &ErrorWrapperOptions{
-			ResourceType: string(resources.ResourceTypeOrganizationUserRole),
-			ResourceName: userID,
-			UseEnhanced:  true,
+			ResourceType: string(
+				resources.ResourceTypeOrganizationUserRole,
+			), ResourceName: userID, UseEnhanced: true,
 		})
 	}
-	if resp == nil || resp.AssignedRoleCollection == nil {
-		return []OrganizationUserRole{}, nil
-	}
-	roles := make([]OrganizationUserRole, 0, len(resp.AssignedRoleCollection.Data))
-	for _, r := range resp.AssignedRoleCollection.Data {
+	roles := make([]OrganizationUserRole, 0, len(assignedRoles))
+	for _, r := range assignedRoles {
 		role := OrganizationUserRole{
 			ID:             getString(r.ID),
 			RoleName:       getString(r.RoleName),
@@ -6228,7 +6318,10 @@ func (c *Client) DeleteEventGatewayBackendCluster(
 	return nil
 }
 
-func (c *Client) ListManagedOrganizationTeams(ctx context.Context, namespaces []string) ([]OrganizationTeam, error) {
+func (c *Client) ListManagedOrganizationTeams(
+	ctx context.Context,
+	namespaces []string,
+) ([]OrganizationTeam, error) {
 	if err := ValidateAPIClient(c.organizationTeamAPI, "organization team API"); err != nil {
 		return nil, err
 	}
@@ -6266,7 +6359,10 @@ func (c *Client) ListManagedOrganizationTeams(ctx context.Context, namespaces []
 			}
 		}
 
-		meta := &PageMeta{Total: resp.TeamCollectionResponse.Meta.Page.Total}
+		meta := &PageMeta{
+			Total:    resp.TeamCollectionResponse.Meta.Page.Total,
+			RawCount: len(resp.TeamCollectionResponse.Data),
+		}
 
 		return filtered, meta, nil
 	}
@@ -6313,7 +6409,7 @@ func (c *Client) ListAllOrganizationTeams(ctx context.Context) ([]OrganizationTe
 			total = resp.TeamCollectionResponse.Meta.Page.Total
 		}
 
-		return teams, &PageMeta{Total: total}, nil
+		return teams, &PageMeta{Total: total, RawCount: len(resp.TeamCollectionResponse.Data)}, nil
 	}
 
 	return PaginateAll(ctx, lister)

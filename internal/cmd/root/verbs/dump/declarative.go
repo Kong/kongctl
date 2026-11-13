@@ -310,14 +310,6 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 		)
 	}
 
-	writer, cleanup, err := getDumpWriter(helper, opts.outputFile)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		_ = cleanup()
-	}()
-
 	ctx := helper.GetContext()
 	resourceSet := declresources.ResourceSet{}
 
@@ -359,6 +351,14 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 	if len(yamlBytes) == 0 {
 		return nil
 	}
+
+	writer, cleanup, err := getDumpWriter(helper, opts.outputFile)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = cleanup()
+	}()
 
 	if _, err := writer.Write(yamlBytes); err != nil {
 		return fmt.Errorf("failed to write declarative configuration: %w", err)

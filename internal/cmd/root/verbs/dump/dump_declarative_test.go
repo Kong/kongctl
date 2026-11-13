@@ -4,10 +4,15 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	declexport "github.com/kong/kongctl/internal/declarative/export"
 
@@ -27,6 +32,22 @@ import (
 
 type runDumpOrganizationTeamAPIStub struct {
 	list func(context.Context, kkOps.ListTeamsRequest) (*kkOps.ListTeamsResponse, error)
+}
+
+type dumpTeamRolesStub struct {
+	helpers.OrganizationTeamRolesAPI
+	list func(context.Context, string, int64, int64) (*kkComps.AssignedRoleCollection, error)
+}
+
+func (s dumpTeamRolesStub) ListTeamRolesPage(
+	ctx context.Context,
+	id string,
+	size, page int64,
+) (*kkComps.AssignedRoleCollection, error) {
+	if s.list != nil {
+		return s.list(ctx, id, size, page)
+	}
+	return &kkComps.AssignedRoleCollection{Meta: &kkComps.PaginatedMeta{}}, nil
 }
 
 func (s runDumpOrganizationTeamAPIStub) ListOrganizationTeams(
@@ -98,7 +119,8 @@ func TestRunDeclarativeDumpIncludesSystemAccountAssignments(t *testing.T) {
 	entityRegion := kkComps.AssignedRoleEntityRegion("us")
 
 	sdk := &helpers.MockKonnectSDK{
-		CPAPIFactory: func() helpers.ControlPlaneAPI { return nil },
+		CPAPIFactory:                 func() helpers.ControlPlaneAPI { return nil },
+		OrganizationTeamRolesFactory: func() helpers.OrganizationTeamRolesAPI { return &dumpTeamRolesStub{} },
 		OrganizationTeamFactory: func() helpers.OrganizationTeamAPI {
 			return runDumpOrganizationTeamAPIStub{
 				list: func(context.Context, kkOps.ListTeamsRequest) (*kkOps.ListTeamsResponse, error) {
@@ -994,4 +1016,74 @@ func TestFilterByNameOrID(t *testing.T) {
 			t.Fatalf("expected 0 results, got %d", len(result))
 		}
 	})
+}
+
+func TestRunDeclarativeDumpRejectsIncompleteOrganizationTeamRoles(t *testing.T) {
+	for _, failure := range []string{"later page error", "empty page", "repeated ID", "missing metadata"} {
+		t.Run(failure, func(t *testing.T) {
+			calls := 0
+			roleAPI := &dumpTeamRolesStub{
+				list: func(_ context.Context, _ string, _, page int64) (*kkComps.AssignedRoleCollection, error) {
+					calls++
+					if page == 2 {
+						switch failure {
+						case "later page error":
+							return nil, fmt.Errorf("upstream unavailable")
+						case "empty page":
+							return &kkComps.AssignedRoleCollection{
+								Meta: &kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 2}},
+							}, nil
+						case "missing metadata":
+							return &kkComps.AssignedRoleCollection{}, nil
+						}
+					}
+					return &kkComps.AssignedRoleCollection{
+						Data: []kkComps.AssignedRole{{ID: new("role-1")}},
+						Meta: &kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 2}},
+					}, nil
+				},
+			}
+			sdk := &helpers.MockKonnectSDK{
+				CPAPIFactory:                 func() helpers.ControlPlaneAPI { return nil },
+				OrganizationTeamRolesFactory: func() helpers.OrganizationTeamRolesAPI { return roleAPI },
+				OrganizationTeamFactory: func() helpers.OrganizationTeamAPI {
+					return runDumpOrganizationTeamAPIStub{
+						list: func(context.Context, kkOps.ListTeamsRequest) (*kkOps.ListTeamsResponse, error) {
+							return &kkOps.ListTeamsResponse{
+								TeamCollectionResponse: &kkComps.TeamCollectionResponse{
+									Data: []kkComps.TeamResponse{
+										{ID: "team-1", Name: "team"},
+									}, Meta: &kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 1}},
+								},
+							}, nil
+						},
+					}
+				},
+			}
+			var output bytes.Buffer
+			helper := &cmdtest.MockHelper{
+				GetStreamsMock:    func() *iostreams.IOStreams { return &iostreams.IOStreams{Out: &output} },
+				GetConfigMock:     func() (config.Hook, error) { return &configtest.MockConfigHook{}, nil },
+				GetLoggerMock:     func() (*slog.Logger, error) { return slog.New(slog.NewTextHandler(io.Discard, nil)), nil },
+				GetContextMock:    func() context.Context { return t.Context() },
+				GetKonnectSDKMock: func(config.Hook, *slog.Logger) (helpers.SDKAPI, error) { return sdk, nil },
+			}
+			path := filepath.Join(t.TempDir(), "dump.yaml")
+			require.NoError(t, os.WriteFile(path, []byte("original file"), 0o600))
+			err := runDeclarativeDump(
+				helper,
+				declarativeOptions{
+					resources:             []string{"organization.teams"},
+					includeChildResources: true,
+					outputFile:            path,
+				},
+			)
+			require.ErrorContains(t, err, "failed to load organization team roles")
+			require.Equal(t, 2, calls)
+			require.Empty(t, output.String())
+			data, err := os.ReadFile(path)
+			require.NoError(t, err)
+			require.Equal(t, "original file", string(data))
+		})
+	}
 }

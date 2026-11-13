@@ -27,6 +27,7 @@ func TestFetchOrganizationUserRoles(t *testing.T) {
 			assert.Nil(t, filter)
 			return &kkOps.ListUserRolesResponse{
 				AssignedRoleCollection: &kkComps.AssignedRoleCollection{
+					Meta: &kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 1}},
 					Data: []kkComps.AssignedRole{{
 						ID:             new("role-1"),
 						RoleName:       new("Viewer"),

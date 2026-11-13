@@ -6,8 +6,13 @@ users remain lookup targets; replay substitutes reserved synthetic identities.
 
 Coverage retains memberships, direct/team roles, jq filtering, email/ID
 selectors, dump/no-op planning, cleanup, and Portal entity references. The
-refresh adds a user-role text command that verifies role/entity/region headers,
-expected content, and omission of internal columns. JSON checks remain intact.
+coverage includes a user-role text command that verifies role/entity/region
+headers, expected content, and omission of internal columns. JSON checks
+remain intact.
+
+This refresh records explicit page-size and page-number queries for every
+team and user assigned-role read. Dump also passes its configured page size
+to the team-role reader. Scenario inputs and replay eligibility are unchanged.
 
 ## Coverage and ordering
 
@@ -34,18 +39,9 @@ The promoted cassette contains the validated annotations. Its complete user
 collections, active states, roles, and memberships remain represented without
 real emails, profile names, or real-to-synthetic mappings.
 
-This refresh includes the review follow-up that removes inapplicable
-column checks and verifies the actual USER ID header stays hidden. The live
-scenario and resets passed; the initial strict replay encountered concurrent
-request ordering, then the reviewed phases passed the isolated validation.
-
-The isolated wrappers took 3.751, 3.458, 3.7 seconds. These measure execution work,
-not workflow wall-clock savings; shared setup and resets remain. Recording
-includes proxy/reset overhead and is not a normal live baseline.
-
 Only eligible PRs replay this scenario. Main and force-live runs remain live
 and require the registered user email inputs. Scenario changes require a new
 recording in the same PR; replay eligibility is preserved.
 
-[record]: https://github.com/Kong/kongctl/actions/runs/40006916027
-[replay]: https://github.com/Kong/kongctl/actions/runs/40007830572
+[record]: https://github.com/Kong/kongctl/actions/runs/43512577589
+[replay]: https://github.com/Kong/kongctl/actions/runs/43515327447

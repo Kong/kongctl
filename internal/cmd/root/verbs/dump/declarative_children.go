@@ -1333,22 +1333,22 @@ func buildPortalTeams(
 
 func populateOrganizationTeamChildren(
 	ctx context.Context,
-	logger *slog.Logger,
 	client *declstate.Client,
 	teams []declresources.OrganizationTeamResource,
-) {
+	pageSize int64,
+) error {
 	for i := range teams {
-		roles, err := client.ListOrganizationTeamRoles(ctx, teams[i].Ref)
+		team := &teams[i]
+		roles, err := client.ListOrganizationTeamRolesWithPageSize(ctx, team.Ref, pageSize)
 		if err != nil {
-			logWarn(logger, "failed to load organization team roles", teams[i].Ref, teams[i].Name, err)
-			continue
+			return fmt.Errorf("failed to load organization team roles for %s: %w", team.Ref, err)
 		}
 		if len(roles) == 0 {
 			continue
 		}
-		teams[i].Roles = make([]declresources.OrganizationTeamRoleResource, 0, len(roles))
+		team.Roles = make([]declresources.OrganizationTeamRoleResource, 0, len(roles))
 		for _, role := range roles {
-			teams[i].Roles = append(teams[i].Roles, declresources.OrganizationTeamRoleResource{
+			team.Roles = append(team.Roles, declresources.OrganizationTeamRoleResource{
 				Ref:            role.ID,
 				RoleName:       role.RoleName,
 				EntityID:       role.EntityID,
@@ -1357,6 +1357,7 @@ func populateOrganizationTeamChildren(
 			})
 		}
 	}
+	return nil
 }
 
 func collectOrganizationUsersFromTeamMemberships(
@@ -1364,7 +1365,7 @@ func collectOrganizationUsersFromTeamMemberships(
 	logger *slog.Logger,
 	client *declstate.Client,
 	teams []declresources.OrganizationTeamResource,
-) []declresources.OrganizationUserResource {
+) ([]declresources.OrganizationUserResource, error) {
 	usersByRef := make(map[string]*declresources.OrganizationUserResource)
 
 	for _, team := range teams {
@@ -1403,14 +1404,21 @@ func collectOrganizationUsersFromTeamMemberships(
 
 	users := make([]declresources.OrganizationUserResource, 0, len(usersByRef))
 	for _, user := range usersByRef {
-		slices.SortFunc(user.Teams, func(a, b declresources.OrganizationUserTeamMembershipResource) int {
-			return cmp.Compare(a.Ref, b.Ref)
-		})
+		slices.SortFunc(
+			user.Teams,
+			func(a, b declresources.OrganizationUserTeamMembershipResource) int {
+				return cmp.Compare(a.Ref, b.Ref)
+			},
+		)
 		userID := user.GetKonnectID()
 		if userID != "" {
 			roles, err := client.ListOrganizationUserRoles(ctx, userID)
 			if err != nil {
-				logWarn(logger, "failed to load organization user roles", user.Ref, userID, err)
+				return nil, fmt.Errorf(
+					"failed to load organization user roles for %s: %w",
+					userID,
+					err,
+				)
 			}
 			for _, role := range roles {
 				user.Roles = append(user.Roles, declresources.OrganizationUserRoleResource{
@@ -1431,7 +1439,7 @@ func collectOrganizationUsersFromTeamMemberships(
 		return cmp.Compare(a.Ref, b.Ref)
 	})
 
-	return users
+	return users, nil
 }
 
 func collectOrganizationSystemAccountsFromTeamMemberships(

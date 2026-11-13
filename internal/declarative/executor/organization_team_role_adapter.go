@@ -126,16 +126,14 @@ func (o *OrganizationTeamRoleAdapter) GetByID(
 		return nil, err
 	}
 
-	roles, err := o.client.ListOrganizationTeamRoles(ctx, teamID)
+	role, err := o.client.GetOrganizationTeamRole(ctx, teamID, id)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list organization team roles: %w", err)
+		return nil, fmt.Errorf("failed to find organization team role: %w", err)
 	}
-	for _, role := range roles {
-		if role.ID == id {
-			return &OrganizationTeamRoleResourceInfo{role: &role}, nil
-		}
+	if role == nil {
+		return nil, nil
 	}
-	return nil, nil
+	return &OrganizationTeamRoleResourceInfo{role: role}, nil
 }
 
 func (o *OrganizationTeamRoleAdapter) ResourceType() string {
