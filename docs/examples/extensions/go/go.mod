@@ -8,18 +8,17 @@ require (
 	github.com/Kong/sdk-konnect-go v0.84.1-0.20261112154232-92b33d2ef4fd // indirect
 	github.com/ajg/form v1.9.0 // indirect
 	github.com/alecthomas/chroma/v2 v2.27.0 // indirect
-	github.com/dlclark/regexp2/v2 v2.2.1 // indirect
+	github.com/dlclark/regexp2/v2 v2.12.0 // indirect
 	github.com/fsnotify/fsnotify v1.10.1 // indirect
-	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
+	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/itchyny/gojq v0.12.20 // indirect
 	github.com/itchyny/timefmt-go v0.1.9 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
-	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
-	github.com/sagikazarmark/locafero v0.11.0 // indirect
+	github.com/pelletier/go-toml/v2 v2.4.3 // indirect
+	github.com/sagikazarmark/locafero v0.12.0 // indirect
 	github.com/segmentio/cli v0.8.1 // indirect
-	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/spf13/cobra v1.10.2 // indirect
@@ -33,6 +32,7 @@ require (
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/sys v0.50.0 // indirect
 	golang.org/x/text v0.44.0 // indirect
+	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
