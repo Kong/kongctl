@@ -81,7 +81,7 @@ There is no agent, code-path mapping, model call, or per-PR approval step.
 
 Main's debounced runs, merge queues, manual runs, trusted fork runs and `.tech`
 runs stay fully live. Add the `e2e:force-live` PR label to request an all-live
-run. Adding/removing the label triggers the existing PR workflow. Maintain
+run. Adding/removing the label reevaluates the readiness controller. Maintain
 the label with the same permissions as other workflow-control labels.
 The required status returns to pending on that label change; an already
 running replay cannot overwrite it after force-live has been requested.
@@ -91,6 +91,16 @@ The live harness validates that the plan partitions the complete inventory
 exactly once, removes replay scenarios before weighted allocation, and never
 enters their reset or scenario code. The separate replay job uses the same
 compiled binaries without Konnect credentials or external networking.
+
+For readiness dispatches, replay execution and verification load scripts,
+parser dependencies, and the isolation wrapper from the workflow's pinned
+revision (the default branch for automatic dispatch). A
+separate `scenario-data` artifact from the admitted build supplies its
+inventory, inputs, and cassettes through `--root`. The job's admitted head SHA
+is supplied as `--commit` for provenance; replay jobs never check out the PR
+or execute its scripts or Makefile outside isolation. The compiled PR
+binaries execute only inside the loopback network namespace with a clean
+environment and dropped capabilities.
 
 The final verifier independently checks the routing plan, replay job outcome,
 recorded/isolated replay results, and exact live manifest/result coverage.

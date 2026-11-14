@@ -74,25 +74,77 @@ class RoutingTest(unittest.TestCase):
                 "--plan", str(plan), "--results", str(root / "results"),
             ], cwd=root, env={**os.environ, "GITHUB_RUN_ID": "123"}, check=True)
 
+    def test_runner_uses_trusted_wrapper_and_binaries_for_separate_scenario_data(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            data = root / "scenario-data"
+            data.mkdir()
+            marker = root / "untrusted-executed"
+            (data / "scripts").mkdir()
+            (data / "scripts/e2e-replay-isolated.sh").write_text(f"touch {marker}\n")
+            plan = root / "plan.json"
+            plan.write_text('{"replay": ["control-plane/get/scenario.yaml"]}')
+            results = root / "results"
+            summary = results / "control-plane/get/summary.json"
+            summary.parent.mkdir(parents=True)
+            summary.write_text(json.dumps({"scenario": "control-plane/get", "scenario_seconds": 1,
+                                           "elapsed_seconds": 2, "interactions": 1}))
+            argv = ["routing", "run", "--mode", "pr", "--root", str(data), "--commit", "a" * 40, "--plan", str(plan),
+                    "--results", str(results), "--summary-output", str(results / "details.md")]
+            with patch.object(sys, "argv", argv), patch.dict(os.environ, {
+                "GITHUB_RUN_ID": "123", "GITHUB_RUN_ATTEMPT": "1"
+            }), patch.object(MODULE, "make_plan", return_value={"replay": ["control-plane/get/scenario.yaml"]}), \
+                    patch.object(MODULE.subprocess, "check_output") as git, \
+                    patch.object(MODULE.subprocess, "run") as run:
+                MODULE.main()
+            git.assert_not_called()
+            command = run.call_args.args[0]
+            self.assertEqual(str(Path(__file__).with_name("e2e-replay-isolated.sh").resolve()), command[1])
+            self.assertEqual(str(data), command[command.index("--root") + 1])
+            self.assertEqual(str(MODULE.REPLAY.ROOT / "kongctl"), command[command.index("--binary") + 1])
+            self.assertEqual(str(MODULE.REPLAY.ROOT / "e2e.test"), command[command.index("--test-binary") + 1])
+            self.assertFalse(marker.exists())
+            self.assertEqual("a" * 40, json.loads((results / "replay-results.json").read_text())["commit"])
+
+    def test_replay_checker_reads_separate_data_without_importing_its_scripts(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            data = root / "scenario-data"
+            shutil.copytree(MODULE.REPLAY.ROOT / "test/e2e/scenarios/control-plane/get",
+                            data / "test/e2e/scenarios/control-plane/get")
+            policy = data / "test/e2e/replay-scenarios.json"
+            policy.write_bytes((MODULE.REPLAY.ROOT / "test/e2e/replay-scenarios.json").read_bytes())
+            (data / "scripts").mkdir()
+            (data / "scripts/e2e_replay_users.py").write_text("raise RuntimeError('untrusted import')")
+            subprocess.run([
+                sys.executable, str(Path(__file__).with_name("e2e_replay.py")), "check",
+                "--root", str(data), "--scenario", "control-plane/get",
+            ], cwd=data, check=True)
+
     def test_workflows_guard_replay_and_force_live_status(self):
         workflows = MODULE.REPLAY.ROOT / ".github/workflows"
         suite = (workflows / "e2e.yaml").read_text()
         status = (workflows / "e2e-required-status.yaml").read_text()
         replay_job = suite.split("  e2e-replay:", 1)[1].split("  e2e:", 1)[0]
-        self.assertIn("github.event_name == 'pull_request'", replay_job)
+        self.assertIn("inputs.dispatch_source == 'readiness'", replay_job)
         self.assertIn("needs.e2e-build.outputs.replay_mode == 'pr'", replay_job)
-        self.assertIn("ref: ${{ github.sha }}", replay_job)
-        self.assertNotIn("needs.e2e-needed.outputs.checkout_ref", replay_job)
+        self.assertIn("SCENARIO_COMMIT: ${{ needs.e2e-needed.outputs.checkout_ref }}", replay_job)
         self.assertNotIn("needs.e2e-needed.outputs.checkout_repository", replay_job)
+        for job in (replay_job, suite.split("  e2e-replay-verify:", 1)[1].split("  e2e-verify:", 1)[0]):
+            self.assertIn("ref: ${{ github.workflow_sha }}", job)
+            self.assertIn("path: scenario-data", job)
+            self.assertNotIn("ref: ${{ needs.e2e-needed.outputs.checkout_ref }}", job)
+            self.assertIn('--commit "$SCENARIO_COMMIT"', job)
+            self.assertIn("--root scenario-data", job)
+            self.assertNotIn("working-directory: scenario-data", job)
         replay_verifier = suite.split("  e2e-replay-verify:", 1)[1].split("  e2e-verify:", 1)[0]
-        self.assertIn("github.event_name == 'pull_request'", replay_verifier)
-        self.assertIn("ref: ${{ github.sha }}", replay_verifier)
-        self.assertNotIn("needs.e2e-needed.outputs.checkout_ref", replay_verifier)
+        self.assertIn("inputs.dispatch_source == 'readiness'", replay_verifier)
+        self.assertIn("SCENARIO_COMMIT: ${{ needs.e2e-needed.outputs.checkout_ref }}", replay_verifier)
         self.assertIn("REPLAY_VERIFY_RESULT: ${{ needs.e2e-replay-verify.result }}", suite)
-        self.assertIn("currentPR.labels.some(label => label.name === 'e2e:force-live')", suite)
+        self.assertIn("needs.e2e-needed.outputs.readiness_mode == 'pr'", suite)
         self.assertIn("github.event.label.name == 'e2e:force-live'", status)
-        self.assertIn("- labeled", status)
-        self.assertIn("- unlabeled", status)
+        self.assertIn("labeled", status)
+        self.assertIn("unlabeled", status)
 
     def test_main_is_all_live_and_pr_is_an_exact_partition(self):
         live = MODULE.make_plan(MODULE.REPLAY.ROOT, "live")

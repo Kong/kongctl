@@ -587,34 +587,113 @@ The workflow derives sharding directly from GitHub Actions strategy context:
 - `KONGCTL_E2E_MATRIX_ORG=${{ matrix.org_name }}`
 - `KONGCTL_E2E_ORGS_JSON` set to the selected org matrix
 
-Fork pull requests do not receive secret-backed E2E automatically. When a fork
-PR changes files that require E2E, the required status remains pending with a
-message that trusted maintainer E2E is required. The normal fork-triggered E2E
-workflow does not expand shard jobs, does not use the `default` org fallback,
-and does not receive Konnect or Gmail secrets.
+The `E2E / Required Status` workflow controls automatic PR admission. Opening
+or pushing a PR only initializes the `E2E Required` commit status; it does
+not start the scenario suite. A relevant PR remains pending until it is open,
+out of draft, has current-revision human approval, has no active changes
+requests or unresolved review threads, and its ordinary CI passes.
 
-The status named `E2E Required` is the merge gate. It is a commit status, not
-one of the workflow job names. For fork PRs, the
-`E2E / Required Status` workflow initializes that status and posts an
-updatable PR comment with the exact SHA and trusted workflow command. The
-trusted `E2E / Scenario Suite` dispatch later updates the same commit status
-and comment with the pass or fail result.
+`PREREQUISITES` in `scripts/e2e-readiness.cjs` explicitly selects the
+`CI Test` and `Checks` workflows. The latest PR run of each must succeed for
+the current head SHA. Add prerequisites there deliberately; never include
+`E2E Required` or the scenario suite, which would create a circular gate.
+Branch review requirements are respected through GitHub's `reviewDecision`.
+At least one owner, member, or collaborator human must approve the current
+revision even when branch protection does not require reviews. Bot findings
+can block readiness but bot approvals cannot authorize it.
 
-GitHub displays the E2E checks using this hierarchy:
+PR lifecycle events, review events, and prerequisite/scenario workflow
+completion reevaluate current API state. GitHub Actions has no review-thread
+resolution trigger, so a five-minute scheduled reconciliation also checks
+up to five open PRs per tick, rotating by PR number and time slot. This
+covers resolved or reopened threads and fork reviews while bounding routine
+API cost. With twenty open PRs, each PR is revisited within four scheduled
+ticks (about twenty minutes); GitHub can delay scheduled execution. Unrelated
+label changes are ignored. `e2e:force-live` and `konnect-env:tech` changes reevaluate routing.
 
-1. The workflow name is the section on the checks screen.
-2. The job name is a check row within that section.
-3. The step name is an operation visible after opening a job.
-4. `E2E Required` is the protected commit-status context used as the merge
-   gate.
+The controller directly dispatches the default-branch scenario workflow.
+Admission rechecks readiness after acquiring the environment queue, before
+building or using secrets. All automatic jobs test the exact admitted head
+SHA. Successful validation is reused by PR, revision, environment, and routing
+mode. New commits require new validation. Environment and force-live changes
+select separate evidence; old runs cannot overwrite the new requirement.
+Returning to a previously validated equivalent requirement reuses its result.
+The controller alone writes the aggregate `E2E Required` PR merge gate.
 
-Multiple PR events can still create multiple workflow sections. The distinct
-workflow, run, job, and step names clarify those sections without changing
-trigger or deduplication behavior. Main-branch scheduling appears in Actions
-as `E2E / Main Scheduler`.
+Readiness E2E validates the approved head SHA, not GitHub's synthetic merge
+commit. The ordinary `CI Test` workflow tests the PR merge snapshot, including
+the branch's controller/replay unit tests. Neither result guarantees E2E
+compatibility with later changes to the base branch. Update/rebase the PR
+for a new head revision or use merge-group validation when that integration
+boundary is required.
 
-For the maintainer runbook, see
-`docs/contributor/forked-pr-e2e.md`.
+Automatic dispatch runs default-branch workflow and replay tooling; scenario
+data and compiled CLI/test binaries come from the admitted head. This is an
+intentional trust boundary against cache poisoning in privileged dispatches.
+Changes to replay orchestration are unit-tested from the PR by ordinary CI,
+but automatic replay does not execute those new scripts outside isolation.
+A routing-plan disagreement fails closed. Maintainers can explicitly dispatch
+a reviewed branch workflow for end-to-end tooling validation before merge;
+otherwise those tooling changes first execute after deployment to `main`.
+
+Queued historical runs can remain visible in Actions. When the environment
+queue opens, admission compares the queued SHA with the current PR head and
+skips obsolete revisions before building. Each live shard checks the PR head
+again after its org lock opens, immediately before scenarios and resets.
+A stale or closed PR produces a notice and an admission artifact containing
+the queued/current SHAs and reason. The consolidated summary says
+`SUPERSEDED`, rather than `NOT REQUIRED`, and includes the skip evidence.
+No stale result can satisfy the current revision's merge gate. Runs that
+already started mutating an org finish normally, including cleanup; the
+controller never cancels them to make room for a newer commit. Manual branch
+runs without a PR number remain explicit requests to validate that revision.
+
+Controller and replay tooling checkouts pin `github.workflow_sha`, matching
+the workflow definition rather than an event's PR code or moving branch tip.
+Automatic scenario dispatch still targets the default branch. Before the
+controller is deployed there, a branch evaluation leaves the gate pending
+with an explicit deployment message and makes no dispatch reservation. This
+lets the introducing PR exercise its controller without loading a module
+that does not yet exist on `main`.
+
+Dispatch reservations are commit statuses under `E2E Validation / ...`.
+A single controller queue serializes evaluations; reservations deduplicate
+bursts even before dispatched runs become visible. The dispatch response's
+run ID is stored in the keyed status URL and queried directly, avoiding the
+1,000-run history listing limit. Terminal evidence records the run attempt;
+its jobs are read again only when the attempt changes. Each evaluation
+caches statuses and takes one full snapshot per PR, with another readiness
+snapshot only when admitting a new dispatch and a final lightweight PR
+identity check. A failed PR evaluation warns and leaves other PRs in the
+sweep eligible for processing. Interrupted reservations still require the
+explicit retry below. A skipped admission is
+never a successful validation and can be scheduled again when readiness
+returns. Failures and cancellations remain failed until explicitly retried:
+
+```shell
+gh workflow run e2e-required-status.yaml --repo Kong/kongctl --ref main \
+  -f pr_number=123 -f retry=true
+```
+
+This reevaluates readiness before retrying and leaves active runs alone. If
+a controller fails after reserving but before dispatching, inspect Actions
+for an existing run, then use the same retry command to recover. Ordinary
+events do not retry failures or ambiguous reservations. Rerunning the entire
+scenario workflow also rechecks admission. A failed-jobs-only rerun cannot
+reuse an older admission decision; use the controller retry command instead.
+Main's debounced dispatch, manual runs, merge groups, environment queues,
+and per-org locks remain supported.
+
+Fork PRs never receive automatic secret-backed execution. The controller
+keeps their gate pending until a maintainer dispatches the trusted workflow
+for the exact reviewed SHA. Trusted runs publish environment-specific
+validation evidence and update the trusted-run comment; reconciliation then
+updates the aggregate merge gate. See
+`docs/contributor/forked-pr-e2e.md` for the maintainer runbook.
+
+GitHub displays workflow names as sections, job names as rows, and step names
+inside each job. `E2E Required` is a separate protected commit status, not a
+workflow job name. Main scheduling appears as `E2E / Main Scheduler`.
 
 The workflow also exposes the Konnect target, test timeout, HTTP timeout, and
 retry knobs above as repository or organization variables of the same names,

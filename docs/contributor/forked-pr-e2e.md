@@ -14,10 +14,8 @@ after the PR is out of draft and review comments are resolved.
 2. Approve the pending fork workflows in the PR.
 
    This lets the normal unprivileged `Checks` and `CI Test` workflows run. The
-   fork-triggered `E2E / Scenario Suite` workflow may also start, but it
-   should only run the gate path. It should not expand the secret-backed E2E
-   shard jobs, should not use the `default` org fallback, and should not
-   receive Konnect or Gmail secrets.
+   readiness controller never automatically dispatches secret-backed E2E
+   for forks. Human readiness approval does not grant secrets to fork code.
 
 3. Confirm the exact PR head SHA that was reviewed.
 
@@ -35,14 +33,18 @@ after the PR is out of draft and review comments are resolved.
      --repo Kong/kongctl \
      --ref main \
      -f trusted_pr_number=<pr-number> \
-     -f trusted_head_sha=<full-sha>
+     -f trusted_head_sha=<full-sha> \
+     -f konnect_environment=<com-or-tech>
    ```
+
+   Choose `tech` for `konnect-env:tech` PRs; otherwise use the configured
+   `KONGCTL_E2E_KONNECT_ENV` target, defaulting to `com`.
 
 5. Wait for the trusted `E2E / Scenario Suite` workflow to finish.
 
-   The trusted run updates the `E2E Required` commit status on the reviewed
-   SHA and updates the trusted E2E PR comment with the result and workflow
-   run URL.
+   The trusted run publishes keyed validation evidence on the reviewed SHA
+   and updates the trusted E2E PR comment. The readiness controller then
+   updates `E2E Required` for the current revision and environment.
 
 6. Re-run trusted E2E if the contributor pushes another commit.
 
@@ -54,9 +56,8 @@ after the PR is out of draft and review comments are resolved.
 `E2E Required` is the merge gate for E2E. It is a commit status, not a
 workflow job name.
 
-For fork PRs, the PR may still show fork workflows waiting for approval, or a
-fork-triggered `E2E / Scenario Suite` workflow that skipped the real shard
-jobs. Those are not the trusted E2E result. The canonical fork E2E result is
+For fork PRs, the PR may still show ordinary CI workflows waiting for
+approval. Those are not the trusted E2E result. The canonical fork E2E result is
 the trusted `workflow_dispatch` run from `main`, reflected by:
 
 - the `E2E Required` commit status on the reviewed SHA
@@ -71,9 +72,10 @@ sections; the distinct names clarify those runs without changing trigger or
 deduplication behavior.
 
 If `E2E Required` becomes pending again after a trusted run, check whether the
-PR head SHA changed, or whether the PR was closed, reopened, or synchronized
-after the trusted run completed. Re-run trusted E2E against the current
-reviewed SHA when that happens.
+PR head SHA or target environment changed. Incidental events preserve valid
+evidence. Re-run trusted E2E against the current reviewed SHA and environment
+when those requirements change. For `.tech`, include
+`-f konnect_environment=tech` in the trusted dispatch command.
 
 ## Access Control
 

@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / '.e2e-artifacts/replay-python'))
@@ -76,6 +77,86 @@ class ResultsTest(unittest.TestCase):
                 self.assertNotIn('GITHUB_STEP_SUMMARY', step.get('run', ''))
                 self.assertNotIn('core.summary', step.get('with', {}).get('script', ''))
 
+    def test_org_lock_admission_guards_remote_scenarios(self):
+        guard = self.step('e2e', 'Recheck PR head before scenarios')
+        steps = self.jobs['e2e']['steps']
+        self.assertLess(steps.index(guard), steps.index(self.step('e2e', 'Run assigned Konnect scenarios')))
+        self.assertEqual("steps.revision.outputs.accepted != 'false'",
+                         self.step('e2e', 'Run assigned Konnect scenarios')['if'])
+        self.assertEqual('revision', guard['id'])
+        self.assertEqual('read', self.jobs['e2e']['permissions']['pull-requests'])
+
+    def test_org_lock_guard_checks_api_head_and_records_skip_evidence(self):
+        step = self.step('e2e', 'Recheck PR head before scenarios')
+        script = step['with']['script']
+        harness = r"""
+const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+const outputs = {};
+const notices = [];
+const github = {rest: {pulls: {get: async args => {
+  if (args.pull_number !== 12) throw new Error('wrong PR');
+  if (process.env.API_FAILURE === 'true') throw new Error('API unavailable');
+  return {data: {number: 12, state: process.env.PR_STATE, head: {sha: process.env.CURRENT_SHA}}};
+}}}};
+const core = {setOutput: (key, value) => {outputs[key] = value;}, notice: value => notices.push(value)};
+new AsyncFunction('github', 'context', 'core', 'require', process.env.GUARD_SCRIPT)(
+  github, {repo: {owner: 'Kong', repo: 'kongctl'}, runId: 99}, core, require
+).then(() => console.log(JSON.stringify({outputs, notices}))).catch(error => {
+  console.error(error.message); process.exitCode = 1;
+});
+"""
+        for state, head, failure in [('open', 'old', False), ('open', 'new', False),
+                                     ('closed', 'old', False), ('open', 'old', True)]:
+            with self.subTest(state=state, head=head, failure=failure), tempfile.TemporaryDirectory() as temporary:
+                result = subprocess.run(['node', '-e', harness], capture_output=True, text=True, env={
+                    **os.environ, 'GUARD_SCRIPT': script, 'VALIDATION_PR': '12', 'VALIDATION_SHA': 'old',
+                    'CURRENT_SHA': head, 'PR_STATE': state, 'API_FAILURE': str(failure).lower(),
+                    'KONGCTL_E2E_ARTIFACTS_DIR': temporary, 'KONGCTL_E2E_MATRIX_ORG': 'org',
+                    'GITHUB_RUN_ATTEMPT': '1',
+                })
+                if failure:
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn('API unavailable', result.stderr)
+                    continue
+                self.assertEqual(result.returncode, 0, result.stderr)
+                data = json.loads(result.stdout)
+                accepted = state == 'open' and head == 'old'
+                self.assertEqual(str(accepted).lower(), data['outputs']['accepted'])
+                evidence = Path(temporary) / 'e2e-admission.json'
+                self.assertEqual(not accepted, evidence.exists())
+                if not accepted:
+                    record = json.loads(evidence.read_text())
+                    self.assertEqual(99, record['run_id'])
+                    self.assertIn(f'current head {head}', record['reason'])
+                    self.assertIn('queued SHA old', data['notices'][0])
+
+    def test_diagnostics_resolves_readiness_runs_on_default_branch(self):
+        pr = diagnose.PRInfo(12, "Example", "", "feature", "reviewed", "main")
+        ready = {"id": 200, "event": "workflow_dispatch", "head_sha": "default-branch",
+                 "display_title": "readiness:12/reviewed/com/pr/100"}
+        def response(repo, path):
+            return {"workflow_runs": [ready]} if "event=workflow_dispatch" in path and "page=1" in path else {
+                "workflow_runs": []}
+        with patch.object(diagnose, 'gh_api_json', side_effect=response):
+            runs = diagnose.resolve_pr_runs_from_workflow_runs('Kong/kongctl', 'e2e.yaml', pr, 2)
+        self.assertEqual([200], [run.database_id for run in runs])
+        self.assertFalse(diagnose.workflow_run_matches_pr({**ready, "display_title": "readiness:123/reviewed/com/pr/100"}, pr))
+        self.assertFalse(diagnose.workflow_run_matches_pr({**ready, "display_title": "readiness:12/old/com/pr/100"}, pr))
+
+    def test_merge_queue_and_controller_share_one_required_file_pattern(self):
+        step = self.step('e2e-needed', 'Decide whether scenario suite is required')
+        self.assertIn('node scripts/e2e-readiness.cjs --required-files', step['run'])
+        for filename in ['scripts/e2e-readiness.cjs', '.github/workflows/e2e-required-status.yaml', 'README.md']:
+            with tempfile.NamedTemporaryFile() as paths:
+                paths.write(filename.encode() + b'\0')
+                paths.flush()
+                result = subprocess.run(['node', 'scripts/e2e-readiness.cjs', '--required-files', paths.name],
+                                        cwd=ROOT, capture_output=True, text=True, check=True)
+            self.assertEqual('false' if filename == 'README.md' else 'true', result.stdout)
+        checkout = self.step('e2e-needed', 'Checkout trusted admission controller')
+        self.assertEqual("inputs.dispatch_source == 'readiness'", checkout['if'])
+        self.assertEqual(1, checkout['with']['fetch-depth'])
+
     def artifact_name(self, attempt, org):
         name = self.step('e2e', 'Upload scenario results and diagnostics')['with']['name']
         return (name.replace('${{ github.run_id }}', '123')
@@ -129,6 +210,7 @@ class ResultsTest(unittest.TestCase):
                 cwd=workspace, capture_output=True, text=True,
                 env={**os.environ, 'GITHUB_WORKSPACE': str(workspace), 'GITHUB_RUN_ID': '123',
                      'GITHUB_EVENT_NAME': event, 'REPLAY_VERIFY_RESULT': 'success',
+                     'READINESS_DISPATCH': 'true' if event == 'pull_request' else 'false',
                      'GITHUB_STEP_SUMMARY': str(summary), 'RUNNER_TEMP': str(summary.parent), 'TMPDIR': str(workspace)},
             )
             return completed, summary.read_text()

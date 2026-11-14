@@ -155,3 +155,22 @@ class RunReportTest(unittest.TestCase):
         markdown = render(self.report())
         self.assertIn("fork PR code cannot receive E2E secrets automatically", markdown)
         self.assertIn("Reviewed SHA required: `reviewed-head`", markdown)
+
+
+    def test_superseded_is_not_reported_as_not_required(self):
+        self.needs["e2e-needed"]["outputs"].update(
+            required="false", superseded="true", admission_reason="Queued SHA old; current PR head new.")
+        report = self.report()
+        self.assertEqual("SUPERSEDED", report["state"])
+        self.assertIn("Queued SHA old; current PR head new.", render(report))
+
+
+    def test_org_lock_skip_has_evidence_and_does_not_hide_a_newer_attempt(self):
+        write(self.root / "shard/e2e-admission.json", {
+            "run_id": 12, "run_attempt": 1, "org_name": "org",
+            "reason": "Queued SHA old; current PR head new. Skipping scenarios and resets.",
+        })
+        self.assertEqual("SUPERSEDED", self.report()["state"])
+        self.assertIn("Queued SHA old; current PR head new.", render(self.report()))
+        self.metadata["jobs"][0]["run_attempt"] = 2
+        self.assertNotEqual("SUPERSEDED", self.report()["state"])

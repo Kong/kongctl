@@ -219,11 +219,23 @@ def aggregate(root, metadata, needs):
                      for k, status in (("passed", "pass"), ("failed", "fail"), ("skipped", "skip"))}
     required = needs.get("e2e-needed", {}).get("outputs", {})
     verification = needs.get("e2e-verify", {}).get("result", "unknown")
+    admission_skips = []
+    if required.get("superseded") == "true":
+        admission_skips.append(required.get("admission_reason") or "A newer PR revision superseded this run.")
+    for path in root.rglob("e2e-admission.json"):
+        try:
+            record = read(path)
+            job = next((j for j in shard_jobs if j["name"] == "Run scenarios — " + record["org_name"]), {})
+            if (str(record["run_id"]) == str(metadata["run"]["id"])
+                    and record["run_attempt"] == job.get("run_attempt", 1)):
+                admission_skips.append(record["reason"])
+        except (OSError, ValueError, KeyError, TypeError):
+            warnings.append("Unreadable admission record")
     state = "INCOMPLETE"
-    if required.get("required") == "false":
-        state = "NOT REQUIRED"
-    elif required.get("superseded") == "true":
+    if admission_skips:
         state = "SUPERSEDED"
+    elif required.get("required") == "false":
+        state = "NOT REQUIRED"
     elif required.get("trusted_e2e_required") == "true" and required.get("run_shards") != "true":
         state = "AWAITING TRUSTED RUN"
     elif any(n.get("result") == "failure" for n in needs.values()):
@@ -261,7 +273,7 @@ def aggregate(root, metadata, needs):
                          if line.startswith(("Go build cache", "Go fallback", "Scenario routing:"))]
     first_job = min((stamp(j.get("started_at")) for j in jobs if j.get("started_at")), default=None)
     return {"schema_version": 1, "run_id": metadata["run"]["id"], "state": state,
-            "reviewed_sha": required.get("status_sha"),
+            "reviewed_sha": required.get("status_sha"), "admission_skips": sorted(set(admission_skips)),
             "run_url": metadata["run"]["html_url"], "head_sha": metadata["run"]["head_sha"],
             "initial_queue_seconds": elapsed(stamp(metadata["run"]["created_at"]), first_job),
             "workflow_through_validation_seconds": elapsed(first_job, max(completed)) if completed else None,
@@ -292,6 +304,9 @@ def render(report):
              "Runtime and result counts cover the selected attempts. Missing evidence is never treated as success.", "",
              "| Mode | Assigned | Passed | Failed | Skipped | Advisory failures |",
              "| --- | ---: | ---: | ---: | ---: | ---: |"]
+    if report.get("admission_skips"):
+        lines[2:2] = ["Skipped before scenario execution:", "",
+                      *("- " + cell(reason) for reason in report["admission_skips"]), ""]
     if report["state"] == "AWAITING TRUSTED RUN":
         lines[2:2] = ["A maintainer must trigger a trusted run: fork PR code cannot receive E2E secrets automatically.",
                       "", "Reviewed SHA required: `" + cell(report.get("reviewed_sha") or "unknown") + "`", ""]

@@ -1005,6 +1005,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", choices=("check", "replay", "record", "pack"))
     parser.add_argument("--scenario", choices=SCENARIOS, default=SCENARIO)
+    parser.add_argument("--root", type=Path, default=ROOT,
+                        help="scenario data checkout; never used to load executable code")
     parser.add_argument("--cassette", type=Path)
     parser.add_argument("--parallel-phases", type=Path, help="reviewed phase annotation bound to an exact candidate hash")
     parser.add_argument("--binary", type=Path, default=ROOT / "kongctl")
@@ -1013,7 +1015,10 @@ def main():
     parser.add_argument("--output-dir", type=Path, default=ROOT / ".e2e-artifacts/replay")
     parser.add_argument("--require-isolated", action="store_true", help="require a Linux loopback-only network namespace")
     args = parser.parse_args()
-    directory = ROOT / "test/e2e/scenarios" / args.scenario
+    args.root = args.root.resolve()
+    if args.mode == "record" and args.root != ROOT:
+        raise ValueError("recording must use the trusted workflow checkout")
+    directory = args.root / "test/e2e/scenarios" / args.scenario
     args.cassette = args.cassette or directory / "replay/cassette.json"
     if args.require_isolated and (sys.platform != "linux" or {name for _, name in socket.if_nameindex()} != {"lo"}):
         raise ValueError("replay requires a network namespace containing only loopback")
@@ -1074,7 +1079,7 @@ def main():
                             "SSL_CERT_FILE": str(server.certificate), "SSL_CERT_DIR": str(private / "empty-certs")})
                 scenario_started = time.monotonic()
                 result = subprocess.run([str(args.test_binary.resolve()), "-test.run", "^Test_Scenarios$", "-test.v",
-                                         "-test.count=1", "-test.timeout=10m"], cwd=ROOT, env=env,
+                                         "-test.count=1", "-test.timeout=10m"], cwd=args.root, env=env,
                                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=660)
                 scenario_elapsed = time.monotonic() - scenario_started
             engine.verify()
