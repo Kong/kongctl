@@ -154,7 +154,10 @@ new AsyncFunction('github', 'context', 'core', 'require', process.env.GUARD_SCRI
                                         cwd=ROOT, capture_output=True, text=True, check=True)
             self.assertEqual('false' if filename == 'README.md' else 'true', result.stdout)
         checkout = self.step('e2e-needed', 'Checkout trusted admission controller')
-        self.assertEqual("inputs.dispatch_source == 'readiness'", checkout['if'])
+        self.assertEqual("github.event_name == 'workflow_dispatch'", checkout['if'])
+        policy = self.step('e2e-needed', 'Verify E2E dispatch maintainer')
+        self.assertEqual(checkout['if'], policy['if'])
+        self.assertIn('scenarioDispatch({github, context, core})', policy['with']['script'])
         self.assertEqual(1, checkout['with']['fetch-depth'])
 
     def artifact_name(self, attempt, org):

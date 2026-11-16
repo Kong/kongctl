@@ -129,14 +129,14 @@ jobs:
       readiness_mode: ${{ steps.admission.outputs.mode }}
       admission_reason: ${{ steps.admission.outputs.reason }}
       # A failed-jobs-only rerun must not reuse an earlier admission decision.
-      admission_attempt: ${{ steps.admission.outputs.attempt }}
+      admission_attempt: ${{ steps.admission.outputs.attempt || steps.actor-gate.outputs.attempt }}
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
         with:
           egress-policy: audit
       - name: Checkout trusted admission controller
-        if: inputs.dispatch_source == 'readiness'
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.workflow_sha }}
@@ -144,6 +144,13 @@ jobs:
           fetch-depth: 1
           sparse-checkout: scripts/e2e-readiness.cjs
           sparse-checkout-cone-mode: false
+      - name: Verify E2E dispatch maintainer
+        id: actor-gate
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            await require('./scripts/e2e-readiness.cjs').scenarioDispatch({github, context, core});
       - name: Recheck readiness after environment queue
         id: admission
         if: inputs.dispatch_source == 'readiness'
@@ -458,7 +465,7 @@ jobs:
       - e2e-needed
     if: >-
       needs.e2e-needed.outputs.run_shards == 'true' &&
-      (inputs.dispatch_source != 'readiness' ||
+      (github.event_name != 'workflow_dispatch' ||
        needs.e2e-needed.outputs.admission_attempt == github.run_attempt)
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -551,7 +558,7 @@ jobs:
       - e2e-needed
     if: >-
       needs.e2e-needed.outputs.run_shards == 'true' &&
-      (inputs.dispatch_source != 'readiness' ||
+      (github.event_name != 'workflow_dispatch' ||
        needs.e2e-needed.outputs.admission_attempt == github.run_attempt)
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -800,7 +807,7 @@ jobs:
       - e2e-build
     if: >-
       needs.e2e-needed.outputs.run_shards == 'true' &&
-      (inputs.dispatch_source != 'readiness' ||
+      (github.event_name != 'workflow_dispatch' ||
        needs.e2e-needed.outputs.admission_attempt == github.run_attempt)
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -1240,7 +1247,7 @@ jobs:
       - e2e-replay-verify
     if: >-
       always() && !cancelled() && needs.e2e-needed.outputs.run_shards == 'true' &&
-      (inputs.dispatch_source != 'readiness' ||
+      (github.event_name != 'workflow_dispatch' ||
        needs.e2e-needed.outputs.admission_attempt == github.run_attempt)
     runs-on: ubuntu-latest
     timeout-minutes: 15
