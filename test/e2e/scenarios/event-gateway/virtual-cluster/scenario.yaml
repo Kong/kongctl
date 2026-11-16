@@ -623,8 +623,8 @@ steps:
           - select: summary
             expect:
               fields:
-                total_changes: 2
-                by_action.CREATE: 2
+                total_changes: 4
+                by_action.CREATE: 4
           - select: >-
               changes[?resource_type=='event_gateway_backend_cluster' && resource_ref=='filter-backend-cluster'] | [0]
             expect:
@@ -632,11 +632,23 @@ steps:
                 action: CREATE
                 resource_ref: filter-backend-cluster
           - select: >-
+              changes[?resource_type=='event_gateway_backend_cluster' && resource_ref=='secondary-backend-cluster'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: secondary-backend-cluster
+          - select: >-
               changes[?resource_type=='event_gateway_virtual_cluster' && resource_ref=='{{ .vars.vcRef }}'] | [0]
             expect:
               fields:
                 action: CREATE
                 resource_ref: "{{ .vars.vcRef }}"
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster' && resource_ref=='secondary-virtual-cluster'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: secondary-virtual-cluster
       - name: 002-apply-create
         replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
@@ -665,6 +677,22 @@ steps:
             responsePath: "[?name=='{{ .vars.bcRef }}'] | [0].id"
           - name: filterBcID
             responsePath: "[?name=='filter-backend-cluster'] | [0].id"
+          - name: secondaryBcID
+            responsePath: "[?name=='secondary-backend-cluster'] | [0].id"
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 3
+      - name: 003b-verify-unfiltered-virtual-clusters
+        run:
+          - get
+          - event-gateway
+          - virtual-clusters
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
         assertions:
           - select: "length(@)"
             expect:
@@ -710,6 +738,26 @@ steps:
             expect:
               fields:
                 name: "{{ .vars.vcRef }}"
+      - name: 005b-filter-by-secondary-backend-cluster-id
+        run:
+          - get
+          - event-gateway
+          - virtual-clusters
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --backend-cluster-id
+          - "{{ .vars.secondaryBcID }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: secondary-virtual-cluster
       - name: 006-filter-by-unmatched-backend-cluster-id
         run:
           - get

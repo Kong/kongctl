@@ -275,6 +275,11 @@ func (h virtualClustersHandler) run(args []string) error {
 					Err: fmt.Errorf("backend cluster %q not found", backendClusterName),
 				}
 			}
+			if match.ID == "" {
+				return &cmd.ConfigurationError{
+					Err: fmt.Errorf("backend cluster %q does not have an ID", backendClusterName),
+				}
+			}
 			backendClusterID = match.ID
 		}
 
