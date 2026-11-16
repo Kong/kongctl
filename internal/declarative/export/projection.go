@@ -81,6 +81,9 @@ func Project(kind resources.ResourceType, payload any) (Shape, error) {
 	if kind == resources.ResourceTypeAIGatewayModel {
 		resources.OmitAIGatewayModelDatastoreConnections(fields)
 	}
+	if kind == resources.ResourceTypeAIGatewayPolicy {
+		resources.OmitAIGatewayPolicyDatastoreConnections(fields)
+	}
 	data, err := json.Marshal(fields)
 	if err != nil {
 		return shape, fmt.Errorf("encode declarative resource: %w", err)

@@ -42,3 +42,27 @@ func TestProjectionPreservesDumpConfigAndLeavesSecretPolicyToCaller(t *testing.T
 	require.NotEqual(t, declaration.Config, scrubbed.Config)
 	require.Equal(t, payload["config"], declaration.Config)
 }
+
+func TestProjectionOmitsPolicyDatastoreConnections(t *testing.T) {
+	payload := func(stores []any) map[string]any {
+		return map[string]any{
+			"name": "rate-limits", "display_name": "Rate limits", "type": "ai-rate-limiting-advanced",
+			"datastores": stores,
+			"config": map[string]any{
+				"strategy": "redis",
+				"redis":    map[string]any{"host": "redis.example.test", "port": 6380},
+			},
+		}
+	}
+
+	declaration, err := ProjectAs[resources.AIGatewayPolicyResource](
+		payload([]any{map[string]any{"name": "shared-redis"}}),
+	)
+	require.NoError(t, err)
+	require.Equal(t, []kkComps.AIGatewayDatastoreRef{{Name: "shared-redis"}}, declaration.Datastores)
+	require.Equal(t, map[string]any{"strategy": "redis"}, declaration.Config)
+
+	inline, err := ProjectAs[resources.AIGatewayPolicyResource](payload(nil))
+	require.NoError(t, err)
+	require.Contains(t, inline.Config, "redis")
+}
