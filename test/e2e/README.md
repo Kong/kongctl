@@ -590,17 +590,82 @@ The workflow derives sharding directly from GitHub Actions strategy context:
 The `E2E / Required Status` workflow controls automatic PR admission. Opening
 or pushing a PR only initializes the `E2E Required` commit status; it does
 not start the scenario suite. A relevant PR remains pending until it is open,
-out of draft, has current-revision human approval, has no active changes
-requests or unresolved review threads, and its ordinary CI passes.
+out of draft, has current-revision human approval or manual authorization,
+has no active changes requests or unresolved review threads, and its ordinary
+CI passes.
 
 `PREREQUISITES` in `scripts/e2e-readiness.cjs` explicitly selects the
 `CI Test` and `Checks` workflows. The latest PR run of each must succeed for
 the current head SHA. Add prerequisites there deliberately; never include
 `E2E Required` or the scenario suite, which would create a circular gate.
-Branch review requirements are respected through GitHub's `reviewDecision`.
-At least one owner, member, or collaborator human must approve the current
-revision even when branch protection does not require reviews. Bot findings
-can block readiness but bot approvals cannot authorize it.
+The review-based path respects GitHub's `reviewDecision` and requires at
+least one owner, member, or collaborator human to approve the current revision
+even when branch protection does not require reviews. Bot findings can block
+readiness but bot approvals cannot authorize it.
+
+Maintainers can authorize their own PR without submitting a review. From the
+PR's local checkout, with `gh` authenticated as your human account, run:
+
+```shell
+make authorize-e2e
+```
+
+This uses `gh`'s current-branch tracking to resolve the PR, verifies that its
+base repository is `Kong/kongctl`, reads its current remote head SHA and the
+repository's default branch, and dispatches the
+authorization workflow. Use a checked-out PR branch rather than a detached
+HEAD. There is no PR number, SHA, or branch to copy. It authorizes the remote
+PR head, including when your local checkout has unpushed changes. A concurrent
+push causes the workflow's exact-SHA check to reject stale authorization; run
+the target again for the new head.
+
+Alternatively, in
+**Actions → E2E / Authorize PR commit → Run workflow**, select the default
+branch (`main`) and enter the PR number and full, lowercase, 40-character head
+SHA. The equivalent CLI command is:
+
+```shell
+gh workflow run e2e-authorize.yaml --repo Kong/kongctl --ref main \
+  -f pr_number=123 -f head_sha=<full-current-head-sha>
+```
+
+Only a human with repository write, maintain, or admin permission can authorize
+E2E. The workflow rejects stale SHAs, closed PRs, drafts, and fork PRs.
+Authorization is an alternative only to positive review for E2E admission:
+`REVIEW_REQUIRED` does not block this path, but active changes requests,
+unresolved threads, and failed or pending prerequisite CI still block it. Branch
+protection and merge approval requirements are unchanged. The existing review-
+based path continues to work without manual authorization.
+
+This deliberately allows a write-capable human to run secret-backed E2E on their
+own same-repository PR without a second approver. Authorizing a commit means
+that human considers its code ready for execution with E2E credentials; it does
+not satisfy merge review requirements.
+
+The `E2E Authorization / <pr-number>` commit status links to the authorizing
+workflow run and identifies the human. Trusted controller code treats it only
+as a pointer: it validates the successful first-attempt authorization run's
+workflow identity, default-branch history, successful recording step,
+repository, dispatch event, PR/SHA title, human actor, and current repository
+permission. A copied or forged status cannot authorize another PR or SHA.
+Completion triggers reconciliation; queued admission and retries validate the
+same evidence again. The default branch comes from repository metadata,
+independent of event payload shape. The pre-reservation snapshot reloads commit
+statuses so revoked or replaced authorization cannot survive in a local cache.
+Authorization APIs are skipped when ordinary review already suffices or other
+readiness requirements block execution.
+
+Authorization expires for new commits and is unusable if the actor loses
+write access, the workflow revision leaves default-branch history, or the
+evidence run is deleted. Rerunning the authorization workflow invalidates that
+run's evidence; dispatch a fresh authorization
+instead. There is no time-based expiry. CI or review blockers can clear later
+without another authorization for the same commit. For failed E2E, use the
+controller retry command below; authorizing alone does not retry failed runs.
+This workflow must first be deployed to the default branch before it can be
+used. It neither checks out PR code nor consumes Konnect secrets. Fork PRs
+require the separate exact-SHA trusted-run procedure below; the authorization
+action rejects them without posting an authorization status.
 
 PR lifecycle events, review events, and prerequisite/scenario workflow
 completion reevaluate current API state. GitHub Actions has no review-thread
@@ -609,7 +674,8 @@ up to five open PRs per tick, rotating by PR number and time slot. This
 covers resolved or reopened threads and fork reviews while bounding routine
 API cost. With twenty open PRs, each PR is revisited within four scheduled
 ticks (about twenty minutes); GitHub can delay scheduled execution. Unrelated
-label changes are ignored. `e2e:force-live` and `konnect-env:tech` changes reevaluate routing.
+label changes are ignored. `e2e:force-live` and `konnect-env:tech` changes
+reevaluate routing.
 
 The controller directly dispatches the default-branch scenario workflow.
 Admission rechecks readiness after acquiring the environment queue, before

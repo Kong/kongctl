@@ -342,3 +342,16 @@ reset-org:
 .PHONY: test-e2e-readiness
 test-e2e-readiness:
 	node --test scripts/tests/test-e2e-readiness.cjs
+
+.PHONY: authorize-e2e
+authorize-e2e:
+	@set -eu; \
+		pr=$$(gh pr view --json url,headRefOid --jq '"\(.url) \(.headRefOid)"'); \
+		url=$${pr%% *}; \
+		case "$$url" in \
+			https://github.com/Kong/kongctl/pull/*) ;; \
+			*) echo "Current PR must target Kong/kongctl" >&2; exit 1 ;; \
+		esac; \
+		branch=$$(gh repo view Kong/kongctl --json defaultBranchRef --jq .defaultBranchRef.name); \
+		gh workflow run e2e-authorize.yaml --repo Kong/kongctl --ref "$$branch" \
+			-f pr_number="$${url##*/}" -f head_sha="$${pr#* }"

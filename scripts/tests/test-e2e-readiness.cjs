@@ -1,6 +1,7 @@
 const {test} = require('node:test');
 const assert = require('node:assert/strict');
-const {requirement, reviewReady, ciReady, reconcile, admit, REQUIRED, scheduledBatch} = require('../e2e-readiness.cjs');
+const {requirement, reviewReady, ciReady, reconcile, admit, REQUIRED, scheduledBatch, authorize,
+  AUTHORIZATION_JOB, AUTHORIZATION_STEP} = require('../e2e-readiness.cjs');
 
 function fixture() {
   const pr = {number: 12, state: 'open', draft: false, changed_files: 1, labels: [],
@@ -21,7 +22,7 @@ function fake() {
   const github = {rest: {
     pulls: {get: async () => ({data: structuredClone(state.pr)}), list: method('pulls'),
       listFiles: method('files'), listReviews: method('reviews')},
-    repos: {getContent: async () => {
+    repos: {get: async () => ({data: {default_branch: state.defaultBranch || 'main'}}), getContent: async () => {
       if (!state.deployed) throw Object.assign(new Error('Not found'), {status: 404});
       return {data: {type: 'file'}};
     }, listCommitStatusesForRef: method('statuses'), createCommitStatus: async status => {
@@ -41,7 +42,7 @@ function fake() {
   graphql: async () => ({repository: {pullRequest: {reviewDecision: state.decision,
     reviewThreads: {nodes: state.threads, pageInfo: {hasNextPage: false}}}}})};
   const context = {repo: {owner: 'Kong', repo: 'kongctl'}, eventName: 'schedule',
-    payload: {repository: {default_branch: 'main'}, inputs: {pr_number: '12'}}};
+    payload: {inputs: {pr_number: '12'}}};
   const core = {warning(message) { (state.warnings ||= []).push(message); }, info() {},
     setOutput(name, value) { state.outputs[name] = value; }};
   process.env.GITHUB_RUN_ID = '100';
@@ -470,4 +471,356 @@ test('a moved fork head sets superseded outputs and never posts a false failure 
   const comment = await runCommentScript('e2e.yaml', 'Update trusted-run PR comment',
     {TRUSTED_PR_NUMBER: '12', STATUS_SHA: 'old', VALIDATION_ENV: 'com', CONFIGURED_ENV: ''}, pr);
   assert.equal(comment.writes.length, 0);
+});
+
+
+function manualAuthorization(f) {
+  const actor = {id: 42, login: 'author', type: 'User'};
+  const run = {id: 300, workflow_id: 7, event: 'workflow_dispatch', head_branch: f.state.defaultBranch || 'main', head_sha: 'c'.repeat(40),
+    head_repository: {full_name: 'Kong/kongctl'},
+    display_title: `authorize-e2e:12/${f.state.pr.head.sha}`, actor, triggering_actor: actor,
+    run_attempt: 1, status: 'completed', conclusion: 'success',
+    html_url: 'https://github.com/Kong/kongctl/actions/runs/300'};
+  f.state.runs.push(run);
+  f.state.permission = 'write';
+  f.state.comparison = 'BEHIND';
+  const graphql = f.github.graphql;
+  f.github.graphql = async (query, args) => {
+    if (args.head) {
+      assert.equal(args.base, `refs/heads/${f.state.defaultBranch || 'main'}`);
+      assert.equal(args.head, run.head_sha);
+      return {repository: {ref: {compare: {status: f.state.comparison}}}};
+    }
+    return graphql(query, args);
+  };
+  const paginate = f.github.paginate;
+  f.github.paginate = async (method, args) => {
+    if (method.method === 'jobs' && args.run_id === 300) return f.state.authorizationJobs;
+    return paginate(method, args);
+  };
+  f.state.authorizationJobs = [{name: 'Authorize exact PR commit for E2E', conclusion: 'success',
+    steps: [{name: 'Record authorization', conclusion: 'success'}]}];
+  f.github.rest.actions.getWorkflow = async args => {
+    assert.equal(args.workflow_id, 'e2e-authorize.yaml');
+    return {data: {id: 7}};
+  };
+  f.github.rest.repos.getCollaboratorPermissionLevel = async args => {
+    assert.equal(args.username, run.actor.login);
+    return {data: {permission: f.state.permission}};
+  };
+  f.state.reviews = [];
+  f.state.decision = 'REVIEW_REQUIRED';
+  f.state.statuses.unshift({context: 'E2E Authorization / 12', sha: f.state.pr.head.sha,
+    state: 'success', target_url: run.html_url});
+  return run;
+}
+
+for (const permission of ['write', 'maintain', 'admin']) {
+  test(`a ${permission} human can authorize their own PR; reconciliation, queue admission and retry agree`, async () => {
+    const f = fake();
+    manualAuthorization(f);
+    f.state.permission = permission;
+    await reconcile(f);
+    assert.equal(f.state.dispatches.length, 1);
+    Object.assign(process.env, {READINESS_PR: '12', READINESS_SHA: f.state.pr.head.sha,
+      READINESS_ENV: 'com', READINESS_MODE: 'pr'});
+    await admit(f);
+    assert.equal(f.state.outputs.accepted, 'true');
+    f.state.runs.push(dispatchedRun(f, 'failure'));
+    await reconcile(f);
+    f.context.eventName = 'workflow_dispatch';
+    f.context.payload.inputs.retry = 'true';
+    await reconcile(f);
+    assert.equal(f.state.dispatches.length, 2);
+  });
+}
+
+const invalidAuthorizations = {
+  read: (f) => {f.state.permission = 'read';},
+  triage: (f) => {f.state.permission = 'triage';},
+  none: (f) => {f.state.permission = 'none';},
+  bot: (f, run) => {run.actor.type = 'Bot';},
+  'different PR': (f, run) => {run.display_title = run.display_title.replace(':12/', ':13/');},
+  'stale SHA': (f, run) => {run.display_title = `authorize-e2e:12/${'b'.repeat(40)}`;},
+  'branch code': (f, run) => {run.head_branch = 'untrusted';},
+  'fork workflow': (f, run) => {run.head_repository.full_name = 'fork/kongctl';},
+  'wrong workflow': (f, run) => {run.workflow_id = 99;},
+  'untrusted tag revision': f => {f.state.comparison = 'DIVERGED';},
+  'skipped authorization job': f => {f.state.authorizationJobs[0].conclusion = 'skipped';},
+  'skipped authorization step': f => {f.state.authorizationJobs[0].steps[0].conclusion = 'skipped';},
+  'wrong event': (f, run) => {run.event = 'pull_request';},
+  'failed authorization': (f, run) => {run.conclusion = 'failure';},
+  'unfinished authorization': (f, run) => {run.status = 'in_progress';},
+  rerun: (f, run) => {run.run_attempt = 2;},
+  'different rerun actor': (f, run) => {run.triggering_actor = {id: 99};},
+  'forged status URL': f => {f.state.statuses[0].target_url += '/jobs/1';},
+};
+for (const [name, mutate] of Object.entries(invalidAuthorizations)) {
+  test(`manual authorization fails closed for ${name}`, async () => {
+    const f = fake();
+    const run = manualAuthorization(f);
+    mutate(f, run);
+    await reconcile(f);
+    assert.equal(f.state.dispatches.length, 0);
+    assert.equal(gate(f).state, 'pending');
+    Object.assign(process.env, {READINESS_PR: '12', READINESS_SHA: f.state.pr.head.sha,
+      READINESS_ENV: 'com', READINESS_MODE: 'pr'});
+    await admit(f);
+    assert.equal(f.state.outputs.accepted, 'false');
+  });
+}
+
+for (const [name, mutate] of Object.entries({
+  'active changes request': f => {f.state.reviews = [{state: 'CHANGES_REQUESTED', user: {login: 'reviewer'}}];},
+  'blocking decision': f => {f.state.decision = 'CHANGES_REQUESTED';},
+  'unresolved thread': f => {f.state.threads = [{isResolved: false}];},
+  'failed CI': f => {f.state.ci[0].conclusion = 'failure';},
+  draft: f => {f.state.pr.draft = true;},
+  closed: f => {f.state.pr.state = 'closed';},
+  fork: f => {f.state.pr.head.repo.full_name = 'fork/kongctl';},
+})) {
+  test(`manual authorization preserves the ${name} restriction`, async () => {
+    const f = fake();
+    manualAuthorization(f);
+    mutate(f);
+    await reconcile(f);
+    assert.equal(f.state.dispatches.length, 0);
+    Object.assign(process.env, {READINESS_PR: '12', READINESS_SHA: f.state.pr.head.sha,
+      READINESS_ENV: 'com', READINESS_MODE: 'pr'});
+    await admit(f);
+    assert.equal(f.state.outputs.accepted, 'false');
+  });
+}
+
+test('a new head does not inherit authorization, even if status evidence is copied', async () => {
+  const f = fake();
+  manualAuthorization(f);
+  f.state.pr.head.sha = 'b'.repeat(40);
+  f.state.ci = f.state.ci.map(run => ({...run, head_sha: f.state.pr.head.sha}));
+  await reconcile(f);
+  assert.equal(f.state.dispatches.length, 0);
+});
+
+test('authorization completion targets the PR for immediate reconciliation', async () => {
+  const f = fake();
+  const run = manualAuthorization(f);
+  f.context.eventName = 'workflow_run';
+  f.context.payload.inputs = {};
+  f.context.payload.workflow_run = {...run, pull_requests: []};
+  await reconcile(f);
+  assert.equal(f.state.dispatches.length, 1);
+});
+
+test('recording authorization validates the actor, trusted run and exact current head', async () => {
+  for (const invalid of [null, ...['read', 'triage', 'none', 'bot', 'different PR', 'stale SHA', 'branch code',
+    'fork workflow', 'wrong workflow', 'untrusted tag revision', 'wrong event', 'rerun',
+    'different rerun actor'].map(name => invalidAuthorizations[name]),
+    f => {f.state.pr.head.sha = 'new';}, f => {f.state.pr.draft = true;},
+    () => {process.env.GITHUB_REF = 'refs/tags/main';}]) {
+    const f = fake();
+    const run = manualAuthorization(f);
+    f.state.statuses = [];
+    f.context.eventName = 'workflow_dispatch';
+    f.context.payload.inputs = {pr_number: '12', head_sha: f.state.pr.head.sha};
+    process.env.GITHUB_RUN_ID = '300';
+    process.env.GITHUB_REF = 'refs/heads/main';
+    if (invalid) {
+      invalid(f, run);
+      await assert.rejects(authorize(f));
+      assert.equal(f.state.statuses.length, 0);
+    } else {
+      await authorize(f);
+      const evidence = f.state.statuses[0];
+      assert.equal(evidence.context, 'E2E Authorization / 12');
+      assert.equal(evidence.sha, f.state.pr.head.sha);
+      assert.equal(evidence.description, 'Authorized by author');
+      assert.equal(evidence.target_url, run.html_url);
+    }
+  }
+});
+
+
+test('deleted authorization evidence cannot admit E2E', async () => {
+  const f = fake();
+  manualAuthorization(f);
+  f.state.runs = [];
+  await reconcile(f);
+  assert.equal(f.state.dispatches.length, 0);
+});
+
+test('manual authorization workflow is pinned to trusted code and admission can read evidence', () => {
+  const {readFileSync} = require('node:fs');
+  const {resolve} = require('node:path');
+  const workflow = readFileSync(resolve(__dirname, '../../.github/workflows/e2e-authorize.yaml'), 'utf8');
+  assert.ok(workflow.includes("github.ref == format('refs/heads/{0}', github.event.repository.default_branch)"));
+  assert.ok(workflow.includes('ref: ${{ github.workflow_sha }}'));
+  const lines = workflow.split('\n').map(line => line.trim());
+  assert.ok(lines.includes(`name: ${AUTHORIZATION_JOB}`));
+  assert.ok(lines.includes(`- name: ${AUTHORIZATION_STEP}`));
+  assert.ok(workflow.includes('authorize-e2e:${{ inputs.pr_number }}/${{ inputs.head_sha }}'));
+  assert.ok(!workflow.includes('secrets.'));
+  const scenario = readFileSync(resolve(__dirname, '../../.github/workflows/e2e.yaml'), 'utf8');
+  assert.ok(scenario.split('  e2e-needed:')[1].split('    outputs:')[0].includes('statuses: read'));
+});
+
+
+test('make authorize-e2e discovers the current PR and default branch and fails before dispatch on lookup errors', () => {
+  const {mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync} = require('node:fs');
+  const {tmpdir} = require('node:os');
+  const {join, resolve} = require('node:path');
+  const {spawnSync} = require('node:child_process');
+  const dir = mkdtempSync(join(tmpdir(), 'kongctl-authorize-'));
+  const log = join(dir, 'dispatch.json');
+  try {
+    writeFileSync(join(dir, 'gh'), `#!/usr/bin/env node
+const fs = require('node:fs');
+const args = process.argv.slice(2);
+if (args[0] === 'pr') {
+  if (args[1] !== 'view' || args[2] !== '--json' || args.includes('--repo')) process.exit(2);
+  if (process.env.FAIL_LOOKUP === 'true') process.exit(1);
+  process.stdout.write((process.env.WRONG_REPO === 'true' ? 'https://github.com/other/repo/pull/2792' :
+    'https://github.com/Kong/kongctl/pull/2792') + ' ${'a'.repeat(40)}');
+} else if (args[0] === 'repo') {
+  process.stdout.write('default-branch');
+} else if (args[0] === 'workflow') {
+  fs.writeFileSync(process.env.DISPATCH_LOG, JSON.stringify(args));
+} else process.exit(2);
+`, {mode: 0o755});
+    const env = {...process.env, PATH: `${dir}:${process.env.PATH}`, DISPATCH_LOG: log};
+    const invoke = env => spawnSync('make', ['authorize-e2e'],
+      {cwd: resolve(__dirname, '../..'), env, encoding: 'utf8'});
+    const result = invoke(env);
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(readFileSync(log, 'utf8')), ['workflow', 'run', 'e2e-authorize.yaml',
+      '--repo', 'Kong/kongctl', '--ref', 'default-branch', '-f', 'pr_number=2792', '-f', `head_sha=${'a'.repeat(40)}`]);
+    rmSync(log);
+    const failed = invoke({...env, FAIL_LOOKUP: 'true'});
+    assert.notEqual(failed.status, 0);
+    assert.equal(existsSync(log), false);
+    assert.notEqual(invoke({...env, WRONG_REPO: 'true'}).status, 0);
+    assert.equal(existsSync(log), false);
+  } finally {
+    rmSync(dir, {recursive: true, force: true});
+  }
+});
+
+
+test('scheduled reconciliation without repository payload preserves a manually authorized success', async () => {
+  const f = fake();
+  manualAuthorization(f);
+  await reconcile(f);
+  f.state.runs.push(dispatchedRun(f, 'success'));
+  f.state.jobs = [{name: 'Verify scenario results and coverage', conclusion: 'success'}];
+  await reconcile(f);
+  assert.equal(gate(f).state, 'success');
+  f.context.payload = {};
+  f.state.pulls = [{number: 12}];
+  await reconcile(f);
+  assert.equal(f.state.warnings?.length || 0, 0);
+  assert.equal(gate(f).state, 'success');
+});
+
+test('reservation recheck observes revoked authorization statuses', async () => {
+  const f = fake();
+  manualAuthorization(f);
+  const get = f.github.rest.pulls.get;
+  let calls = 0;
+  f.github.rest.pulls.get = async args => {
+    if (++calls === 2) f.state.statuses[0] = {...f.state.statuses[0], state: 'failure'};
+    return get(args);
+  };
+  await reconcile(f);
+  assert.equal(f.state.dispatches.length, 0);
+});
+
+test('fork PRs cannot record misleading manual authorization', async () => {
+  const f = fake();
+  manualAuthorization(f);
+  f.state.pr.head.repo.full_name = 'fork/kongctl';
+  f.context.eventName = 'workflow_dispatch';
+  f.context.payload.inputs = {pr_number: '12', head_sha: f.state.pr.head.sha};
+  Object.assign(process.env, {GITHUB_RUN_ID: '300', GITHUB_REF: 'refs/heads/main'});
+  f.state.statuses = [];
+  await assert.rejects(authorize(f), /fork|same.repository/i);
+  assert.equal(f.state.statuses.length, 0);
+});
+
+for (const blocker of ['approved', 'failed CI', 'unresolved thread', 'fork']) {
+  test(`authorization APIs are unnecessary with ${blocker}`, async () => {
+    const f = fake();
+    manualAuthorization(f);
+    if (blocker === 'approved') {
+      f.state.reviews = [fixture().approval];
+      f.state.decision = 'APPROVED';
+    }
+    if (blocker === 'failed CI') f.state.ci[0].conclusion = 'failure';
+    if (blocker === 'unresolved thread') f.state.threads = [{isResolved: false}];
+    if (blocker === 'fork') f.state.pr.head.repo.full_name = 'fork/kongctl';
+    const get = f.github.rest.actions.getWorkflowRun;
+    f.github.rest.actions.getWorkflowRun = async args => {
+      assert.notEqual(args.run_id, 300, 'unnecessary authorization validation');
+      return get(args);
+    };
+    await reconcile(f);
+  });
+}
+
+
+test('repository metadata overrides stale event metadata and is fetched once across snapshots', async () => {
+  const f = fake();
+  f.state.defaultBranch = 'trunk';
+  manualAuthorization(f);
+  f.context.payload.repository = {default_branch: 'stale'};
+  const get = f.github.rest.repos.get;
+  let calls = 0;
+  f.github.rest.repos.get = async args => {calls++; return get(args);};
+  await reconcile(f);
+  assert.equal(f.state.dispatches.length, 1);
+  assert.equal(f.state.dispatches[0].ref, 'trunk');
+  assert.equal(calls, 1);
+});
+
+for (const status of ['BEHIND', 'IDENTICAL', 'AHEAD', 'DIVERGED', null]) {
+  test(`authorization workflow ancestry comparison ${status} is interpreted against the default branch`, async () => {
+    const f = fake();
+    manualAuthorization(f);
+    f.state.comparison = status;
+    await reconcile(f);
+    assert.equal(f.state.dispatches.length, ['BEHIND', 'IDENTICAL'].includes(status) ? 1 : 0);
+  });
+}
+
+
+for (const status of [403, 429]) {
+  for (const stage of ['run', 'permission']) {
+    test(`authorization ${stage} API error ${status} is reported without dispatch or changing the pending gate`, async () => {
+      const f = fake();
+      manualAuthorization(f);
+      f.context.payload = {};
+      f.state.pulls = [{number: 12}];
+      f.state.statuses.unshift({context: 'E2E Required', state: 'pending', description: 'Awaiting readiness.'});
+      const count = f.state.statuses.length;
+      const fail = async () => {throw Object.assign(new Error('API rate limit exceeded'), {status});};
+      if (stage === 'run') f.github.rest.actions.getWorkflowRun = fail;
+      else f.github.rest.repos.getCollaboratorPermissionLevel = fail;
+      await reconcile(f);
+      assert.equal(f.state.dispatches.length, 0);
+      assert.equal(f.state.statuses.length, count);
+      assert.equal(gate(f).state, 'pending');
+      assert.equal(f.state.warnings.length, 1);
+      assert.match(f.state.warnings[0], /API rate limit exceeded/);
+      Object.assign(process.env, {READINESS_PR: '12', READINESS_SHA: f.state.pr.head.sha,
+        READINESS_ENV: 'com', READINESS_MODE: 'pr'});
+      await assert.rejects(admit(f), /API rate limit exceeded/);
+    });
+  }
+}
+
+test('authorization permission lookup checks the authorizing human rather than the PR author', async () => {
+  const f = fake();
+  const run = manualAuthorization(f);
+  run.actor.login = 'gatekeeper';
+  assert.notEqual(run.actor.login, f.state.pr.user.login);
+  await reconcile(f);
+  assert.equal(f.state.dispatches.length, 1);
 });
