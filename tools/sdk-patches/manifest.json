@@ -329,33 +329,42 @@
       "optional_file": true
     },
     {
-      "file": "models/components/aigwopenidconnectgeneratedconfigoutput.go",
+      "file": "models/components/aigatewayauthstrategyopenidconnect.go",
       "before": "import (\n\t\"github.com/Kong/sdk-konnect-go/internal/utils\"\n)",
       "after": "import (\n\t\"github.com/Kong/sdk-konnect-go/internal/utils\"\n\t\"github.com/Kong/sdk-konnect-go/optionalnullable\"\n)"
     },
     {
-      "file": "models/components/aigwopenidconnectgeneratedconfigoutput.go",
+      "file": "models/components/aigatewayauthstrategyopenidconnect.go",
       "before": "\tUpstreamAccessTokenHeader *string `default:\"authorization:bearer\" json:\"upstream_access_token_header\"`",
-      "after": "\tUpstreamAccessTokenHeader optionalnullable.OptionalNullable[string] `json:\"upstream_access_token_header,omitempty\"`",
-      "count": 2
+      "after": "\tUpstreamAccessTokenHeader optionalnullable.OptionalNullable[string] `json:\"upstream_access_token_header,omitempty\"`"
     },
     {
-      "file": "models/components/aigwopenidconnectgeneratedconfigoutput.go",
-      "before": "func (a *AIGWOpenIDConnectGeneratedConfigOutput) GetUpstreamAccessTokenHeader() *string {\n\tif a == nil {\n\t\treturn nil\n\t}\n\treturn a.UpstreamAccessTokenHeader\n}",
-      "after": "func (a *AIGWOpenIDConnectGeneratedConfigOutput) GetUpstreamAccessTokenHeader() *string {\n\tif a == nil {\n\t\treturn nil\n\t}\n\tvalue, _ := a.UpstreamAccessTokenHeader.Get()\n\treturn value\n}"
+      "file": "models/components/aigatewayauthstrategyopenidconnect.go",
+      "before": "func (a *AIGatewayAuthStrategyOpenIDConnectConfig) GetUpstreamAccessTokenHeader() *string {\n\tif a == nil {\n\t\treturn nil\n\t}\n\treturn a.UpstreamAccessTokenHeader\n}",
+      "after": "func (a *AIGatewayAuthStrategyOpenIDConnectConfig) GetUpstreamAccessTokenHeader() *string {\n\tif a == nil {\n\t\treturn nil\n\t}\n\tvalue, _ := a.UpstreamAccessTokenHeader.Get()\n\treturn value\n}"
     },
     {
-      "file": "docs/models/components/aigwopenidconnectgeneratedconfigoutput.md",
+      "file": "docs/models/components/aigatewayauthstrategyopenidconnectconfig.md",
       "before": "| `UpstreamAccessTokenHeader`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | `*string`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |",
       "after": "| `UpstreamAccessTokenHeader`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | `optionalnullable.OptionalNullable[string]` |"
     },
     {
-      "file": "models/components/aigwopenidconnectgeneratedconfigoutput.go",
-      "before": "func (a *AIGWOpenIDConnectGeneratedConfig) GetUpstreamAccessTokenHeader() *string {\n\tif a == nil {\n\t\treturn nil\n\t}\n\treturn a.UpstreamAccessTokenHeader\n}",
-      "after": "func (a *AIGWOpenIDConnectGeneratedConfig) GetUpstreamAccessTokenHeader() *string {\n\tif a == nil {\n\t\treturn nil\n\t}\n\tvalue, _ := a.UpstreamAccessTokenHeader.Get()\n\treturn value\n}"
+      "file": "models/components/aigatewayauthstrategyopenidconnectresponse.go",
+      "before": "import (\n\t\"github.com/Kong/sdk-konnect-go/internal/utils\"\n\t\"time\"\n)",
+      "after": "import (\n\t\"github.com/Kong/sdk-konnect-go/internal/utils\"\n\t\"github.com/Kong/sdk-konnect-go/optionalnullable\"\n\t\"time\"\n)"
     },
     {
-      "file": "docs/models/components/aigwopenidconnectgeneratedconfig.md",
+      "file": "models/components/aigatewayauthstrategyopenidconnectresponse.go",
+      "before": "\tUpstreamAccessTokenHeader *string `default:\"authorization:bearer\" json:\"upstream_access_token_header\"`",
+      "after": "\tUpstreamAccessTokenHeader optionalnullable.OptionalNullable[string] `json:\"upstream_access_token_header,omitempty\"`"
+    },
+    {
+      "file": "models/components/aigatewayauthstrategyopenidconnectresponse.go",
+      "before": "func (a *AIGatewayAuthStrategyOpenIDConnectResponseConfig) GetUpstreamAccessTokenHeader() *string {\n\tif a == nil {\n\t\treturn nil\n\t}\n\treturn a.UpstreamAccessTokenHeader\n}",
+      "after": "func (a *AIGatewayAuthStrategyOpenIDConnectResponseConfig) GetUpstreamAccessTokenHeader() *string {\n\tif a == nil {\n\t\treturn nil\n\t}\n\tvalue, _ := a.UpstreamAccessTokenHeader.Get()\n\treturn value\n}"
+    },
+    {
+      "file": "docs/models/components/aigatewayauthstrategyopenidconnectresponseconfig.md",
       "before": "| `UpstreamAccessTokenHeader`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | `*string`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |",
       "after": "| `UpstreamAccessTokenHeader`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | `optionalnullable.OptionalNullable[string]` |"
     }

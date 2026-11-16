@@ -67,11 +67,13 @@ Portal customization patches preserve omitted theme names and Try It UI
 audiences. Explicit audience values remain supported; an unset audience must
 not become `all` in a PATCH request.
 
-Portal AI settings patches preserve omitted MCP write enablement and Portal
-Agent display name and audience. Updating one feature must not reset unrelated
-optional settings. Required top-level and feature enablement retain their API
-defaults. The nullable Portal Agent schemas are shared with PUT requests,
-which also preserve omission of these optional fields.
+Portal AI settings patches preserve omitted MCP write enablement. Updating
+one feature must not reset unrelated optional settings. Required top-level
+and feature enablement retain their API defaults. Upstream removed the
+Portal Agent feature (`display_name`/`audience`) from this schema in SDK
+v0.88.0; kongctl never referenced those fields, so the overlay actions
+targeting the now-deleted `PortalAgentDisplayNameNullable` and
+`PortalAgentAudienceNullable` schemas were dropped.
 
 Portal and organization team patches preserve omitted membership management.
 A PATCH changing a team's name must not reset `konnect_managed` to `false`.
@@ -100,13 +102,22 @@ Its getter still returns `*string`; inspect the field's `IsSet`/`IsNull` methods
 when presence matters. Go constructors assigning this field use
 `optionalnullable.From` instead of a bare pointer.
 
+SDK v0.88.0 split the generated request and response OIDC config structs into
+separate files (`aigatewayauthstrategyopenidconnect.go`,
+`aigatewayauthstrategyopenidconnectresponse.go`) with renamed types
+(`AIGatewayAuthStrategyOpenIDConnectConfig`,
+`AIGatewayAuthStrategyOpenIDConnectResponseConfig`, replacing
+`AIGWOpenIDConnectGeneratedConfig`/`AIGWOpenIDConnectGeneratedConfigOutput`).
+The patch now targets each file independently with its own import and field
+replacement rather than one shared file with a `count: 2` field replacement;
+all replacements require exactly one match by default.
+
 All other OIDC fields retain their generated types, getters, JSON tags, and
 SDK defaults. Nested models and unknown-field handling remain unchanged. The
 patch does not change the global SDK serializer. Existing `post_generation`
-entries replace the import, the two field declarations, their getters, and
-the two documentation type cells. The shared field replacement declares
-`count: 2`; all other replacements require exactly one match by default.
-Missing, extra, or partially patched matches fail before any files are written.
+entries replace each file's import, field declaration, getter, and
+documentation type cell. Missing, extra, or partially patched matches fail
+before any files are written.
 
 Wire regressions compare all non-header output against fixtures recorded with
 the unmodified v0.84.0 OIDC models. They cover minimal configs, existing access

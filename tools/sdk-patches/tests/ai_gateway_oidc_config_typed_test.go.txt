@@ -13,11 +13,13 @@ import (
 func TestKongctlOIDCConfigTypedConstruction(t *testing.T) {
 	for _, state := range []string{"omitted", "null", "value"} {
 		t.Run(state, func(t *testing.T) {
-			config := c.AIGWOpenIDConnectGeneratedConfig{
+			config := c.AIGatewayAuthStrategyOpenIDConnectConfig{
 				Issuer: "https://example.com", CacheTokensSalt: "probe-salt",
 				HideCredentials: new(false),
-				AuthMethods:     []c.AuthMethods{c.AuthMethodsBearer},
-				Scopes:          []string{},
+				AuthMethods: []c.AIGatewayAuthStrategyOpenIDConnectAuthMethods{
+					c.AIGatewayAuthStrategyOpenIDConnectAuthMethodsBearer,
+				},
+				Scopes: []string{},
 			}
 			if state == "null" {
 				config.UpstreamAccessTokenHeader = optionalnullable.From[string](nil)
@@ -26,8 +28,8 @@ func TestKongctlOIDCConfigTypedConstruction(t *testing.T) {
 				config.UpstreamAccessTokenHeader = optionalnullable.From(new("authorization:bearer"))
 			}
 			// Existing typed getters remain usable without map lookup/type assertions.
-			var methods []c.AuthMethods = config.GetAuthMethods()
-			if len(methods) != 1 || methods[0] != c.AuthMethodsBearer {
+			methods := config.GetAuthMethods()
+			if len(methods) != 1 || methods[0] != c.AIGatewayAuthStrategyOpenIDConnectAuthMethodsBearer {
 				t.Fatal("typed enum getter changed")
 			}
 			if config.GetHideCredentials() == nil || *config.GetHideCredentials() {
