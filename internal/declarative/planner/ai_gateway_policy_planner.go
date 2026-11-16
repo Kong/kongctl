@@ -187,6 +187,10 @@ func shouldUpdateAIGatewayPolicy(
 	}
 	currentCompare, desiredCompare := normalizeAIGatewayPolicyPayloadsForComparison(currentPayload, desiredPayload)
 	normalizeAIGateway23References(desiredCompare, firstResourceSet(resourceSets), desired.AIGateway)
+	// Referenced datastores own the connection blocks: the API replaces them with
+	// the datastore's settings, so they are not compared.
+	resources.OmitAIGatewayPolicyDatastoreConnections(currentCompare)
+	resources.OmitAIGatewayPolicyDatastoreConnections(desiredCompare)
 	changedFields := diffAIGatewayPayloads(currentPayload, desiredPayload, currentCompare, desiredCompare)
 	if len(changedFields) == 0 {
 		return false, nil, nil, nil

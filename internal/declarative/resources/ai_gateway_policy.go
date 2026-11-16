@@ -355,6 +355,7 @@ func AIGatewayPolicyResourceFromResponse(
 	if err != nil {
 		return AIGatewayPolicyResource{}, err
 	}
+	OmitAIGatewayPolicyDatastoreConnections(payload)
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return AIGatewayPolicyResource{}, err
@@ -375,6 +376,22 @@ func AIGatewayPolicyResourceFromResponse(
 	}, nil
 }
 
+// OmitAIGatewayPolicyDatastoreConnections removes connection settings resolved
+// from referenced datastores. The API replaces these blocks with the
+// datastore's connection; exporting them would pin inherited settings in
+// manifests.
+func OmitAIGatewayPolicyDatastoreConnections(payload map[string]any) {
+	stores, _ := payload["datastores"].([]any)
+	if len(stores) == 0 {
+		return
+	}
+	config, _ := payload["config"].(map[string]any)
+	delete(config, "redis")
+	vector, _ := config["vectordb"].(map[string]any)
+	delete(vector, "redis")
+	delete(vector, "pgvector")
+}
+
 func aiGatewayPolicyExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 	return explainObject(
 		explainResourceRefField(),
@@ -386,6 +403,16 @@ func aiGatewayPolicyExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 		explainField("enabled", explainBoolNode("true"), false, true),
 		explainField("global", explainBoolNode("false"), false, true),
 		explainField("condition", explainStringNode("http.path == '/v1/chat/completions'"), false, false),
+		explainField(
+			"datastores",
+			explainArrayOf(
+				explainObject(
+					explainField("name", explainStringNode("datastore-name"), true, true),
+				),
+			),
+			false,
+			false,
+		),
 		explainField("expressions", &ExplainNode{
 			Kind:       explainKindObject,
 			Additional: &ExplainNode{},

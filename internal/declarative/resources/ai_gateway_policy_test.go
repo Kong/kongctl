@@ -127,3 +127,41 @@ func TestAIGatewayPolicyResourceFromResponse(t *testing.T) {
 	require.Equal(t, "mask-sensitive-data", policy.Name)
 	require.NoError(t, policy.Validate())
 }
+
+func TestAIGatewayPolicyResourceFromResponseOmitsDatastoreConnections(t *testing.T) {
+	redis := map[string]any{"host": "redis.example.test", "port": float64(6380)}
+	pgvector := map[string]any{"host": "pg.example.test", "database": "vectors"}
+	response := func(stores []kkComps.AIGatewayDatastoreRef) kkComps.AIGatewayPolicy {
+		return kkComps.AIGatewayPolicy{
+			ID:          "policy-id",
+			Name:        "rate-limits",
+			Type:        "ai-rate-limiting-advanced",
+			DisplayName: "Rate limits",
+			Datastores:  stores,
+			Config: map[string]any{
+				"strategy": "redis",
+				"redis":    redis,
+				"vectordb": map[string]any{"strategy": "pgvector", "redis": redis, "pgvector": pgvector},
+			},
+		}
+	}
+
+	policy, err := AIGatewayPolicyResourceFromResponse(
+		"support-gateway",
+		response([]kkComps.AIGatewayDatastoreRef{{Name: "shared-redis"}}),
+	)
+	require.NoError(t, err)
+	payload, err := policy.MutablePayloadMap()
+	require.NoError(t, err)
+	require.Equal(t, []any{map[string]any{"name": "shared-redis"}}, payload["datastores"])
+	config := payload["config"].(map[string]any)
+	require.Equal(t, "redis", config["strategy"])
+	require.NotContains(t, config, "redis")
+	require.Equal(t, map[string]any{"strategy": "pgvector"}, config["vectordb"])
+
+	inline, err := AIGatewayPolicyResourceFromResponse("support-gateway", response(nil))
+	require.NoError(t, err)
+	payload, err = inline.MutablePayloadMap()
+	require.NoError(t, err)
+	require.Equal(t, redis, payload["config"].(map[string]any)["redis"])
+}

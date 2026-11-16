@@ -226,6 +226,16 @@ datastore references still participate in comparison. The datastore can be
 managed outside the loaded files. Dumps omit its expanded connection fields from
 the model so later datastore changes remain inherited.
 
+Policies can reference datastores in the same gateway the same way, for
+example a Redis datastore shared by rate limiting policies instead of a
+Kong Gateway partial: `datastores: [{name: !ref shared-redis#name}]`. Set
+`config.strategy: redis` on rate limiting policies that use a Redis datastore.
+The API replaces the policy's `config.redis`, `config.vectordb.redis`, and
+`config.vectordb.pgvector` blocks with the datastore's connection, so planning
+does not compare those blocks for a policy with datastore references, and dumps
+omit them. Each policy type accepts specific datastore types; for example, AI
+Rate Limiting Advanced accepts `redis-ee`.
+
 ```yaml
 ai_gateways:
   - ref: support
