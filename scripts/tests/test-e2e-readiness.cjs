@@ -1,6 +1,7 @@
 const {test} = require('node:test');
 const assert = require('node:assert/strict');
-const {requirement, reviewReady, ciReady, reconcile, admit, REQUIRED, scheduledBatch, authorize} = require('../e2e-readiness.cjs');
+const {requirement, reviewReady, ciReady, reconcile, admit, REQUIRED, scheduledBatch, authorize,
+  AUTHORIZATION_JOB, AUTHORIZATION_STEP} = require('../e2e-readiness.cjs');
 
 function fixture() {
   const pr = {number: 12, state: 'open', draft: false, changed_files: 1, labels: [],
@@ -21,7 +22,7 @@ function fake() {
   const github = {rest: {
     pulls: {get: async () => ({data: structuredClone(state.pr)}), list: method('pulls'),
       listFiles: method('files'), listReviews: method('reviews')},
-    repos: {getContent: async () => {
+    repos: {get: async () => ({data: {default_branch: state.defaultBranch || 'main'}}), getContent: async () => {
       if (!state.deployed) throw Object.assign(new Error('Not found'), {status: 404});
       return {data: {type: 'file'}};
     }, listCommitStatusesForRef: method('statuses'), createCommitStatus: async status => {
@@ -41,7 +42,7 @@ function fake() {
   graphql: async () => ({repository: {pullRequest: {reviewDecision: state.decision,
     reviewThreads: {nodes: state.threads, pageInfo: {hasNextPage: false}}}}})};
   const context = {repo: {owner: 'Kong', repo: 'kongctl'}, eventName: 'schedule',
-    payload: {repository: {default_branch: 'main'}, inputs: {pr_number: '12'}}};
+    payload: {inputs: {pr_number: '12'}}};
   const core = {warning(message) { (state.warnings ||= []).push(message); }, info() {},
     setOutput(name, value) { state.outputs[name] = value; }};
   process.env.GITHUB_RUN_ID = '100';
@@ -475,15 +476,23 @@ test('a moved fork head sets superseded outputs and never posts a false failure 
 
 function manualAuthorization(f) {
   const actor = {id: 42, login: 'author', type: 'User'};
-  const run = {id: 300, workflow_id: 7, event: 'workflow_dispatch', head_branch: 'main', head_sha: 'c'.repeat(40),
+  const run = {id: 300, workflow_id: 7, event: 'workflow_dispatch', head_branch: f.state.defaultBranch || 'main', head_sha: 'c'.repeat(40),
     head_repository: {full_name: 'Kong/kongctl'},
     display_title: `authorize-e2e:12/${f.state.pr.head.sha}`, actor, triggering_actor: actor,
     run_attempt: 1, status: 'completed', conclusion: 'success',
     html_url: 'https://github.com/Kong/kongctl/actions/runs/300'};
   f.state.runs.push(run);
   f.state.permission = 'write';
-  f.state.comparison = 'ahead';
-  f.github.rest.repos.compareCommitsWithBasehead = async () => ({data: {status: f.state.comparison}});
+  f.state.comparison = 'BEHIND';
+  const graphql = f.github.graphql;
+  f.github.graphql = async (query, args) => {
+    if (args.head) {
+      assert.equal(args.base, `refs/heads/${f.state.defaultBranch || 'main'}`);
+      assert.equal(args.head, run.head_sha);
+      return {repository: {ref: {compare: {status: f.state.comparison}}}};
+    }
+    return graphql(query, args);
+  };
   const paginate = f.github.paginate;
   f.github.paginate = async (method, args) => {
     if (method.method === 'jobs' && args.run_id === 300) return f.state.authorizationJobs;
@@ -530,7 +539,7 @@ const invalidAuthorizations = {
   'branch code': (f, run) => {run.head_branch = 'untrusted';},
   'fork workflow': (f, run) => {run.head_repository.full_name = 'fork/kongctl';},
   'wrong workflow': (f, run) => {run.workflow_id = 99;},
-  'untrusted tag revision': f => {f.state.comparison = 'diverged';},
+  'untrusted tag revision': f => {f.state.comparison = 'DIVERGED';},
   'skipped authorization job': f => {f.state.authorizationJobs[0].conclusion = 'skipped';},
   'skipped authorization step': f => {f.state.authorizationJobs[0].steps[0].conclusion = 'skipped';},
   'wrong event': (f, run) => {run.event = 'pull_request';},
@@ -639,6 +648,9 @@ test('manual authorization workflow is pinned to trusted code and admission can 
   const workflow = readFileSync(resolve(__dirname, '../../.github/workflows/e2e-authorize.yaml'), 'utf8');
   assert.ok(workflow.includes("github.ref == format('refs/heads/{0}', github.event.repository.default_branch)"));
   assert.ok(workflow.includes('ref: ${{ github.workflow_sha }}'));
+  const lines = workflow.split('\n').map(line => line.trim());
+  assert.ok(lines.includes(`name: ${AUTHORIZATION_JOB}`));
+  assert.ok(lines.includes(`- name: ${AUTHORIZATION_STEP}`));
   assert.ok(workflow.includes('authorize-e2e:${{ inputs.pr_number }}/${{ inputs.head_sha }}'));
   assert.ok(!workflow.includes('secrets.'));
   const scenario = readFileSync(resolve(__dirname, '../../.github/workflows/e2e.yaml'), 'utf8');
@@ -654,26 +666,21 @@ test('make authorize-e2e discovers the current PR and default branch and fails b
   const dir = mkdtempSync(join(tmpdir(), 'kongctl-authorize-'));
   const log = join(dir, 'dispatch.json');
   try {
-    writeFileSync(join(dir, 'git'), `#!/bin/sh
-[ "\${FAIL_BRANCH:-}" != true ] || exit 1
-[ "$1" = symbolic-ref ] || exit 2
-printf '%s\\n' local-pr-branch
-`, {mode: 0o755});
     writeFileSync(join(dir, 'gh'), `#!/usr/bin/env node
 const fs = require('node:fs');
 const args = process.argv.slice(2);
 if (args[0] === 'pr') {
-  if (args[1] !== 'view' || args[2] !== process.env.LOCAL_BRANCH) process.exit(2);
+  if (args[1] !== 'view' || args[2] !== '--json' || args.includes('--repo')) process.exit(2);
   if (process.env.FAIL_LOOKUP === 'true') process.exit(1);
-  process.stdout.write('2792 ${'a'.repeat(40)}');
+  process.stdout.write((process.env.WRONG_REPO === 'true' ? 'https://github.com/other/repo/pull/2792' :
+    'https://github.com/Kong/kongctl/pull/2792') + ' ${'a'.repeat(40)}');
 } else if (args[0] === 'repo') {
   process.stdout.write('default-branch');
 } else if (args[0] === 'workflow') {
   fs.writeFileSync(process.env.DISPATCH_LOG, JSON.stringify(args));
 } else process.exit(2);
 `, {mode: 0o755});
-    const env = {...process.env, PATH: `${dir}:${process.env.PATH}`, DISPATCH_LOG: log,
-      LOCAL_BRANCH: 'local-pr-branch'};
+    const env = {...process.env, PATH: `${dir}:${process.env.PATH}`, DISPATCH_LOG: log};
     const invoke = env => spawnSync('make', ['authorize-e2e'],
       {cwd: resolve(__dirname, '../..'), env, encoding: 'utf8'});
     const result = invoke(env);
@@ -684,9 +691,95 @@ if (args[0] === 'pr') {
     const failed = invoke({...env, FAIL_LOOKUP: 'true'});
     assert.notEqual(failed.status, 0);
     assert.equal(existsSync(log), false);
-    assert.notEqual(invoke({...env, FAIL_BRANCH: 'true'}).status, 0);
+    assert.notEqual(invoke({...env, WRONG_REPO: 'true'}).status, 0);
     assert.equal(existsSync(log), false);
   } finally {
     rmSync(dir, {recursive: true, force: true});
   }
 });
+
+
+test('scheduled reconciliation without repository payload preserves a manually authorized success', async () => {
+  const f = fake();
+  manualAuthorization(f);
+  await reconcile(f);
+  f.state.runs.push(dispatchedRun(f, 'success'));
+  f.state.jobs = [{name: 'Verify scenario results and coverage', conclusion: 'success'}];
+  await reconcile(f);
+  assert.equal(gate(f).state, 'success');
+  f.context.payload = {};
+  f.state.pulls = [{number: 12}];
+  await reconcile(f);
+  assert.equal(f.state.warnings?.length || 0, 0);
+  assert.equal(gate(f).state, 'success');
+});
+
+test('reservation recheck observes revoked authorization statuses', async () => {
+  const f = fake();
+  manualAuthorization(f);
+  const get = f.github.rest.pulls.get;
+  let calls = 0;
+  f.github.rest.pulls.get = async args => {
+    if (++calls === 2) f.state.statuses[0] = {...f.state.statuses[0], state: 'failure'};
+    return get(args);
+  };
+  await reconcile(f);
+  assert.equal(f.state.dispatches.length, 0);
+});
+
+test('fork PRs cannot record misleading manual authorization', async () => {
+  const f = fake();
+  manualAuthorization(f);
+  f.state.pr.head.repo.full_name = 'fork/kongctl';
+  f.context.eventName = 'workflow_dispatch';
+  f.context.payload.inputs = {pr_number: '12', head_sha: f.state.pr.head.sha};
+  Object.assign(process.env, {GITHUB_RUN_ID: '300', GITHUB_REF: 'refs/heads/main'});
+  f.state.statuses = [];
+  await assert.rejects(authorize(f), /fork|same.repository/i);
+  assert.equal(f.state.statuses.length, 0);
+});
+
+for (const blocker of ['approved', 'failed CI', 'unresolved thread', 'fork']) {
+  test(`authorization APIs are unnecessary with ${blocker}`, async () => {
+    const f = fake();
+    manualAuthorization(f);
+    if (blocker === 'approved') {
+      f.state.reviews = [fixture().approval];
+      f.state.decision = 'APPROVED';
+    }
+    if (blocker === 'failed CI') f.state.ci[0].conclusion = 'failure';
+    if (blocker === 'unresolved thread') f.state.threads = [{isResolved: false}];
+    if (blocker === 'fork') f.state.pr.head.repo.full_name = 'fork/kongctl';
+    const get = f.github.rest.actions.getWorkflowRun;
+    f.github.rest.actions.getWorkflowRun = async args => {
+      assert.notEqual(args.run_id, 300, 'unnecessary authorization validation');
+      return get(args);
+    };
+    await reconcile(f);
+  });
+}
+
+
+test('repository metadata overrides stale event metadata and is fetched once across snapshots', async () => {
+  const f = fake();
+  f.state.defaultBranch = 'trunk';
+  manualAuthorization(f);
+  f.context.payload.repository = {default_branch: 'stale'};
+  const get = f.github.rest.repos.get;
+  let calls = 0;
+  f.github.rest.repos.get = async args => {calls++; return get(args);};
+  await reconcile(f);
+  assert.equal(f.state.dispatches.length, 1);
+  assert.equal(f.state.dispatches[0].ref, 'trunk');
+  assert.equal(calls, 1);
+});
+
+for (const status of ['BEHIND', 'IDENTICAL', 'AHEAD', 'DIVERGED', null]) {
+  test(`authorization workflow ancestry comparison ${status} is interpreted against the default branch`, async () => {
+    const f = fake();
+    manualAuthorization(f);
+    f.state.comparison = status;
+    await reconcile(f);
+    assert.equal(f.state.dispatches.length, ['BEHIND', 'IDENTICAL'].includes(status) ? 1 : 0);
+  });
+}

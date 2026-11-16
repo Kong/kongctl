@@ -346,9 +346,12 @@ test-e2e-readiness:
 .PHONY: authorize-e2e
 authorize-e2e:
 	@set -eu; \
-		local_branch=$$(git symbolic-ref --quiet --short HEAD); \
-		pr=$$(gh pr view "$$local_branch" --repo Kong/kongctl \
-			--json number,headRefOid --jq '"\(.number) \(.headRefOid)"'); \
+		pr=$$(gh pr view --json url,headRefOid --jq '"\(.url) \(.headRefOid)"'); \
+		url=$${pr%% *}; \
+		case "$$url" in \
+			https://github.com/Kong/kongctl/pull/*) ;; \
+			*) echo "Current PR must target Kong/kongctl" >&2; exit 1 ;; \
+		esac; \
 		branch=$$(gh repo view Kong/kongctl --json defaultBranchRef --jq .defaultBranchRef.name); \
 		gh workflow run e2e-authorize.yaml --repo Kong/kongctl --ref "$$branch" \
-			-f pr_number="$${pr%% *}" -f head_sha="$${pr#* }"
+			-f pr_number="$${url##*/}" -f head_sha="$${pr#* }"

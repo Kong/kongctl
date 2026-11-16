@@ -6,12 +6,14 @@ const REQUIRED = new RegExp(
 );
 const GATE = 'E2E Required';
 const AUTHORIZATION_WORKFLOW = 'e2e-authorize.yaml';
+const AUTHORIZATION_JOB = 'Authorize exact PR commit for E2E';
+const AUTHORIZATION_STEP = 'Record authorization';
 const authorizationContext = number => `E2E Authorization / ${number}`;
 const authorizationTitle = pr => `authorize-e2e:${pr.number}/${pr.head.sha}`;
 
-async function trustedAuthorizationRun(github, context, pr, run, completed = true) {
+async function trustedAuthorizationRun(github, context, pr, run, defaultBranch, completed = true) {
   const repository = `${context.repo.owner}/${context.repo.repo}`;
-  if (run.event !== 'workflow_dispatch' || run.head_branch !== context.payload.repository.default_branch ||
+  if (run.event !== 'workflow_dispatch' || run.head_branch !== defaultBranch ||
       run.head_repository?.full_name !== repository || run.display_title !== authorizationTitle(pr) ||
       run.run_attempt !== 1 || run.actor?.type !== 'User' ||
       run.triggering_actor?.id !== run.actor.id ||
@@ -21,14 +23,17 @@ async function trustedAuthorizationRun(github, context, pr, run, completed = tru
   if (run.workflow_id !== workflow.id) return false;
   // A tag can have the same short name as the default branch. Require the
   // workflow revision to belong to trusted default-branch history as well.
-  const {data: comparison} = await github.rest.repos.compareCommitsWithBasehead({...context.repo,
-    basehead: `${run.head_sha}...${context.payload.repository.default_branch}`});
-  if (!['ahead', 'identical'].includes(comparison.status)) return false;
+  const comparison = await github.graphql(`query($owner:String!, $repo:String!, $base:String!, $head:String!) {
+    repository(owner:$owner, name:$repo) {
+      ref(qualifiedName:$base) { compare(headRef:$head) { status } }
+    }
+  }`, {...context.repo, base: `refs/heads/${defaultBranch}`, head: run.head_sha});
+  if (!['BEHIND', 'IDENTICAL'].includes(comparison.repository?.ref?.compare?.status)) return false;
   if (completed) {
     const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun,
       {...context.repo, run_id: run.id, per_page: 100});
-    if (!jobs.some(job => job.name === 'Authorize exact PR commit for E2E' && job.conclusion === 'success' &&
-        job.steps?.some(step => step.name === 'Record authorization' && step.conclusion === 'success'))) return false;
+    if (!jobs.some(job => job.name === AUTHORIZATION_JOB && job.conclusion === 'success' &&
+        job.steps?.some(step => step.name === AUTHORIZATION_STEP && step.conclusion === 'success'))) return false;
   }
   const {data: access} = await github.rest.repos.getCollaboratorPermissionLevel({...context.repo,
     username: run.actor.login});
@@ -36,17 +41,21 @@ async function trustedAuthorizationRun(github, context, pr, run, completed = tru
 }
 
 async function authorize({github, context, core}) {
+  const defaultBranch = await api(github, context).defaultBranch();
   const {pr_number: number, head_sha: sha} = context.payload.inputs;
   if (context.eventName !== 'workflow_dispatch' ||
-      process.env.GITHUB_REF !== `refs/heads/${context.payload.repository.default_branch}` || !/^[1-9][0-9]*$/.test(number) ||
+      process.env.GITHUB_REF !== `refs/heads/${defaultBranch}` || !/^[1-9][0-9]*$/.test(number) ||
       !/^[a-f0-9]{40}$/.test(sha)) throw new Error('A PR number and full lowercase head SHA are required.');
   const {data: pr} = await github.rest.pulls.get({...context.repo, pull_number: Number(number)});
   if (pr.head.sha !== sha || pr.state !== 'open' || pr.draft) {
     throw new Error('Authorization requires an open, non-draft PR at the exact supplied head SHA.');
   }
+  if (pr.head.repo.full_name !== pr.base.repo.full_name) {
+    throw new Error('Fork PRs require the separate exact-SHA trusted E2E workflow.');
+  }
   const {data: run} = await github.rest.actions.getWorkflowRun({...context.repo,
     run_id: Number(process.env.GITHUB_RUN_ID)});
-  if (!await trustedAuthorizationRun(github, context, pr, run, false)) {
+  if (!await trustedAuthorizationRun(github, context, pr, run, defaultBranch, false)) {
     throw new Error('Authorization requires a human with write, maintain, or admin access on the default branch; ' +
       'dispatch a new run.');
   }
@@ -98,8 +107,18 @@ function api(github, context) {
   const repo = context.repo;
   const paginate = (method, args) => github.paginate(method, {...repo, per_page: 100, ...args});
   const statusCache = new Map();
-  async function snapshot(number) {
+  let branch;
+  async function defaultBranch() {
+    if (!branch) {
+      const {data: repository} = await github.rest.repos.get(repo);
+      if (!repository.default_branch) throw new Error('Repository default branch is unavailable.');
+      branch = repository.default_branch;
+    }
+    return branch;
+  }
+  async function snapshot(number, {fresh = false} = {}) {
     const {data: pr} = await github.rest.pulls.get({...repo, pull_number: number});
+    if (fresh) statusCache.delete(pr.head.sha);
     const files = await paginate(github.rest.pulls.listFiles, {pull_number: number});
     // The REST file endpoint is capped at 3000. Fail closed on truncated diffs.
     const required = pr.changed_files > files.length || files.some(file =>
@@ -107,7 +126,7 @@ function api(github, context) {
     const config = process.env.KONNECT_ENVIRONMENT || '';
     if (!['', 'com', 'production', 'prod', 'tech'].includes(config)) throw new Error('Invalid Konnect environment');
     const scope = {pr, required, ...requirement(pr, config)};
-    if (pr.state !== 'open' || !required) return {...scope, ready: false};
+    if (pr.state !== 'open' || pr.draft || scope.fork || !required) return {...scope, ready: false};
     let cursor = null;
     const threads = [];
     let decision;
@@ -125,7 +144,11 @@ function api(github, context) {
       cursor = pull.reviewThreads.pageInfo.hasNextPage ? pull.reviewThreads.pageInfo.endCursor : null;
     } while (cursor);
     const reviews = await paginate(github.rest.pulls.listReviews, {pull_number: number});
+    const approved = reviewReady(pr, reviews, decision, threads);
+    if (!approved && !reviewReady(pr, reviews, decision, threads, true)) return {...scope, ready: false};
     const runs = await paginate(github.rest.actions.listWorkflowRunsForRepo, {head_sha: pr.head.sha});
+    if (!ciReady(runs, pr)) return {...scope, ready: false};
+    if (approved) return {...scope, ready: true};
     let authorized = false;
     const evidence = (await statuses(pr.head.sha)).get(authorizationContext(number));
     const prefix = `https://github.com/${repo.owner}/${repo.repo}/actions/runs/`;
@@ -133,12 +156,12 @@ function api(github, context) {
     if (evidence?.state === 'success' && /^[1-9][0-9]*$/.test(runID || '')) {
       try {
         const {data: run} = await github.rest.actions.getWorkflowRun({...repo, run_id: Number(runID)});
-        authorized = await trustedAuthorizationRun(github, context, pr, run);
+        authorized = await trustedAuthorizationRun(github, context, pr, run, await defaultBranch());
       } catch (error) {
         if (![403, 404].includes(error.status)) throw error;
       }
     }
-    return {...scope, ready: reviewReady(pr, reviews, decision, threads, authorized) && ciReady(runs, pr)};
+    return {...scope, ready: authorized};
   }
   async function statuses(sha) {
     if (!statusCache.has(sha)) {
@@ -153,7 +176,7 @@ function api(github, context) {
     await github.rest.repos.createCommitStatus({...repo, sha, context: name, state, description, target_url: url});
     statusCache.get(sha).set(name, {state, description, target_url: url});
   }
-  return {snapshot, statuses, status, paginate};
+  return {snapshot, statuses, status, paginate, defaultBranch};
 }
 
 async function admit({github, context, core}) {
@@ -270,12 +293,13 @@ async function reconcile({github, context, core}) {
       if (!s.fork && s.required && s.ready && !active && state !== 'success' &&
           ((!run && !old) || skipped || retry)) {
         // Re-fetch before reserving. All controller executions share one queue.
-        const current = await client.snapshot(number);
+        const current = await client.snapshot(number, {fresh: true});
         if (current.key !== s.key || !current.ready || !current.required) continue;
+        const defaultBranch = await client.defaultBranch();
         if (deployed === undefined) {
           try {
             await github.rest.repos.getContent({...context.repo, path: 'scripts/e2e-readiness.cjs',
-              ref: context.payload.repository.default_branch});
+              ref: defaultBranch});
             deployed = true;
           } catch (error) {
             if (error.status !== 404) throw error;
@@ -290,7 +314,7 @@ async function reconcile({github, context, core}) {
           await client.status(s.pr.head.sha, s.statusContext, 'pending', `Reserved ${process.env.GITHUB_RUN_ID}`, url);
           const {data: dispatched} = await github.rest.actions.createWorkflowDispatch({...context.repo,
             workflow_id: 'e2e.yaml', headers: {'X-GitHub-Api-Version': '2026-03-10'},
-            ref: context.payload.repository.default_branch,
+            ref: defaultBranch,
             inputs: {dispatch_source: 'readiness', readiness_pr: String(number), readiness_sha: s.pr.head.sha,
               readiness_mode: s.mode, readiness_ticket: process.env.GITHUB_RUN_ID,
               konnect_environment: s.environment}});
@@ -321,7 +345,8 @@ async function reconcile({github, context, core}) {
     }
   }
 }
-module.exports = {PREREQUISITES, REQUIRED, requirement, reviewReady, ciReady, admit, reconcile, scheduledBatch, authorize};
+module.exports = {PREREQUISITES, REQUIRED, requirement, reviewReady, ciReady, admit, reconcile,
+  scheduledBatch, authorize, AUTHORIZATION_JOB, AUTHORIZATION_STEP};
 
 
 if (require.main === module) {
