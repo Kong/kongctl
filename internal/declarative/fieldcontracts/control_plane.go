@@ -63,13 +63,23 @@ var controlPlaneTextFields = [...]controlPlaneTextField{
 		func(p *kkComps.CreateControlPlaneRequest) **kkComps.CreateControlPlaneRequestClusterType {
 			return &p.ClusterType
 		},
-		func(p kkComps.ControlPlane) string { return string(p.Config.ClusterType) },
+		func(p kkComps.ControlPlane) string {
+			if p.Config.ClusterType == nil {
+				return ""
+			}
+			return string(*p.Config.ClusterType)
+		},
 		nil, false, func(value string) bool { return value != "" },
 	),
 	controlPlaneTextFieldFor(
 		FieldAuthType,
 		func(p *kkComps.CreateControlPlaneRequest) **kkComps.AuthType { return &p.AuthType },
-		func(p kkComps.ControlPlane) string { return string(p.Config.AuthType) },
+		func(p kkComps.ControlPlane) string {
+			if p.Config.AuthType == nil {
+				return ""
+			}
+			return string(*p.Config.AuthType)
+		},
 		func(p *kkComps.UpdateControlPlaneRequest, value string) {
 			typed := kkComps.UpdateControlPlaneRequestAuthType(value)
 			p.AuthType = &typed
@@ -164,8 +174,8 @@ func ExportControlPlaneFields(current kkComps.ControlPlane, target *kkComps.Crea
 			field.create(target, value)
 		}
 	}
-	if current.Config.CloudGateway {
-		value := current.Config.CloudGateway
+	if current.Config.CloudGateway != nil && *current.Config.CloudGateway {
+		value := *current.Config.CloudGateway
 		target.CloudGateway = &value
 	}
 	if len(current.Config.ProxyUrls) > 0 {

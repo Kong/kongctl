@@ -210,6 +210,8 @@ ai_gateways:
           - name: remote-tool
         config:
           url: https://mcp.example.com/mcp
+          route:
+            paths: ["/mcp"]
 `
 
 	_, err := New().LoadFromSources(
@@ -246,6 +248,10 @@ ai_gateways:
 func TestLoaderRejectsEmptyConversionMCPServerTools(t *testing.T) {
 	for _, serverType := range []string{"conversion-only", "conversion-listener"} {
 		t.Run(serverType, func(t *testing.T) {
+			route := ""
+			if serverType == "conversion-listener" {
+				route = "\n      route:\n        paths: [\"/tools\"]"
+			}
 			input := fmt.Sprintf(`
 ai_gateway_mcp_servers:
   - ref: tools
@@ -254,9 +260,9 @@ ai_gateway_mcp_servers:
     name: tools
     display_name: Tools
     config:
-      url: https://tools.example.com
+      url: https://tools.example.com%s
     tools: []
-`, serverType)
+`, serverType, route)
 
 			_, err := New().LoadFile(writeLoaderTestFile(t, input))
 			require.ErrorContains(t, err, "tools must contain at least one entry")

@@ -129,7 +129,7 @@ func (a AIGatewayAgentResource) Validate() error {
 	if a.DisplayName == "" {
 		return fmt.Errorf("display_name is required for AI Gateway Agent %s", a.Ref)
 	}
-	if a.Config.URL == "" {
+	if a.Config.URL == nil || *a.Config.URL == "" {
 		return fmt.Errorf("config.url is required for AI Gateway Agent %s", a.Ref)
 	}
 	return nil

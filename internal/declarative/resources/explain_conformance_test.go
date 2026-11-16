@@ -130,7 +130,8 @@ func TestAIGatewayAuthStrategyExplainBranchesTrackSDKRequestShapes(t *testing.T)
 	require.NoError(t, err)
 
 	allowOverlay := func(path, name string) bool {
-		if path == "" && (name == SchemaFieldRef || name == SchemaFieldAIGateway || name == "kongctl" || name == "type") {
+		if path == "" &&
+			(name == SchemaFieldRef || name == SchemaFieldAIGateway || name == "kongctl" || name == "type") {
 			return true
 		}
 		return false
@@ -158,9 +159,11 @@ func TestOIDCHeaderExplainRetainsTypedConfig(t *testing.T) {
 	require.Equal(t, explainKindString, header.Node.Kind)
 	require.True(t, header.Node.Nullable)
 	require.False(t, header.Required)
-	require.IsType(t, &kkComps.AIGWOpenIDConnectGeneratedConfig{}, kkComps.AIGatewayAuthStrategyOpenIDConnect{}.Config)
+	require.IsType(
+		t, &kkComps.AIGatewayAuthStrategyOpenIDConnectConfig{}, kkComps.AIGatewayAuthStrategyOpenIDConnect{}.Config,
+	)
 	response := kkComps.AIGatewayAuthStrategyOpenIDConnectResponse{}
-	require.IsType(t, &kkComps.AIGWOpenIDConnectGeneratedConfigOutput{}, response.Config)
+	require.IsType(t, &kkComps.AIGatewayAuthStrategyOpenIDConnectResponseConfig{}, response.Config)
 }
 
 func TestAIGatewayAgentConfigExplainTracksSDKRequestShape(t *testing.T) {
@@ -192,7 +195,8 @@ func TestAIGatewayModelProviderExplainBranchesTrackSDKRequestShapes(t *testing.T
 	require.NoError(t, err)
 
 	allowOverlay := func(path, name string) bool {
-		if path == "" && (name == SchemaFieldRef || name == SchemaFieldAIGateway || name == "kongctl" || name == "type") {
+		if path == "" &&
+			(name == SchemaFieldRef || name == SchemaFieldAIGateway || name == "kongctl" || name == "type") {
 			return true
 		}
 		return path == "config.auth" && (name == "type" || name == "use_gcp_service_account")

@@ -30,7 +30,8 @@ func (a *AIGatewayAgentAdapter) MapCreateFields(
 	if err := mapAIGatewaySDKRequest("AI Gateway Agent create", fields, create); err != nil {
 		return err
 	}
-	if create.Name == "" || create.DisplayName == "" || create.Type == "" || create.Config.URL == "" {
+	if create.Name == "" || create.DisplayName == "" || create.Type == "" ||
+		create.Config.URL == nil || *create.Config.URL == "" {
 		return fmt.Errorf("name, display_name, type, and config.url are required")
 	}
 	return nil

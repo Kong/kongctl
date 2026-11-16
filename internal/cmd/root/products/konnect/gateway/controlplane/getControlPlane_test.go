@@ -68,7 +68,7 @@ func TestTextDisplayConversion(t *testing.T) {
 				Description: "description-field",
 				Config: kkComps.ControlPlaneConfig{
 					ControlPlaneEndpoint: "config-endpoint-field",
-					ClusterType:          kkComps.ControlPlaneClusterTypeClusterTypeControlPlane,
+					ClusterType:          kkComps.ControlPlaneClusterTypeClusterTypeControlPlane.ToPointer(),
 				},
 				Labels: map[string]string{
 					"label-1-key": "label-1-value",
