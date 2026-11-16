@@ -128,7 +128,7 @@ jobs:
       trusted_pr_number: ${{ steps.detect.outputs.trusted_pr_number }}
       readiness_mode: ${{ steps.admission.outputs.mode }}
       admission_reason: ${{ steps.admission.outputs.reason }}
-      # A failed-jobs-only rerun must not reuse an earlier admission decision.
+      # Readiness jobs must not reuse an earlier admission decision.
       admission_attempt: ${{ steps.admission.outputs.attempt || steps.actor-gate.outputs.attempt }}
     steps:
       - name: Harden Runner
@@ -458,23 +458,6 @@ jobs:
 
           emit_outputs false false false
           echo "E2E not required for this change set."
-
-  e2e-readiness-rerun:
-    name: Check readiness rerun admission
-    needs: [e2e-needed]
-    if: always() && github.event_name == 'workflow_dispatch' && inputs.dispatch_source == 'readiness'
-    runs-on: ubuntu-latest
-    permissions: {}
-    steps:
-      - name: Require a fresh readiness decision
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        env:
-          ADMISSION_ATTEMPT: ${{ needs.e2e-needed.outputs.admission_attempt }}
-        with:
-          script: |
-            if (process.env.ADMISSION_ATTEMPT !== process.env.GITHUB_RUN_ATTEMPT) {
-              core.setFailed('This retry reused an earlier PR admission. Submit a new /e2e Comment review or choose Re-run all jobs.');
-            }
 
   e2e-harness:
     name: Test scenario harness
@@ -1317,9 +1300,7 @@ jobs:
       - e2e-replay
       - e2e-replay-verify
     if: >-
-      always() && !cancelled() && needs.e2e-needed.outputs.run_shards == 'true' &&
-      (inputs.dispatch_source != 'readiness' ||
-       needs.e2e-needed.outputs.admission_attempt == github.run_attempt)
+      always() && !cancelled() && needs.e2e-needed.outputs.run_shards == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -1331,6 +1312,18 @@ jobs:
         uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
         with:
           egress-policy: audit
+      # This must live in verification: failed-job retries rerun dependents,
+      # but would reuse a separate successful admission-check job.
+      - name: Require a fresh readiness decision
+        if: inputs.dispatch_source == 'readiness'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          ADMISSION_ATTEMPT: ${{ needs.e2e-needed.outputs.admission_attempt }}
+        with:
+          script: |
+            if (process.env.ADMISSION_ATTEMPT !== process.env.GITHUB_RUN_ATTEMPT) {
+              core.setFailed('This retry reused an earlier PR admission. Submit a new /e2e Comment review or choose Re-run all jobs.');
+            }
       - name: Checkout rerun authorization code
         if: github.event_name == 'workflow_dispatch' && github.run_attempt > 1 && inputs.dispatch_source != 'readiness'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

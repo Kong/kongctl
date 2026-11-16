@@ -607,17 +607,28 @@ For same-repository PRs, authorize directly in GitHub:
 
 1. Open **Files changed → Review changes** on the PR.
 2. Enter only `/e2e`, select **Comment**, and submit the review.
-3. Open **Checks → E2E / PR #<number> / <environment> / <mode>** to see
+3. Open **Checks → E2E / PR #<number>** to see
    readiness blockers, the authorizing review, and the linked scenario run.
 
 Use a submitted Comment review, rather than a conversation comment or inline
 code comment. GitHub binds the review to an exact commit, so no PR number,
 branch, or SHA needs to be copied. Maintainers can submit Comment reviews on
 their own PRs. Submit a new `/e2e` review to retry a failed run or request
-another validation after success. Repeating it during active validation does
-not queue duplicate work. After a push, submit a new review on the new head;
+another validation after success. A new command during active validation
+requests one follow-up after that run finishes. Multiple commands before the
+follow-up starts coalesce into the latest request; they never run concurrently
+for the same requirement. After a push, submit a new review on the new head;
 older commands never authorize new commits. Editing an existing review does
 not create a new retry request.
+
+If dispatch was interrupted or its run disappeared, submit a new `/e2e` review.
+The controller waits ten minutes from the reservation or last running status
+before recovery to allow for GitHub API visibility delays. It searches for the
+reserved run before starting replacement work. A discovered active run must
+finish first; API errors or truncated recovery history fail closed. The new
+request stays pending until recovery is possible. For immediate recovery, use
+the allowlisted controller retry command below; it also searches for the
+original dispatch before starting replacement work.
 
 Normal same-repository `.com` PRs retain the configured live/replay split,
 including recorded proxy scenarios. The command does not force full-live
@@ -645,9 +656,13 @@ retain their trusted default-branch bot path. Membership in the Kong
 organization or repository write access alone is insufficient. All active
 changes requests still block readiness, regardless of their author.
 
-This guards trusted workflow entry points. Restricting repository writers from
-executing modified workflow revisions with secrets requires GitHub Environment
-protection or equivalent repository/organization policy.
+This guards trusted workflow entry points. It does not prevent a repository
+writer from dispatching a modified branch workflow that removes the checks.
+Enforce that stronger boundary with GitHub Environment protection or equivalent
+repository/organization policy. Environment branch restrictions only protect
+secrets stored in that environment; repository/organization secrets accessible
+to other workflow jobs need their own access controls. These changes do not
+configure repository settings or move secrets.
 
 Alternatively, with `gh` authenticated as an allowlisted human, run this from a
 checked-out PR branch:
@@ -716,6 +731,10 @@ The native `E2E / PR #...` check exposes execution status and links directly to
 the actual scenario run, including failures. `E2E Required` remains the
 protected merge gate; no branch-protection settings change. A failed execution
 stays visible even when another readiness blocker makes the merge gate pending.
+Changing the target environment or live/replay mode completes obsolete pending
+checks as superseded. This does not cancel an active scenario run. A Checks API
+failure produces a warning without preventing the merge-gate update. Docs-only
+PRs that do not require E2E do not create execution checks.
 You can follow the run link and choose **Re-run all jobs** to repeat admission.
 Readiness runs reject **Re-run failed jobs** with an explicit error because it
 would reuse admission from a prior attempt. Direct manual and trusted-fork
