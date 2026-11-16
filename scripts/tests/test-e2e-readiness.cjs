@@ -672,7 +672,7 @@ test('manual authorization workflow is pinned to trusted code and admission can 
   assert.ok(lines.includes(`name: ${AUTHORIZATION_JOB}`));
   assert.ok(lines.includes(`- name: ${AUTHORIZATION_STEP}`));
   assert.ok(workflow.includes('github.event.pull_request.head.sha'));
-  assert.ok(workflow.includes('github.event.label.name == \'e2e:authorize\''));
+  assert.ok(workflow.includes(`github.event.label.name == '${AUTHORIZATION_LABEL}'`));
   assert.ok(!workflow.includes('secrets.'));
   const scenario = readFileSync(resolve(__dirname, '../../.github/workflows/e2e.yaml'), 'utf8');
   assert.ok(scenario.split('  e2e-needed:')[1].split('    outputs:')[0].includes('statuses: read'));
