@@ -279,6 +279,11 @@ func fetchAuthStrategies(strategyType string, kkClient helpers.AppAuthStrategies
 		pageNumber++
 	}
 
+	if match != nil {
+		// No strategy satisfied match across all pages.
+		return nil, nil
+	}
+
 	return allData, nil
 }
 
