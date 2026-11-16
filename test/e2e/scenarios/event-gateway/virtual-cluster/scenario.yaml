@@ -602,3 +602,143 @@ steps:
             expect:
               fields:
                 "@": 0
+  - name: 006-backend-cluster-filter
+    inputOverlayDirs:
+      - overlays/006-backend-cluster-filter
+    commands:
+      - name: 001-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-backend-cluster-filter.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: >-
+              changes[?resource_type=='event_gateway_backend_cluster' && resource_ref=='filter-backend-cluster'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: filter-backend-cluster
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster' && resource_ref=='{{ .vars.vcRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.vcRef }}"
+      - name: 002-apply-create
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-backend-cluster-filter.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+      - name: 003-capture-backend-cluster-ids
+        run:
+          - get
+          - event-gateway
+          - backend-clusters
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        recordVars:
+          - name: defaultBcID
+            responsePath: "[?name=='{{ .vars.bcRef }}'] | [0].id"
+          - name: filterBcID
+            responsePath: "[?name=='filter-backend-cluster'] | [0].id"
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 2
+      - name: 004-filter-by-backend-cluster-id
+        run:
+          - get
+          - event-gateway
+          - virtual-clusters
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --backend-cluster-id
+          - "{{ .vars.defaultBcID }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.vcRef }}"
+      - name: 005-filter-by-backend-cluster-name
+        run:
+          - get
+          - event-gateway
+          - virtual-clusters
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --backend-cluster-name
+          - "{{ .vars.bcRef }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.vcRef }}"
+      - name: 006-filter-by-unmatched-backend-cluster-id
+        run:
+          - get
+          - event-gateway
+          - virtual-clusters
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --backend-cluster-id
+          - "{{ .vars.filterBcID }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
+      - name: 007-filter-by-unmatched-backend-cluster-name
+        run:
+          - get
+          - event-gateway
+          - virtual-clusters
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --backend-cluster-name
+          - filter-backend-cluster
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0

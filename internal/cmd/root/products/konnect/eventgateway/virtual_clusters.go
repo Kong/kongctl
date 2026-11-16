@@ -243,8 +243,41 @@ func (h virtualClustersHandler) run(args []string) error {
 	}
 
 	// Check if filtering by backend cluster
-	backendClusterID, _ := getBackendClusterIdentifiers(cfg)
-	if backendClusterID != "" {
+	backendClusterID, backendClusterName := getBackendClusterIdentifiers(cfg)
+	if backendClusterID != "" && backendClusterName != "" {
+		return &cmd.ConfigurationError{
+			Err: fmt.Errorf(
+				"only one of --%s or --%s can be provided",
+				backendClusterIDFlagName,
+				backendClusterNameFlagName,
+			),
+		}
+	}
+
+	if backendClusterID != "" || backendClusterName != "" {
+		if backendClusterID == "" {
+			backendClusterAPI := sdk.GetEventGatewayBackendClusterAPI()
+			if backendClusterAPI == nil {
+				return &cmd.ExecutionError{
+					Msg: "Backend clusters client is not available",
+					Err: fmt.Errorf("backend clusters client not configured"),
+				}
+			}
+
+			backendClusters, err := fetchBackendClusters(helper, backendClusterAPI, gatewayID, cfg)
+			if err != nil {
+				return err
+			}
+
+			match := findClusterByName(backendClusters, backendClusterName)
+			if match == nil {
+				return &cmd.ConfigurationError{
+					Err: fmt.Errorf("backend cluster %q not found", backendClusterName),
+				}
+			}
+			backendClusterID = match.ID
+		}
+
 		return h.listClustersByBackendCluster(helper, clusterAPI, gatewayID, backendClusterID, outType, printer, cfg)
 	}
 
