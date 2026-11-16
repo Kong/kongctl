@@ -11,20 +11,16 @@ const GATE = 'E2E Required';
 const AUTHORIZATION_WORKFLOW = 'e2e-authorize.yaml';
 const AUTHORIZATION_JOB = 'Authorize exact PR commit for E2E';
 const AUTHORIZATION_STEP = 'Record authorization';
-const AUTHORIZATION_POLICY = 'scripts/e2e-authorizers.json';
 const RESERVATION_GRACE_MS = 10 * 60 * 1000;
 const authorizationContext = number => `E2E Authorization / ${number}`;
 const authorizationTitle = pr => `authorize-e2e:${pr.number}/${pr.head.sha}`;
 
-function isMaintainer(user, maintainers) {
-  return user?.type === 'User' && maintainers.has(user.login?.toLowerCase());
-}
-
-async function maintainerAccess(github, context, user, maintainers) {
-  if (!isMaintainer(user, maintainers)) return false;
+async function maintainerAccess(github, context, user) {
+  if (user?.type !== 'User' || !user.login) return false;
   const {data: access} = await github.rest.repos.getCollaboratorPermissionLevel({...context.repo,
     username: user.login});
-  return ['write', 'maintain', 'admin'].includes(access.permission);
+  // The legacy permission field maps Maintain to Write. Use the actual role.
+  return ['maintain', 'admin'].includes(access.role_name);
 }
 
 async function trustedRevision(github, context, defaultBranch, revision) {
@@ -37,10 +33,10 @@ async function trustedRevision(github, context, defaultBranch, revision) {
   return ['BEHIND', 'IDENTICAL'].includes(comparison.repository?.ref?.compare?.status);
 }
 
-async function trustedAuthorizationRun(github, context, pr, run, defaultBranch, maintainers, completed = true) {
+async function trustedAuthorizationRun(github, context, pr, run, defaultBranch, completed = true) {
   const repository = `${context.repo.owner}/${context.repo.repo}`;
   if (run.head_repository?.full_name !== repository || run.display_title !== authorizationTitle(pr) ||
-      run.run_attempt !== 1 || !isMaintainer(run.actor, maintainers) ||
+      run.run_attempt !== 1 || run.actor?.type !== 'User' ||
       run.triggering_actor?.id !== run.actor.id ||
       (completed && (run.status !== 'completed' || run.conclusion !== 'success'))) return false;
   if (run.event !== 'workflow_dispatch' || run.head_branch !== defaultBranch) return false;
@@ -54,7 +50,7 @@ async function trustedAuthorizationRun(github, context, pr, run, defaultBranch, 
     if (!jobs.some(job => job.name === AUTHORIZATION_JOB && job.conclusion === 'success' &&
         job.steps?.some(step => step.name === AUTHORIZATION_STEP && step.conclusion === 'success'))) return false;
   }
-  return maintainerAccess(github, context, run.actor, maintainers);
+  return maintainerAccess(github, context, run.actor);
 }
 
 async function scenarioDispatch({github, context, core}) {
@@ -63,11 +59,10 @@ async function scenarioDispatch({github, context, core}) {
     run_id: Number(process.env.GITHUB_RUN_ID)});
   const client = api(github, context);
   const defaultBranch = await client.defaultBranch();
-  const maintainers = await client.authorizers();
   const actors = new Map([run.actor, run.triggering_actor].map(actor =>
     [JSON.stringify([actor?.id, actor?.login, actor?.type]), actor]));
   for (const actor of actors.values()) {
-    if (await maintainerAccess(github, context, actor, maintainers)) continue;
+    if (await maintainerAccess(github, context, actor)) continue;
     const inputs = context.payload.inputs || {};
     const internal = actor?.type === 'Bot' && actor.login === 'github-actions[bot]' &&
       ['readiness', 'main-debounce'].includes(inputs.dispatch_source) && !inputs.trusted_pr_number && !inputs.trusted_head_sha &&
@@ -75,7 +70,7 @@ async function scenarioDispatch({github, context, core}) {
       run.head_repository?.full_name === `${context.repo.owner}/${context.repo.repo}` &&
       process.env.GITHUB_REF === `refs/heads/${defaultBranch}` &&
       await trustedRevision(github, context, defaultBranch, run.head_sha);
-    if (!internal) throw new Error('E2E dispatch requires an allowlisted maintainer with repository write access.');
+    if (!internal) throw new Error('E2E dispatch requires a human with repository Maintain or Admin access.');
   }
   const inputs = context.payload.inputs || {};
   if (inputs.trusted_pr_number || inputs.trusted_head_sha) {
@@ -91,7 +86,6 @@ async function scenarioDispatch({github, context, core}) {
 async function authorize({github, context, core}) {
   const client = api(github, context);
   const defaultBranch = await client.defaultBranch();
-  const maintainers = await client.authorizers();
   if (context.eventName !== 'workflow_dispatch') throw new Error('Unsupported E2E authorization request.');
   const {pr_number: number, head_sha: sha} = context.payload.inputs;
   if (process.env.GITHUB_REF !== `refs/heads/${defaultBranch}` || !/^[1-9][0-9]*$/.test(number) ||
@@ -105,8 +99,8 @@ async function authorize({github, context, core}) {
   }
   const {data: run} = await github.rest.actions.getWorkflowRun({...context.repo,
     run_id: Number(process.env.GITHUB_RUN_ID)});
-  if (!await trustedAuthorizationRun(github, context, pr, run, defaultBranch, maintainers, false)) {
-    throw new Error('Authorization requires an allowlisted human maintainer with write access on the default branch; ' +
+  if (!await trustedAuthorizationRun(github, context, pr, run, defaultBranch, false)) {
+    throw new Error('Authorization requires a human with repository Maintain or Admin access on the default branch; ' +
       'dispatch a new run.');
   }
   // The status is only a pointer. Readers must validate the successful trusted
@@ -137,9 +131,9 @@ function latestReviews(reviews) {
   return [...latest.values()];
 }
 
-function currentApproval(pr, review, maintainers) {
+function currentApproval(pr, review) {
   return review.state === 'APPROVED' && review.commit_id === pr.head.sha &&
-    isMaintainer(review.user, maintainers) && review.user.login !== pr.user.login &&
+    review.user?.type === 'User' && review.user.login !== pr.user.login &&
     ['OWNER', 'MEMBER', 'COLLABORATOR'].includes(review.author_association);
 }
 
@@ -186,7 +180,6 @@ function api(github, context) {
   const paginate = (method, args) => github.paginate(method, {...repo, per_page: 100, ...args});
   const statusCache = new Map();
   let branch;
-  let policy;
   async function defaultBranch() {
     if (!branch) {
       const {data: repository} = await github.rest.repos.get(repo);
@@ -195,25 +188,10 @@ function api(github, context) {
     }
     return branch;
   }
-  async function authorizers() {
-    if (!policy) {
-      const {data: file} = await github.rest.repos.getContent({...repo, path: AUTHORIZATION_POLICY,
-        ref: `refs/heads/${await defaultBranch()}`});
-      if (file.type !== 'file' || file.encoding !== 'base64') throw new Error('Invalid E2E authorizer policy file.');
-      const logins = JSON.parse(Buffer.from(file.content, 'base64').toString('utf8'))?.maintainers;
-      if (!Array.isArray(logins) || logins.some(login => typeof login !== 'string' ||
-          !/^[a-z0-9](?:[a-z0-9-]{0,37}[a-z0-9])?$/i.test(login))) {
-        throw new Error('E2E authorizer policy must contain an array of GitHub maintainer logins.');
-      }
-      policy = new Set(logins.map(login => login.toLowerCase()));
-    }
-    return policy;
-  }
   async function snapshot(number, {fresh = false} = {}) {
     const {data: pr} = await github.rest.pulls.get({...repo, pull_number: number});
     if (fresh) {
       statusCache.delete(pr.head.sha);
-      policy = undefined;
     }
     const files = await paginate(github.rest.pulls.listFiles, {pull_number: number});
     // The REST file endpoint is capped at 3000. Fail closed on truncated diffs.
@@ -248,23 +226,22 @@ function api(github, context) {
     const runs = await paginate(github.rest.actions.listWorkflowRunsForRepo, {head_sha: pr.head.sha});
     const waiting = ciBlockers(runs, pr);
     if (waiting.length) return {...scope, ready: false, reason: `Awaiting prerequisite CI: ${waiting.join(', ')}.`};
-    const maintainers = await authorizers();
     const permission = new Map();
     const allowed = async user => {
-      if (!permission.has(user.login)) permission.set(user.login, await maintainerAccess(github, context, user, maintainers));
+      if (!permission.has(user.login)) permission.set(user.login, await maintainerAccess(github, context, user));
       return permission.get(user.login);
     };
     const requests = reviews.filter(review => ['COMMENTED', 'APPROVED'].includes(review.state) &&
       review.body?.trim() === '/e2e' && review.commit_id === pr.head.sha &&
-      Number.isSafeInteger(review.id) && isMaintainer(review.user, maintainers)).sort((a, b) => b.id - a.id);
+      Number.isSafeInteger(review.id) && review.user?.type === 'User').sort((a, b) => b.id - a.id);
     for (const review of requests) {
-      if (await trustedReviewRequest(github, context, pr, review) && await allowed(review.user)) {
+      if (await allowed(review.user) && await trustedReviewRequest(github, context, pr, review)) {
         return {...scope, ready: true, request: `review-${review.id}`,
           authorizer: review.user.login, authorizationURL: review.html_url};
       }
     }
     if (decision !== 'REVIEW_REQUIRED') {
-      for (const review of latestReviews(reviews).filter(review => currentApproval(pr, review, maintainers))) {
+      for (const review of latestReviews(reviews).filter(review => currentApproval(pr, review))) {
         if (await allowed(review.user)) return {...scope, ready: true, authorizer: review.user.login,
           authorizationURL: review.html_url};
       }
@@ -276,7 +253,7 @@ function api(github, context) {
     if (evidence?.state === 'success' && /^[1-9][0-9]*$/.test(runID || '')) {
       try {
         const {data: run} = await github.rest.actions.getWorkflowRun({...repo, run_id: Number(runID)});
-        authorized = await trustedAuthorizationRun(github, context, pr, run, await defaultBranch(), maintainers);
+        authorized = await trustedAuthorizationRun(github, context, pr, run, await defaultBranch());
       } catch (error) {
         if (error.status !== 404) throw error;
       }
@@ -308,12 +285,12 @@ function api(github, context) {
       s.authorizationURL ? `Authorization: [view evidence](${s.authorizationURL}).` : 'No accepted authorization yet.',
       runURL ? `Latest E2E execution: [open run](${runURL}) — **${executionState}**.` : 'No E2E execution for this commit yet.',
       `**Start or retry:** [Files changed → Review changes → Comment](${base}/pull/${s.pr.number}/files), ` +
-        'submit a new review containing only \`/e2e\`. Only allowlisted maintainers with write access may do this.',
+        'submit a new review containing only \`/e2e\`. Only humans with repository Maintain or Admin access may do this.',
       'Each submitted review is bound by GitHub to its commit. Repeat after a push; older commands do not authorize new commits.',
       runURL ? 'You can also open the run and choose **Re-run all jobs**. Do not use failed-jobs-only for readiness runs.' : '',
       'A new command during active validation requests one follow-up run after it finishes.',
       'If dispatch was interrupted or its run disappeared, a new command recovers after a ten-minute visibility grace period.',
-      `For immediate recovery, an allowlisted maintainer can run: \`gh workflow run e2e-required-status.yaml ` +
+      `For immediate recovery, a human with repository Maintain or Admin access can run: \`gh workflow run e2e-required-status.yaml ` +
         `--repo ${repo.owner}/${repo.repo} --ref ${await defaultBranch()} -f pr_number=${s.pr.number} -f retry=true\`.`,
       'This check links execution to the PR; **E2E Required** remains the protected merge gate.',
     ].filter(Boolean).join('\n\n');
@@ -340,7 +317,7 @@ function api(github, context) {
       await github.rest.checks.update({...repo, check_run_id: old.id, ...update});
     }
   }
-  return {snapshot, statuses, status, paginate, defaultBranch, authorizers, executionCheck};
+  return {snapshot, statuses, status, paginate, defaultBranch, executionCheck};
 }
 
 async function admit({github, context, core}) {

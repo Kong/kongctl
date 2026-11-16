@@ -17,22 +17,15 @@ function fixture() {
 
 function fake() {
   const {pr, approval, ci} = fixture();
-  const state = {deployed: true, maintainers: ['author', 'human'], pr, reviews: [approval], ci, runs: [], statuses: [], checks: [], dispatches: [],
+  const state = {deployed: true, pr, reviews: [approval], ci, runs: [], statuses: [], checks: [], dispatches: [],
     threads: [], decision: 'APPROVED', files: [{filename: 'main.go'}], jobs: [], outputs: {}};
   const method = name => Object.assign(() => {}, {method: name});
   const github = {rest: {
     pulls: {get: async () => ({data: structuredClone(state.pr)}), list: method('pulls'),
       listFiles: method('files'), listReviews: method('reviews')},
     repos: {getCollaboratorPermissionLevel: async args => {
-      assert.equal(args.username, 'human');
-      return {data: {permission: state.reviewPermission || 'write'}};
+      return {data: {permission: 'write', role_name: args.username === 'human' ? (state.reviewRole ?? 'maintain') : 'write'}};
     }, get: async () => ({data: {default_branch: state.defaultBranch || 'main'}}), getContent: async args => {
-      if (args.path === 'scripts/e2e-authorizers.json') {
-        assert.equal(args.ref, `refs/heads/${state.defaultBranch || 'main'}`);
-        if (state.policyMissing) throw Object.assign(new Error('Policy not found'), {status: 404});
-        return {data: {type: 'file', encoding: 'base64', content:
-          Buffer.from(state.policyContent ?? JSON.stringify({maintainers: state.maintainers})).toString('base64')}};
-      }
       if (!state.deployed) throw Object.assign(new Error('Not found'), {status: 404});
       return {data: {type: 'file'}};
     }, listCommitStatusesForRef: method('statuses'), createCommitStatus: async status => {
@@ -501,7 +494,7 @@ function manualAuthorization(f) {
     html_url: 'https://github.com/Kong/kongctl/actions/runs/300'};
   f.state.runs.push(run);
   f.state.controllerActor = run.actor;
-  f.state.permission = 'write';
+  f.state.role = 'maintain';
   f.state.comparison = 'BEHIND';
   const graphql = f.github.graphql;
   f.github.graphql = async (query, args) => {
@@ -524,8 +517,7 @@ function manualAuthorization(f) {
     return {data: {id: 7}};
   };
   f.github.rest.repos.getCollaboratorPermissionLevel = async args => {
-    assert.equal(args.username, f.state.permissionSubject || run.actor.login);
-    return {data: {permission: f.state.permission}};
+    return {data: {permission: 'write', role_name: args.username === (f.state.permissionSubject || run.actor.login) ? f.state.role : 'write'}};
   };
   f.state.reviews = [];
   f.state.decision = 'REVIEW_REQUIRED';
@@ -534,11 +526,11 @@ function manualAuthorization(f) {
   return run;
 }
 
-for (const permission of ['write', 'maintain', 'admin']) {
+for (const permission of ['maintain', 'admin']) {
   test(`a ${permission} human can authorize their own PR; reconciliation, queue admission and retry agree`, async () => {
     const f = fake();
     manualAuthorization(f);
-    f.state.permission = permission;
+    f.state.role = permission;
     await reconcile(f);
     assert.equal(f.state.dispatches.length, 1);
     Object.assign(process.env, {READINESS_PR: '12', READINESS_SHA: f.state.pr.head.sha,
@@ -555,9 +547,12 @@ for (const permission of ['write', 'maintain', 'admin']) {
 }
 
 const invalidAuthorizations = {
-  read: (f) => {f.state.permission = 'read';},
-  triage: (f) => {f.state.permission = 'triage';},
-  none: (f) => {f.state.permission = 'none';},
+  write: (f) => {f.state.role = 'write';},
+  'missing role': (f) => {f.state.role = undefined;},
+  'custom role': (f) => {f.state.role = 'custom-maintainer';},
+  read: (f) => {f.state.role = 'read';},
+  triage: (f) => {f.state.role = 'triage';},
+  none: (f) => {f.state.role = 'none';},
   bot: (f, run) => {run.actor.type = 'Bot';},
   'different PR': (f, run) => {run.display_title = run.display_title.replace(':12/', ':13/');},
   'stale SHA': (f, run) => {run.display_title = `authorize-e2e:12/${'b'.repeat(40)}`;},
@@ -841,7 +836,6 @@ test('authorization permission lookup checks the authorizing human rather than t
   const f = fake();
   const run = manualAuthorization(f);
   run.actor.login = 'gatekeeper';
-  f.state.maintainers = ['gatekeeper'];
   assert.notEqual(run.actor.login, f.state.pr.user.login);
   await reconcile(f);
   assert.equal(f.state.dispatches.length, 1);
@@ -874,40 +868,56 @@ function reviewRequest(f, id = 700) {
     return graphql(query, args);
   };
   f.github.rest.repos.getCollaboratorPermissionLevel = async args => {
-    assert.equal(args.username, 'author');
-    return {data: {permission: f.state.requestPermission || 'write'}};
+    return {data: {permission: 'write', role_name: args.username === 'author' ? (f.state.requestRole ?? 'maintain') : 'write'}};
   };
 }
 
-test('ordinary approval is restricted to allowlisted maintainers with current write access', async () => {
-  for (const policy of ['not listed', 'no write', 'case insensitive']) {
+for (const role of ['maintain', 'admin', 'write', 'triage', 'read', 'custom-maintainer', undefined]) {
+  test(`/e2e admission uses the current built-in role ${role}`, async () => {
     const f = fake();
-    f.state.maintainers = policy === 'case insensitive' ? ['HUMAN'] : ['author'];
-    if (policy === 'no write') {
-      f.state.maintainers = ['human'];
-      f.state.reviewPermission = 'read';
-    }
+    reviewRequest(f);
+    f.github.rest.repos.getCollaboratorPermissionLevel = async () => ({data: {permission: 'admin', role_name: role}});
+    const allowed = ['maintain', 'admin'].includes(role);
     await reconcile(f);
-    assert.equal(f.state.dispatches.length, policy === 'case insensitive' ? 1 : 0);
-  }
-});
+    assert.equal(f.state.dispatches.length, allowed ? 1 : 0);
+    Object.assign(process.env, {READINESS_PR: '12', READINESS_SHA: f.state.pr.head.sha,
+      READINESS_ENV: 'com', READINESS_MODE: 'pr'});
+    await admit(f);
+    assert.equal(f.state.outputs.accepted, String(allowed));
+    if (allowed) {
+      f.github.rest.repos.getCollaboratorPermissionLevel = async () => ({data: {permission: 'write', role_name: 'write'}});
+      await admit(f);
+      assert.equal(f.state.outputs.accepted, 'false', 'demotion revokes queued authorization');
+    }
+  });
+}
+
+for (const role of ['maintain', 'admin', 'write', 'read', 'triage', 'none', undefined]) {
+  test(`ordinary approval uses the built-in repository role ${role}`, async () => {
+    const f = fake();
+    f.state.reviewRole = role;
+    f.github.rest.repos.getCollaboratorPermissionLevel = async () => ({data: {permission: 'write', role_name: role}});
+    await reconcile(f);
+    assert.equal(f.state.dispatches.length, ['maintain', 'admin'].includes(role) ? 1 : 0);
+  });
+}
 
 for (const source of ['', 'readiness', 'main-debounce']) {
-  test(`human scenario dispatch ${source || 'manual'} requires the allowlist, including fork execution`, async () => {
-    for (const listed of [true, false]) {
+  for (const role of ['maintain', 'admin', 'write']) {
+    test(`human scenario dispatch ${source || 'manual'} checks repository role ${role}, including forks`, async () => {
       const f = fake();
       manualAuthorization(f);
+      f.state.role = role;
       f.context.eventName = 'workflow_dispatch';
       f.context.payload.inputs = {dispatch_source: source, trusted_pr_number: '12', trusted_head_sha: f.state.pr.head.sha};
       f.state.pr.head.repo.full_name = 'outside/kongctl';
       Object.assign(process.env, {GITHUB_RUN_ID: '300', GITHUB_RUN_ATTEMPT: '2'});
-      f.state.maintainers = listed ? ['author'] : ['human'];
-      if (listed) {
+      if (['maintain', 'admin'].includes(role)) {
         await scenarioDispatch(f);
         assert.equal(f.state.outputs.attempt, '2');
-      } else await assert.rejects(scenarioDispatch(f), /allowlisted/);
-    }
-  });
+      } else await assert.rejects(scenarioDispatch(f), /Maintain or Admin/);
+    });
+  }
 }
 
 for (const [name, mutate] of Object.entries({
@@ -951,7 +961,7 @@ for (const [name, mutate] of Object.entries({
     Object.assign(process.env, {GITHUB_RUN_ID: '300', GITHUB_REF: 'refs/heads/main', GITHUB_RUN_ATTEMPT: '1'});
     mutate(f, run);
     if (name.startsWith('trusted ')) await scenarioDispatch(f);
-    else await assert.rejects(scenarioDispatch(f), /allowlisted/);
+    else await assert.rejects(scenarioDispatch(f), /Maintain or Admin/);
   });
 }
 
@@ -961,7 +971,7 @@ test('a non-maintainer cannot rerun a maintainer scenario dispatch', async () =>
   run.triggering_actor = {type: 'User', login: 'outside'};
   f.context.eventName = 'workflow_dispatch';
   Object.assign(process.env, {GITHUB_RUN_ID: '300'});
-  await assert.rejects(scenarioDispatch(f), /allowlisted/);
+  await assert.rejects(scenarioDispatch(f), /Maintain or Admin/);
 });
 
 for (const actor of [{id: 77, login: 'outside', type: 'User'},
@@ -974,7 +984,7 @@ for (const actor of [{id: 77, login: 'outside', type: 'User'},
       f.context.eventName = 'workflow_dispatch';
       f.context.payload.inputs.retry = 'true';
       f.state[role] = actor;
-      await assert.rejects(reconcile(f), /allowlisted/);
+      await assert.rejects(reconcile(f), /Maintain or Admin/);
       assert.equal(f.state.dispatches.length, 1);
     });
   }
@@ -1022,47 +1032,18 @@ test('failed-jobs-only readiness retries fail explicitly instead of silently ski
   }
 });
 
-test('PR policy edits and Actions variables cannot add an authorizer to the trusted roster', async () => {
-  const f = fake();
-  manualRequest(f);
-  f.state.statuses = [];
-  f.state.maintainers = ['human'];
-  f.context.payload.inputs.maintainers = ['author'];
-  const old = process.env.KONGCTL_E2E_AUTHORIZERS;
-  process.env.KONGCTL_E2E_AUTHORIZERS = 'author';
-  try {
-    await assert.rejects(authorize(f), /allowlisted/);
-    assert.equal(f.state.statuses.length, 0);
-  } finally {
-    if (old === undefined) delete process.env.KONGCTL_E2E_AUTHORIZERS;
-    else process.env.KONGCTL_E2E_AUTHORIZERS = old;
-  }
-});
-
-test('reservation recheck reloads a revoked default-branch maintainer policy', async () => {
+test('reservation recheck observes a revoked repository role', async () => {
   const f = fake();
   manualRequest(f);
   const get = f.github.rest.pulls.get;
   let calls = 0;
   f.github.rest.pulls.get = async args => {
-    if (++calls === 2) f.state.maintainers = ['human'];
+    if (++calls === 2) f.state.role = 'write';
     return get(args);
   };
   await reconcile(f);
   assert.equal(f.state.dispatches.length, 0);
 });
-
-for (const policy of ['{}', 'null', '{"maintainers":null}', '{"maintainers":[42]}',
-  '{"maintainers":["*"]}', 'not JSON', '{"maintainers":[]}']) {
-  test(`maintainer policy ${policy} never authorizes execution`, async () => {
-    const f = fake();
-    manualRequest(f);
-    f.state.statuses = [];
-    f.state.policyContent = policy;
-    await assert.rejects(authorize(f));
-    assert.equal(f.state.statuses.length, 0);
-  });
-}
 
 test('a forged target run associated with two PRs cannot establish authorization provenance', async () => {
   const f = fake();
@@ -1147,7 +1128,7 @@ for (const conclusion of ['success', 'failure', 'cancelled']) {
 for (const [name, mutate] of Object.entries({
   'non-maintainer': f => {f.state.reviews[0].user.login = 'outside';},
   bot: f => {f.state.reviews[0].user.type = 'Bot';},
-  'no current write access': f => {f.state.requestPermission = 'triage';},
+  'write-only role': f => {f.state.requestRole = 'write';},
   'stale command': f => {f.state.reviews[0].commit_id = 'b'.repeat(40);},
   'quoted or embedded command': f => {f.state.reviews[0].body = 'please /e2e';},
   'dismissed review': f => {f.state.reviews[0].state = 'DISMISSED';},
@@ -1243,7 +1224,6 @@ for (const [name, mutate] of Object.entries({
   'unresolved thread': f => {f.state.threads = [{isResolved: false}];},
   draft: f => {f.state.pr.draft = true;},
   closed: f => {f.state.pr.state = 'closed';},
-  'missing maintainer roster': f => {f.state.maintainers = [];},
 })) {
   test(`production ordinary approval policy rejects ${name}`, async () => {
     const f = fake();

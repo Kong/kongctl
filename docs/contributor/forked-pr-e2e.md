@@ -26,7 +26,7 @@ after the PR is out of draft and review comments are resolved.
      --jq .headRefOid
    ```
 
-4. As an allowlisted maintainer, run the trusted `E2E / Scenario Suite`
+4. With Maintain or Admin access, run the trusted **E2E / Scenario Suite**
    workflow from the base repository.
 
    ```shell
@@ -83,10 +83,11 @@ when those requirements change. For `.tech`, include
 The trusted E2E command is safe to show in the PR comment. It does not grant
 permission by itself. GitHub requires sufficient write access to
 `Kong/kongctl` to manually dispatch the upstream workflow. Trusted code also
-requires the invoking human to appear in `scripts/e2e-authorizers.json` on the
-default branch and still have write access. Kong organization membership alone
-is insufficient. Reruns recheck both the original and triggering humans
-against the current policy before expensive work. Trusted-fork retries also
+requires the invoking human to have the built-in Maintain or Admin repository
+role, checked through GitHub's permissions API. Write access and Kong
+organization membership alone are insufficient. Reruns recheck both the
+original and triggering humans against current roles before expensive work.
+Trusted-fork retries also
 verify that the PR is still open, non-draft, and at the requested head SHA.
 
 The workflow also verifies that `trusted_pr_number` is a fork PR and that
