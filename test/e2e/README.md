@@ -603,16 +603,25 @@ maintainer to approve the current revision even when branch protection does not
 require reviews. Bot findings can block readiness but bot approvals cannot
 authorize it.
 
-For same-repository PRs, the easiest authorization is directly on the PR: open
-**Labels** and apply **`e2e:authorize`**. No PR number, branch, or SHA needs to
-be copied. The trusted authorization workflow captures the PR head SHA from
-GitHub's label event and verifies that it still matches the current head. It
-removes the request label after processing, including rejected requests, so a
-maintainer can apply it again for a new commit. A delayed event for an older
-head fails rather than authorizing a commit pushed after the click. If label
-removal fails, remove it manually before applying it again. Normal same-
-repository `.com` PRs retain the configured live/replay split, including
-recorded proxy scenarios; the label does not force full-live execution.
+For same-repository PRs, authorize directly in GitHub:
+
+1. Open **Files changed → Review changes** on the PR.
+2. Enter only `/e2e`, select **Comment**, and submit the review.
+3. Open **Checks → E2E / PR #<number> / <environment> / <mode>** to see
+   readiness blockers, the authorizing review, and the linked scenario run.
+
+Use a submitted Comment review, rather than a conversation comment or inline
+code comment. GitHub binds the review to an exact commit, so no PR number,
+branch, or SHA needs to be copied. Maintainers can submit Comment reviews on
+their own PRs. Submit a new `/e2e` review to retry a failed run or request
+another validation after success. Repeating it during active validation does
+not queue duplicate work. After a push, submit a new review on the new head;
+older commands never authorize new commits. Editing an existing review does
+not create a new retry request.
+
+Normal same-repository `.com` PRs retain the configured live/replay split,
+including recorded proxy scenarios. The command does not force full-live
+execution. PR labels do not authorize execution.
 
 Only humans named in `scripts/e2e-authorizers.json` on the default branch can
 authorize execution. The `maintainers` array contains GitHub logins, matched
@@ -628,22 +637,17 @@ as commit statuses; queued admission reads the current policy again. No new
 credentials or repository variables are required. Protect default-branch and
 policy-file changes with the repository's normal review rules.
 
-This policy covers label authorization, the manual authorization action,
-positive-review admission, and direct scenario dispatches, including trusted
-fork execution. Human workflow reruns check the triggering maintainer too. A
-failed-jobs-only rerun cannot reuse a permission check from an earlier attempt;
-rerun the entire workflow instead. Internal readiness and main scheduler
-dispatches retain their trusted default-branch bot path. Membership in the Kong
+This policy covers `/e2e` reviews, the manual authorization action,
+positive-review admission, explicit controller retries, and direct scenario
+dispatches, including trusted fork execution. Human workflow reruns check the
+triggering maintainer too. Internal readiness and main scheduler dispatches
+retain their trusted default-branch bot path. Membership in the Kong
 organization or repository write access alone is insufficient. All active
 changes requests still block readiness, regardless of their author.
 
-GitHub's label permissions are repository-wide, so a person with triage access
-may still apply this label. The label itself grants nothing: a non-maintainer or
-bot request never produces authorization evidence or starts secret-backed E2E.
-As with any workflow-code policy, this guards trusted entry points; it is not a
-platform restriction against repository writers executing modified workflow
-revisions. That stronger secret boundary requires GitHub Environment protection
-or equivalent repository/organization policy.
+This guards trusted workflow entry points. Restricting repository writers from
+executing modified workflow revisions with secrets requires GitHub Environment
+protection or equivalent repository/organization policy.
 
 Alternatively, with `gh` authenticated as an allowlisted human, run this from a
 checked-out PR branch:
@@ -656,10 +660,11 @@ This uses `gh`'s branch tracking, verifies the base repository is
 `Kong/kongctl`, reads the remote head SHA and default branch, and dispatches the
 authorization action. It authorizes the remote head even with unpushed local
 changes. A concurrent push causes exact-SHA validation to reject the stale
-request.
+request. For retrying a failed validation, use a new `/e2e` review or the
+controller retry command below.
 
-The Actions form remains available under **Actions → E2E / Authorize PR commit →
-Run workflow**. Select `main` and enter the PR number and full, lowercase,
+The Actions form remains available under **Actions → E2E / Authorize PR commit
+→ Run workflow**. Select `main` and enter the PR number and full, lowercase,
 40-character head SHA. Its CLI equivalent:
 
 ```shell
@@ -674,33 +679,48 @@ Branch protection and merge approval requirements are unchanged. The automatic
 path still works for an allowlisted maintainer's current-revision approval. A
 maintainer may authorize their own same-repository PR without a second approver,
 explicitly accepting its execution with E2E credentials. Fork PRs still require
-the separate trusted-run procedure below; applying the label to a fork is
-rejected without authorization evidence.
+the separate trusted-run procedure below; neither `/e2e` nor the manual
+authorization action grants fork code secrets.
 
-The `E2E Authorization / <pr-number>` commit status identifies the human and
-links the authorizing workflow run. Trusted code validates the successful first-
-attempt run's workflow identity, event, PR/SHA title, maintainer policy, current
-write permission, and recording job/step. Dispatch evidence validates the
-default-branch revision; label evidence validates the recorded PR base revision
-because GitHub's `pull_request_target` run metadata names the PR head. The
-workflow checks out only `github.workflow_sha`, never PR code, and consumes no
-Konnect secrets. Workflow contract tests detect job and step name drift.
+The review itself supplies auditable evidence: author, PR, commit, and a
+permanent review link. Trusted default-branch code re-reads the review and
+verifies its identity, commit, author, editor, body, and repository. An edit by
+another user cannot turn a maintainer's review into an accepted command. Review
+events only wake the default-branch controller; the event payload is not
+accepted as authorization evidence.
+
+For manual action authorization, `E2E Authorization / <pr-number>` identifies
+the human and links the authorizing workflow run. Trusted code validates its
+successful first attempt, workflow identity, dispatch event, exact PR/SHA title,
+default-branch revision, maintainer policy, current permission, and recording
+job/step. PR associations on `pull_request_target` runs are never trusted as
+authorization provenance. The authorization workflow checks out only
+`github.workflow_sha`, never PR code, and consumes no Konnect secrets.
+Workflow contract tests detect job and step name drift.
 
 Completion triggers reconciliation. Queued admission and retries validate the
 same evidence against the current maintainer list. Repository metadata supplies
-the default branch independently of event payload shape. The pre-reservation
-snapshot reloads statuses to observe revocation or replacement. Authorization
-APIs are skipped when another readiness condition blocks execution. A status or
-a persistent label alone cannot authorize another PR or SHA.
+the default branch independently of event payload shape. Authorization APIs
+are skipped when another readiness condition blocks execution.
 
-New commits require a fresh label application or manual authorization. Removing
-a human from the allowlist, revoking write access, deleting or rerunning the
-authorizing run, or removing its trusted revision from default-branch history
-invalidates evidence. There is no time-based expiry. CI or review blockers can
-clear later without new authorization for the same commit. Failed E2E still
-requires the controller retry command below; authorization does not retry it.
-Deploy the workflow to the default branch and configure the allowlist before
-using this path.
+New commits require a fresh current-head `/e2e` review or manual authorization.
+Removing a human from the allowlist or revoking write access invalidates their
+authorization. Dismissing or changing the command review also invalidates it.
+For manual evidence, deleting or rerunning the authorizing run, or removing its
+trusted revision from default-branch history, invalidates it. There is no
+time-based expiry. CI or review blockers can clear later without fresh
+authorization for the same commit. Deploy these workflows and policy to the
+default branch before using this path.
+
+The native `E2E / PR #...` check exposes execution status and links directly to
+the actual scenario run, including failures. `E2E Required` remains the
+protected merge gate; no branch-protection settings change. A failed execution
+stays visible even when another readiness blocker makes the merge gate pending.
+You can follow the run link and choose **Re-run all jobs** to repeat admission.
+Readiness runs reject **Re-run failed jobs** with an explicit error because it
+would reuse admission from a prior attempt. Direct manual and trusted-fork
+runs recheck the invoking and triggering maintainers before expensive work on
+failed-job retries; trusted-fork retries also recheck the current PR head.
 
 PR lifecycle events, review events, and prerequisite/scenario workflow
 completion reevaluate current API state. GitHub Actions has no review-thread
