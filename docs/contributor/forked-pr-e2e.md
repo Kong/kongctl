@@ -87,3 +87,8 @@ The workflow also verifies that `trusted_pr_number` is a fork PR and that
 `trusted_head_sha` still matches the current PR head before checking out or
 running the fork code. This protects against stale or mismatched inputs, but it
 does not replace maintainer review.
+
+The **E2E / Authorize PR commit** action described in `test/e2e/README.md`
+only replaces positive review for readiness. It does not dispatch fork E2E,
+approve pending fork workflows, or grant fork code secrets. Continue to use
+the explicit trusted workflow above for every reviewed fork head SHA.

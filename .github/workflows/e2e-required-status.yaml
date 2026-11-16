@@ -6,7 +6,7 @@ on:
   pull_request_review:
     types: [submitted, dismissed]
   workflow_run:
-    workflows: [CI Test, Checks, E2E / Scenario Suite]
+    workflows: [CI Test, Checks, E2E / Scenario Suite, E2E / Authorize PR commit]
     types: [completed]
   # Actions has no pull_request_review_thread trigger. Reconcile resolution,
   # unresolution, missed events, and fork reviews using trusted default code.
