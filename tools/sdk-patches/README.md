@@ -132,6 +132,21 @@ The same rule preserves omitted internal `spec_format` query parameters on
 API-version create, update, and fetch requests. Explicit JSON/YAML selections
 remain supported.
 
+Kong Identity operations (directories, principals, groups, credentials,
+Trusted IdPs, Token Vault keys/providers/credentials) no longer need an SDK
+patch for regional routing. Through v0.87.0, upstream generation copied a
+hardcoded `us.api.konghq.com` operation-level server into these 81
+operations, overriding `--base-url`/`--region` (kongctl#2790,
+Kong/platform-api#4006). The v0.88.0 OAS update removes those operation
+servers upstream, so generated code now resolves the base URL from SDK
+configuration like other operations. `identity_regional_routing_test.go.txt`
+is a plain wire regression, not a patch: it exercises every method on the
+nine affected API groups against US/EU/AU/custom base URLs, with and without
+a per-operation override, and asserts the request host matches. No overlay
+backs it. If a future upstream regression reintroduces hardcoded identity
+servers, this test fails and a targeted overlay removing `servers` for the
+affected tags (as previously prototyped) should be reinstated.
+
 ## Prepare and generate a patched SDK
 
 Use a separate, clean SDK checkout based on the release being upgraded. Install

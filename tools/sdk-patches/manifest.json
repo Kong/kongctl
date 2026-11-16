@@ -377,7 +377,8 @@
     "tests/ai_gateway_update_defaults_test.go.txt": "ai_gateway_update_defaults_kongctl_test.go",
     "tests/ai_gateway_oidc_config_presence_test.go.txt": "kongctl_ai_gateway_oidc_config_presence_test.go",
     "tests/ai_gateway_oidc_config_typed_test.go.txt": "kongctl_ai_gateway_oidc_config_typed_test.go",
-    "tests/ai_gateway_oidc_config_baseline.json": "kongctl_oidc_config_baseline.json"
+    "tests/ai_gateway_oidc_config_baseline.json": "kongctl_oidc_config_baseline.json",
+    "tests/identity_regional_routing_test.go.txt": "identity_regional_routing_kongctl_test.go"
   },
   "post_generation_doc_sections": [
     {
