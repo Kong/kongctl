@@ -102,7 +102,7 @@ steps:
           - select: summary
             expect:
               fields:
-                total_changes: 8
+                total_changes: 9
         outputFormat: disable
         stdoutFile: '{{ .workdir }}/initial-plan.json'
       - name: apply-saved-initial
@@ -117,7 +117,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 8
+                applied: 9
                 failed: 0
       - name: get-directory
         run:
