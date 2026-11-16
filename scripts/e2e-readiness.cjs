@@ -158,7 +158,7 @@ function api(github, context) {
         const {data: run} = await github.rest.actions.getWorkflowRun({...repo, run_id: Number(runID)});
         authorized = await trustedAuthorizationRun(github, context, pr, run, await defaultBranch());
       } catch (error) {
-        if (![403, 404].includes(error.status)) throw error;
+        if (error.status !== 404) throw error;
       }
     }
     return {...scope, ready: authorized};

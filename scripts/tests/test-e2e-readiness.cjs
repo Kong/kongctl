@@ -500,8 +500,14 @@ function manualAuthorization(f) {
   };
   f.state.authorizationJobs = [{name: 'Authorize exact PR commit for E2E', conclusion: 'success',
     steps: [{name: 'Record authorization', conclusion: 'success'}]}];
-  f.github.rest.actions.getWorkflow = async () => ({data: {id: 7}});
-  f.github.rest.repos.getCollaboratorPermissionLevel = async () => ({data: {permission: f.state.permission}});
+  f.github.rest.actions.getWorkflow = async args => {
+    assert.equal(args.workflow_id, 'e2e-authorize.yaml');
+    return {data: {id: 7}};
+  };
+  f.github.rest.repos.getCollaboratorPermissionLevel = async args => {
+    assert.equal(args.username, run.actor.login);
+    return {data: {permission: f.state.permission}};
+  };
   f.state.reviews = [];
   f.state.decision = 'REVIEW_REQUIRED';
   f.state.statuses.unshift({context: 'E2E Authorization / 12', sha: f.state.pr.head.sha,
@@ -783,3 +789,38 @@ for (const status of ['BEHIND', 'IDENTICAL', 'AHEAD', 'DIVERGED', null]) {
     assert.equal(f.state.dispatches.length, ['BEHIND', 'IDENTICAL'].includes(status) ? 1 : 0);
   });
 }
+
+
+for (const status of [403, 429]) {
+  for (const stage of ['run', 'permission']) {
+    test(`authorization ${stage} API error ${status} is reported without dispatch or changing the pending gate`, async () => {
+      const f = fake();
+      manualAuthorization(f);
+      f.context.payload = {};
+      f.state.pulls = [{number: 12}];
+      f.state.statuses.unshift({context: 'E2E Required', state: 'pending', description: 'Awaiting readiness.'});
+      const count = f.state.statuses.length;
+      const fail = async () => {throw Object.assign(new Error('API rate limit exceeded'), {status});};
+      if (stage === 'run') f.github.rest.actions.getWorkflowRun = fail;
+      else f.github.rest.repos.getCollaboratorPermissionLevel = fail;
+      await reconcile(f);
+      assert.equal(f.state.dispatches.length, 0);
+      assert.equal(f.state.statuses.length, count);
+      assert.equal(gate(f).state, 'pending');
+      assert.equal(f.state.warnings.length, 1);
+      assert.match(f.state.warnings[0], /API rate limit exceeded/);
+      Object.assign(process.env, {READINESS_PR: '12', READINESS_SHA: f.state.pr.head.sha,
+        READINESS_ENV: 'com', READINESS_MODE: 'pr'});
+      await assert.rejects(admit(f), /API rate limit exceeded/);
+    });
+  }
+}
+
+test('authorization permission lookup checks the authorizing human rather than the PR author', async () => {
+  const f = fake();
+  const run = manualAuthorization(f);
+  run.actor.login = 'gatekeeper';
+  assert.notEqual(run.actor.login, f.state.pr.user.login);
+  await reconcile(f);
+  assert.equal(f.state.dispatches.length, 1);
+});
