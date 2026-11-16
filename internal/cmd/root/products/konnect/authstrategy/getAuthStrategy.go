@@ -229,58 +229,11 @@ type getAuthStrategyCmd struct {
 	strategyType string
 }
 
-func runListByName(name string, strategyType string, kkClient helpers.AppAuthStrategiesAPI, helper cmd.Helper,
-	cfg config.Hook,
-) (*kkComps.AppAuthStrategy, error) {
-	var pageNumber int64 = 1
-	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
-
-	var allData []kkComps.AppAuthStrategy
-
-	for {
-		req := kkOps.ListAppAuthStrategiesRequest{
-			PageSize:   new(requestPageSize),
-			PageNumber: new(pageNumber),
-		}
-
-		// Apply type filter if specified
-		if strategyType != "" {
-			req.Filter = &kkOps.ListAppAuthStrategiesQueryParamFilter{
-				StrategyType: &kkComps.StringFieldFilter{
-					Eq: new(strategyType),
-				},
-			}
-		}
-
-		res, err := kkClient.ListAppAuthStrategies(helper.GetContext(), req)
-		if err != nil {
-			attrs := cmd.TryConvertErrorToAttrs(err)
-			return nil, cmd.PrepareExecutionError("Failed to list auth strategies", err, helper.GetCmd(), attrs...)
-		}
-
-		// Filter by name since SDK doesn't support name filtering directly
-		for _, strategy := range res.GetListAppAuthStrategiesResponse().Data {
-			strategyName := extractAuthStrategyVariant(strategy).name
-			if strategyName == name {
-				return &strategy, nil
-			}
-		}
-
-		allData = append(allData, res.GetListAppAuthStrategiesResponse().Data...)
-		totalItems := res.GetListAppAuthStrategiesResponse().Meta.Page.Total
-
-		if len(allData) >= int(totalItems) {
-			break
-		}
-
-		pageNumber++
-	}
-
-	return nil, fmt.Errorf("auth strategy with name %s not found", name)
-}
-
-func runList(strategyType string, kkClient helpers.AppAuthStrategiesAPI, helper cmd.Helper,
-	cfg config.Hook,
+// fetchAuthStrategies pages through all auth strategies matching strategyType.
+// When match is non-nil, it returns as soon as a strategy satisfies match,
+// with that strategy as the sole element of the returned slice.
+func fetchAuthStrategies(strategyType string, kkClient helpers.AppAuthStrategiesAPI, helper cmd.Helper,
+	cfg config.Hook, match func(kkComps.AppAuthStrategy) bool,
 ) ([]kkComps.AppAuthStrategy, error) {
 	var pageNumber int64 = 1
 	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
@@ -308,6 +261,14 @@ func runList(strategyType string, kkClient helpers.AppAuthStrategiesAPI, helper 
 			return nil, cmd.PrepareExecutionError("Failed to list auth strategies", err, helper.GetCmd(), attrs...)
 		}
 
+		if match != nil {
+			for _, strategy := range res.GetListAppAuthStrategiesResponse().Data {
+				if match(strategy) {
+					return []kkComps.AppAuthStrategy{strategy}, nil
+				}
+			}
+		}
+
 		allData = append(allData, res.GetListAppAuthStrategiesResponse().Data...)
 		totalItems := res.GetListAppAuthStrategiesResponse().Meta.Page.Total
 
@@ -319,6 +280,28 @@ func runList(strategyType string, kkClient helpers.AppAuthStrategiesAPI, helper 
 	}
 
 	return allData, nil
+}
+
+func runListByName(name string, strategyType string, kkClient helpers.AppAuthStrategiesAPI, helper cmd.Helper,
+	cfg config.Hook,
+) (*kkComps.AppAuthStrategy, error) {
+	// Filter by name since SDK doesn't support name filtering directly
+	matched, err := fetchAuthStrategies(strategyType, kkClient, helper, cfg, func(strategy kkComps.AppAuthStrategy) bool {
+		return extractAuthStrategyVariant(strategy).name == name
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(matched) == 0 {
+		return nil, fmt.Errorf("auth strategy with name %s not found", name)
+	}
+	return &matched[0], nil
+}
+
+func runList(strategyType string, kkClient helpers.AppAuthStrategiesAPI, helper cmd.Helper,
+	cfg config.Hook,
+) ([]kkComps.AppAuthStrategy, error) {
+	return fetchAuthStrategies(strategyType, kkClient, helper, cfg, nil)
 }
 
 func runGet(id string, kkClient helpers.AppAuthStrategiesAPI, helper cmd.Helper,

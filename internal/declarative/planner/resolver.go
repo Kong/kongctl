@@ -89,10 +89,10 @@ func (r *ReferenceResolver) ResolveReferences(ctx context.Context, changes []Pla
 			}
 			// Determine resource type from field name and role entity metadata.
 			if aiGatewayPolicyReferenceField(change.ResourceType, fieldRef.Field) {
-				fieldRef.Ref = aiGatewayPolicyNameReference(fieldRef.Ref)
+				fieldRef.Ref = nameReferenceFromRef(fieldRef.Ref)
 			}
 			if aiGatewayAuthStrategyReferenceField(change.ResourceType, fieldRef.Field) {
-				fieldRef.Ref = aiGatewayAuthStrategyNameReference(fieldRef.Ref)
+				fieldRef.Ref = nameReferenceFromRef(fieldRef.Ref)
 			}
 			resourceType := r.getResourceTypeForChangeField(change, fieldRef.Field)
 			targetRef := referenceTargetRef(fieldRef.Ref)
@@ -297,17 +297,6 @@ func aiGatewayPolicyReferenceField(resourceType, fieldName string) bool {
 	return fieldName == FieldPolicies || strings.HasPrefix(fieldName, FieldPolicies+".")
 }
 
-func aiGatewayPolicyNameReference(ref string) string {
-	targetRef := ref
-	if parsedRef, _, ok := tags.ParseRefPlaceholder(ref); ok {
-		targetRef = parsedRef
-	}
-	if targetRef == "" {
-		return ref
-	}
-	return fmt.Sprintf("%s%s#%s", tags.RefPlaceholderPrefix, targetRef, FieldName)
-}
-
 func aiGatewayAuthStrategyReferenceField(resourceType, fieldName string) bool {
 	if !aiGatewayResourceUsesAuthStrategies(resourceType) {
 		return false
@@ -316,7 +305,7 @@ func aiGatewayAuthStrategyReferenceField(resourceType, fieldName string) bool {
 	return fieldName == prefix || strings.HasPrefix(fieldName, prefix+".")
 }
 
-func aiGatewayAuthStrategyNameReference(ref string) string {
+func nameReferenceFromRef(ref string) string {
 	targetRef := ref
 	if parsedRef, _, ok := tags.ParseRefPlaceholder(ref); ok {
 		targetRef = parsedRef
