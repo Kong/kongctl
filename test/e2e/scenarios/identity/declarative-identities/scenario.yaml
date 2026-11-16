@@ -7,6 +7,7 @@ test:
   cleanupResources:
     - resource: identity_directory
       useDefaultDirectory: true
+      defaultDirectoryNamespace: identity-directory-e2e
       nameVar: directory_name
       nameEnv: KONGCTL_E2E_DECL_IDENTITY_DIRECTORY_NAME
     - resource: identity_auth_server
@@ -101,7 +102,7 @@ steps:
           - select: summary
             expect:
               fields:
-                total_changes: 9
+                total_changes: 8
         outputFormat: disable
         stdoutFile: '{{ .workdir }}/initial-plan.json'
       - name: apply-saved-initial
@@ -116,7 +117,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 9
+                applied: 8
                 failed: 0
       - name: get-directory
         run:
@@ -538,7 +539,7 @@ steps:
           - select: summary
             expect:
               fields:
-                total_changes: 5
+                total_changes: 4
         outputFormat: disable
         stdoutFile: '{{ .workdir }}/delete-plan.json'
       - name: delete-saved
@@ -551,5 +552,5 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 5
+                applied: 4
                 failed: 0

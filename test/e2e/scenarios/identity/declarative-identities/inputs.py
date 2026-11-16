@@ -90,9 +90,13 @@ def main():
                                                  "kongctl": {"protected": protected}}]
             write(work, name, value)
         value = json.loads(Path(work, "initial.json").read_text())
-        parent = value["identity"]["directories"][0]["principals"][0]
+        directory_entry = value["identity"]["directories"][0]
+        parent = directory_entry["principals"][0]
         parent["identities"] = []
         parent["kongctl"]["protected"] = False
+        principals = directory_entry["principals"]
+        ref = directory_entry["ref"]
+        value["identity"]["directories"][0] = {"ref": ref, "_external": {"id": directory}, "principals": principals}
         write(work, "teardown", value)
     else:
         raise ValueError("unknown action")
