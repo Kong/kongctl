@@ -906,7 +906,8 @@ class InnerHandler(QuietHandler):
             self.wfile.write(body)
         except Exception as error:
             # Never stringify upstream HTTP/TLS errors (may contain live data).
-            message = str(error) if isinstance(error, ValueError) and not isinstance(error, json.JSONDecodeError) else "proxy exchange failed"
+            message = (str(error) if isinstance(error, ValueError) and not isinstance(error, json.JSONDecodeError)
+                       else f"proxy exchange failed ({type(error).__name__})")
             self.server.engine.fail(message)
             self.close_connection = True
             self.send_error(400, "replay exchange failed")

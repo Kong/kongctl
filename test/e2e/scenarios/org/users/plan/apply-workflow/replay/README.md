@@ -6,6 +6,10 @@ The selected users are pre-registered lookup targets, not created users.
 Their email inputs remain required for live runs. Replay supplies reserved
 synthetic identities and needs neither credentials nor registered users.
 
+This refresh records explicit page-size and page-number queries for every
+team and user assigned-role read. Dump also passes its configured page size
+to the team-role reader. Scenario inputs and replay eligibility are unchanged.
+
 ## Coverage and ordering
 
 Coverage retains saved apply plans, text diffs, exact change counts,
@@ -34,18 +38,10 @@ publication; no real user emails, profile names, or
 real-to-synthetic mappings are committed. Full user collections, active
 states, memberships, and roles remain represented.
 
-## Measurements
-
-The three isolated replays matched all 38 exchanges. Scenario durations
-were 1.549, 1.537, 1.461 seconds; wrapper durations were
-2.143, 2.236, 2.493 seconds. Recording timings include proxy overhead
-and are not a normal live baseline. These numbers measure execution work,
-not workflow wall-clock savings; setup and shared live-shard resets remain.
-
 Only eligible PRs replay this scenario. Main and force-live runs remain
 live and still require the registered users. Changes to inputs, commands,
 or assertions require a new recording in the same PR. See the repository
 replay policy for the identity and environment-input restrictions.
 
-[record]: https://github.com/Kong/kongctl/actions/runs/35553695006
-[replay]: https://github.com/Kong/kongctl/actions/runs/35554062188
+[record]: https://github.com/Kong/kongctl/actions/runs/43512587152
+[replay]: https://github.com/Kong/kongctl/actions/runs/43515329887

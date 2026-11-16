@@ -1,10 +1,14 @@
 # Organization user sync replay
 
-The [live recording][record] captured 80 exchanges from commit `556dea98`
+The [live recording][record] captured 80 exchanges
 under the primary acceptance organization lock, with successful before/after
 resets. The selected users are pre-registered lookup targets, not created
 users. Their email inputs remain required for live runs. Replay supplies
 reserved synthetic identities without credentials or registered users.
+
+This refresh records explicit page-size and page-number queries for every
+team and user assigned-role read. Dump also passes its configured page size
+to the team-role reader. Scenario inputs and replay eligibility are unchanged.
 
 ## Coverage and ordering
 
@@ -48,5 +52,5 @@ Only eligible PRs replay this scenario. Main and force-live runs remain
 live and still require the registered users. Changes to inputs, commands
 or assertions require a new recording in the same PR.
 
-[record]: https://github.com/Kong/kongctl/actions/runs/39669819402
-[replay]: https://github.com/Kong/kongctl/actions/runs/39670928048
+[record]: https://github.com/Kong/kongctl/actions/runs/43512582107
+[replay]: https://github.com/Kong/kongctl/actions/runs/43514937010

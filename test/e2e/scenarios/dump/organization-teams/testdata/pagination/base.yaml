@@ -1,0 +1,115 @@
+# The role files exercise 99, 100 and 101 assignments on one team.
+_defaults:
+  kongctl:
+    namespace: dump-org-teams-pagination-e2e
+
+apis:
+  - ref: pagination-api-01
+    name: e2e-dump-pagination-api-01
+  - ref: pagination-api-02
+    name: e2e-dump-pagination-api-02
+  - ref: pagination-api-03
+    name: e2e-dump-pagination-api-03
+  - ref: pagination-api-04
+    name: e2e-dump-pagination-api-04
+  - ref: pagination-api-05
+    name: e2e-dump-pagination-api-05
+  - ref: pagination-api-06
+    name: e2e-dump-pagination-api-06
+  - ref: pagination-api-07
+    name: e2e-dump-pagination-api-07
+  - ref: pagination-api-08
+    name: e2e-dump-pagination-api-08
+  - ref: pagination-api-09
+    name: e2e-dump-pagination-api-09
+  - ref: pagination-api-10
+    name: e2e-dump-pagination-api-10
+  - ref: pagination-api-11
+    name: e2e-dump-pagination-api-11
+  - ref: pagination-api-12
+    name: e2e-dump-pagination-api-12
+  - ref: pagination-api-13
+    name: e2e-dump-pagination-api-13
+  - ref: pagination-api-14
+    name: e2e-dump-pagination-api-14
+  - ref: pagination-api-15
+    name: e2e-dump-pagination-api-15
+  - ref: pagination-api-16
+    name: e2e-dump-pagination-api-16
+  - ref: pagination-api-17
+    name: e2e-dump-pagination-api-17
+  - ref: pagination-api-18
+    name: e2e-dump-pagination-api-18
+  - ref: pagination-api-19
+    name: e2e-dump-pagination-api-19
+  - ref: pagination-api-20
+    name: e2e-dump-pagination-api-20
+  - ref: pagination-api-21
+    name: e2e-dump-pagination-api-21
+  - ref: pagination-api-22
+    name: e2e-dump-pagination-api-22
+  - ref: pagination-api-23
+    name: e2e-dump-pagination-api-23
+  - ref: pagination-api-24
+    name: e2e-dump-pagination-api-24
+  - ref: pagination-api-25
+    name: e2e-dump-pagination-api-25
+  - ref: pagination-api-26
+    name: e2e-dump-pagination-api-26
+  - ref: pagination-api-27
+    name: e2e-dump-pagination-api-27
+  - ref: pagination-api-28
+    name: e2e-dump-pagination-api-28
+  - ref: pagination-api-29
+    name: e2e-dump-pagination-api-29
+  - ref: pagination-api-30
+    name: e2e-dump-pagination-api-30
+  - ref: pagination-api-31
+    name: e2e-dump-pagination-api-31
+  - ref: pagination-api-32
+    name: e2e-dump-pagination-api-32
+  - ref: pagination-api-33
+    name: e2e-dump-pagination-api-33
+  - ref: pagination-api-34
+    name: e2e-dump-pagination-api-34
+  - ref: pagination-api-35
+    name: e2e-dump-pagination-api-35
+  - ref: pagination-api-36
+    name: e2e-dump-pagination-api-36
+  - ref: pagination-api-37
+    name: e2e-dump-pagination-api-37
+  - ref: pagination-api-38
+    name: e2e-dump-pagination-api-38
+  - ref: pagination-api-39
+    name: e2e-dump-pagination-api-39
+  - ref: pagination-api-40
+    name: e2e-dump-pagination-api-40
+  - ref: pagination-api-41
+    name: e2e-dump-pagination-api-41
+  - ref: pagination-api-42
+    name: e2e-dump-pagination-api-42
+  - ref: pagination-api-43
+    name: e2e-dump-pagination-api-43
+  - ref: pagination-api-44
+    name: e2e-dump-pagination-api-44
+  - ref: pagination-api-45
+    name: e2e-dump-pagination-api-45
+  - ref: pagination-api-46
+    name: e2e-dump-pagination-api-46
+  - ref: pagination-api-47
+    name: e2e-dump-pagination-api-47
+  - ref: pagination-api-48
+    name: e2e-dump-pagination-api-48
+  - ref: pagination-api-49
+    name: e2e-dump-pagination-api-49
+  - ref: pagination-api-50
+    name: e2e-dump-pagination-api-50
+  - ref: pagination-api-51
+    name: e2e-dump-pagination-api-51
+
+organization:
+  teams:
+    - ref: pagination-team
+      name: e2e-dump-org-team-pagination
+      description: Team with more than one page of assigned roles
+      roles: []

@@ -1,0 +1,7 @@
+organization_team_roles:
+  - ref: pagination-api-51-admin
+    team: pagination-team
+    role_name: Admin
+    entity_id: !ref pagination-api-51#id
+    entity_type_name: APIs
+    entity_region: us

@@ -283,17 +283,25 @@ func collectOrganizationForDump(
 		return err
 	}
 	if d.includeChildren {
-		populateOrganizationTeamChildren(ctx, d.logger, d.stateClient, teams)
+		if err := populateOrganizationTeamChildren(ctx, d.stateClient, teams, d.pageSize); err != nil {
+			return err
+		}
 	}
 	if rs.Organization == nil {
 		rs.Organization = &declresources.OrganizationResource{}
 	}
 	rs.Organization.Teams = append(rs.Organization.Teams, teams...)
 	if d.includeChildren {
-		rs.Organization.Users = append(
-			rs.Organization.Users,
-			collectOrganizationUsersFromTeamMemberships(ctx, d.logger, d.stateClient, teams)...,
+		users, err := collectOrganizationUsersFromTeamMemberships(
+			ctx,
+			d.logger,
+			d.stateClient,
+			teams,
 		)
+		if err != nil {
+			return err
+		}
+		rs.Organization.Users = append(rs.Organization.Users, users...)
 		rs.Organization.SystemAccounts = append(
 			rs.Organization.SystemAccounts,
 			collectOrganizationSystemAccountsFromTeamMemberships(

@@ -2,12 +2,18 @@ package dump
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	declresources "github.com/kong/kongctl/internal/declarative/resources"
 	declstate "github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -857,4 +863,101 @@ func TestCollectOrganizationSystemAccountsFromTeamMemberships(t *testing.T) {
 	require.Equal(t, roleName, got[0].Roles[0].RoleName)
 	require.Equal(t, entityTypeName, got[0].Roles[0].EntityTypeName)
 	require.Equal(t, entityRegion, got[0].Roles[0].EntityRegion)
+}
+
+func TestPopulateOrganizationTeamChildrenIncludesEveryRolePage(t *testing.T) {
+	var pages []int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		page, err := strconv.Atoi(r.URL.Query().Get("page[number]"))
+		require.NoError(t, err)
+		pages = append(pages, page)
+		roles := make([]kkComps.AssignedRole, 0)
+		for i := (page - 1) * 10; i < min(page*10, 29); i++ {
+			roles = append(roles, kkComps.AssignedRole{
+				ID: new(
+					fmt.Sprintf("role-%d", i),
+				), RoleName: new("Viewer"), EntityID: new(fmt.Sprintf("cp-%d", i)),
+				EntityTypeName: new(
+					"Control Planes",
+				), EntityRegion: new(kkComps.AssignedRoleEntityRegionEu),
+			})
+		}
+		w.Header().Set("Content-Type", "application/json")
+		require.NoError(t, json.NewEncoder(w).Encode(kkComps.AssignedRoleCollection{
+			Data: roles, Meta: &kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 29}},
+		}))
+	}))
+	defer server.Close()
+	client := declstate.NewClient(
+		declstate.ClientConfig{OrganizationTeamRolesAPI: &helpers.OrganizationTeamRolesAPIImpl{
+			BaseURL: server.URL, HTTPClient: server.Client(),
+		}},
+	)
+	teams := []declresources.OrganizationTeamResource{
+		{BaseResource: declresources.BaseResource{Ref: "team-id"}},
+	}
+	require.NoError(t, populateOrganizationTeamChildren(t.Context(), client, teams, 100))
+	require.Len(t, teams[0].Roles, 29)
+	require.Equal(t, []int{1, 2, 3}, pages)
+	for i, role := range teams[0].Roles {
+		require.Equal(t, fmt.Sprintf("role-%d", i), role.Ref)
+		require.Equal(t, fmt.Sprintf("cp-%d", i), role.EntityID)
+		require.Equal(t, "Control Planes", role.EntityTypeName)
+		require.Equal(t, "Viewer", role.RoleName)
+		require.Equal(t, "eu", role.EntityRegion)
+	}
+}
+
+func TestPopulateOrganizationTeamChildrenHonorsPageSize(t *testing.T) {
+	for _, size := range []int{1, 10, 99, 100, 101, 1000} {
+		t.Run(strconv.Itoa(size), func(t *testing.T) {
+			requestSize := min(size, 100)
+			var pages []int
+			server := httptest.NewServer(
+				http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Query().Get("page[size]") != strconv.Itoa(requestSize) {
+						http.Error(w, `{"message":"page[size] > max page size"}`, http.StatusBadRequest)
+						return
+					}
+					page, err := strconv.Atoi(r.URL.Query().Get("page[number]"))
+					require.NoError(t, err)
+					pages = append(pages, page)
+					data := make([]kkComps.AssignedRole, 0)
+					for i := (page - 1) * requestSize; i < min(page*requestSize, 101); i++ {
+						data = append(
+							data,
+							kkComps.AssignedRole{ID: new(fmt.Sprintf("role-%d", i))},
+						)
+					}
+					w.Header().Set("Content-Type", "application/json")
+					require.NoError(
+						t,
+						json.NewEncoder(w).
+							Encode(kkComps.AssignedRoleCollection{
+								Data: data,
+								Meta: &kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 101}},
+							}),
+					)
+				}),
+			)
+			defer server.Close()
+			client := declstate.NewClient(
+				declstate.ClientConfig{
+					OrganizationTeamRolesAPI: &helpers.OrganizationTeamRolesAPIImpl{
+						BaseURL:    server.URL,
+						HTTPClient: server.Client(),
+					},
+				},
+			)
+			teams := []declresources.OrganizationTeamResource{
+				{BaseResource: declresources.BaseResource{Ref: "team-1"}},
+			}
+			require.NoError(
+				t,
+				populateOrganizationTeamChildren(t.Context(), client, teams, int64(size)),
+			)
+			require.Len(t, teams[0].Roles, 101)
+			require.Len(t, pages, (101+requestSize-1)/requestSize)
+		})
+	}
 }
