@@ -4,7 +4,7 @@ on:
   pull_request_target:
     types: [opened, reopened, synchronize, ready_for_review, converted_to_draft, edited, labeled, unlabeled]
   pull_request_review:
-    types: [submitted, dismissed]
+    types: [submitted, edited, dismissed]
   workflow_run:
     workflows: [CI Test, Checks, E2E / Scenario Suite, E2E / Authorize PR commit]
     types: [completed]
@@ -25,6 +25,7 @@ on:
 
 permissions:
   actions: write
+  checks: write
   contents: read
   pull-requests: read
   statuses: write
@@ -61,12 +62,22 @@ jobs:
         uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
         with:
           egress-policy: audit
+      - name: Reconcile reviews using the default-branch controller
+        if: github.event_name == 'pull_request_review'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({...context.repo,
+              workflow_id: 'e2e-required-status.yaml', ref: context.payload.repository.default_branch,
+              inputs: {pr_number: String(context.payload.pull_request.number)}});
       - name: Checkout trusted controller
+        if: github.event_name != 'pull_request_review'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.workflow_sha }}
           persist-credentials: false
       - name: Reconcile current PR state
+        if: github.event_name != 'pull_request_review'
         id: status
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:

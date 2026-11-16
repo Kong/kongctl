@@ -128,15 +128,15 @@ jobs:
       trusted_pr_number: ${{ steps.detect.outputs.trusted_pr_number }}
       readiness_mode: ${{ steps.admission.outputs.mode }}
       admission_reason: ${{ steps.admission.outputs.reason }}
-      # A failed-jobs-only rerun must not reuse an earlier admission decision.
-      admission_attempt: ${{ steps.admission.outputs.attempt }}
+      # Readiness jobs must not reuse an earlier admission decision.
+      admission_attempt: ${{ steps.admission.outputs.attempt || steps.actor-gate.outputs.attempt }}
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
         with:
           egress-policy: audit
       - name: Checkout trusted admission controller
-        if: inputs.dispatch_source == 'readiness'
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.workflow_sha }}
@@ -144,6 +144,13 @@ jobs:
           fetch-depth: 1
           sparse-checkout: scripts/e2e-readiness.cjs
           sparse-checkout-cone-mode: false
+      - name: Verify E2E dispatch maintainer
+        id: actor-gate
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            await require('./scripts/e2e-readiness.cjs').scenarioDispatch({github, context, core});
       - name: Recheck readiness after environment queue
         id: admission
         if: inputs.dispatch_source == 'readiness'
@@ -462,11 +469,30 @@ jobs:
        needs.e2e-needed.outputs.admission_attempt == github.run_attempt)
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      pull-requests: read
+      actions: read
+      contents: read
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
         with:
           egress-policy: audit
+      - name: Checkout rerun authorization code
+        if: github.event_name == 'workflow_dispatch' && github.run_attempt > 1 && inputs.dispatch_source != 'readiness'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: .e2e-rerun-controller
+          persist-credentials: false
+          sparse-checkout: scripts/e2e-readiness.cjs
+          sparse-checkout-cone-mode: false
+      - name: Recheck rerun maintainer before expensive work
+        if: github.event_name == 'workflow_dispatch' && github.run_attempt > 1 && inputs.dispatch_source != 'readiness'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            await require('./.e2e-rerun-controller/scripts/e2e-readiness.cjs').scenarioDispatch({github, context, core});
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -558,11 +584,30 @@ jobs:
     outputs:
       replay_count: ${{ steps.routing.outputs.replay_count }}
       replay_mode: ${{ steps.routing.outputs.replay_mode }}
+    permissions:
+      pull-requests: read
+      actions: read
+      contents: read
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
         with:
           egress-policy: audit
+      - name: Checkout rerun authorization code
+        if: github.event_name == 'workflow_dispatch' && github.run_attempt > 1 && inputs.dispatch_source != 'readiness'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: .e2e-rerun-controller
+          persist-credentials: false
+          sparse-checkout: scripts/e2e-readiness.cjs
+          sparse-checkout-cone-mode: false
+      - name: Recheck rerun maintainer before expensive work
+        if: github.event_name == 'workflow_dispatch' && github.run_attempt > 1 && inputs.dispatch_source != 'readiness'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            await require('./.e2e-rerun-controller/scripts/e2e-readiness.cjs').scenarioDispatch({github, context, core});
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -805,6 +850,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
+      actions: read
       contents: read
       pull-requests: read
     # Backstop serialization per target org if workflow-level serialization is
@@ -882,6 +928,21 @@ jobs:
         uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
         with:
           egress-policy: audit
+      - name: Checkout rerun authorization code
+        if: github.event_name == 'workflow_dispatch' && github.run_attempt > 1 && inputs.dispatch_source != 'readiness'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: .e2e-rerun-controller
+          persist-credentials: false
+          sparse-checkout: scripts/e2e-readiness.cjs
+          sparse-checkout-cone-mode: false
+      - name: Recheck rerun maintainer before expensive work
+        if: github.event_name == 'workflow_dispatch' && github.run_attempt > 1 && inputs.dispatch_source != 'readiness'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            await require('./.e2e-rerun-controller/scripts/e2e-readiness.cjs').scenarioDispatch({github, context, core});
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -1239,12 +1300,11 @@ jobs:
       - e2e-replay
       - e2e-replay-verify
     if: >-
-      always() && !cancelled() && needs.e2e-needed.outputs.run_shards == 'true' &&
-      (inputs.dispatch_source != 'readiness' ||
-       needs.e2e-needed.outputs.admission_attempt == github.run_attempt)
+      always() && !cancelled() && needs.e2e-needed.outputs.run_shards == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
+      pull-requests: read
       actions: read
       contents: read
     steps:
@@ -1252,6 +1312,33 @@ jobs:
         uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
         with:
           egress-policy: audit
+      # This must live in verification: failed-job retries rerun dependents,
+      # but would reuse a separate successful admission-check job.
+      - name: Require a fresh readiness decision
+        if: inputs.dispatch_source == 'readiness'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          ADMISSION_ATTEMPT: ${{ needs.e2e-needed.outputs.admission_attempt }}
+        with:
+          script: |
+            if (process.env.ADMISSION_ATTEMPT !== process.env.GITHUB_RUN_ATTEMPT) {
+              core.setFailed('This retry reused an earlier PR admission. Submit a new /e2e Comment review or choose Re-run all jobs.');
+            }
+      - name: Checkout rerun authorization code
+        if: github.event_name == 'workflow_dispatch' && github.run_attempt > 1 && inputs.dispatch_source != 'readiness'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: .e2e-rerun-controller
+          persist-credentials: false
+          sparse-checkout: scripts/e2e-readiness.cjs
+          sparse-checkout-cone-mode: false
+      - name: Recheck rerun maintainer before expensive work
+        if: github.event_name == 'workflow_dispatch' && github.run_attempt > 1 && inputs.dispatch_source != 'readiness'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            await require('./.e2e-rerun-controller/scripts/e2e-readiness.cjs').scenarioDispatch({github, context, core});
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

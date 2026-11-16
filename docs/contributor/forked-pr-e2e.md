@@ -26,7 +26,8 @@ after the PR is out of draft and review comments are resolved.
      --jq .headRefOid
    ```
 
-4. Run the trusted `E2E / Scenario Suite` workflow from the base repository.
+4. With Maintain or Admin access, run the trusted **E2E / Scenario Suite**
+   workflow from the base repository.
 
    ```shell
    gh workflow run e2e.yaml \
@@ -81,15 +82,22 @@ when those requirements change. For `.tech`, include
 
 The trusted E2E command is safe to show in the PR comment. It does not grant
 permission by itself. GitHub requires sufficient write access to
-`Kong/kongctl` to manually dispatch the upstream workflow.
+`Kong/kongctl` to manually dispatch the upstream workflow. Trusted code also
+requires the invoking human to have the built-in Maintain or Admin repository
+role, checked through GitHub's permissions API. Write access and Kong
+organization membership alone are insufficient. Reruns recheck both the
+original and triggering humans against current roles before expensive work.
+Trusted-fork retries also
+verify that the PR is still open, non-draft, and at the requested head SHA.
 
 The workflow also verifies that `trusted_pr_number` is a fork PR and that
 `trusted_head_sha` still matches the current PR head before checking out or
 running the fork code. This protects against stale or mismatched inputs, but it
 does not replace maintainer review.
 
-The **E2E / Authorize PR commit** action described in `test/e2e/README.md`
-only replaces positive review for same-repository readiness. It rejects fork
-PRs without posting authorization evidence. It does not dispatch fork E2E,
-approve pending fork workflows, or grant fork code secrets. Continue to use
-the explicit trusted workflow above for every reviewed fork head SHA.
+The `/e2e` Comment review and **E2E / Authorize PR commit** action described in
+`test/e2e/README.md` replace positive review for same-repository readiness.
+Neither path dispatches fork E2E, approves pending fork workflows, or grants
+fork code secrets. The manual action rejects fork requests without posting
+authorization evidence. Continue to use the explicit trusted workflow above
+for every reviewed fork head SHA.

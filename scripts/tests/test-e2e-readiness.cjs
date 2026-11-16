@@ -1,7 +1,7 @@
 const {test} = require('node:test');
 const assert = require('node:assert/strict');
-const {requirement, reviewReady, ciReady, reconcile, admit, REQUIRED, scheduledBatch, authorize,
-  AUTHORIZATION_JOB, AUTHORIZATION_STEP} = require('../e2e-readiness.cjs');
+const {requirement, ciReady, reconcile, admit, REQUIRED, scheduledBatch, authorize,
+  AUTHORIZATION_JOB, AUTHORIZATION_STEP, scenarioDispatch} = require('../e2e-readiness.cjs');
 
 function fixture() {
   const pr = {number: 12, state: 'open', draft: false, changed_files: 1, labels: [],
@@ -9,27 +9,43 @@ function fixture() {
     base: {repo: {full_name: 'Kong/kongctl'}}};
   const approval = {state: 'APPROVED', commit_id: pr.head.sha, user: {login: 'human', type: 'User'},
     author_association: 'MEMBER'};
-  const ci = ['CI Test', 'Checks'].map((name, id) => ({name, id, head_sha: pr.head.sha,
+  const ci = ['CI Test', 'Checks'].map((name, id) => ({name, id,
+    path: `.github/workflows/${name === 'Checks' ? 'checks' : 'test'}.yaml`, head_sha: pr.head.sha,
     pull_requests: [{number: pr.number}], event: 'pull_request', status: 'completed', conclusion: 'success'}));
   return {pr, approval, ci};
 }
 
 function fake() {
   const {pr, approval, ci} = fixture();
-  const state = {deployed: true, pr, reviews: [approval], ci, runs: [], statuses: [], dispatches: [],
+  const state = {deployed: true, pr, reviews: [approval], ci, runs: [], statuses: [], checks: [], dispatches: [],
     threads: [], decision: 'APPROVED', files: [{filename: 'main.go'}], jobs: [], outputs: {}};
   const method = name => Object.assign(() => {}, {method: name});
   const github = {rest: {
     pulls: {get: async () => ({data: structuredClone(state.pr)}), list: method('pulls'),
       listFiles: method('files'), listReviews: method('reviews')},
-    repos: {get: async () => ({data: {default_branch: state.defaultBranch || 'main'}}), getContent: async () => {
+    repos: {getCollaboratorPermissionLevel: async args => {
+      return {data: {permission: 'write', role_name: args.username === 'human' ? (state.reviewRole ?? 'maintain') : 'write'}};
+    }, get: async () => ({data: {default_branch: state.defaultBranch || 'main'}}), getContent: async args => {
       if (!state.deployed) throw Object.assign(new Error('Not found'), {status: 404});
       return {data: {type: 'file'}};
     }, listCommitStatusesForRef: method('statuses'), createCommitStatus: async status => {
-      state.statuses.unshift(status);
+      state.statuses.unshift({...status, created_at: new Date().toISOString()});
+    }},
+    checks: {listForRef: method('checks'), create: async check => {
+      const data = {...check, id: state.checks.length + 1, app: {slug: 'github-actions'}};
+      state.checks.unshift(data);
+      return {data};
+    }, update: async check => {
+      (state.checkUpdates ||= []).push(check);
+      Object.assign(state.checks.find(old => old.id === check.check_run_id), check);
     }},
     actions: {getWorkflowRun: async ({run_id}) => {
       const run = state.runs.find(run => run.id === run_id);
+      if (!run && context.eventName === 'workflow_dispatch' && context.payload.inputs?.retry === 'true' &&
+          run_id === Number(process.env.GITHUB_RUN_ID)) {
+        const actor = state.controllerActor || {id: 43, login: 'human', type: 'User'};
+        return {data: {actor, triggering_actor: state.controllerTrigger || actor, event: 'workflow_dispatch'}};
+      }
       if (!run) throw Object.assign(new Error('Not found'), {status: 404});
       return {data: structuredClone(run)};
     }, listWorkflowRunsForRepo: method('ci'), listWorkflowRuns: method('runs'),
@@ -38,7 +54,12 @@ function fake() {
         if (state.dispatchError) throw new Error('dispatch interrupted');
         return {data: {workflow_run_id: 200}};
       }},
-  }, paginate: async method => structuredClone(state[method.method]),
+  }, paginate: async (method, args) => {
+    let data = state[method.method];
+    if (method.method === 'statuses') data = data.filter(status => !status.sha || status.sha === args.ref);
+    if (method.method === 'checks') data = data.filter(check => check.head_sha === args.ref && (!args.check_name || check.name === args.check_name));
+    return structuredClone(data);
+  },
   graphql: async () => ({repository: {pullRequest: {reviewDecision: state.decision,
     reviewThreads: {nodes: state.threads, pageInfo: {hasNextPage: false}}}}})};
   const context = {repo: {owner: 'Kong', repo: 'kongctl'}, eventName: 'schedule',
@@ -57,22 +78,6 @@ function dispatchedRun(f, conclusion = null) {
     html_url: 'https://github.com/Kong/kongctl/actions/runs/200',
     status: conclusion ? 'completed' : 'queued', conclusion};
 }
-
-test('review policy requires current human approval and no blocking findings', () => {
-  const {pr, approval} = fixture();
-  assert.equal(reviewReady(pr, [approval], 'APPROVED', []), true);
-  for (const review of [{...approval, user: {login: 'bot', type: 'Bot'}},
-    {...approval, commit_id: 'old'}, {...approval, author_association: 'CONTRIBUTOR'}]) {
-    assert.equal(reviewReady(pr, [review], null, []), false);
-  }
-  for (const state of ['DISMISSED', 'CHANGES_REQUESTED']) {
-    assert.equal(reviewReady(pr, [approval, {...approval, state}], 'APPROVED', []), false);
-  }
-  assert.equal(reviewReady(pr, [approval], 'REVIEW_REQUIRED', []), false);
-  assert.equal(reviewReady(pr, [approval], 'APPROVED', [{isResolved: false}]), false);
-  assert.equal(reviewReady({...pr, draft: true}, [approval], 'APPROVED', []), false);
-  assert.equal(reviewReady({...pr, state: 'closed'}, [approval], 'APPROVED', []), false);
-});
 
 test('prerequisites require latest explicit ordinary workflows for this revision', () => {
   const {pr, ci} = fixture();
@@ -275,7 +280,7 @@ test('expensive automatic jobs and verification require admission in the current
   const {readFileSync} = require('node:fs');
   const {resolve} = require('node:path');
   const source = readFileSync(resolve(__dirname, '../../.github/workflows/e2e.yaml'), 'utf8');
-  for (const name of ['e2e-harness', 'e2e-build', 'e2e', 'e2e-replay', 'e2e-replay-verify', 'e2e-verify']) {
+  for (const name of ['e2e-harness', 'e2e-build', 'e2e', 'e2e-replay', 'e2e-replay-verify']) {
     const job = source.split(`  ${name}:\n`)[1].split('    runs-on:')[0];
     assert.ok(job.includes('needs.e2e-needed.outputs.admission_attempt == github.run_attempt'), name);
   }
@@ -369,11 +374,17 @@ for (const conclusion of ['failure', 'cancelled']) {
   });
 }
 
-test('deleted reviewers cannot approve or crash readiness evaluation', () => {
-  const {pr, approval} = fixture();
-  assert.equal(reviewReady(pr, [{...approval, user: null}], null, []), false);
-  assert.equal(reviewReady(pr, [approval, {...approval, user: null, state: 'CHANGES_REQUESTED'}], null, []), false);
-  assert.equal(reviewReady(pr, [approval, {...approval, user: null}], null, []), true);
+test('deleted reviewers cannot approve or crash production readiness evaluation', async () => {
+  for (const [reviews, allowed] of [
+    [[{...fixture().approval, user: null}], false],
+    [[fixture().approval, {...fixture().approval, user: null, state: 'CHANGES_REQUESTED'}], false],
+    [[fixture().approval, {...fixture().approval, user: null}], true],
+  ]) {
+    const f = fake();
+    f.state.reviews = reviews;
+    await reconcile(f);
+    assert.equal(f.state.dispatches.length, allowed ? 1 : 0);
+  }
 });
 
 test('a failed PR does not abort later PRs in a scheduled sweep', async () => {
@@ -482,13 +493,14 @@ function manualAuthorization(f) {
     run_attempt: 1, status: 'completed', conclusion: 'success',
     html_url: 'https://github.com/Kong/kongctl/actions/runs/300'};
   f.state.runs.push(run);
-  f.state.permission = 'write';
+  f.state.controllerActor = run.actor;
+  f.state.role = 'maintain';
   f.state.comparison = 'BEHIND';
   const graphql = f.github.graphql;
   f.github.graphql = async (query, args) => {
     if (args.head) {
       assert.equal(args.base, `refs/heads/${f.state.defaultBranch || 'main'}`);
-      assert.equal(args.head, run.head_sha);
+      assert.equal(args.head, run.event === 'pull_request_target' ? run.pull_requests[0].base.sha : run.head_sha);
       return {repository: {ref: {compare: {status: f.state.comparison}}}};
     }
     return graphql(query, args);
@@ -505,8 +517,7 @@ function manualAuthorization(f) {
     return {data: {id: 7}};
   };
   f.github.rest.repos.getCollaboratorPermissionLevel = async args => {
-    assert.equal(args.username, run.actor.login);
-    return {data: {permission: f.state.permission}};
+    return {data: {permission: 'write', role_name: args.username === (f.state.permissionSubject || run.actor.login) ? f.state.role : 'write'}};
   };
   f.state.reviews = [];
   f.state.decision = 'REVIEW_REQUIRED';
@@ -515,11 +526,11 @@ function manualAuthorization(f) {
   return run;
 }
 
-for (const permission of ['write', 'maintain', 'admin']) {
+for (const permission of ['maintain', 'admin']) {
   test(`a ${permission} human can authorize their own PR; reconciliation, queue admission and retry agree`, async () => {
     const f = fake();
     manualAuthorization(f);
-    f.state.permission = permission;
+    f.state.role = permission;
     await reconcile(f);
     assert.equal(f.state.dispatches.length, 1);
     Object.assign(process.env, {READINESS_PR: '12', READINESS_SHA: f.state.pr.head.sha,
@@ -536,9 +547,12 @@ for (const permission of ['write', 'maintain', 'admin']) {
 }
 
 const invalidAuthorizations = {
-  read: (f) => {f.state.permission = 'read';},
-  triage: (f) => {f.state.permission = 'triage';},
-  none: (f) => {f.state.permission = 'none';},
+  write: (f) => {f.state.role = 'write';},
+  'missing role': (f) => {f.state.role = undefined;},
+  'custom role': (f) => {f.state.role = 'custom-maintainer';},
+  read: (f) => {f.state.role = 'read';},
+  triage: (f) => {f.state.role = 'triage';},
+  none: (f) => {f.state.role = 'none';},
   bot: (f, run) => {run.actor.type = 'Bot';},
   'different PR': (f, run) => {run.display_title = run.display_title.replace(':12/', ':13/');},
   'stale SHA': (f, run) => {run.display_title = `authorize-e2e:12/${'b'.repeat(40)}`;},
@@ -596,6 +610,7 @@ test('a new head does not inherit authorization, even if status evidence is copi
   const f = fake();
   manualAuthorization(f);
   f.state.pr.head.sha = 'b'.repeat(40);
+  f.state.statuses[0].sha = f.state.pr.head.sha;
   f.state.ci = f.state.ci.map(run => ({...run, head_sha: f.state.pr.head.sha}));
   await reconcile(f);
   assert.equal(f.state.dispatches.length, 0);
@@ -657,7 +672,7 @@ test('manual authorization workflow is pinned to trusted code and admission can 
   const lines = workflow.split('\n').map(line => line.trim());
   assert.ok(lines.includes(`name: ${AUTHORIZATION_JOB}`));
   assert.ok(lines.includes(`- name: ${AUTHORIZATION_STEP}`));
-  assert.ok(workflow.includes('authorize-e2e:${{ inputs.pr_number }}/${{ inputs.head_sha }}'));
+  assert.ok(!workflow.includes('pull_request_target:'));
   assert.ok(!workflow.includes('secrets.'));
   const scenario = readFileSync(resolve(__dirname, '../../.github/workflows/e2e.yaml'), 'utf8');
   assert.ok(scenario.split('  e2e-needed:')[1].split('    outputs:')[0].includes('statuses: read'));
@@ -752,6 +767,7 @@ for (const blocker of ['approved', 'failed CI', 'unresolved thread', 'fork']) {
     if (blocker === 'approved') {
       f.state.reviews = [fixture().approval];
       f.state.decision = 'APPROVED';
+      f.state.permissionSubject = 'human';
     }
     if (blocker === 'failed CI') f.state.ci[0].conclusion = 'failure';
     if (blocker === 'unresolved thread') f.state.threads = [{isResolved: false}];
@@ -823,4 +839,531 @@ test('authorization permission lookup checks the authorizing human rather than t
   assert.notEqual(run.actor.login, f.state.pr.user.login);
   await reconcile(f);
   assert.equal(f.state.dispatches.length, 1);
+});
+
+
+function manualRequest(f) {
+  const run = manualAuthorization(f);
+  f.context.eventName = 'workflow_dispatch';
+  f.context.payload.inputs = {pr_number: '12', head_sha: f.state.pr.head.sha};
+  Object.assign(process.env, {GITHUB_RUN_ID: '300', GITHUB_REF: 'refs/heads/main', GITHUB_RUN_ATTEMPT: '1'});
+  return run;
+}
+
+function reviewRequest(f, id = 700) {
+  f.state.reviews = [{id, node_id: `review-${id}`, state: 'COMMENTED', body: '/e2e', commit_id: f.state.pr.head.sha,
+    user: {id: 42, login: 'author', type: 'User'},
+    html_url: `https://github.com/Kong/kongctl/pull/12#pullrequestreview-${id}`}];
+  f.state.decision = 'REVIEW_REQUIRED';
+  f.state.controllerActor = f.state.reviews[0].user;
+  const graphql = f.github.graphql;
+  f.github.graphql = async (query, args) => {
+    if (args.reviewID) {
+      const review = f.state.reviews.find(review => review.node_id === args.reviewID);
+      return {node: {fullDatabaseId: String(review.id), body: review.body, state: review.state,
+        submittedAt: '2026-11-16T20:00:00Z', lastEditedAt: null, editor: null,
+        author: {login: review.user.login}, commit: {oid: review.commit_id},
+        pullRequest: {number: 12, repository: {nameWithOwner: 'Kong/kongctl'}}, ...f.state.reviewProof}};
+    }
+    return graphql(query, args);
+  };
+  f.github.rest.repos.getCollaboratorPermissionLevel = async args => {
+    return {data: {permission: 'write', role_name: args.username === 'author' ? (f.state.requestRole ?? 'maintain') : 'write'}};
+  };
+}
+
+for (const role of ['maintain', 'admin', 'write', 'triage', 'read', 'custom-maintainer', undefined]) {
+  test(`/e2e admission uses the current built-in role ${role}`, async () => {
+    const f = fake();
+    reviewRequest(f);
+    f.github.rest.repos.getCollaboratorPermissionLevel = async () => ({data: {permission: 'admin', role_name: role}});
+    const allowed = ['maintain', 'admin'].includes(role);
+    await reconcile(f);
+    assert.equal(f.state.dispatches.length, allowed ? 1 : 0);
+    Object.assign(process.env, {READINESS_PR: '12', READINESS_SHA: f.state.pr.head.sha,
+      READINESS_ENV: 'com', READINESS_MODE: 'pr'});
+    await admit(f);
+    assert.equal(f.state.outputs.accepted, String(allowed));
+    if (allowed) {
+      f.github.rest.repos.getCollaboratorPermissionLevel = async () => ({data: {permission: 'write', role_name: 'write'}});
+      await admit(f);
+      assert.equal(f.state.outputs.accepted, 'false', 'demotion revokes queued authorization');
+    }
+  });
+}
+
+for (const role of ['maintain', 'admin', 'write', 'read', 'triage', 'none', undefined]) {
+  test(`ordinary approval uses the built-in repository role ${role}`, async () => {
+    const f = fake();
+    f.state.reviewRole = role;
+    f.github.rest.repos.getCollaboratorPermissionLevel = async () => ({data: {permission: 'write', role_name: role}});
+    await reconcile(f);
+    assert.equal(f.state.dispatches.length, ['maintain', 'admin'].includes(role) ? 1 : 0);
+  });
+}
+
+for (const source of ['', 'readiness', 'main-debounce']) {
+  for (const role of ['maintain', 'admin', 'write']) {
+    test(`human scenario dispatch ${source || 'manual'} checks repository role ${role}, including forks`, async () => {
+      const f = fake();
+      manualAuthorization(f);
+      f.state.role = role;
+      f.context.eventName = 'workflow_dispatch';
+      f.context.payload.inputs = {dispatch_source: source, trusted_pr_number: '12', trusted_head_sha: f.state.pr.head.sha};
+      f.state.pr.head.repo.full_name = 'outside/kongctl';
+      Object.assign(process.env, {GITHUB_RUN_ID: '300', GITHUB_RUN_ATTEMPT: '2'});
+      if (['maintain', 'admin'].includes(role)) {
+        await scenarioDispatch(f);
+        assert.equal(f.state.outputs.attempt, '2');
+      } else await assert.rejects(scenarioDispatch(f), /Maintain or Admin/);
+    });
+  }
+}
+
+for (const [name, mutate] of Object.entries({
+  'new head': f => {f.state.pr.head.sha = 'b'.repeat(40);},
+  closed: f => {f.state.pr.state = 'closed';},
+  draft: f => {f.state.pr.draft = true;},
+  'same repository': f => {f.state.pr.head.repo.full_name = 'Kong/kongctl';},
+  'deleted fork repository': f => {f.state.pr.head.repo = null;},
+})) {
+  test(`trusted fork retries reject ${name} before executing code`, async () => {
+    const f = fake();
+    manualAuthorization(f);
+    f.context.eventName = 'workflow_dispatch';
+    f.context.payload.inputs = {trusted_pr_number: '12', trusted_head_sha: f.state.pr.head.sha};
+    f.state.pr.head.repo.full_name = 'outside/kongctl';
+    Object.assign(process.env, {GITHUB_RUN_ID: '300', GITHUB_RUN_ATTEMPT: '2'});
+    mutate(f);
+    await assert.rejects(scenarioDispatch(f), /stale or ineligible/);
+    assert.equal(f.state.outputs.attempt, undefined);
+  });
+}
+
+for (const [name, mutate] of Object.entries({
+  'trusted readiness': () => {},
+  'trusted main debounce': f => {f.context.payload.inputs.dispatch_source = 'main-debounce';},
+  'fork input': f => {f.context.payload.inputs.trusted_pr_number = '13';},
+  'fork SHA without PR': f => {f.context.payload.inputs.trusted_head_sha = 'a'.repeat(40);},
+  'untrusted branch': (f, run) => {run.head_branch = 'feature';},
+  'untrusted revision': f => {f.state.comparison = 'DIVERGED';},
+  'arbitrary source': f => {f.context.payload.inputs.dispatch_source = '';},
+  'other bot': (f, run) => {run.actor.login = 'other[bot]';},
+  'unauthorized rerun': (f, run) => {run.triggering_actor = {type: 'User', login: 'outside'};},
+})) {
+  test(`internal scenario dispatch validates ${name}`, async () => {
+    const f = fake();
+    const run = manualAuthorization(f);
+    run.actor = {type: 'Bot', login: 'github-actions[bot]'};
+    run.triggering_actor = run.actor;
+    f.context.eventName = 'workflow_dispatch';
+    f.context.payload.inputs = {dispatch_source: 'readiness'};
+    Object.assign(process.env, {GITHUB_RUN_ID: '300', GITHUB_REF: 'refs/heads/main', GITHUB_RUN_ATTEMPT: '1'});
+    mutate(f, run);
+    if (name.startsWith('trusted ')) await scenarioDispatch(f);
+    else await assert.rejects(scenarioDispatch(f), /Maintain or Admin/);
+  });
+}
+
+test('a non-maintainer cannot rerun a maintainer scenario dispatch', async () => {
+  const f = fake();
+  const run = manualAuthorization(f);
+  run.triggering_actor = {type: 'User', login: 'outside'};
+  f.context.eventName = 'workflow_dispatch';
+  Object.assign(process.env, {GITHUB_RUN_ID: '300'});
+  await assert.rejects(scenarioDispatch(f), /Maintain or Admin/);
+});
+
+for (const actor of [{id: 77, login: 'outside', type: 'User'},
+  {id: 78, login: 'github-actions[bot]', type: 'Bot'}]) {
+  for (const role of ['controllerActor', 'controllerTrigger']) {
+    test(`explicit retries reject unauthorized ${role} ${actor.login}`, async () => {
+      const f = fake();
+      await reconcile(f);
+      f.state.runs = [dispatchedRun(f, 'failure')];
+      f.context.eventName = 'workflow_dispatch';
+      f.context.payload.inputs.retry = 'true';
+      f.state[role] = actor;
+      await assert.rejects(reconcile(f), /Maintain or Admin/);
+      assert.equal(f.state.dispatches.length, 1);
+    });
+  }
+}
+
+test('workflow contracts retain manual-only proof and admission guards', () => {
+  const {readFileSync} = require('node:fs');
+  const {resolve} = require('node:path');
+  const auth = readFileSync(resolve(__dirname, '../../.github/workflows/e2e-authorize.yaml'), 'utf8');
+  assert.ok(!auth.includes('pull_request_target:'));
+  assert.ok(!auth.includes('issues: write'));
+  const scenario = readFileSync(resolve(__dirname, '../../.github/workflows/e2e.yaml'), 'utf8');
+  for (const name of ['e2e-harness', 'e2e-build', 'e2e', 'e2e-replay', 'e2e-replay-verify']) {
+    const job = scenario.split(`  ${name}:\n`)[1].split('    runs-on:')[0];
+    assert.ok(job.includes('needs.e2e-needed.outputs.admission_attempt == github.run_attempt'), name);
+  }
+  for (const name of ['e2e-harness', 'e2e-build', 'e2e', 'e2e-verify']) {
+    const job = scenario.split(`  ${name}:\n`)[1].split(/\n  \S/)[0];
+    const guard = job.indexOf('Recheck rerun maintainer');
+    const checkout = job.indexOf('- name: Checkout\n');
+    assert.ok(guard >= 0 && checkout > guard, name);
+    assert.match(job, /ref: \$\{\{ github.workflow_sha \}\}/);
+  }
+});
+
+test('failed-jobs-only readiness retries fail explicitly instead of silently skipping validation', async () => {
+  const {readFileSync} = require('node:fs');
+  const {resolve} = require('node:path');
+  const workflow = readFileSync(resolve(__dirname, '../../.github/workflows/e2e.yaml'), 'utf8');
+  assert.ok(!workflow.includes('  e2e-readiness-rerun:'));
+  const verify = workflow.split('  e2e-verify:\n')[1];
+  // Verification depends on failed scenario/build jobs, so GitHub retries it
+  // along with those jobs. A separate successful gate would not run again.
+  assert.match(verify, /needs:\n(?:.*\n)*?      - e2e\n/);
+  assert.match(verify, /always\(\) && !cancelled\(\) && needs.e2e-needed.outputs.run_shards == 'true'\n/);
+  const script = verify.split('- name: Require a fresh readiness decision')[1]
+    .split('script: |\n')[1].split(/\n      - /)[0];
+  const execute = new Function('process', 'core', script);
+  for (const [admission, current, failed] of [['1', '1', false], ['1', '2', true], ['', '2', true]]) {
+    const errors = [];
+    execute({env: {ADMISSION_ATTEMPT: admission, GITHUB_RUN_ATTEMPT: current}},
+      {setFailed: message => errors.push(message)});
+    assert.equal(errors.length > 0, failed);
+    if (failed) assert.match(errors[0], /new \/e2e Comment review.*Re-run all jobs/);
+  }
+});
+
+test('reservation recheck observes a revoked repository role', async () => {
+  const f = fake();
+  manualRequest(f);
+  const get = f.github.rest.pulls.get;
+  let calls = 0;
+  f.github.rest.pulls.get = async args => {
+    if (++calls === 2) f.state.role = 'write';
+    return get(args);
+  };
+  await reconcile(f);
+  assert.equal(f.state.dispatches.length, 0);
+});
+
+test('a forged target run associated with two PRs cannot establish authorization provenance', async () => {
+  const f = fake();
+  const run = manualAuthorization(f);
+  run.event = 'pull_request_target';
+  run.pull_requests = [{number: 12, head: {sha: f.state.pr.head.sha},
+    base: {ref: 'main', sha: 'c'.repeat(40)}},
+  {number: 13, head: {sha: f.state.pr.head.sha}, base: {ref: 'forged-workflow', sha: 'd'.repeat(40)}}];
+  await reconcile(f);
+  assert.equal(f.state.dispatches.length, 0);
+});
+
+test('scenario permission lookup runs once for an identical original and rerun actor', async () => {
+  const f = fake();
+  manualAuthorization(f);
+  f.context.eventName = 'workflow_dispatch';
+  Object.assign(process.env, {GITHUB_RUN_ID: '300', GITHUB_RUN_ATTEMPT: '1'});
+  const get = f.github.rest.repos.getCollaboratorPermissionLevel;
+  let calls = 0;
+  f.github.rest.repos.getCollaboratorPermissionLevel = async args => {calls++; return get(args);};
+  await scenarioDispatch(f);
+  assert.equal(calls, 1);
+});
+
+
+test('maintainer /e2e reviews authorize their own head, retry failures, and request fresh validation after success', async () => {
+  const f = fake();
+  reviewRequest(f, 700);
+  await reconcile(f);
+  await reconcile(f);
+  assert.equal(f.state.dispatches.length, 1);
+  assert.match(f.state.statuses[0].target_url, /actions\/runs\/200$/);
+  f.state.runs = [dispatchedRun(f, 'failure')];
+  await reconcile(f);
+  assert.equal(gate(f).state, 'failure');
+  const failed = f.state.checks[0];
+  assert.equal(failed.head_sha, f.state.pr.head.sha);
+  assert.equal(failed.conclusion, 'failure');
+  assert.equal(failed.details_url, f.state.runs[0].html_url);
+  assert.match(failed.output.summary, /Start or retry/);
+  assert.match(failed.output.summary, /\/e2e/);
+  reviewRequest(f, 701);
+  process.env.GITHUB_RUN_ID = '101';
+  await reconcile(f);
+  assert.equal(f.state.dispatches.length, 2);
+  f.state.runs = [dispatchedRun(f, 'success')];
+  f.state.jobs = [{name: 'Verify scenario results and coverage', conclusion: 'success'}];
+  await reconcile(f);
+  assert.equal(gate(f).state, 'success');
+  reviewRequest(f, 702);
+  process.env.GITHUB_RUN_ID = '102';
+  await reconcile(f);
+  assert.equal(f.state.dispatches.length, 3);
+  assert.match(f.state.statuses.find(status => status.context === requirement(f.state.pr).statusContext).description,
+    /request=review-702/);
+});
+
+for (const conclusion of ['success', 'failure', 'cancelled']) {
+  test(`a command during active E2E requests one follow-up after ${conclusion}`, async () => {
+    const f = fake();
+    reviewRequest(f, 700);
+    await reconcile(f);
+    f.state.runs = [dispatchedRun(f)];
+    reviewRequest(f, 701);
+    await reconcile(f);
+    await reconcile(f);
+    assert.equal(f.state.dispatches.length, 1);
+    assert.match(f.state.statuses.find(s => s.context === requirement(f.state.pr).statusContext).description,
+      /request=review-700/);
+    f.state.runs[0].status = 'completed';
+    f.state.runs[0].conclusion = conclusion;
+    f.state.jobs = [{name: 'Verify scenario results and coverage', conclusion}];
+    process.env.GITHUB_RUN_ID = '101';
+    await reconcile(f);
+    await reconcile(f);
+    assert.equal(f.state.dispatches.length, 2);
+    assert.match(f.state.statuses.find(s => s.context === requirement(f.state.pr).statusContext).description,
+      /request=review-701/);
+  });
+}
+
+for (const [name, mutate] of Object.entries({
+  'non-maintainer': f => {f.state.reviews[0].user.login = 'outside';},
+  bot: f => {f.state.reviews[0].user.type = 'Bot';},
+  'write-only role': f => {f.state.requestRole = 'write';},
+  'stale command': f => {f.state.reviews[0].commit_id = 'b'.repeat(40);},
+  'quoted or embedded command': f => {f.state.reviews[0].body = 'please /e2e';},
+  'dismissed review': f => {f.state.reviews[0].state = 'DISMISSED';},
+  draft: f => {f.state.pr.draft = true;},
+  fork: f => {f.state.pr.head.repo.full_name = 'outside/kongctl';},
+  'failed CI': f => {f.state.ci[0].conclusion = 'failure';},
+  'unresolved thread': f => {f.state.threads = [{isResolved: false}];},
+  'active changes request': f => {f.state.reviews.push({state: 'CHANGES_REQUESTED', user: {login: 'outside'}});},
+  'another editor': f => {f.state.reviewProof = {lastEditedAt: 'now', editor: {login: 'outside'}};},
+  'unknown editor': f => {f.state.reviewProof = {lastEditedAt: 'now', editor: null};},
+  'different PR proof': f => {f.state.reviewProof = {pullRequest: {number: 13, repository: {nameWithOwner: 'Kong/kongctl'}}};},
+  'different repository proof': f => {f.state.reviewProof = {pullRequest: {number: 12, repository: {nameWithOwner: 'outside/kongctl'}}};},
+  'different commit proof': f => {f.state.reviewProof = {commit: {oid: 'b'.repeat(40)}};},
+  'different author proof': f => {f.state.reviewProof = {author: {login: 'outside'}};},
+  'changed body proof': f => {f.state.reviewProof = {body: 'removed'};},
+  'different ID proof': f => {f.state.reviewProof = {fullDatabaseId: '999'};},
+  'pending proof': f => {f.state.reviewProof = {submittedAt: null};},
+})) {
+  test(`/e2e cannot authorize execution with ${name}`, async () => {
+    const f = fake();
+    reviewRequest(f);
+    mutate(f);
+    await reconcile(f);
+    assert.equal(f.state.dispatches.length, 0);
+    Object.assign(process.env, {READINESS_PR: '12', READINESS_SHA: f.state.pr.head.sha,
+      READINESS_ENV: 'com', READINESS_MODE: 'pr'});
+    await admit(f);
+    assert.equal(f.state.outputs.accepted, 'false');
+  });
+}
+
+test('a command does not authorize a new push and a new current-head command does', async () => {
+  const f = fake();
+  reviewRequest(f, 700);
+  await reconcile(f);
+  f.state.pr.head.sha = 'b'.repeat(40);
+  f.state.ci = f.state.ci.map(run => ({...run, head_sha: f.state.pr.head.sha}));
+  await reconcile(f);
+  assert.equal(f.state.dispatches.length, 1);
+  assert.match(gate(f).description, /Comment review/);
+  reviewRequest(f, 701);
+  process.env.GITHUB_RUN_ID = '101';
+  await reconcile(f);
+  assert.equal(f.state.dispatches.length, 2);
+  assert.equal(f.state.dispatches[1].inputs.readiness_sha, f.state.pr.head.sha);
+});
+
+test('native PR checks explain waiting state and link failed executions without overwriting the protected gate', async () => {
+  const f = fake();
+  f.state.reviews = [];
+  f.state.decision = 'REVIEW_REQUIRED';
+  await reconcile(f);
+  assert.equal(f.state.checks.length, 1);
+  assert.equal(f.state.checks[0].head_sha, f.state.pr.head.sha);
+  assert.equal(f.state.checks[0].status, 'queued');
+  assert.match(f.state.checks[0].output.summary, /Comment/);
+  assert.match(f.state.checks[0].output.summary, new RegExp(f.state.pr.head.sha));
+  await reconcile(f);
+  assert.equal(f.state.checks.length, 1);
+  assert.equal(f.state.checkUpdates?.length || 0, 0);
+  reviewRequest(f);
+  await reconcile(f);
+  f.state.runs = [dispatchedRun(f, 'failure')];
+  await reconcile(f);
+  f.state.threads = [{isResolved: false}];
+  await reconcile(f);
+  assert.equal(gate(f).state, 'pending');
+  assert.equal(f.state.checks[0].conclusion, 'failure');
+  assert.match(f.state.checks[0].output.summary, /Unresolved review threads/);
+  assert.match(f.state.checks[0].details_url, /actions\/runs\/200$/);
+});
+
+test('CI matches immutable workflow paths rather than dynamic run display names', async () => {
+  const f = fake();
+  f.state.ci[1].name = 'Checks, branch:12/merge, triggered by @author';
+  await reconcile(f);
+  assert.equal(f.state.dispatches.length, 1);
+  const blocked = fake();
+  blocked.state.ci[1].path = '.github/workflows/forged-checks.yaml';
+  await reconcile(blocked);
+  assert.equal(blocked.state.dispatches.length, 0);
+  assert.equal(gate(blocked).description, 'Awaiting prerequisite CI: Checks.');
+});
+
+for (const [name, mutate] of Object.entries({
+  bot: f => {f.state.reviews[0].user.type = 'Bot';},
+  author: f => {f.state.pr.user.login = 'human';},
+  stale: f => {f.state.reviews[0].commit_id = 'b'.repeat(40);},
+  outsider: f => {f.state.reviews[0].author_association = 'CONTRIBUTOR';},
+  dismissed: f => {f.state.reviews[0].state = 'DISMISSED';},
+  'changes requested': f => {f.state.reviews.push({...fixture().approval, state: 'CHANGES_REQUESTED'});},
+  'review required': f => {f.state.decision = 'REVIEW_REQUIRED';},
+  'unresolved thread': f => {f.state.threads = [{isResolved: false}];},
+  draft: f => {f.state.pr.draft = true;},
+  closed: f => {f.state.pr.state = 'closed';},
+})) {
+  test(`production ordinary approval policy rejects ${name}`, async () => {
+    const f = fake();
+    mutate(f);
+    await reconcile(f);
+    assert.equal(f.state.dispatches.length, 0);
+  });
+}
+
+for (const missing of ['Reserved', 'Running']) {
+  test(`a new command recovers missing ${missing} work after the visibility grace period`, async () => {
+    const f = fake();
+    reviewRequest(f, 700);
+    await reconcile(f);
+    const reserved = f.state.statuses.find(s => s.context === requirement(f.state.pr).statusContext);
+    reserved.description = `${missing} request=review-700 100`;
+    if (missing === 'Reserved') reserved.target_url = 'https://github.com/Kong/kongctl/pull/12/checks';
+    reviewRequest(f, 701);
+    await reconcile(f);
+    assert.equal(f.state.dispatches.length, 1, 'wait for transient GitHub visibility delays');
+    reserved.created_at = new Date(Date.now() - 11 * 60000).toISOString();
+    process.env.GITHUB_RUN_ID = '101';
+    await reconcile(f);
+    await reconcile(f);
+    assert.equal(f.state.dispatches.length, 2);
+    assert.match(f.state.checks[0].output.summary, /retry=true/);
+  });
+}
+
+test('a new command recovers an interrupted dispatch without the Actions form', async () => {
+  const f = fake();
+  reviewRequest(f, 700);
+  f.state.dispatchError = true;
+  await assert.rejects(reconcile(f), /interrupted/);
+  f.state.dispatchError = false;
+  const reserved = f.state.statuses.find(s => s.context === requirement(f.state.pr).statusContext);
+  reserved.created_at = new Date(Date.now() - 11 * 60000).toISOString();
+  reviewRequest(f, 701);
+  await reconcile(f);
+  assert.equal(f.state.dispatches.length, 2);
+});
+
+test('recovery discovers an active dispatch whose response was lost instead of duplicating it', async () => {
+  const f = fake();
+  reviewRequest(f, 700);
+  await reconcile(f);
+  const reserved = f.state.statuses.find(s => s.context === requirement(f.state.pr).statusContext);
+  reserved.description = 'Reserved request=review-700 100';
+  reserved.target_url = 'https://github.com/Kong/kongctl/pull/12/checks';
+  reserved.created_at = new Date(Date.now() - 11 * 60000).toISOString();
+  f.state.runs = [dispatchedRun(f)];
+  reviewRequest(f, 701);
+  await reconcile(f);
+  assert.equal(f.state.dispatches.length, 1);
+  assert.match(gate(f).target_url, /actions\/runs\/200$/);
+});
+
+test('recovery fails closed if GitHub cannot list the potentially active dispatch', async () => {
+  const f = fake();
+  reviewRequest(f, 700);
+  await reconcile(f);
+  const reserved = f.state.statuses.find(s => s.context === requirement(f.state.pr).statusContext);
+  reserved.created_at = new Date(Date.now() - 11 * 60000).toISOString();
+  reviewRequest(f, 701);
+  const paginate = f.github.paginate;
+  f.github.paginate = async (method, args) => {
+    if (method.method === 'runs') throw Object.assign(new Error('Recovery API unavailable'), {status: 403});
+    return paginate(method, args);
+  };
+  await assert.rejects(reconcile(f), /Recovery API unavailable/);
+  assert.equal(f.state.dispatches.length, 1);
+});
+
+for (const label of ['e2e:force-live', 'konnect-env:tech']) {
+  test(`changing ${label} completes obsolete pending PR checks`, async () => {
+    const f = fake();
+    f.state.reviews = [];
+    await reconcile(f);
+    const old = f.state.checks[0];
+    // Include checks left by the earlier implementation's per-mode name.
+    old.name += ' / com / pr';
+    f.state.pr.labels = [{name: label}];
+    await reconcile(f);
+    assert.equal(old.status, 'completed');
+    assert.equal(old.conclusion, 'neutral');
+    assert.match(old.output.title, /Superseded/);
+    assert.equal(f.state.checks.filter(check => check.status !== 'completed').length, 1);
+    f.state.pr.labels = [];
+    await reconcile(f);
+    assert.equal(f.state.checks.filter(check => check.status !== 'completed').length, 1);
+    assert.equal(f.state.checks[0].name, 'E2E / PR #12');
+  });
+}
+
+for (const status of [403, 429]) {
+  test(`a Checks API ${status} cannot prevent publishing protected gate success or failure`, async () => {
+    const f = fake();
+    await reconcile(f);
+    f.state.runs = [dispatchedRun(f, 'success')];
+    f.state.jobs = [{name: 'Verify scenario results and coverage', conclusion: 'success'}];
+    const paginate = f.github.paginate;
+    f.github.paginate = async (method, args) => {
+      if (method.method === 'checks') throw Object.assign(new Error('Checks unavailable'), {status});
+      return paginate(method, args);
+    };
+    await reconcile(f);
+    assert.equal(gate(f).state, 'success');
+    f.state.runs[0].run_attempt = 2;
+    f.state.runs[0].conclusion = 'failure';
+    await reconcile(f);
+    assert.equal(gate(f).state, 'failure');
+    assert.match(f.state.warnings[0], /could not update E2E execution check/);
+  });
+}
+
+test('docs-only reconciliation publishes the merge gate without any Checks API calls', async () => {
+  const f = fake();
+  f.state.files = [{filename: 'README.md'}];
+  const paginate = f.github.paginate;
+  f.github.paginate = async (method, args) => {
+    assert.notEqual(method.method, 'checks');
+    return paginate(method, args);
+  };
+  await reconcile(f);
+  await reconcile(f);
+  assert.equal(gate(f).state, 'success');
+  assert.equal(f.state.checks.length, 0);
+});
+
+test('a deleted fork remains ineligible in authorization, reconciliation and queued admission', async () => {
+  const f = fake();
+  manualRequest(f);
+  f.state.pr.head.repo = null;
+  await assert.rejects(authorize(f), /Fork PRs require/);
+  f.context.eventName = 'schedule';
+  await reconcile(f);
+  assert.equal(f.state.dispatches.length, 0);
+  assert.equal(gate(f).state, 'pending');
+  Object.assign(process.env, {READINESS_PR: '12', READINESS_SHA: f.state.pr.head.sha,
+    READINESS_ENV: 'com', READINESS_MODE: 'live'});
+  await admit(f);
+  assert.equal(f.state.outputs.accepted, 'false');
 });
