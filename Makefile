@@ -346,7 +346,9 @@ test-e2e-readiness:
 .PHONY: authorize-e2e
 authorize-e2e:
 	@set -eu; \
-		pr=$$(gh pr view --repo Kong/kongctl --json number,headRefOid --jq '"\(.number) \(.headRefOid)"'); \
+		local_branch=$$(git symbolic-ref --quiet --short HEAD); \
+		pr=$$(gh pr view "$$local_branch" --repo Kong/kongctl \
+			--json number,headRefOid --jq '"\(.number) \(.headRefOid)"'); \
 		branch=$$(gh repo view Kong/kongctl --json defaultBranchRef --jq .defaultBranchRef.name); \
 		gh workflow run e2e-authorize.yaml --repo Kong/kongctl --ref "$$branch" \
 			-f pr_number="$${pr%% *}" -f head_sha="$${pr#* }"

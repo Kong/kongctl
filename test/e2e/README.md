@@ -612,9 +612,9 @@ make authorize-e2e
 
 This resolves the current branch's PR in `Kong/kongctl`, reads its current
 remote head SHA and the repository's default branch, and dispatches the
-authorization workflow. There is no PR number, SHA, or branch to copy. It
-authorizes the remote PR head, including when your local checkout has unpushed
-changes. A concurrent push causes the workflow's exact-SHA check to reject
+authorization workflow. Use a checked-out PR branch rather than a detached
+HEAD. There is no PR number, SHA, or branch to copy. It authorizes the remote
+PR head, including when your local checkout has unpushed changes. A concurrent push causes the workflow's exact-SHA check to reject
 stale authorization; run the target again for the new head.
 
 Alternatively, in

@@ -654,10 +654,16 @@ test('make authorize-e2e discovers the current PR and default branch and fails b
   const dir = mkdtempSync(join(tmpdir(), 'kongctl-authorize-'));
   const log = join(dir, 'dispatch.json');
   try {
+    writeFileSync(join(dir, 'git'), `#!/bin/sh
+[ "\${FAIL_BRANCH:-}" != true ] || exit 1
+[ "$1" = symbolic-ref ] || exit 2
+printf '%s\\n' local-pr-branch
+`, {mode: 0o755});
     writeFileSync(join(dir, 'gh'), `#!/usr/bin/env node
 const fs = require('node:fs');
 const args = process.argv.slice(2);
 if (args[0] === 'pr') {
+  if (args[1] !== 'view' || args[2] !== process.env.LOCAL_BRANCH) process.exit(2);
   if (process.env.FAIL_LOOKUP === 'true') process.exit(1);
   process.stdout.write('2792 ${'a'.repeat(40)}');
 } else if (args[0] === 'repo') {
@@ -666,7 +672,8 @@ if (args[0] === 'pr') {
   fs.writeFileSync(process.env.DISPATCH_LOG, JSON.stringify(args));
 } else process.exit(2);
 `, {mode: 0o755});
-    const env = {...process.env, PATH: `${dir}:${process.env.PATH}`, DISPATCH_LOG: log};
+    const env = {...process.env, PATH: `${dir}:${process.env.PATH}`, DISPATCH_LOG: log,
+      LOCAL_BRANCH: 'local-pr-branch'};
     const invoke = env => spawnSync('make', ['authorize-e2e'],
       {cwd: resolve(__dirname, '../..'), env, encoding: 'utf8'});
     const result = invoke(env);
@@ -676,6 +683,8 @@ if (args[0] === 'pr') {
     rmSync(log);
     const failed = invoke({...env, FAIL_LOOKUP: 'true'});
     assert.notEqual(failed.status, 0);
+    assert.equal(existsSync(log), false);
+    assert.notEqual(invoke({...env, FAIL_BRANCH: 'true'}).status, 0);
     assert.equal(existsSync(log), false);
   } finally {
     rmSync(dir, {recursive: true, force: true});
