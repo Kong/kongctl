@@ -24,6 +24,19 @@ Run only scenarios:
 make test-e2e-scenarios
 ```
 
+`make test-e2e-scenarios` renders a compact, live view instead of the raw
+`go test -v` listing: a redrawn-in-place block showing completed/total
+counts, the current scenario's elapsed time, and the run's total elapsed
+time. Skips and failures are printed as permanent lines above that block as
+soon as they're known, with the skip reason or failure diagnostics, and
+never erased by later redraws. When the run finishes, the live block is
+replaced by a summary: pass/skip/fail counts, total scenario execution time,
+the slowest scenarios, failed scenario names/durations, and the artifacts
+path. Piping or redirecting the output (including in CI) switches to plain,
+ANSI-free, append-only lines — one per completed scenario, plus an
+occasional heartbeat for a long-running one. The full raw `go test` output,
+including every scenario's duration, is always preserved in `run.log`.
+
 Run a single scenario by exact scenario path:
 
 ```bash

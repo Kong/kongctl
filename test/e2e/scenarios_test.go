@@ -101,6 +101,10 @@ func Test_Scenarios(t *testing.T) {
 		t.Logf("WARNING: sharding comparison unavailable (allocation %s): %v", allocation.ID, err)
 	}
 
+	// Lets a compact-mode caller (test/e2e/cmd/scenariorunner) learn the selected
+	// count up front, before any scenario subtest has started.
+	fmt.Println("##KONGCTL_E2E_TOTAL=" + strconv.Itoa(len(selected)))
+
 	if len(selected) == 0 {
 		switch {
 		case filt != "":
@@ -118,13 +122,22 @@ func Test_Scenarios(t *testing.T) {
 		t.Fatalf("invalid beta scenario configuration: %v", err)
 	}
 
-	progress := newScenarioProgress(os.Stderr, len(selected), isInteractiveWriter(os.Stderr))
-	defer progress.stop()
+	// test/e2e/cmd/scenariorunner renders its own compact progress from the
+	// -json event stream; skip the stderr heartbeat/redraw here so it doesn't
+	// show up as noise once that wrapper owns the terminal.
+	compact := os.Getenv("KONGCTL_E2E_COMPACT") != ""
+	var progress *scenarioProgress
+	if !compact {
+		progress = newScenarioProgress(os.Stderr, len(selected), isInteractiveWriter(os.Stderr))
+		defer progress.stop()
+	}
 
 	for _, p := range selected {
 		t.Run(p, func(t *testing.T) {
-			progress.startScenario(progressScenarioName(p))
-			defer progress.completeScenario()
+			if !compact {
+				progress.startScenario(progressScenarioName(p))
+				defer progress.completeScenario()
+			}
 
 			maturity, err := scenario.Run(t, p, betaMode)
 			if err == nil {
