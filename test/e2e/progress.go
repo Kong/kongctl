@@ -74,11 +74,11 @@ func newScenarioProgress(out io.Writer, total int, interactive bool, opts ...pro
 		close(p.doneCh)
 		return p
 	}
-	tickEvery := p.heartbeat
-	if p.interactive {
-		tickEvery = defaultProgressTick
-	}
-	go p.loop(tickEvery)
+	// Always tick at the fine-grained interval, even in non-interactive mode: tick()
+	// gates actual emission on the heartbeat, but ticking at exactly the heartbeat
+	// period would let a tick arriving just under the threshold get discarded, pushing
+	// the next emission to nearly double the heartbeat instead of ~heartbeat later.
+	go p.loop(defaultProgressTick)
 	return p
 }
 
