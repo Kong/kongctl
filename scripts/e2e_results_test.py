@@ -177,30 +177,34 @@ new AsyncFunction('github', 'context', 'core', 'require', process.env.GUARD_SCRI
             self.assertTrue(fnmatch.fnmatchcase(name, pattern), name)
         self.assertFalse(download.get('merge-multiple', False))
 
-    def run_verifier(self, event, newest_passes=True, omit_result=False):
+    def run_verifier(self, event, newest_passes=True, omit_result=False, shards=2, rerun_indices=(0,),
+                     rerun_total=None):
         with tempfile.TemporaryDirectory() as temporary:
             workspace = Path(temporary)
             helper = workspace / 'test/e2e/harness/ci/results.sh'
             helper.parent.mkdir(parents=True)
             helper.symlink_to(ROOT / 'test/e2e/harness/ci/results.sh')
-            scenarios = ['first/scenario.yaml', 'second/scenario.yaml']
+            scenarios = [f'scenario-{index}/scenario.yaml' for index in range(shards)]
             for scenario in scenarios:
                 path = workspace / 'test/e2e/scenarios' / scenario
                 path.parent.mkdir(parents=True)
                 path.touch()
             (workspace / 'e2e-routing.json').write_text(json.dumps({'live': scenarios}))
-            # Only shard zero reruns. Attempt 10 must supersede both 1 and 2,
-            # while shard one's original successful result remains eligible.
-            for attempt, index, passes in [(1, 0, not newest_passes), (1, 1, True),
-                                          (2, 0, not newest_passes), (10, 0, newest_passes)]:
+            # Attempt 10 supersedes prior attempts numerically; shards not
+            # retried retain their original successful result.
+            records = [(1, index, not newest_passes if index in rerun_indices else True)
+                       for index in range(shards)]
+            records += [(attempt, index, newest_passes if attempt == 10 else not newest_passes)
+                        for attempt in [2, 10] for index in rerun_indices]
+            for attempt, index, passes in records:
                 org = f'acceptance-{index}'
-                # Keep a legacy artifact for the shard that did not rerun.
-                name = f'e2e-artifacts-123-{org}' if index == 1 else self.artifact_name(attempt, org)
+                name = (f'e2e-artifacts-123-{org}' if index not in rerun_indices
+                        else self.artifact_name(attempt, org))
                 directory = workspace / '.downloaded-artifacts' / name / f'results-{attempt}'
                 directory.mkdir(parents=True)
                 scenario = scenarios[index]
                 (directory / 'assigned-scenarios.txt').write_text(
-                    f'shard_index={index}\nshard_total=2\n\n{scenario}\n')
+                    f'shard_index={index}\nshard_total={rerun_total if attempt == 10 and rerun_total else shards}\n\n{scenario}\n')
                 result = '' if omit_result and attempt == 10 else scenario
                 (directory / 'scenario-results.txt').write_text(
                     f'org_name={org}\nrun_attempt={attempt}\nexit_code={int(not passes)}\n'
@@ -213,19 +217,37 @@ new AsyncFunction('github', 'context', 'core', 'require', process.env.GUARD_SCRI
                 cwd=workspace, capture_output=True, text=True,
                 env={**os.environ, 'GITHUB_WORKSPACE': str(workspace), 'GITHUB_RUN_ID': '123',
                      'GITHUB_EVENT_NAME': event, 'REPLAY_VERIFY_RESULT': 'success',
-                     'READINESS_DISPATCH': 'true' if event == 'pull_request' else 'false',
+                     'READINESS_DISPATCH': 'true' if event in ['pull_request', 'workflow_dispatch'] else 'false',
                      'GITHUB_STEP_SUMMARY': str(summary), 'RUNNER_TEMP': str(summary.parent), 'TMPDIR': str(workspace)},
             )
             return completed, summary.read_text()
 
     def test_partial_rerun_uses_latest_attempt_per_shard(self):
-        for event in ['pull_request', 'push']:
+        for event in ['pull_request', 'workflow_dispatch', 'push']:
             with self.subTest(event=event):
                 result, summary = self.run_verifier(event)
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                 self.assertIn('- Failed: 0', summary)
                 self.assertIn('| 0 | 10 | acceptance-0 |', summary)
                 self.assertIn('| 1 | 1 | acceptance-1 |', summary)
+
+    def test_two_failed_shards_rerun_while_three_successful_shards_are_reused(self):
+        result, summary = self.run_verifier('workflow_dispatch', shards=5, rerun_indices=(0, 1))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('- Passed: 5', summary)
+        self.assertIn('- Failed: 0', summary)
+        for index in range(5):
+            self.assertIn(f'| {index} | {10 if index < 2 else 1} | acceptance-{index} |', summary)
+
+    def test_two_retried_shards_still_failing_cannot_be_replaced_by_older_passes(self):
+        result, _ = self.run_verifier('workflow_dispatch', newest_passes=False, shards=5, rerun_indices=(0, 1))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('2 scenario(s) failed; 2 shard(s) exited non-zero', result.stdout)
+
+    def test_partial_retry_cannot_mix_incompatible_shard_layouts(self):
+        result, _ = self.run_verifier('workflow_dispatch', rerun_total=3)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Mixed shard layouts across reruns', result.stdout)
 
     def test_latest_failed_attempt_still_blocks(self):
         result, _ = self.run_verifier('pull_request', newest_passes=False)

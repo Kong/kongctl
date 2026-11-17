@@ -1,7 +1,7 @@
 const {test} = require('node:test');
 const assert = require('node:assert/strict');
 const {requirement, ciReady, reconcile, admit, REQUIRED, scheduledBatch, authorize,
-  AUTHORIZATION_JOB, AUTHORIZATION_STEP, scenarioDispatch, waitForCompletion} = require('../e2e-readiness.cjs');
+  AUTHORIZATION_JOB, AUTHORIZATION_STEP, scenarioDispatch, waitForCompletion, recheckRerun} = require('../e2e-readiness.cjs');
 
 function fixture() {
   const pr = {number: 12, state: 'open', draft: false, changed_files: 1, labels: [],
@@ -275,17 +275,6 @@ test('workflow completion targets its PR and manual/main completion relies on re
   assert.equal(f.state.dispatches.length, 0);
 });
 
-
-test('expensive automatic jobs and verification require admission in the current run attempt', () => {
-  const {readFileSync} = require('node:fs');
-  const {resolve} = require('node:path');
-  const source = readFileSync(resolve(__dirname, '../../.github/workflows/e2e.yaml'), 'utf8');
-  for (const name of ['e2e-harness', 'e2e-build', 'e2e', 'e2e-replay', 'e2e-replay-verify']) {
-    const job = source.split(`  ${name}:\n`)[1].split('    runs-on:')[0];
-    assert.ok(job.includes('needs.e2e-needed.outputs.admission_attempt == github.run_attempt'), name);
-  }
-  assert.ok(!source.split('jobs:')[0].includes('  pull_request:'));
-});
 
 test('rerunning a successful run temporarily invalidates its evidence', async () => {
   const f = fake();
@@ -997,39 +986,28 @@ test('workflow contracts retain manual-only proof and admission guards', () => {
   assert.ok(!auth.includes('pull_request_target:'));
   assert.ok(!auth.includes('issues: write'));
   const scenario = readFileSync(resolve(__dirname, '../../.github/workflows/e2e.yaml'), 'utf8');
-  for (const name of ['e2e-harness', 'e2e-build', 'e2e', 'e2e-replay', 'e2e-replay-verify']) {
-    const job = scenario.split(`  ${name}:\n`)[1].split('    runs-on:')[0];
-    assert.ok(job.includes('needs.e2e-needed.outputs.admission_attempt == github.run_attempt'), name);
-  }
-  for (const name of ['e2e-harness', 'e2e-build', 'e2e', 'e2e-verify']) {
+  for (const name of ['e2e-harness', 'e2e-build', 'e2e', 'e2e-replay', 'e2e-replay-verify', 'e2e-verify']) {
     const job = scenario.split(`  ${name}:\n`)[1].split(/\n  \S/)[0];
-    const guard = job.indexOf('Recheck rerun maintainer');
-    const checkout = job.indexOf('- name: Checkout\n');
+    const condition = job.split('    runs-on:')[0];
+    assert.ok(!condition.includes('admission_attempt'), name);
+    const guard = job.indexOf('Recheck rerun readiness before expensive work');
+    const checkout = job.search(/- name: Checkout(?:\n| trusted replay tools)/);
     assert.ok(guard >= 0 && checkout > guard, name);
     assert.match(job, /ref: \$\{\{ github.workflow_sha \}\}/);
+    const retryStep = job.split('- name: Recheck rerun readiness before expensive work')[1].split(/\n      - /)[0];
+    assert.match(retryStep, /if: github.event_name == 'workflow_dispatch' && github.run_attempt > 1\n/);
+    assert.match(retryStep, /\.recheckRerun\(\{github, context, core\}\)/);
+    assert.ok(!retryStep.includes("dispatch_source != 'readiness'"), name);
+    for (const [key, value] of Object.entries({READINESS_PR: 'inputs.readiness_pr', READINESS_SHA: 'inputs.readiness_sha',
+      READINESS_ENV: 'inputs.konnect_environment', READINESS_MODE: 'inputs.readiness_mode'})) {
+      assert.ok(retryStep.includes(`${key}: \${{ ${value} }}`), `${name}: ${key}`);
+    }
+    assert.match(retryStep, /KONNECT_ENVIRONMENT:.*vars.KONGCTL_E2E_KONNECT_ENV/);
+    assert.match(job, /actions: read/);
+    assert.match(job, /pull-requests: read/);
+    assert.match(job.split('    steps:')[0], /statuses: read/, `${name}: manual authorization evidence requires status access`);
   }
-});
-
-test('failed-jobs-only readiness retries fail explicitly instead of silently skipping validation', async () => {
-  const {readFileSync} = require('node:fs');
-  const {resolve} = require('node:path');
-  const workflow = readFileSync(resolve(__dirname, '../../.github/workflows/e2e.yaml'), 'utf8');
-  assert.ok(!workflow.includes('  e2e-readiness-rerun:'));
-  const verify = workflow.split('  e2e-verify:\n')[1];
-  // Verification depends on failed scenario/build jobs, so GitHub retries it
-  // along with those jobs. A separate successful gate would not run again.
-  assert.match(verify, /needs:\n(?:.*\n)*?      - e2e\n/);
-  assert.match(verify, /always\(\) && !cancelled\(\) && needs.e2e-needed.outputs.run_shards == 'true'\n/);
-  const script = verify.split('- name: Require a fresh readiness decision')[1]
-    .split('script: |\n')[1].split(/\n      - /)[0];
-  const execute = new Function('process', 'core', script);
-  for (const [admission, current, failed] of [['1', '1', false], ['1', '2', true], ['', '2', true]]) {
-    const errors = [];
-    execute({env: {ADMISSION_ATTEMPT: admission, GITHUB_RUN_ATTEMPT: current}},
-      {setFailed: message => errors.push(message)});
-    assert.equal(errors.length > 0, failed);
-    if (failed) assert.match(errors[0], /new \/e2e Comment review.*Re-run all jobs/);
-  }
+  assert.ok(!scenario.includes('Require a fresh readiness decision'));
 });
 
 test('reservation recheck observes a revoked repository role', async () => {
@@ -1532,3 +1510,100 @@ test('trusted-fork completion reevaluates existing evidence without authorizing 
   assert.equal(gate(f).state, 'success');
   assert.equal(f.state.dispatches.length, 0);
 });
+
+function readinessRerun(f) {
+  const actor = {id: 43, login: 'human', type: 'User'};
+  f.state.runs.push({id: 300, event: 'workflow_dispatch', actor, triggering_actor: actor});
+  f.context.eventName = 'workflow_dispatch';
+  f.context.payload.inputs = {dispatch_source: 'readiness'};
+  Object.assign(process.env, {GITHUB_RUN_ID: '300', GITHUB_RUN_ATTEMPT: '2',
+    READINESS_PR: '12', READINESS_SHA: f.state.pr.head.sha, READINESS_ENV: 'com', READINESS_MODE: 'pr'});
+}
+
+test('a failed shard can obtain fresh admission on the same commit without redispatching the suite', async () => {
+  const f = fake();
+  readinessRerun(f);
+  await recheckRerun(f);
+  assert.equal(f.state.outputs.accepted, 'true');
+  assert.equal(f.state.outputs.attempt, '2');
+  assert.equal(f.state.dispatches.length, 0);
+  assert.equal(f.state.statuses.length, 0);
+});
+
+test('manual exact-head authorization supports failed-shard retry while a positive review is absent', async () => {
+  const f = fake();
+  const authorization = manualAuthorization(f);
+  f.context.eventName = 'workflow_dispatch';
+  f.context.payload.inputs = {dispatch_source: 'readiness'};
+  f.state.runs.push({id: 400, event: 'workflow_dispatch', actor: authorization.actor,
+    triggering_actor: authorization.actor});
+  Object.assign(process.env, {GITHUB_RUN_ID: '400', GITHUB_RUN_ATTEMPT: '2',
+    READINESS_PR: '12', READINESS_SHA: f.state.pr.head.sha, READINESS_ENV: 'com', READINESS_MODE: 'pr'});
+  const paginate = f.github.paginate;
+  let statusReads = 0;
+  f.github.paginate = async (method, args) => {
+    if (method.method === 'statuses') statusReads++;
+    return paginate(method, args);
+  };
+  await recheckRerun(f);
+  assert.equal(f.state.reviews.length, 0);
+  assert.equal(f.state.decision, 'REVIEW_REQUIRED');
+  assert.equal(statusReads, 1);
+  assert.equal(f.state.outputs.accepted, 'true');
+  assert.equal(f.state.outputs.attempt, '2');
+  assert.equal(f.state.dispatches.length, 0);
+});
+
+test('bot-dispatched readiness runs allow an authorized maintainer to retry their failed shards', async () => {
+  const f = fake();
+  readinessRerun(f);
+  Object.assign(f.state.runs[0], {actor: {id: 1, login: 'github-actions[bot]', type: 'Bot'},
+    head_branch: 'main', head_sha: 'c'.repeat(40), head_repository: {full_name: 'Kong/kongctl'}});
+  process.env.GITHUB_REF = 'refs/heads/main';
+  const graphql = f.github.graphql;
+  f.github.graphql = async (query, args) => args.head
+    ? {repository: {ref: {compare: {status: 'BEHIND'}}}} : graphql(query, args);
+  await recheckRerun(f);
+  assert.equal(f.state.outputs.accepted, 'true');
+  assert.equal(f.state.dispatches.length, 0);
+});
+
+test('an author can retry failed shards using their existing exact-head /e2e authorization', async () => {
+  const f = fake();
+  reviewRequest(f);
+  readinessRerun(f);
+  f.state.runs[0].actor = f.state.reviews[0].user;
+  f.state.runs[0].triggering_actor = f.state.reviews[0].user;
+  await recheckRerun(f);
+  assert.equal(f.state.decision, 'REVIEW_REQUIRED');
+  assert.equal(f.state.outputs.accepted, 'true');
+  f.state.reviewProof = {body: 'Authorization removed'};
+  await assert.rejects(recheckRerun(f), /E2E retry denied/);
+  assert.equal(f.state.dispatches.length, 0);
+});
+
+for (const [name, mutate] of Object.entries({
+  'new commit': f => {f.state.pr.head.sha = 'b'.repeat(40);},
+  draft: f => {f.state.pr.draft = true;},
+  closed: f => {f.state.pr.state = 'closed';},
+  fork: f => {f.state.pr.head.repo.full_name = 'outside/kongctl';},
+  'failed CI': f => {f.state.ci[0].conclusion = 'failure';},
+  'unresolved thread': f => {f.state.threads = [{isResolved: false}];},
+  'changes request': f => {f.state.reviews.push({state: 'CHANGES_REQUESTED', user: {login: 'reviewer'}});},
+  'revoked approval': f => {f.state.reviews = [];},
+  'target environment change': f => {f.state.pr.labels = [{name: 'konnect-env:tech'}];},
+  'configured environment change': () => {process.env.KONNECT_ENVIRONMENT = 'tech';},
+  'routing change': f => {f.state.pr.labels = [{name: 'e2e:force-live'}];},
+  'revoked role': f => {f.state.reviewRole = 'write';},
+  'unauthorized triggering actor': f => {f.state.runs[0].triggering_actor = {id: 99, login: 'outside', type: 'User'};},
+  'unauthorized original actor': f => {f.state.runs[0].actor = {id: 99, login: 'outside', type: 'User'};},
+})) {
+  test(`failed-shard retry rejects ${name} before expensive work`, async () => {
+    const f = fake();
+    readinessRerun(f);
+    mutate(f);
+    await assert.rejects(recheckRerun(f));
+    assert.equal(f.state.dispatches.length, 0);
+    assert.equal(f.state.statuses.length, 0);
+  });
+}
