@@ -1,0 +1,82 @@
+_defaults:
+  kongctl:
+    namespace: event-gateways-vc-comprehensive-test
+
+event_gateways:
+  - ref: egw-cp-for-bc-vc-test
+    name: egw-cp-for-bc-vc-test
+    description: "EGW CP for Backend and Virtual Cluster Test"
+    backend_clusters:
+      - ref: default-backend-cluster
+        name: default-backend-cluster
+        description: "Backend Cluster for Test"
+        bootstrap_servers:
+          - "egw-backend-1.example.com:9092"
+          - "egw-backend-2.example.com:9092"
+        authentication:
+          type: anonymous
+        tls:
+          enabled: true
+          insecure_skip_verify: false
+          tls_versions:
+            - tls12
+            - tls13
+      - ref: filter-backend-cluster
+        name: filter-backend-cluster
+        description: "Backend Cluster with no Virtual Clusters"
+        bootstrap_servers:
+          - "egw-backend-3.example.com:9092"
+          - "egw-backend-4.example.com:9092"
+        authentication:
+          type: anonymous
+        tls:
+          enabled: true
+          insecure_skip_verify: false
+          tls_versions:
+            - tls12
+            - tls13
+      - ref: secondary-backend-cluster
+        name: secondary-backend-cluster
+        description: "Backend Cluster for Secondary Virtual Cluster"
+        bootstrap_servers:
+          - "egw-backend-5.example.com:9092"
+          - "egw-backend-6.example.com:9092"
+        authentication:
+          type: anonymous
+        tls:
+          enabled: true
+          insecure_skip_verify: false
+          tls_versions:
+            - tls12
+            - tls13
+    virtual_clusters:
+      - ref: default-virtual-cluster
+        name: default-virtual-cluster
+        namespace:
+          mode: hide_prefix
+          prefix: e2e_initial_
+        description: "Virtual Cluster for Test"
+        labels:
+          env: test
+          team: platform
+        destination:
+          id: !ref default-backend-cluster#id
+        authentication:
+          - type: anonymous
+        acl_mode: passthrough
+        dns_label: vc-default
+      - ref: secondary-virtual-cluster
+        name: secondary-virtual-cluster
+        namespace:
+          mode: hide_prefix
+          prefix: e2e_secondary_
+        description: "Secondary Virtual Cluster for Backend Cluster Filter Test"
+        labels:
+          env: test
+          team: platform
+        destination:
+          id: !ref secondary-backend-cluster#id
+        authentication:
+          - type: anonymous
+        acl_mode: passthrough
+        dns_label: vc-secondary
