@@ -118,8 +118,14 @@ func Test_Scenarios(t *testing.T) {
 		t.Fatalf("invalid beta scenario configuration: %v", err)
 	}
 
+	progress := newScenarioProgress(os.Stderr, len(selected), isInteractiveWriter(os.Stderr))
+	defer progress.stop()
+
 	for _, p := range selected {
 		t.Run(p, func(t *testing.T) {
+			progress.startScenario(progressScenarioName(p))
+			defer progress.completeScenario()
+
 			maturity, err := scenario.Run(t, p, betaMode)
 			if err == nil {
 				return
