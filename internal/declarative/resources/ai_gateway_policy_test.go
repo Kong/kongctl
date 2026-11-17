@@ -127,3 +127,111 @@ func TestAIGatewayPolicyResourceFromResponse(t *testing.T) {
 	require.Equal(t, "mask-sensitive-data", policy.Name)
 	require.NoError(t, policy.Validate())
 }
+
+func TestAIGatewayPolicyResourceFromResponseOmitsDatastoreConnections(t *testing.T) {
+	redis := map[string]any{"host": "redis.example.test", "port": float64(6380)}
+	pgvector := map[string]any{"host": "pg.example.test", "database": "vectors"}
+	response := func(stores []kkComps.AIGatewayDatastoreRef) kkComps.AIGatewayPolicy {
+		return kkComps.AIGatewayPolicy{
+			ID:          "policy-id",
+			Name:        "rate-limits",
+			Type:        "ai-rate-limiting-advanced",
+			DisplayName: "Rate limits",
+			Datastores:  stores,
+			Config: map[string]any{
+				"strategy": "redis",
+				"redis":    redis,
+				"vectordb": map[string]any{"strategy": "pgvector", "redis": redis, "pgvector": pgvector},
+			},
+		}
+	}
+
+	policy, err := AIGatewayPolicyResourceFromResponse(
+		"support-gateway",
+		response([]kkComps.AIGatewayDatastoreRef{{Name: "shared-redis"}}),
+	)
+	require.NoError(t, err)
+	payload, err := policy.MutablePayloadMap()
+	require.NoError(t, err)
+	require.Equal(t, []any{map[string]any{"name": "shared-redis"}}, payload["datastores"])
+	config := payload["config"].(map[string]any)
+	require.Equal(t, "redis", config["strategy"])
+	require.NotContains(t, config, "redis")
+	require.Equal(t, map[string]any{"strategy": "pgvector", "redis": redis, "pgvector": pgvector}, config["vectordb"])
+
+	semantic := response([]kkComps.AIGatewayDatastoreRef{{Name: "vector-store"}})
+	semantic.Type = "ai-semantic-cache"
+	policy, err = AIGatewayPolicyResourceFromResponse("support-gateway", semantic)
+	require.NoError(t, err)
+	require.Equal(t, redis, policy.Config["redis"])
+	require.Equal(t, map[string]any{"strategy": "pgvector"}, policy.Config["vectordb"])
+
+	unknown := response([]kkComps.AIGatewayDatastoreRef{{Name: "custom-store"}})
+	unknown.Type = "custom-policy"
+	policy, err = AIGatewayPolicyResourceFromResponse("support-gateway", unknown)
+	require.NoError(t, err)
+	require.Equal(t, unknown.Config, policy.Config)
+
+	inline, err := AIGatewayPolicyResourceFromResponse("support-gateway", response(nil))
+	require.NoError(t, err)
+	payload, err = inline.MutablePayloadMap()
+	require.NoError(t, err)
+	require.Equal(t, redis, payload["config"].(map[string]any)["redis"])
+}
+
+func TestAIGatewayPolicyResourceFromResponseOmitsNestedDatastoreConnections(t *testing.T) {
+	for _, tt := range []struct {
+		policyType string
+		config     string
+		exported   string
+	}{
+		{
+			policyType: "acme",
+			config: `{
+				"storage":"redis",
+				"storage_config":{"redis":{"host":"redis.example.test"},"shm":{"shm_name":"kong"}}
+			}`,
+			exported: `{"storage":"redis","storage_config":{"shm":{"shm_name":"kong"}}}`,
+		},
+		{
+			policyType: "datakit",
+			config: `{
+				"debug":false,
+				"resources":{
+					"cache":{"redis":{"host":"redis.example.test"},"memory":{"dictionary_name":"kong_db_cache"}},
+					"vault":null
+				}
+			}`,
+			exported: `{
+				"debug":false,"resources":{"cache":{"memory":{"dictionary_name":"kong_db_cache"}},"vault":null}
+			}`,
+		},
+	} {
+		t.Run(tt.policyType, func(t *testing.T) {
+			var config, exported map[string]any
+			require.NoError(t, json.Unmarshal([]byte(tt.config), &config))
+			require.NoError(t, json.Unmarshal([]byte(tt.exported), &exported))
+			response := kkComps.AIGatewayPolicy{
+				ID:          "policy-id",
+				Name:        tt.policyType,
+				DisplayName: tt.policyType,
+				Type:        tt.policyType,
+				Config:      config,
+				Datastores:  []kkComps.AIGatewayDatastoreRef{{Name: "shared-redis"}},
+			}
+			policy, err := AIGatewayPolicyResourceFromResponse("support-gateway", response)
+			require.NoError(t, err)
+			require.Equal(t, exported, policy.Config)
+			require.Equal(t, response.Datastores, policy.Datastores)
+			// Export must not remove connection settings from the observed response.
+			observed, err := json.Marshal(response.Config)
+			require.NoError(t, err)
+			require.JSONEq(t, tt.config, string(observed))
+
+			response.Datastores = nil
+			inline, err := AIGatewayPolicyResourceFromResponse("support-gateway", response)
+			require.NoError(t, err)
+			require.Equal(t, config, inline.Config)
+		})
+	}
+}

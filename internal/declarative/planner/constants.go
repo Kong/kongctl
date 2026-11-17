@@ -107,10 +107,10 @@ const (
 	FieldTitle                 = "title"
 	FieldStatus                = "status"
 	FieldAttributes            = fieldcontracts.FieldAttributes
-	FieldType                  = "type"
+	FieldType                  = resources.SchemaFieldType
 	FieldExpiresAt             = "expires_at"
-	FieldConfig                = "config"
-	FieldDatastores            = "datastores"
+	FieldConfig                = resources.SchemaFieldConfig
+	FieldDatastores            = resources.SchemaFieldDatastores
 	FieldCertificates          = "certificates"
 	FieldCACertificates        = "ca_certificates"
 	FieldSASLAWSIAM            = "sasl_aws_iam"

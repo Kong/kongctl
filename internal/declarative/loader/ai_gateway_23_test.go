@@ -21,6 +21,12 @@ func TestAIGateway23ManifestFields(t *testing.T) {
     type: ai-proxy
     config: {}
     expressions: {model: "http.headers.x_model"}
+  - ref: limits
+    name: limits
+    display_name: Limits
+    type: ai-rate-limiting-advanced
+    datastores: [{name: shared-redis}]
+    config: {strategy: redis}
   model_providers:
   - ref: baseten
     name: baseten
@@ -107,6 +113,9 @@ func TestAIGateway23ManifestFields(t *testing.T) {
 	policy, err := rs.AIGatewayPolicies[0].MutablePayloadMap()
 	require.NoError(t, err)
 	require.Equal(t, map[string]any{"model": "http.headers.x_model"}, policy["expressions"])
+	limits, err := rs.AIGatewayPolicies[1].MutablePayloadMap()
+	require.NoError(t, err)
+	require.Equal(t, []any{map[string]any{"name": "shared-redis"}}, limits["datastores"])
 	provider, err := rs.AIGatewayProviders[0].MutablePayloadMap()
 	require.NoError(t, err)
 	require.Equal(t, "baseten", provider["type"])

@@ -78,8 +78,8 @@ func Project(kind resources.ResourceType, payload any) (Shape, error) {
 	} {
 		delete(fields, key)
 	}
-	if kind == resources.ResourceTypeAIGatewayModel {
-		resources.OmitAIGatewayModelDatastoreConnections(fields)
+	if omit, ok := shape.Resource.(resources.InheritedFieldsOmitter); ok {
+		omit.OmitInheritedFields(fields)
 	}
 	data, err := json.Marshal(fields)
 	if err != nil {

@@ -355,6 +355,7 @@ func AIGatewayPolicyResourceFromResponse(
 	if err != nil {
 		return AIGatewayPolicyResource{}, err
 	}
+	(AIGatewayPolicyResource{}).OmitInheritedFields(payload)
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return AIGatewayPolicyResource{}, err
@@ -375,6 +376,55 @@ func AIGatewayPolicyResourceFromResponse(
 	}, nil
 }
 
+// OmitInheritedFields excludes datastore connections from policy exports.
+func (AIGatewayPolicyResource) OmitInheritedFields(payload map[string]any) {
+	OmitAIGatewayPolicyDatastoreConnections(payload)
+}
+
+// OmitAIGatewayPolicyDatastoreConnections removes connection settings resolved
+// from referenced datastores. The API replaces these blocks with the
+// datastore's connection; exporting them would pin inherited settings in
+// manifests.
+func OmitAIGatewayPolicyDatastoreConnections(payload map[string]any) {
+	stores, _ := payload[SchemaFieldDatastores].([]any)
+	if len(stores) == 0 {
+		return
+	}
+	config, _ := payload[SchemaFieldConfig].(map[string]any)
+	// Match the paths scrubbed by the API for each supported policy type.
+	// Semantic policies lose both vector connection blocks, even the inactive one.
+	switch payload[SchemaFieldType] {
+	case "ai-rag-injector", "ai-semantic-cache", "ai-semantic-prompt-guard", "ai-semantic-response-guard":
+		omitAIGatewayPolicyConnection(config, "vectordb", "redis")
+		omitAIGatewayPolicyConnection(config, "vectordb", "pgvector")
+	case "acme":
+		omitAIGatewayPolicyConnection(config, "storage_config", "redis")
+	case "datakit":
+		omitAIGatewayPolicyConnection(config, "resources", "cache", "redis")
+	case "ai-rate-limiting-advanced", "rate-limiting", "rate-limiting-advanced", "response-ratelimiting",
+		"graphql-proxy-cache-advanced", "graphql-rate-limiting-advanced", "proxy-cache-advanced", "service-protection":
+		delete(config, "redis")
+	}
+}
+
+func omitAIGatewayPolicyConnection(config map[string]any, path ...string) {
+	if len(path) == 0 {
+		return
+	}
+	if len(path) == 1 {
+		delete(config, path[0])
+		return
+	}
+	child, ok := config[path[0]].(map[string]any)
+	if !ok {
+		return
+	}
+	omitAIGatewayPolicyConnection(child, path[1:]...)
+	if len(child) == 0 {
+		delete(config, path[0])
+	}
+}
+
 func aiGatewayPolicyExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 	return explainObject(
 		explainResourceRefField(),
@@ -386,6 +436,16 @@ func aiGatewayPolicyExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 		explainField("enabled", explainBoolNode("true"), false, true),
 		explainField("global", explainBoolNode("false"), false, true),
 		explainField("condition", explainStringNode("http.path == '/v1/chat/completions'"), false, false),
+		explainField(
+			SchemaFieldDatastores,
+			explainArrayOf(
+				explainObject(
+					explainField("name", explainStringNode("datastore-name"), true, true),
+				),
+			),
+			false,
+			false,
+		),
 		explainField("expressions", &ExplainNode{
 			Kind:       explainKindObject,
 			Additional: &ExplainNode{},
