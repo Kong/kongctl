@@ -127,7 +127,10 @@ func TestManagedByProvenancePreservesSDKPayloads(t *testing.T) {
   "type": "upstream-server",
   "config": {
     "url": "https://example.test",
-    "tools_cache_ttl_seconds": 300
+    "tools_cache_ttl_seconds": 300,
+    "route": {
+      "paths": ["/mcp"]
+    }
   }
 }`
 		vault = `{

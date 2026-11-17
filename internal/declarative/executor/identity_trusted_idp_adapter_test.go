@@ -205,3 +205,66 @@ func TestTrustedIDPSavedLifecycleHydrationClearsAndDirectoryAuthority(t *testing
 	require.Zero(t, result.FailureCount, "%+v", result.Errors)
 	require.Equal(t, 1, roots.Deletes)
 }
+
+// TestTrustedIDPPartialJitUpdatePreservesRemoteIdentifier guards against the
+// SDK's mapping.identifier default: the field has no omitempty and defaults
+// to "sub" on the wire, so a declared jit mapping that omits identifier must
+// not silently re-key principals provisioned under a different claim.
+func TestTrustedIDPPartialJitUpdatePreservesRemoteIdentifier(t *testing.T) {
+	const namespace = "trust-team"
+	root := fixture.Directory("default", namespace, false)
+	root.VaultEnabled = new(true)
+	roots := &fixture.DirectoryAPI{Current: root, Directories: []kkComps.KongDirectory{root}, Lifecycle: true}
+	trusts := &fixture.TrustedIDPsAPI{}
+	client := state.NewClient(state.ClientConfig{
+		IdentityDirectoriesAPI: roots,
+		IdentityTrustedIDPsAPI: trusts, IdentityDirectoryDependenciesAPI: trusts,
+	})
+	file := filepath.Join(t.TempDir(), "manifest.yaml")
+	generate := func(idp map[string]any) *planner.Plan {
+		t.Helper()
+		parent := map[string]any{
+			"ref": "people", "name": "default", "allow_all_control_planes": true,
+			"vault": map[string]any{"enabled": true}, "ttl_secs": 900, "negative_ttl_secs": 450,
+			"trusted_idps": []map[string]any{idp},
+		}
+		data, err := yaml.Marshal(map[string]any{
+			"_defaults": map[string]any{"kongctl": map[string]any{"namespace": namespace}},
+			"identity":  map[string]any{"directories": []any{parent}},
+		})
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(file, data, 0o600))
+		rs, err := loader.New().LoadFile(file)
+		require.NoError(t, err)
+		value, err := planner.NewPlanner(client, slog.Default()).
+			GeneratePlan(t.Context(), rs, planner.Options{Mode: planner.PlanModeApply})
+		require.NoError(t, err)
+		return value
+	}
+	execute := func(value *planner.Plan) *ExecutionResult {
+		t.Helper()
+		return NewWithOptions(client, nil, false, Options{MaxConcurrency: 1}).Execute(
+			context.WithValue(t.Context(), logctx.LoggerKey, slog.Default()), value,
+		)
+	}
+	created := generate(map[string]any{
+		"ref": "workforce", "issuer_url": "https://a.example.test/auth",
+		"jit": map[string]any{"mapping": map[string]any{"email": "claim_email", "identifier": "oid"}},
+	})
+	require.Len(t, created.Changes, 1)
+	result := execute(created)
+	require.Zero(t, result.FailureCount, "%+v", result.Errors)
+	require.Equal(t, "oid", *trusts.Records[root.ID][0].Jit.Mapping.Identifier)
+
+	updated := generate(map[string]any{
+		"ref": "workforce", "issuer_url": "https://a.example.test/auth",
+		"jit": map[string]any{"mapping": map[string]any{"email": "claim_email_v2"}},
+	})
+	require.Len(t, updated.Changes, 1)
+	result = execute(updated)
+	require.Zero(t, result.FailureCount, "%+v", result.Errors)
+	current := trusts.Records[root.ID][0]
+	require.Equal(t, "claim_email_v2", *current.Jit.Mapping.Email)
+	require.NotNil(t, current.Jit.Mapping.Identifier, "omitting identifier must not reset it to the sub default")
+	require.Equal(t, "oid", *current.Jit.Mapping.Identifier)
+}

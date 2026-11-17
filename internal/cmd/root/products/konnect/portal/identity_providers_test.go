@@ -20,11 +20,11 @@ func TestPortalIdentityProviderDetailView_OmitsLoginPath(t *testing.T) {
 		Type:    &providerType,
 		Enabled: &enabled,
 		Config: &kkComps.PortalIdentityProviderConfig{
-			PortalOIDCIdentityProviderConfigOutput: &kkComps.PortalOIDCIdentityProviderConfigOutput{
+			PortalOIDCIdentityProviderConfig: &kkComps.PortalOIDCIdentityProviderConfig{
 				IssuerURL: "https://issuer.example.test",
 				ClientID:  "client-id",
 			},
-			Type: kkComps.PortalIdentityProviderConfigTypePortalOIDCIdentityProviderConfigOutput,
+			Type: kkComps.PortalIdentityProviderConfigTypePortalOIDCIdentityProviderConfig,
 		},
 		CreatedAt: &now,
 		UpdatedAt: &now,

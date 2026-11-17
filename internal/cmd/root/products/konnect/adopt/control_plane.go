@@ -118,7 +118,8 @@ func adoptControlPlane(
 	var exportPayload any = *cp
 	if adoptCommon.AdoptionExportFromContext(ctx) != nil {
 		var members []string
-		if cp.Config.ClusterType == kkComps.ControlPlaneClusterTypeClusterTypeControlPlaneGroup {
+		if cp.Config.ClusterType != nil &&
+			*cp.Config.ClusterType == kkComps.ControlPlaneClusterTypeClusterTypeControlPlaneGroup {
 			if groupsAPI == nil {
 				return nil, fmt.Errorf("control plane group membership API is required for declarative export")
 			}

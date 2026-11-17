@@ -19,6 +19,7 @@ type controlPlaneTextField struct {
 	name         string
 	declaration  func(*kkComps.CreateControlPlaneRequest) *string
 	observation  func(kkComps.ControlPlane) string
+	compare      func(kkComps.ControlPlane) string
 	create       func(*kkComps.CreateControlPlaneRequest, string)
 	update       func(*kkComps.UpdateControlPlaneRequest, string)
 	compareEmpty bool
@@ -43,9 +44,26 @@ func controlPlaneTextFieldFor[T ~string](
 			return nil
 		},
 		observation: observation,
+		compare:     observation,
 		create:      func(p *kkComps.CreateControlPlaneRequest, text string) { value := T(text); *declaration(p) = &value },
 		update:      update, compareEmpty: compareEmpty, exportable: exportable,
 	}
+}
+
+// withDocumentedDefaultComparison makes plan comparison treat a nil observed
+// value as the SDK's documented literal default, so a declaration that
+// matches that default does not show as perpetual drift when the API omits
+// the field (nil bypasses the SDK's own default-fill). Export still omits the
+// field on nil; only the comparison path is affected.
+func withDocumentedDefaultComparison(field controlPlaneTextField, documentedDefault string) controlPlaneTextField {
+	observation := field.observation
+	field.compare = func(p kkComps.ControlPlane) string {
+		if value := observation(p); value != "" {
+			return value
+		}
+		return documentedDefault
+	}
+	return field
 }
 
 // A nil update accessor means create/export only, not an immutable-field error.
@@ -58,24 +76,34 @@ var controlPlaneTextFields = [...]controlPlaneTextField{
 		func(p *kkComps.UpdateControlPlaneRequest, value string) { p.Description = &value },
 		true, func(value string) bool { return strings.TrimSpace(value) != "" },
 	),
-	controlPlaneTextFieldFor(
+	withDocumentedDefaultComparison(controlPlaneTextFieldFor(
 		FieldClusterType,
 		func(p *kkComps.CreateControlPlaneRequest) **kkComps.CreateControlPlaneRequestClusterType {
 			return &p.ClusterType
 		},
-		func(p kkComps.ControlPlane) string { return string(p.Config.ClusterType) },
+		func(p kkComps.ControlPlane) string {
+			if p.Config.ClusterType == nil {
+				return ""
+			}
+			return string(*p.Config.ClusterType)
+		},
 		nil, false, func(value string) bool { return value != "" },
-	),
-	controlPlaneTextFieldFor(
+	), "CLUSTER_TYPE_CONTROL_PLANE"),
+	withDocumentedDefaultComparison(controlPlaneTextFieldFor(
 		FieldAuthType,
 		func(p *kkComps.CreateControlPlaneRequest) **kkComps.AuthType { return &p.AuthType },
-		func(p kkComps.ControlPlane) string { return string(p.Config.AuthType) },
+		func(p kkComps.ControlPlane) string {
+			if p.Config.AuthType == nil {
+				return ""
+			}
+			return string(*p.Config.AuthType)
+		},
 		func(p *kkComps.UpdateControlPlaneRequest, value string) {
 			typed := kkComps.UpdateControlPlaneRequestAuthType(value)
 			p.AuthType = &typed
 		},
 		false, func(value string) bool { return value != "" },
-	),
+	), "pinned_client_certs"),
 }
 
 // ExtractControlPlaneFields leaves identity, labels and membership to callers.
@@ -104,7 +132,7 @@ func CompareControlPlaneFields(
 		if field.update == nil || value == nil || (!field.compareEmpty && *value == "") {
 			continue
 		}
-		if old := field.observation(current); old != *value {
+		if old := field.compare(current); old != *value {
 			changes[field.name] = FieldChange{Old: old, New: *value}
 		}
 	}
@@ -164,8 +192,8 @@ func ExportControlPlaneFields(current kkComps.ControlPlane, target *kkComps.Crea
 			field.create(target, value)
 		}
 	}
-	if current.Config.CloudGateway {
-		value := current.Config.CloudGateway
+	if current.Config.CloudGateway != nil && *current.Config.CloudGateway {
+		value := *current.Config.CloudGateway
 		target.CloudGateway = &value
 	}
 	if len(current.Config.ProxyUrls) > 0 {

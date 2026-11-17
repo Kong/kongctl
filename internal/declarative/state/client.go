@@ -4213,12 +4213,18 @@ func normalizePortalIdentityProviderConfig(
 	}
 
 	switch config.Type {
-	case kkComps.PortalIdentityProviderConfigTypePortalOIDCIdentityProviderConfigOutput:
-		if config.PortalOIDCIdentityProviderConfigOutput == nil {
+	case kkComps.PortalIdentityProviderConfigTypePortalOIDCIdentityProviderConfig:
+		if config.PortalOIDCIdentityProviderConfig == nil {
 			return nil
 		}
+		oidc := config.PortalOIDCIdentityProviderConfig
 		converted := kkComps.CreateIdentityProviderConfigOIDCIdentityProviderConfigOutput(
-			kkComps.OIDCIdentityProviderConfigOutput(*config.PortalOIDCIdentityProviderConfigOutput),
+			kkComps.OIDCIdentityProviderConfigOutput{
+				IssuerURL:     oidc.IssuerURL,
+				ClientID:      oidc.ClientID,
+				Scopes:        oidc.Scopes,
+				ClaimMappings: oidc.ClaimMappings,
+			},
 		)
 		return &converted
 	case kkComps.PortalIdentityProviderConfigTypePortalSAMLIdentityProviderConfig:

@@ -407,7 +407,7 @@ func testAIGatewayAgent(policies []string) kkComps.AIGatewayAgent {
 		DisplayName: "Booking Agent",
 		Enabled:     &enabled,
 		Config: kkComps.AIGatewayAgentConfig{
-			URL: "https://booking-agent.example.com",
+			URL: new("https://booking-agent.example.com"),
 		},
 		Policies: policies,
 	}

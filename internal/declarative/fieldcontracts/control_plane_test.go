@@ -26,7 +26,8 @@ func TestControlPlaneProjectionParticipation(t *testing.T) {
 	require.NoError(t, fieldcontracts.MapControlPlaneCreateFields(fields, &create))
 	require.Equal(t, desired, create)
 	current := kkComps.ControlPlane{Description: "old", Config: kkComps.ControlPlaneConfig{
-		AuthType: "pinned_client_certs", CloudGateway: true, ProxyUrls: []kkComps.ProxyURL{first, second},
+		AuthType:     kkComps.ControlPlaneAuthType("pinned_client_certs").ToPointer(),
+		CloudGateway: new(true), ProxyUrls: []kkComps.ProxyURL{first, second},
 	}}
 	changes := fieldcontracts.CompareControlPlaneFields(desired, current)
 	require.Equal(t, map[string]fieldcontracts.FieldChange{
@@ -47,6 +48,23 @@ func TestControlPlaneProjectionParticipation(t *testing.T) {
 	require.Empty(t, *update.AuthType)
 }
 
+// TestControlPlaneCompareIgnoresDocumentedDefaultDrift guards against a nil
+// auth_type/cluster_type (the API's own default-fill bypassed, e.g. by an
+// explicit null) comparing as changed against a declaration that matches the
+// SDK's documented literal default.
+func TestControlPlaneCompareIgnoresDocumentedDefaultDrift(t *testing.T) {
+	authType := kkComps.AuthType("pinned_client_certs")
+	desired := kkComps.CreateControlPlaneRequest{AuthType: &authType}
+	current := kkComps.ControlPlane{Config: kkComps.ControlPlaneConfig{AuthType: nil}}
+	require.Empty(t, fieldcontracts.CompareControlPlaneFields(desired, current))
+
+	changedAuthType := kkComps.AuthType("pki_client_certs")
+	desired.AuthType = &changedAuthType
+	changes := fieldcontracts.CompareControlPlaneFields(desired, current)
+	require.Equal(t, fieldcontracts.FieldChange{Old: "pinned_client_certs", New: "pki_client_certs"},
+		changes[fieldcontracts.FieldAuthType])
+}
+
 func TestControlPlaneExportOmissions(t *testing.T) {
 	var target kkComps.CreateControlPlaneRequest
 	fieldcontracts.ExportControlPlaneFields(kkComps.ControlPlane{
@@ -54,13 +72,15 @@ func TestControlPlaneExportOmissions(t *testing.T) {
 	}, &target)
 	require.Equal(t, kkComps.CreateControlPlaneRequest{}, target)
 	current := kkComps.ControlPlane{Description: " spaced ", Config: kkComps.ControlPlaneConfig{
-		ClusterType: "CLUSTER_TYPE_HYBRID", AuthType: "pinned_client_certs", CloudGateway: true,
-		ProxyUrls: []kkComps.ProxyURL{{Host: "proxy", Port: 443, Protocol: "https"}},
+		ClusterType:  kkComps.ControlPlaneClusterType("CLUSTER_TYPE_HYBRID").ToPointer(),
+		AuthType:     kkComps.ControlPlaneAuthType("pinned_client_certs").ToPointer(),
+		CloudGateway: new(true),
+		ProxyUrls:    []kkComps.ProxyURL{{Host: "proxy", Port: 443, Protocol: "https"}},
 	}}
 	fieldcontracts.ExportControlPlaneFields(current, &target)
 	require.Equal(t, " spaced ", *target.Description)
-	require.Equal(t, string(current.Config.ClusterType), string(*target.ClusterType))
-	require.Equal(t, string(current.Config.AuthType), string(*target.AuthType))
+	require.Equal(t, string(*current.Config.ClusterType), string(*target.ClusterType))
+	require.Equal(t, string(*current.Config.AuthType), string(*target.AuthType))
 	require.True(t, *target.CloudGateway)
 	require.Equal(t, current.Config.ProxyUrls, target.ProxyUrls)
 }

@@ -142,9 +142,9 @@ func TestControlPlanePlanner_PlanUpdate(t *testing.T) {
 			labels.NamespaceKey: "default",
 		},
 		Config: kkComps.ControlPlaneConfig{
-			AuthType:    kkComps.ControlPlaneAuthTypePinnedClientCerts,
+			AuthType:    kkComps.ControlPlaneAuthTypePinnedClientCerts.ToPointer(),
 			ProxyUrls:   []kkComps.ProxyURL{{Host: "example.com", Port: 443, Protocol: "https"}},
-			ClusterType: kkComps.ControlPlaneClusterTypeClusterTypeControlPlane,
+			ClusterType: kkComps.ControlPlaneClusterTypeClusterTypeControlPlane.ToPointer(),
 		},
 	}
 
@@ -210,7 +210,7 @@ func TestControlPlanePlanner_PlanUpdateGroupMembers(t *testing.T) {
 			labels.NamespaceKey: "default",
 		},
 		Config: kkComps.ControlPlaneConfig{
-			ClusterType: kkComps.ControlPlaneClusterTypeClusterTypeControlPlaneGroup,
+			ClusterType: kkComps.ControlPlaneClusterTypeClusterTypeControlPlaneGroup.ToPointer(),
 		},
 	}
 
@@ -220,7 +220,9 @@ func TestControlPlanePlanner_PlanUpdateGroupMembers(t *testing.T) {
 		Labels: map[string]string{
 			labels.NamespaceKey: "default",
 		},
-		Config: kkComps.ControlPlaneConfig{ClusterType: kkComps.ControlPlaneClusterTypeClusterTypeControlPlane},
+		Config: kkComps.ControlPlaneConfig{
+			ClusterType: kkComps.ControlPlaneClusterTypeClusterTypeControlPlane.ToPointer(),
+		},
 	}
 
 	mockAPI.EXPECT().
@@ -390,7 +392,7 @@ func TestControlPlanePlanner_PlanDeleteMembersDependOnGroupDelete(t *testing.T) 
 			ID:   "group-id",
 			Name: "group-cp",
 			Config: kkComps.ControlPlaneConfig{
-				ClusterType: kkComps.ControlPlaneClusterTypeClusterTypeControlPlaneGroup,
+				ClusterType: kkComps.ControlPlaneClusterTypeClusterTypeControlPlaneGroup.ToPointer(),
 			},
 		},
 		NormalizedLabels: map[string]string{labels.NamespaceKey: "default"},

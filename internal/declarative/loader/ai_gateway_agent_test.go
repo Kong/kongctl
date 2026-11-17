@@ -54,7 +54,7 @@ func TestLoaderExtractsNestedAIGatewayAgents(t *testing.T) {
 	require.Equal(t, "support-gateway", rs.AIGatewayAgents[0].AIGateway)
 	require.Equal(t, "booking-agent", rs.AIGatewayAgents[0].Name)
 	require.Equal(t, "a2a", string(rs.AIGatewayAgents[0].Type))
-	require.Equal(t, "https://booking-agent.example.com", rs.AIGatewayAgents[0].Config.URL)
+	require.Equal(t, "https://booking-agent.example.com", *rs.AIGatewayAgents[0].Config.URL)
 	require.Equal(
 		t,
 		[]string{tags.RefPlaceholderPrefix + "mask-sensitive-data#id"},

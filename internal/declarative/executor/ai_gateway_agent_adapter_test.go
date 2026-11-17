@@ -29,7 +29,7 @@ func TestAIGatewayAgentAdapterMapCreateFields(t *testing.T) {
 	require.Equal(t, "booking-agent", req.Name)
 	require.Equal(t, kkComps.CreateAIGatewayAgentRequestTypeA2a, req.Type)
 	require.Equal(t, "Booking Agent", req.DisplayName)
-	require.Equal(t, "https://booking-agent.example.com", req.Config.URL)
+	require.Equal(t, "https://booking-agent.example.com", *req.Config.URL)
 	require.Equal(t, []string{"mask-sensitive-data"}, req.Policies)
 	require.Equal(t, map[string]string{"team": "support"}, req.Labels)
 }

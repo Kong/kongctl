@@ -284,6 +284,38 @@ func TestAIGatewayAuthStrategyUpdateOverlaysDeclaredSecurityConfig(t *testing.T)
 	require.Equal(t, map[string]any{"preserved": true, "managed": "new"}, config["nested_extension"])
 }
 
+// TestAIGatewayAuthStrategyUpdateDropsResponseOnlyKeyAuthAnonymous guards
+// against SDK v0.88.0 moving key-auth "anonymous" to a response-only type: the
+// merged update config must never resend the observed value, or the executor's
+// dropped-field check rejects the update.
+func TestAIGatewayAuthStrategyUpdateDropsResponseOnlyKeyAuthAnonymous(t *testing.T) {
+	t.Parallel()
+
+	current := state.AIGatewayAuthStrategy{
+		Name:        "support-key-auth",
+		Type:        "key-auth",
+		DisplayName: "Support Key Auth",
+		Config: map[string]any{
+			"key_names": []any{"apikey"},
+			"anonymous": "anonymous",
+		},
+	}
+	desired := resources.AIGatewayAuthStrategyResource{
+		Name:        "support-key-auth",
+		Type:        "key-auth",
+		DisplayName: "Updated Support Key Auth",
+		Config: map[string]any{
+			"key_names": []any{"apikey"},
+		},
+	}
+
+	needsUpdate, fields, _, err := shouldUpdateAIGatewayAuthStrategy(current, desired)
+	require.NoError(t, err)
+	require.True(t, needsUpdate)
+	config := fields[FieldConfig].(map[string]any)
+	require.NotContains(t, config, "anonymous")
+}
+
 func TestAIGatewayAuthStrategyPlannerNameIdentity(t *testing.T) {
 	t.Parallel()
 	const (

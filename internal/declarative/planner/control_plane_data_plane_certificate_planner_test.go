@@ -186,7 +186,7 @@ func newControlPlaneDataPlaneCertificateStateClient(
 			labels.NamespaceKey: "default",
 		},
 		Config: kkComps.ControlPlaneConfig{
-			ClusterType: kkComps.ControlPlaneClusterTypeClusterTypeControlPlane,
+			ClusterType: kkComps.ControlPlaneClusterTypeClusterTypeControlPlane.ToPointer(),
 		},
 	}
 	mockAPI := helpers.NewMockControlPlaneAPI(t)

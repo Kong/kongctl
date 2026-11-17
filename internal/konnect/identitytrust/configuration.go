@@ -10,7 +10,10 @@ import (
 )
 
 // NormalizeJIT follows the verified empty-mapping contract without changing
-// explicit claim names. It never mutates the supplied mapping.
+// explicit claim names. It never mutates the supplied mapping. The SDK
+// default-fills an omitted identifier claim to "sub"; that default and an
+// omitted identifier are treated as equivalent so request/response diffing
+// is not tripped by the server filling in its documented default.
 func NormalizeJIT(value *kkComps.TrustedIdpJit) *kkComps.TrustedIdpJit {
 	if value == nil || value.Mapping == nil {
 		return nil
@@ -21,7 +24,11 @@ func NormalizeJIT(value *kkComps.TrustedIdpJit) *kkComps.TrustedIdpJit {
 	} else {
 		mapping.Metadata = maps.Clone(mapping.Metadata)
 	}
-	if mapping.Metadata == nil && mapping.Email == nil && mapping.Groups == nil && mapping.DisplayName == nil {
+	if mapping.Identifier != nil && *mapping.Identifier == "sub" {
+		mapping.Identifier = nil
+	}
+	if mapping.Metadata == nil && mapping.Email == nil && mapping.Groups == nil &&
+		mapping.DisplayName == nil && mapping.Identifier == nil {
 		return nil
 	}
 	return &kkComps.TrustedIdpJit{Mapping: &mapping}

@@ -1,4 +1,4 @@
-sdk_version: v0.84.1-0.20261112154232-92b33d2ef4fd
+sdk_version: v0.88.1-0.20261116190824-df9d11baeab7
 schema_version: 1
 resources:
   - resource_type: ai_gateway
@@ -2043,6 +2043,10 @@ resources:
         type: integer
         value: 600
         source: sdk
+      - path: trusted_idps.jit.mapping.identifier
+        type: string
+        value: sub
+        source: sdk
       - path: ttl_secs
         type: integer
         value: 600
@@ -2074,7 +2078,11 @@ resources:
     overrides: []
     exclusions: []
   - resource_type: identity_trusted_idp
-    defaults: []
+    defaults:
+      - path: jit.mapping.identifier
+        type: string
+        value: sub
+        source: sdk
     overrides: []
     exclusions: []
   - resource_type: identity_vault_key

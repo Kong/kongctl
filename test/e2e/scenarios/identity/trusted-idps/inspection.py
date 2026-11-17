@@ -129,7 +129,8 @@ def main():
         assert {v["id"] for v in values} == set(before)
         detail = get("idp-detail", "trusted-idp", [first["id"], *scope])
         assert detail["issuer_url"] == issuer and detail["display_name"] == "Shared display name"
-        assert detail["jit"] == {"mapping": mapping} and detail["jwks_uri"] is None
+        # API default-fills an omitted identifier claim to "sub" on every read.
+        assert detail["jit"] == {"mapping": {**mapping, "identifier": "sub"}} and detail["jwks_uri"] is None
         assert detail["jit_provisioning_enabled"] is False and detail["vault_access_enabled"] is False
         selected = get("idp-issuer", "trusted-idp", [*namescope, "--issuer-url", issuer + "/second"])
         assert selected["id"] == second["id"] and selected["jwks_uri"] == jwks

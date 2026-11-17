@@ -21,7 +21,7 @@ func TestGetAIGatewayAuthStrategyPreservesAccessControlConfig(t *testing.T) {
 			DisplayName: "Support OIDC",
 			CreatedAt:   time.Now(),
 			UpdatedAt:   time.Now(),
-			Config: &kkComps.AIGWOpenIDConnectGeneratedConfigOutput{
+			Config: &kkComps.AIGatewayAuthStrategyOpenIDConnectResponseConfig{
 				CacheTokensSalt:        "support-cache-salt",
 				ConsumerGroupsClaim:    []string{"groups"},
 				ConsumerGroupsOptional: &optional,

@@ -212,8 +212,8 @@ func appendPortalIdentityProviderConfigDetail(b *strings.Builder, config *kkComp
 	}
 
 	switch config.Type {
-	case kkComps.PortalIdentityProviderConfigTypePortalOIDCIdentityProviderConfigOutput:
-		oidc := config.PortalOIDCIdentityProviderConfigOutput
+	case kkComps.PortalIdentityProviderConfigTypePortalOIDCIdentityProviderConfig:
+		oidc := config.PortalOIDCIdentityProviderConfig
 		if oidc == nil {
 			return
 		}

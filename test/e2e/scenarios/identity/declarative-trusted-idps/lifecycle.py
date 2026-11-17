@@ -154,8 +154,12 @@ def main():
         for configured in (full, other, empty):
             observed = values[configured["issuer_url"]]
             for field, value in configured.items():
-                if field != "ref" and not (field == "jit" and value == {}):
-                    assert observed[field] == value, field
+                if field == "ref" or (field == "jit" and value == {}):
+                    continue
+                if field == "jit":
+                    # API default-fills an omitted identifier claim to "sub" on every read.
+                    value = {"mapping": {**value["mapping"], "identifier": "sub"}}
+                assert observed[field] == value, field
             assert "managed_by" not in observed and "labels" not in observed
         assert plan("repeat-noop", initial)["summary"]["total_changes"] == 0
         partial = {"ref": "workforce", "issuer_url": issuer, "display_name": "Updated display"}

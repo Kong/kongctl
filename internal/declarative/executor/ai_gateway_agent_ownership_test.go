@@ -151,7 +151,7 @@ func TestAgentUnprotectionPreservesFreshDefaultsAndRejectsPayloadInjection(t *te
 					Enabled:     new(true),
 					ManagedBy:   metadata,
 					Config: kkComps.AIGatewayAgentConfig{
-						URL:                "https://example.com",
+						URL:                new("https://example.com"),
 						MaxRequestBodySize: new(int64(8388608)),
 					},
 				},
@@ -178,7 +178,7 @@ func TestAgentUnprotectionPreservesFreshDefaultsAndRejectsPayloadInjection(t *te
 			require.NoError(t, adapter.MapUpdateFields(t.Context(), ctx, fields, &req, nil))
 			switch mutation {
 			case "url":
-				req.Config.URL = "https://changed.example.com"
+				req.Config.URL = new("https://changed.example.com")
 			case "password":
 				req.Config.Proxy = &kkComps.AIGatewayProxyConfig{
 					Auth: &kkComps.AIGatewayProxyConfigAuth{Username: new("user"), Password: new("synthetic-injected")},
@@ -213,7 +213,7 @@ func TestAgentSecretOnlyWritesRevalidateOwnershipAndProtection(t *testing.T) {
 						DisplayName: "Agent",
 						Type:        "a2a",
 						ManagedBy:   metadata,
-						Config:      kkComps.AIGatewayAgentConfig{URL: "https://example.com"},
+						Config:      kkComps.AIGatewayAgentConfig{URL: new("https://example.com")},
 					},
 				}
 				fields := map[string]any{

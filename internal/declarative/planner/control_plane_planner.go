@@ -52,7 +52,8 @@ func (p *controlPlanePlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 	currentByName := make(map[string]managedRoot[state.ControlPlane])
 	for i := range currentControlPlanes {
 		cp := currentControlPlanes[i]
-		if cp.Config.ClusterType == kkComps.ControlPlaneClusterTypeClusterTypeControlPlaneGroup {
+		if cp.Config.ClusterType != nil &&
+			*cp.Config.ClusterType == kkComps.ControlPlaneClusterTypeClusterTypeControlPlaneGroup {
 			memberIDs, err := p.GetClient().ListControlPlaneGroupMemberships(ctx, cp.ID)
 			if err != nil {
 				return fmt.Errorf("failed to list control plane group memberships for %s: %w", cp.Name, err)

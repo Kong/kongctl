@@ -289,6 +289,12 @@ func buildAIGatewayAuthStrategies(
 			continue
 		}
 		resource.Ref, resource.Kongctl = ref, kongctl
+		if resource.Type == "key-auth" {
+			// "anonymous" is a response-only echo (SDK v0.88.0); it is not
+			// accepted on create/update, so re-applying this dump must not
+			// include it.
+			delete(resource.Config, "anonymous")
+		}
 		results = append(results, resource)
 	}
 

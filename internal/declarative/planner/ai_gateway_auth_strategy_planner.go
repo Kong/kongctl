@@ -257,7 +257,7 @@ func extractAIGatewayAuthStrategyUpdateFields(
 	desired resources.AIGatewayAuthStrategyResource,
 ) map[string]any {
 	fields := extractAIGatewayAuthStrategyFields(desired)
-	fields[FieldConfig] = mergeAIGatewayAuthStrategyConfig(current.Config, desired.Config)
+	fields[FieldConfig] = mergeAIGatewayAuthStrategyConfig(desired.Type, current.Config, desired.Config)
 	if desired.Labels == nil && current.Labels != nil {
 		fields[FieldLabels] = current.Labels
 	}
@@ -338,10 +338,22 @@ func projectAIGatewayAuthStrategyConfigForComparison(
 	}
 }
 
-func mergeAIGatewayAuthStrategyConfig(current, desired map[string]any) map[string]any {
+// aiGatewayAuthStrategyResponseOnlyConfigFields lists config keys the API
+// echoes on reads but rejects on create/update, by auth strategy type. Key-auth
+// "anonymous" moved off the shared request/response config onto a
+// response-only type in v0.88.0, so the observed value must not be merged
+// back into a write payload.
+var aiGatewayAuthStrategyResponseOnlyConfigFields = map[string][]string{
+	"key-auth": {"anonymous"},
+}
+
+func mergeAIGatewayAuthStrategyConfig(strategyType string, current, desired map[string]any) map[string]any {
 	merged := normalizeAIGatewayJSONMap(current)
 	if merged == nil {
 		merged = make(map[string]any)
+	}
+	for _, field := range aiGatewayAuthStrategyResponseOnlyConfigFields[strategyType] {
+		delete(merged, field)
 	}
 	mergeAIGatewayAuthStrategyConfigValues(merged, normalizeAIGatewayJSONMap(desired))
 	return merged
