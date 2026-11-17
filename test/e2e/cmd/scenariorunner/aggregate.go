@@ -41,6 +41,13 @@ type scenarioResult struct {
 	// detail holds the skip reason or failure diagnostics, derived from the
 	// subtest's buffered -v output.
 	detail string
+	// warnings holds harness WARN/ERROR log lines (e.g. a beta advisory
+	// failure) found in the subtest's buffered output, regardless of
+	// outcome: `go test -json` folds the test binary's os.Stderr writes into
+	// this same output stream rather than passing them through as real OS
+	// stderr, so a warning under an otherwise-passing scenario would
+	// otherwise never surface.
+	warnings []string
 }
 
 type updateKind int
@@ -150,9 +157,10 @@ func (a *aggregator) applyRun(ev testEvent) []update {
 func (a *aggregator) applyDone(ev testEvent) []update {
 	if name, ok := scenarioName(ev.Test); ok {
 		res := scenarioResult{
-			name:    name,
-			elapsed: durationFromSeconds(ev.Elapsed),
-			detail:  extractDetail(ev.Action, a.outputBuf[ev.Test]),
+			name:     name,
+			elapsed:  durationFromSeconds(ev.Elapsed),
+			detail:   extractDetail(ev.Action, a.outputBuf[ev.Test]),
+			warnings: extractWarnings(a.outputBuf[ev.Test]),
 		}
 		switch ev.Action {
 		case "pass":
@@ -173,7 +181,10 @@ func (a *aggregator) applyDone(ev testEvent) []update {
 	}
 	if ev.Test == topLevelTest {
 		a.runDone = true
-		res := scenarioResult{elapsed: durationFromSeconds(ev.Elapsed)}
+		res := scenarioResult{
+			elapsed:  durationFromSeconds(ev.Elapsed),
+			warnings: extractWarnings(a.outputBuf[topLevelTest]),
+		}
 		switch ev.Action {
 		case "pass":
 			res.outcome = outcomePass
@@ -242,4 +253,29 @@ func extractDetail(action string, buffered []string) string {
 		}
 	}
 	return strings.Join(lines, "\n")
+}
+
+// harnessLogTags are the markers test/e2e/harness/logging.go embeds in a log
+// line's level tag (e.g. "... [e2e WARN] ...").
+var harnessLogTags = [...]string{"[e2e WARN]", "[e2e ERROR]"}
+
+// extractWarnings returns harness WARN/ERROR log lines found anywhere in a
+// subtest's buffered output, regardless of outcome: unlike extractDetail,
+// these must surface even for a passing scenario (e.g. a beta advisory
+// failure, which the scenario loop deliberately does not fail the subtest
+// for).
+func extractWarnings(buffered []string) []string {
+	var lines []string
+	for _, raw := range buffered {
+		for line := range strings.Lines(raw) {
+			trimmed := strings.TrimSpace(strings.TrimRight(line, "\n"))
+			for _, tag := range harnessLogTags {
+				if strings.Contains(trimmed, tag) {
+					lines = append(lines, trimmed)
+					break
+				}
+			}
+		}
+	}
+	return lines
 }

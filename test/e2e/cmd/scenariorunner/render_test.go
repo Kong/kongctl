@@ -207,3 +207,28 @@ func TestRendererFinishIncludesFailedAndSlowest(t *testing.T) {
 		}
 	}
 }
+
+// TestRendererFinishWithUnknownElapsedAndNoRunStartUsesZero guards against a
+// build-fail (or any failure before Test_Scenarios' own "run" event) leaving
+// runStart at its zero Time value: Finish must not compute now().Sub(zero),
+// which saturates to the maximum time.Duration and prints a nonsensical
+// "total 2562047h47m16.854775807s".
+func TestRendererFinishWithUnknownElapsedAndNoRunStartUsesZero(t *testing.T) {
+	var buf bytes.Buffer
+	r := newRenderer(&buf, false, time.Now, 30*time.Second)
+
+	// runStart is never set: no updateRunStarted was ever delivered.
+	r.Finish(summary{
+		counts:       counts{failed: 1},
+		elapsedKnown: false,
+		artifactsDir: "/tmp/run",
+	})
+
+	out := buf.String()
+	if !strings.Contains(out, "total 0s") {
+		t.Fatalf("expected a zero total elapsed when runStart was never set, got %q", out)
+	}
+	if strings.Contains(out, "2562047h") {
+		t.Fatalf("expected no saturated max-duration elapsed, got %q", out)
+	}
+}

@@ -71,7 +71,7 @@ func (r *Renderer) onUpdate(u update) {
 		r.onScenarioFinishedLocked(u.result)
 	case updateRunFinished:
 		r.lastCounts = u.counts
-		if u.abnormal || u.result.outcome != outcomePass {
+		if u.abnormal || u.result.outcome != outcomePass || len(u.result.warnings) > 0 {
 			r.onTopLevelNoticeLocked(u)
 		}
 	}
@@ -134,7 +134,7 @@ func (r *Renderer) Finish(s summary) {
 	r.clearLiveLocked()
 
 	elapsed := s.totalElapsed
-	if !s.elapsedKnown {
+	if !s.elapsedKnown && !r.runStart.IsZero() {
 		elapsed = r.now().Sub(r.runStart)
 	}
 
@@ -163,7 +163,7 @@ func (r *Renderer) Finish(s summary) {
 
 func (r *Renderer) onScenarioFinishedLocked(res scenarioResult) {
 	if r.interactive {
-		if res.outcome == outcomePass {
+		if res.outcome == outcomePass && len(res.warnings) == 0 {
 			r.redrawLiveLocked(r.now())
 			return
 		}
@@ -181,7 +181,7 @@ func (r *Renderer) onTopLevelNoticeLocked(u update) {
 	if u.abnormal {
 		name = "setup"
 	}
-	lines := append([]string{fmt.Sprintf("%s  %s", u.result.outcome.label(), name)}, detailLines(u.result.detail)...)
+	lines := append([]string{fmt.Sprintf("%s  %s", u.result.outcome.label(), name)}, extraLines(u.result)...)
 	if r.interactive {
 		r.printPermanentLocked(lines...)
 		r.redrawLiveLocked(r.now())
@@ -247,13 +247,24 @@ func (r *Renderer) buildLiveBlockLocked(now time.Time) []string {
 
 func scenarioBlockLines(res scenarioResult) []string {
 	header := fmt.Sprintf("%s  %s · %s", res.outcome.label(), res.name, formatScenarioDuration(res.elapsed))
-	return append([]string{header}, detailLines(res.detail)...)
+	return append([]string{header}, extraLines(res)...)
 }
 
 func nonInteractiveScenarioLines(c counts, res scenarioResult) []string {
 	header := fmt.Sprintf("[%d/%d] %s  %s · %s",
 		c.completed, c.total, res.outcome.label(), res.name, formatScenarioDuration(res.elapsed))
-	return append([]string{header}, detailLines(res.detail)...)
+	return append([]string{header}, extraLines(res)...)
+}
+
+// extraLines renders a result's skip reason/failure diagnostics followed by
+// any harness warnings, each indented so they read as detail under the
+// header line.
+func extraLines(res scenarioResult) []string {
+	lines := detailLines(res.detail)
+	for _, w := range res.warnings {
+		lines = append(lines, "      "+w)
+	}
+	return lines
 }
 
 func detailLines(detail string) []string {

@@ -94,6 +94,83 @@ func TestDriveForwardsStderrAsPermanentLinesAndIntoRunLog(t *testing.T) {
 	}
 }
 
+// TestDriveSurfacesHarnessWarningsFromStdoutEvenWhenScenarioPasses reflects
+// real `go test -json` behavior (verified against the Go toolchain): the
+// test binary's os.Stderr writes, including harness.Warnf/Errorf, are folded
+// into the stdout event stream as "output" actions tied to whichever test is
+// current, not delivered on the process's real stderr. A beta advisory
+// failure logs exactly such a warning while still letting the scenario
+// subtest pass, so the warning must surface even though cfg.stderr is empty
+// and the scenario's own outcome is "pass".
+func TestDriveSurfacesHarnessWarningsFromStdoutEvenWhenScenarioPasses(t *testing.T) {
+	warnLine := "2026-01-01T00:00:00Z [e2e WARN] Beta scenario failed: identity/one: boom\n"
+	stdout := strings.NewReader(events(
+		t,
+		testEvent{Action: "run", Test: topLevelTest},
+		testEvent{Action: "output", Test: topLevelTest, Output: sentinelPrefix + "1\n"},
+
+		testEvent{Action: "run", Test: scenarioOneTest},
+		testEvent{Action: "output", Test: scenarioOneTest, Output: warnLine},
+		testEvent{Action: "output", Test: scenarioOneTest, Output: "--- PASS: " + scenarioOneTest + " (1.23s)\n"},
+		testEvent{Action: "pass", Test: scenarioOneTest, Elapsed: 1.23},
+
+		testEvent{Action: "output", Test: topLevelTest, Output: "--- PASS: " + topLevelTest + " (1.50s)\n"},
+		testEvent{Action: "pass", Test: topLevelTest, Elapsed: 1.5},
+	))
+	var term bytes.Buffer
+	renderer := newRenderer(&term, false, time.Now, 30*time.Second)
+
+	s, ranToCompletion := drive(driveConfig{
+		stdout:       stdout,
+		stderr:       strings.NewReader(""), // real go test -json never writes this here
+		runLog:       &bytes.Buffer{},
+		renderer:     renderer,
+		tick:         noTick,
+		artifactsDir: "/tmp/run",
+	})
+	if !ranToCompletion {
+		t.Fatalf("expected the run to be marked complete")
+	}
+	if s.counts.passed != 1 {
+		t.Fatalf("expected the scenario to still count as passed, got %+v", s.counts)
+	}
+
+	out := term.String()
+	if !strings.Contains(out, "[e2e WARN] Beta scenario failed") {
+		t.Fatalf("expected the beta advisory warning to be visible despite the scenario passing, got %q", out)
+	}
+}
+
+// TestDriveAppendsBuildOutputToRunLog ensures compiler diagnostics from a
+// failed build (delivered as "build-output" events, not "output") are
+// preserved in run.log, matching the documented guarantee that run.log
+// preserves the full raw go test output.
+func TestDriveAppendsBuildOutputToRunLog(t *testing.T) {
+	stdout := strings.NewReader(events(
+		t,
+		testEvent{Action: "build-output", Output: "# t2jcheck\n"},
+		testEvent{Action: "build-output", Output: "./x_test.go:5:2: undefined: foo\n"},
+		testEvent{Action: "build-fail"},
+	))
+	var runLog bytes.Buffer
+	renderer := newRenderer(&bytes.Buffer{}, false, time.Now, 30*time.Second)
+
+	_, ranToCompletion := drive(driveConfig{
+		stdout:       stdout,
+		stderr:       strings.NewReader(""),
+		runLog:       &runLog,
+		renderer:     renderer,
+		tick:         noTick,
+		artifactsDir: "/tmp/run",
+	})
+	if !ranToCompletion {
+		t.Fatalf("expected build-fail to mark the run done")
+	}
+	if !strings.Contains(runLog.String(), "undefined: foo") {
+		t.Fatalf("expected build-output text to be preserved in run.log, got %q", runLog.String())
+	}
+}
+
 func TestDriveAbnormalTerminationReportsFailureAndStopsCleanly(t *testing.T) {
 	// stdout ends with EOF without Test_Scenarios ever reaching pass/fail/skip,
 	// simulating a panic or timeout that killed the process mid-run.

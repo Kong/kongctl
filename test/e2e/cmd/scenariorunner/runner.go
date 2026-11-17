@@ -77,7 +77,7 @@ func drive(cfg driveConfig) (summary, bool) {
 	go func() {
 		defer wg.Done()
 		_ = decodeEvents(cfg.stdout, func(ev testEvent) {
-			if ev.Action == "output" {
+			if ev.Action == "output" || ev.Action == "build-output" {
 				appendRunLog(ev.Output)
 			}
 			for _, u := range agg.apply(ev) {
@@ -123,7 +123,7 @@ func runScenarios(cfg runConfig, out io.Writer) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("open run.log: %w", err)
 	}
-	defer runLog.Close()
+	defer func() { _ = runLog.Close() }()
 
 	// #nosec G204 -- cfg.testArgs are the go test flags/package Makefile already passes directly to `go test`
 	cmd := exec.Command("go", append([]string{"test", "-json"}, cfg.testArgs...)...)
