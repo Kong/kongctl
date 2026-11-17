@@ -487,7 +487,7 @@ jobs:
         uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
         with:
           distribution: goreleaser
-          version: v2.13.3
+          version: v2.20.0
           args: build --clean --timeout=60m
         env:
           CGO_ENABLED: "0"
@@ -605,7 +605,7 @@ jobs:
         uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
         with:
           distribution: goreleaser
-          version: v2.13.3
+          version: v2.20.0
           args: release --clean --skip=before,publish,docker --parallelism=1 --timeout=80m
         env:
           KONGCTL_SKIP_NOTARIZATION: "false"
