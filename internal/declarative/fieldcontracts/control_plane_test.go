@@ -48,6 +48,23 @@ func TestControlPlaneProjectionParticipation(t *testing.T) {
 	require.Empty(t, *update.AuthType)
 }
 
+// TestControlPlaneCompareIgnoresDocumentedDefaultDrift guards against a nil
+// auth_type/cluster_type (the API's own default-fill bypassed, e.g. by an
+// explicit null) comparing as changed against a declaration that matches the
+// SDK's documented literal default.
+func TestControlPlaneCompareIgnoresDocumentedDefaultDrift(t *testing.T) {
+	authType := kkComps.AuthType("pinned_client_certs")
+	desired := kkComps.CreateControlPlaneRequest{AuthType: &authType}
+	current := kkComps.ControlPlane{Config: kkComps.ControlPlaneConfig{AuthType: nil}}
+	require.Empty(t, fieldcontracts.CompareControlPlaneFields(desired, current))
+
+	changedAuthType := kkComps.AuthType("pki_client_certs")
+	desired.AuthType = &changedAuthType
+	changes := fieldcontracts.CompareControlPlaneFields(desired, current)
+	require.Equal(t, fieldcontracts.FieldChange{Old: "pinned_client_certs", New: "pki_client_certs"},
+		changes[fieldcontracts.FieldAuthType])
+}
+
 func TestControlPlaneExportOmissions(t *testing.T) {
 	var target kkComps.CreateControlPlaneRequest
 	fieldcontracts.ExportControlPlaneFields(kkComps.ControlPlane{

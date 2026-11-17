@@ -167,8 +167,22 @@ func (a *identityTrustedIDPAdapter) Update(ctx context.Context, id string, reque
 	if !payload.JwksURIDeclared() {
 		request.JwksURI = current.JwksURI
 	}
-	if payload.Jit == nil {
+	switch {
+	case payload.Jit == nil:
 		request.Jit = current.Jit
+	case payload.Jit.Mapping != nil && current.Jit != nil && current.Jit.Mapping != nil &&
+		current.Jit.Mapping.Identifier != nil && *current.Jit.Mapping.Identifier != "sub" &&
+		(payload.Jit.Mapping.Identifier == nil || *payload.Jit.Mapping.Identifier == "sub"):
+		// The generated mapping type has no omitempty on identifier and
+		// default-fills it to "sub" on every marshal/unmarshal, so an omitted
+		// identifier is indistinguishable from an explicit "sub" by the time
+		// it reaches here (identitytrust.NormalizeJIT treats them the same
+		// for diffing). Preserve a live, non-default identifier so a partial
+		// mapping update cannot silently re-key principals provisioned under
+		// another claim (e.g. "oid").
+		mapping := *payload.Jit.Mapping
+		mapping.Identifier = current.Jit.Mapping.Identifier
+		request.Jit = &kkComps.TrustedIdpJit{Mapping: &mapping}
 	}
 	if payload.JitProvisioningEnabled == nil {
 		request.JitProvisioningEnabled = current.JitProvisioningEnabled

@@ -79,3 +79,32 @@ func TestAuthStrategyDumpWarnsAboutProtectionWithoutOwnership(t *testing.T) {
 		})
 	}
 }
+
+// TestAuthStrategyDumpDropsKeyAuthAnonymousEcho guards against re-applying a
+// dumped key-auth strategy failing create: "anonymous" is a response-only
+// echo in SDK v0.88.0 and is rejected on write.
+func TestAuthStrategyDumpDropsKeyAuthAnonymousEcho(t *testing.T) {
+	strategy := map[string]any{
+		"id": "strategy-id", "name": "strategy", "display_name": "Strategy", "type": "key-auth",
+		"config":     map[string]any{"key_names": []any{"apikey"}, "anonymous": "anonymous"},
+		"managed_by": map[string]string{},
+		"created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z",
+	}
+	body, err := json.Marshal(map[string]any{"data": []any{strategy}})
+	require.NoError(t, err)
+	httpClient := aiChildDumpHTTPClient(func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusOK, Header: http.Header{"Content-Type": {"application/json"}},
+			Body: io.NopCloser(bytes.NewReader(body)), Request: req,
+		}, nil
+	})
+	sdk := &helpers.KonnectSDK{SDK: kkSDK.New(
+		kkSDK.WithServerURL("https://example.test"), kkSDK.WithClient(httpClient),
+	)}
+	client := state.NewClient(state.ClientConfig{AIGatewayAuthStrategiesAPI: sdk.GetAIGatewayAuthStrategiesAPI()})
+	strategies, err := buildAIGatewayAuthStrategies(t.Context(), slog.Default(), client, "gateway-id", "Gateway")
+	require.NoError(t, err)
+	require.Len(t, strategies, 1)
+	require.NotContains(t, strategies[0].Config, "anonymous")
+	require.Equal(t, []any{"apikey"}, strategies[0].Config["key_names"])
+}
