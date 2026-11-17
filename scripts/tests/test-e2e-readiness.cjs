@@ -1005,6 +1005,7 @@ test('workflow contracts retain manual-only proof and admission guards', () => {
     assert.match(retryStep, /KONNECT_ENVIRONMENT:.*vars.KONGCTL_E2E_KONNECT_ENV/);
     assert.match(job, /actions: read/);
     assert.match(job, /pull-requests: read/);
+    assert.match(job.split('    steps:')[0], /statuses: read/, `${name}: manual authorization evidence requires status access`);
   }
   assert.ok(!scenario.includes('Require a fresh readiness decision'));
 });
@@ -1527,6 +1528,30 @@ test('a failed shard can obtain fresh admission on the same commit without redis
   assert.equal(f.state.outputs.attempt, '2');
   assert.equal(f.state.dispatches.length, 0);
   assert.equal(f.state.statuses.length, 0);
+});
+
+test('manual exact-head authorization supports failed-shard retry while a positive review is absent', async () => {
+  const f = fake();
+  const authorization = manualAuthorization(f);
+  f.context.eventName = 'workflow_dispatch';
+  f.context.payload.inputs = {dispatch_source: 'readiness'};
+  f.state.runs.push({id: 400, event: 'workflow_dispatch', actor: authorization.actor,
+    triggering_actor: authorization.actor});
+  Object.assign(process.env, {GITHUB_RUN_ID: '400', GITHUB_RUN_ATTEMPT: '2',
+    READINESS_PR: '12', READINESS_SHA: f.state.pr.head.sha, READINESS_ENV: 'com', READINESS_MODE: 'pr'});
+  const paginate = f.github.paginate;
+  let statusReads = 0;
+  f.github.paginate = async (method, args) => {
+    if (method.method === 'statuses') statusReads++;
+    return paginate(method, args);
+  };
+  await recheckRerun(f);
+  assert.equal(f.state.reviews.length, 0);
+  assert.equal(f.state.decision, 'REVIEW_REQUIRED');
+  assert.equal(statusReads, 1);
+  assert.equal(f.state.outputs.accepted, 'true');
+  assert.equal(f.state.outputs.attempt, '2');
+  assert.equal(f.state.dispatches.length, 0);
 });
 
 test('bot-dispatched readiness runs allow an authorized maintainer to retry their failed shards', async () => {
