@@ -351,7 +351,42 @@ function scheduledBatch(pulls, now = Date.now()) {
   return ordered.slice(offset, offset + 5);
 }
 
-async function reconcile({github, context, core}) {
+async function waitForCompletion({github, context, core}, pause = ms => new Promise(resolve => setTimeout(resolve, ms))) {
+  const {completion_run_id: id, pr_number: number, retry} = context.payload.inputs || {};
+  if (!/^[1-9][0-9]*$/.test(id || '') || !Number.isSafeInteger(Number(id)) ||
+      !/^[1-9][0-9]*$/.test(number || '') || !Number.isSafeInteger(Number(number)) || retry === 'true') {
+    throw new Error('Completion requires a valid run ID and PR number, without retry.');
+  }
+  const {data: workflow} = await github.rest.actions.getWorkflow({...context.repo, workflow_id: 'e2e.yaml'});
+  for (let attempt = 0; attempt < 24; attempt++) {
+    let run;
+    try {
+      ({data: run} = await github.rest.actions.getWorkflowRun({...context.repo, run_id: Number(id)}));
+    } catch (error) {
+      if (error.status !== 404) throw error;
+    }
+    if (run) {
+      const match = /^readiness:([1-9][0-9]*)\/[a-f0-9]{40}\/(?:com|tech)\/(?:pr|live)\/[1-9][0-9]*$/.exec(run.display_title) ||
+        /^PR #([1-9][0-9]*) · trusted scenarios · [a-f0-9]{40}$/.exec(run.display_title);
+      if (run.id !== Number(id) || run.workflow_id !== workflow.id || run.event !== 'workflow_dispatch' ||
+          run.head_repository?.full_name !== `${context.repo.owner}/${context.repo.repo}` || match?.[1] !== number) {
+        throw new Error('Completion run does not match the scenario workflow and PR.');
+      }
+      if (run.status === 'completed') return;
+    }
+    if (attempt < 23) {
+      core.info(`Waiting for E2E run ${id} to finish before reconciliation.`);
+      await pause(5000);
+    }
+  }
+  throw new Error(`Completion run ${id} is still not complete; scheduled reconciliation remains available.`);
+}
+
+async function reconcile({github, context, core, pause}) {
+  if (context.eventName === 'workflow_dispatch' && context.payload.inputs?.completion_run_id) {
+    // This is only a wakeup. Reconciliation independently validates all evidence.
+    await waitForCompletion({github, context, core}, pause);
+  }
   const client = api(github, context);
   const number = Number(context.payload.inputs?.pr_number || context.payload.pull_request?.number || 0);
   if (context.payload.inputs?.retry === 'true' && !number) throw new Error('Retry requires pr_number');
@@ -513,7 +548,7 @@ async function reconcile({github, context, core}) {
   }
 }
 module.exports = {PREREQUISITES, REQUIRED, requirement, ciReady, admit, reconcile,
-  scheduledBatch, authorize, scenarioDispatch,
+  scheduledBatch, authorize, scenarioDispatch, waitForCompletion,
   AUTHORIZATION_JOB, AUTHORIZATION_STEP};
 
 

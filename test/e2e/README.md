@@ -740,6 +740,24 @@ would reuse admission from a prior attempt. Direct manual and trusted-fork
 runs recheck the invoking and triggering maintainers before expensive work on
 failed-job retries; trusted-fork retries also recheck the current PR head.
 
+After all other scenario jobs finish, **Notify PR readiness controller**
+explicitly dispatches the default-branch controller for that PR and run ID.
+This covers same-repository readiness runs and explicit trusted-fork runs.
+It does not request a retry or grant authorization. No new credentials are
+needed. GitHub may suppress the `workflow_run` completion event for workflows
+dispatched using `GITHUB_TOKEN`, so that event alone is not a reliable callback.
+
+The controller polls for up to about two minutes to allow the notifying job
+itself to finish. It validates the run's repository, workflow, dispatch event,
+and PR title before waiting, then applies ordinary reconciliation to current
+GitHub state. It never publishes success from an unfinished run or trusts
+callback inputs as validation evidence. Duplicate callbacks reuse the existing
+result. A stale callback cannot satisfy a new head's gate. Notification failure
+does not fail the scenario suite; missed, timed-out, or cancelled callbacks
+retain the scheduled recovery path. To refresh an existing result manually,
+dispatch `e2e-required-status.yaml` with `pr_number` and `retry=false`; do not
+submit another `/e2e` review unless another test run is intended.
+
 PR lifecycle events, review events, and prerequisite/scenario workflow
 completion reevaluate current API state. GitHub Actions has no review-thread
 resolution trigger, so a five-minute scheduled reconciliation also checks
