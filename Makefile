@@ -186,13 +186,12 @@ test-e2e-scenarios:
 	fi; \
 	mkdir -p "$$ART_DIR"; \
 	ART_DIR=$$(cd "$$ART_DIR" && pwd); \
-	( KONGCTL_E2E_ARTIFACTS_DIR="$$ART_DIR" \
-	  KONGCTL_E2E_SCENARIO="${SCENARIO}" \
-	  KONGCTL_E2E_STOP_AFTER="${STOP_AFTER}" \
-	  go test -v -count=1 -tags=e2e -timeout "$(KONGCTL_E2E_TEST_TIMEOUT)" -run '^Test_Scenarios$$' $${GOTESTFLAGS} ./test/e2e ; \
-	  echo $$? > "$$ART_DIR/.exit_code" ) | tee "$$ART_DIR/run.log"; \
-	code=$$(cat "$$ART_DIR/.exit_code"); rm -f "$$ART_DIR/.exit_code"; \
-	echo "E2E artifacts: $$ART_DIR"; \
+	KONGCTL_E2E_ARTIFACTS_DIR="$$ART_DIR" \
+	KONGCTL_E2E_SCENARIO="${SCENARIO}" \
+	KONGCTL_E2E_STOP_AFTER="${STOP_AFTER}" \
+	go run ./test/e2e/cmd/scenariorunner -artifacts-dir "$$ART_DIR" -- \
+	  -count=1 -tags=e2e -timeout "$(KONGCTL_E2E_TEST_TIMEOUT)" -run '^Test_Scenarios$$' $${GOTESTFLAGS} ./test/e2e; \
+	code=$$?; \
 	ln -sfn "$$ART_DIR" "$(LATEST_E2E_LINK)" || true; \
 	exit $$code
 
