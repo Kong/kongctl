@@ -1,7 +1,7 @@
 const {test} = require('node:test');
 const assert = require('node:assert/strict');
 const {requirement, ciReady, reconcile, admit, REQUIRED, scheduledBatch, authorize,
-  AUTHORIZATION_JOB, AUTHORIZATION_STEP, scenarioDispatch} = require('../e2e-readiness.cjs');
+  AUTHORIZATION_JOB, AUTHORIZATION_STEP, scenarioDispatch, waitForCompletion} = require('../e2e-readiness.cjs');
 
 function fixture() {
   const pr = {number: 12, state: 'open', draft: false, changed_files: 1, labels: [],
@@ -1366,4 +1366,169 @@ test('a deleted fork remains ineligible in authorization, reconciliation and que
     READINESS_ENV: 'com', READINESS_MODE: 'live'});
   await admit(f);
   assert.equal(f.state.outputs.accepted, 'false');
+});
+
+function completionRequest(f) {
+  const run = {id: 200, workflow_id: 8, event: 'workflow_dispatch',
+    head_repository: {full_name: 'Kong/kongctl'}, status: 'in_progress',
+    display_title: `readiness:12/${f.state.pr.head.sha}/com/pr/100`};
+  f.state.runs = [run];
+  f.context.eventName = 'workflow_dispatch';
+  f.context.payload.inputs = {pr_number: '12', completion_run_id: '200'};
+  f.github.rest.actions.getWorkflow = async args => {
+    assert.equal(args.workflow_id, 'e2e.yaml');
+    return {data: {id: 8}};
+  };
+  return run;
+}
+
+test('scenario completion dispatches a targeted non-retry callback after every other job', async () => {
+  const {readFileSync} = require('node:fs');
+  const {resolve} = require('node:path');
+  const workflow = readFileSync(resolve(__dirname, '../../.github/workflows/e2e.yaml'), 'utf8');
+  const job = workflow.split('  e2e-completion:\n')[1];
+  const dependencies = job.split('    if:')[0];
+  for (const [, name] of workflow.split('jobs:\n')[1].matchAll(/^  ([a-z][a-z0-9-]*):$/gm)) {
+    if (name !== 'e2e-completion') assert.ok(dependencies.includes(`      - ${name}\n`), name);
+  }
+  assert.match(job, /always\(\) && github.event_name == 'workflow_dispatch'/);
+  assert.match(job, /inputs.dispatch_source == 'readiness'/);
+  assert.match(job, /inputs.trusted_pr_number != ''/);
+  assert.match(job, /continue-on-error: true/);
+  assert.match(job, /actions: write/);
+  assert.ok(!job.includes('secrets.'));
+  const script = job.split('          script: |\n')[1];
+  const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor;
+  const requests = [];
+  const github = {rest: {repos: {get: async () => ({data: {default_branch: 'trunk'}})},
+    actions: {createWorkflowDispatch: async args => requests.push(args)}}};
+  await new AsyncFunction('github', 'context', 'process', script)(github,
+    {repo: {owner: 'Kong', repo: 'kongctl'}, runId: 200}, {env: {COMPLETION_PR: '12'}});
+  assert.deepEqual(requests, [{owner: 'Kong', repo: 'kongctl', workflow_id: 'e2e-required-status.yaml', ref: 'trunk',
+    inputs: {pr_number: '12', completion_run_id: '200', retry: 'false'}}]);
+});
+
+test('completion callback waits for suite teardown before publishing the successful result', async () => {
+  const f = fake();
+  await reconcile(f);
+  const executed = dispatchedRun(f, 'success');
+  const run = completionRequest(f);
+  Object.assign(run, executed, {status: 'in_progress'});
+  f.state.jobs = [{name: 'Verify scenario results and coverage', conclusion: 'success'}];
+  let waits = 0;
+  f.pause = async milliseconds => {
+    assert.equal(milliseconds, 5000);
+    assert.equal(gate(f).state, 'pending');
+    waits++;
+    run.status = 'completed';
+  };
+  await reconcile(f);
+  assert.equal(waits, 1);
+  assert.equal(gate(f).state, 'success');
+  assert.equal(f.state.checks[0].conclusion, 'success');
+  assert.equal(f.state.dispatches.length, 1, 'completion must not request another E2E run');
+  await reconcile(f);
+  assert.equal(f.state.dispatches.length, 1);
+});
+
+for (const conclusion of ['failure', 'cancelled']) {
+  test(`completion callback publishes ${conclusion} without retrying E2E`, async () => {
+    const f = fake();
+    await reconcile(f);
+    const executed = dispatchedRun(f, conclusion);
+    const run = completionRequest(f);
+    Object.assign(run, executed);
+    await reconcile(f);
+    assert.equal(gate(f).state, 'failure');
+    assert.equal(f.state.checks[0].conclusion, 'failure');
+    assert.equal(f.state.dispatches.length, 1);
+  });
+}
+
+test('completion wait tolerates temporary run invisibility and rereads the current attempt', async () => {
+  const f = fake();
+  const run = completionRequest(f);
+  const get = f.github.rest.actions.getWorkflowRun;
+  let calls = 0;
+  f.github.rest.actions.getWorkflowRun = async args => {
+    if (++calls === 1) throw Object.assign(new Error('Not yet visible'), {status: 404});
+    return get(args);
+  };
+  let waits = 0;
+  await waitForCompletion(f, async () => {
+    if (++waits === 2) Object.assign(run, {run_attempt: 2, status: 'completed', conclusion: 'success'});
+  });
+  assert.equal(calls, 3);
+  assert.equal(waits, 2);
+  assert.equal(f.state.statuses.length, 0);
+});
+
+test('completion wait times out without declaring an unfinished run successful', async () => {
+  const f = fake();
+  completionRequest(f);
+  let waits = 0;
+  f.pause = async () => {waits++;};
+  await assert.rejects(reconcile(f), /still not complete/);
+  assert.equal(waits, 23);
+  assert.equal(f.state.statuses.length, 0);
+  assert.equal(f.state.dispatches.length, 0);
+});
+
+for (const [name, mutate] of Object.entries({
+  'another PR': (f, run) => {run.display_title = run.display_title.replace('readiness:12/', 'readiness:13/');},
+  'another workflow': (f, run) => {run.workflow_id = 99;},
+  'another repository': (f, run) => {run.head_repository.full_name = 'fork/kongctl';},
+  'another event': (f, run) => {run.event = 'pull_request';},
+  'another run ID': (f, run) => {run.id = 201; f.github.rest.actions.getWorkflowRun = async () => ({data: run});},
+  'manual non-PR run': (f, run) => {run.display_title = 'Manual · scenarios · com';},
+  'invalid run input': f => {f.context.payload.inputs.completion_run_id = '../200';},
+  'missing PR': f => {f.context.payload.inputs.pr_number = '';},
+  retry: f => {f.context.payload.inputs.retry = 'true';},
+})) {
+  test(`completion callback rejects ${name} without writing or dispatching`, async () => {
+    const f = fake();
+    const run = completionRequest(f);
+    mutate(f, run);
+    await assert.rejects(reconcile(f), /completion/i);
+    assert.equal(f.state.statuses.length, 0);
+    assert.equal(f.state.dispatches.length, 0);
+  });
+}
+
+for (const status of [403, 429]) {
+  test(`completion API ${status} fails closed without a false pass`, async () => {
+    const f = fake();
+    completionRequest(f);
+    f.github.rest.actions.getWorkflowRun = async () => {throw Object.assign(new Error('API unavailable'), {status});};
+    await assert.rejects(reconcile(f), /API unavailable/);
+    assert.equal(f.state.statuses.length, 0);
+  });
+}
+
+test('an obsolete completion cannot pass a new PR head', async () => {
+  const f = fake();
+  await reconcile(f);
+  const executed = dispatchedRun(f, 'success');
+  Object.assign(completionRequest(f), executed);
+  f.state.pr.head.sha = 'b'.repeat(40);
+  await reconcile(f);
+  assert.equal(gate(f).sha, f.state.pr.head.sha);
+  assert.equal(gate(f).state, 'pending');
+  assert.equal(f.state.dispatches.length, 1);
+});
+
+test('trusted-fork completion reevaluates existing evidence without authorizing fork code', async () => {
+  const f = fake();
+  const run = completionRequest(f);
+  Object.assign(run, {status: 'completed', conclusion: 'success',
+    display_title: `PR #12 · trusted scenarios · ${f.state.pr.head.sha}`});
+  f.state.pr.head.repo.full_name = 'fork/kongctl';
+  await reconcile(f);
+  assert.equal(gate(f).state, 'pending', 'a wakeup alone is not fork validation evidence');
+  assert.equal(f.state.dispatches.length, 0);
+  f.state.statuses.unshift({sha: f.state.pr.head.sha, context: requirement(f.state.pr).statusContext,
+    state: 'success', description: 'Trusted E2E passed', target_url: 'https://github.com/Kong/kongctl/actions/runs/200'});
+  await reconcile(f);
+  assert.equal(gate(f).state, 'success');
+  assert.equal(f.state.dispatches.length, 0);
 });

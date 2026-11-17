@@ -18,6 +18,10 @@ on:
         description: PR to reevaluate (empty reevaluates all open PRs)
         type: string
         default: ''
+      completion_run_id:
+        description: Internal scenario completion callback; wait for this run before reevaluating
+        type: string
+        default: ''
       retry:
         description: Retry failed/cancelled validation or an interrupted reservation
         type: boolean

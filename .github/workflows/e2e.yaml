@@ -2038,3 +2038,44 @@ jobs:
           name: e2e-run-summary-${{ github.run_id }}-${{ github.run_attempt }}
           path: .e2e-run-summary
           include-hidden-files: true
+
+  e2e-completion:
+    name: Notify PR readiness controller
+    needs:
+      - e2e-needed
+      - e2e-harness
+      - e2e-build
+      - e2e
+      - e2e-replay
+      - e2e-replay-verify
+      - e2e-verify
+      - e2e-required
+      - trusted-e2e-result-comment
+      - e2e-summary
+    if: >-
+      always() && github.event_name == 'workflow_dispatch' &&
+      ((inputs.dispatch_source == 'readiness' && inputs.readiness_pr != '') || inputs.trusted_pr_number != '')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+        with:
+          egress-policy: audit
+      # GITHUB_TOKEN dispatches do not reliably produce workflow_run callbacks.
+      # The receiver waits for this job's teardown before reading the result.
+      - name: Request completion reconciliation
+        continue-on-error: true
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          COMPLETION_PR: ${{ inputs.trusted_pr_number || inputs.readiness_pr }}
+        with:
+          script: |
+            const {data: repository} = await github.rest.repos.get(context.repo);
+            await github.rest.actions.createWorkflowDispatch({...context.repo,
+              workflow_id: 'e2e-required-status.yaml', ref: repository.default_branch,
+              inputs: {pr_number: process.env.COMPLETION_PR,
+                completion_run_id: String(context.runId), retry: 'false'}});
