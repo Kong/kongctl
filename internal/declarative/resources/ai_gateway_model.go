@@ -592,7 +592,7 @@ func AIGatewayModelResourceFromResponse(
 		kongctl = &KongctlMeta{Namespace: new(namespace), Protected: new(metadata[ModelProtectedKey] == "true")}
 	}
 	delete(payload, "managed_by")
-	OmitAIGatewayModelDatastoreConnections(payload)
+	(AIGatewayModelResource{}).OmitInheritedFields(payload)
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return AIGatewayModelResource{}, err
@@ -613,15 +613,20 @@ func AIGatewayModelResourceFromResponse(
 	}, nil
 }
 
+// OmitInheritedFields excludes datastore connections from model exports.
+func (AIGatewayModelResource) OmitInheritedFields(payload map[string]any) {
+	OmitAIGatewayModelDatastoreConnections(payload)
+}
+
 // OmitAIGatewayModelDatastoreConnections removes connection settings resolved
 // from a pgvector datastore. The API expands these fields and overrides inline
 // connection values; exporting them would pin inherited settings in manifests.
 func OmitAIGatewayModelDatastoreConnections(payload map[string]any) {
-	stores, _ := payload["datastores"].([]any)
+	stores, _ := payload[SchemaFieldDatastores].([]any)
 	if len(stores) == 0 {
 		return
 	}
-	config, _ := payload["config"].(map[string]any)
+	config, _ := payload[SchemaFieldConfig].(map[string]any)
 	balancer, _ := config["balancer"].(map[string]any)
 	vector, _ := balancer["vectordb"].(map[string]any)
 	if vector["type"] != "pgvector" {

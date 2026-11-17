@@ -61,6 +61,7 @@ func TestAIGatewayPolicyPlannerIgnoresVectorDBDatastoreConnection(t *testing.T) 
 	desired := testAIGatewayDatastorePolicyResource(t, `{
 		"vectordb": {"strategy": "pgvector", "dimensions": 1536, "distance_metric": "cosine", "threshold": 0.1}
 	}`, "vector-store")
+	desired.Type = "ai-semantic-cache"
 	current := testAIGatewayDatastorePolicy("vector-store", map[string]any{
 		"vectordb": map[string]any{
 			"strategy":        "pgvector",
@@ -74,6 +75,7 @@ func TestAIGatewayPolicyPlannerIgnoresVectorDBDatastoreConnection(t *testing.T) 
 			},
 		},
 	})
+	current.Type = "ai-semantic-cache"
 
 	needsUpdate, _, changed, err := shouldUpdateAIGatewayPolicy(state.AIGatewayPolicy{AIGatewayPolicy: current}, desired)
 
@@ -176,6 +178,58 @@ func TestAIGatewayPolicyPlannerComparesNestedDatastoreConnections(t *testing.T) 
 					require.Equal(t, tt.newValue, fields[FieldConfig].(map[string]any)[tt.field])
 				})
 			}
+		})
+	}
+}
+
+func TestAIGatewayPolicyPlannerIgnoresScrubbedSemanticConnections(t *testing.T) {
+	for _, strategy := range []string{"redis", "pgvector"} {
+		t.Run(strategy, func(t *testing.T) {
+			desired := testAIGatewayDatastorePolicyResource(t, `{
+				"vectordb": {
+					"redis":{"host":"inline.example.test","database":8,"ssl":true,"ssl_verify":false},
+					"pgvector":{"host":"inline-pg.example.test","database":"inline","timeout":1234},
+					"dimensions":1536,"distance_metric":"cosine","threshold":0.2
+				}
+			}`, "shared-store")
+			desired.Type = "ai-semantic-cache"
+			desired.Config["vectordb"].(map[string]any)["strategy"] = strategy
+			current := testAIGatewayDatastorePolicy("shared-store", map[string]any{
+				"vectordb": map[string]any{
+					"strategy": strategy, "dimensions": float64(1536), "distance_metric": "cosine", "threshold": 0.2,
+					strategy: map[string]any{"host": "datastore.example.test", "database": "from-datastore"},
+				},
+			})
+			current.Type = desired.Type
+			needsUpdate, _, changed, err := shouldUpdateAIGatewayPolicy(state.AIGatewayPolicy{AIGatewayPolicy: current}, desired)
+			require.NoError(t, err)
+			require.Falsef(t, needsUpdate, "changed fields: %#v", changed)
+
+			desired.Config["vectordb"].(map[string]any)["threshold"] = 0.4
+			needsUpdate, _, changed, err = shouldUpdateAIGatewayPolicy(state.AIGatewayPolicy{AIGatewayPolicy: current}, desired)
+			require.NoError(t, err)
+			require.True(t, needsUpdate)
+			require.Contains(t, changed, FieldConfig)
+		})
+	}
+}
+
+func TestAIGatewayPolicyPlannerPrunesContainersEmptiedByDatastoreOmission(t *testing.T) {
+	for _, tt := range []struct {
+		policyType string
+		config     string
+	}{
+		{"acme", `{"storage_config":{"redis":{"host":"inline.example.test"}}}`},
+		{"datakit", `{"resources":{"cache":{"redis":{"host":"inline.example.test"}}}}`},
+	} {
+		t.Run(tt.policyType, func(t *testing.T) {
+			desired := testAIGatewayDatastorePolicyResource(t, tt.config, "shared-redis")
+			desired.Type = tt.policyType
+			current := testAIGatewayDatastorePolicy("shared-redis", map[string]any{})
+			current.Type = tt.policyType
+			needsUpdate, _, changed, err := shouldUpdateAIGatewayPolicy(state.AIGatewayPolicy{AIGatewayPolicy: current}, desired)
+			require.NoError(t, err)
+			require.Falsef(t, needsUpdate, "changed fields: %#v", changed)
 		})
 	}
 }

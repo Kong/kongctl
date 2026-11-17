@@ -235,9 +235,12 @@ The API replaces the policy's connection block with the datastore's connection:
 `config.vectordb.pgvector` for semantic policies, `config.storage_config.redis`
 for ACME, and `config.resources.cache.redis` for Datakit. Planning does not
 compare those blocks for a policy with datastore references, and dumps and
-adopted declarative output omit them. Other policy settings still participate
-in comparison. Each policy type accepts specific datastore types; for example,
-AI Rate Limiting Advanced accepts `redis-ee`.
+adopted declarative output omit them. Removal follows the policy type; unrelated
+connection paths are preserved. For semantic policies, the API removes both
+vector connection blocks, including the inactive strategy's block. Inline
+connection values do not override datastore settings. Other policy settings still
+participate in comparison. Each policy type accepts specific datastore types;
+for example, AI Rate Limiting Advanced accepts `redis-ee`.
 
 ```yaml
 ai_gateways:

@@ -157,7 +157,20 @@ func TestAIGatewayPolicyResourceFromResponseOmitsDatastoreConnections(t *testing
 	config := payload["config"].(map[string]any)
 	require.Equal(t, "redis", config["strategy"])
 	require.NotContains(t, config, "redis")
-	require.Equal(t, map[string]any{"strategy": "pgvector"}, config["vectordb"])
+	require.Equal(t, map[string]any{"strategy": "pgvector", "redis": redis, "pgvector": pgvector}, config["vectordb"])
+
+	semantic := response([]kkComps.AIGatewayDatastoreRef{{Name: "vector-store"}})
+	semantic.Type = "ai-semantic-cache"
+	policy, err = AIGatewayPolicyResourceFromResponse("support-gateway", semantic)
+	require.NoError(t, err)
+	require.Equal(t, redis, policy.Config["redis"])
+	require.Equal(t, map[string]any{"strategy": "pgvector"}, policy.Config["vectordb"])
+
+	unknown := response([]kkComps.AIGatewayDatastoreRef{{Name: "custom-store"}})
+	unknown.Type = "custom-policy"
+	policy, err = AIGatewayPolicyResourceFromResponse("support-gateway", unknown)
+	require.NoError(t, err)
+	require.Equal(t, unknown.Config, policy.Config)
 
 	inline, err := AIGatewayPolicyResourceFromResponse("support-gateway", response(nil))
 	require.NoError(t, err)

@@ -191,6 +191,8 @@ func shouldUpdateAIGatewayPolicy(
 	// the datastore's settings, so they are not compared.
 	resources.OmitAIGatewayPolicyDatastoreConnections(currentCompare)
 	resources.OmitAIGatewayPolicyDatastoreConnections(desiredCompare)
+	pruneEmptyContainersMissingFromPeer(currentCompare, desiredCompare)
+	pruneEmptyContainersMissingFromPeer(desiredCompare, currentCompare)
 	changedFields := diffAIGatewayPayloads(currentPayload, desiredPayload, currentCompare, desiredCompare)
 	if len(changedFields) == 0 {
 		return false, nil, nil, nil

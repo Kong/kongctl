@@ -135,6 +135,8 @@ const (
 	SchemaFieldAuthStrategies       = "auth_strategies"
 	SchemaFieldIdentityProviders    = "identity_providers"
 	SchemaFieldConfig               = "config"
+	SchemaFieldDatastores           = "datastores"
+	SchemaFieldType                 = "type"
 	SchemaFieldConfigStoreID        = "config_store_id"
 	SchemaFieldKongctl              = "kongctl"
 	SchemaFieldID                   = "id"

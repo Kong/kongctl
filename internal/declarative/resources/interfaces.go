@@ -64,3 +64,9 @@ type ResourceWithLabels interface {
 	GetLabels() map[string]string
 	SetLabels(map[string]string)
 }
+
+// InheritedFieldsOmitter excludes API-resolved fields from declarative exports.
+// Implementations mutate only the supplied payload, not the resource snapshot.
+type InheritedFieldsOmitter interface {
+	OmitInheritedFields(payload map[string]any)
+}

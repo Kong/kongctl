@@ -114,3 +114,35 @@ func TestProjectionOmitsNestedPolicyDatastoreConnections(t *testing.T) {
 		})
 	}
 }
+
+func TestProjectionOmitsModelDatastoreConnections(t *testing.T) {
+	model, err := ProjectAs[resources.AIGatewayModelResource](map[string]any{
+		"name": "semantic", "display_name": "Semantic", "type": "model",
+		"formats":      []any{map[string]any{"type": "openai"}},
+		"capabilities": []any{"generate"},
+		"targets": []any{map[string]any{
+			"name": "gpt-4o", "provider": "provider", "config": map[string]any{"type": "openai"},
+		}},
+		"datastores": []any{map[string]any{"name": "vector-store"}},
+		"config": map[string]any{
+			"route": map[string]any{"model": map[string]any{"values": []any{"semantic"}}},
+			"balancer": map[string]any{
+				"algorithm": "semantic",
+				"embeddings": map[string]any{
+					"provider": "provider", "name": "text-embedding-3-small", "config": map[string]any{"type": "openai"},
+				},
+				"vectordb": map[string]any{
+					"type": "pgvector", "host": "pg.example.test", "database": "vectors", "dimensions": 1536,
+					"distance_metric": "cosine", "threshold": 0.2,
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	data, err := model.MutablePayloadMap()
+	require.NoError(t, err)
+	vector := data[resources.SchemaFieldConfig].(map[string]any)["balancer"].(map[string]any)["vectordb"]
+	require.Equal(t, map[string]any{
+		"type": "pgvector", "dimensions": float64(1536), "distance_metric": "cosine", "threshold": 0.2,
+	}, vector)
+}
