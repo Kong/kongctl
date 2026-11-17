@@ -734,11 +734,33 @@ Changing the target environment or live/replay mode completes obsolete pending
 checks as superseded. This does not cancel an active scenario run. A Checks API
 failure produces a warning without preventing the merge-gate update. Docs-only
 PRs that do not require E2E do not create execution checks.
-You can follow the run link and choose **Re-run all jobs** to repeat admission.
-Readiness runs reject **Re-run failed jobs** with an explicit error because it
-would reuse admission from a prior attempt. Direct manual and trusted-fork
-runs recheck the invoking and triggering maintainers before expensive work on
-failed-job retries; trusted-fork retries also recheck the current PR head.
+For a transient failure on the same PR commit, open the scenario run and choose
+**Re-run failed jobs** (or retry a specific failed shard). GitHub retains the
+successful jobs and retries failed jobs plus their dependents. Successful
+shards, builds, and replay results can be reused; no new `/e2e` command is
+needed.
+A new `/e2e` review requests a new full validation instead.
+
+Each retried job checks both the original and triggering actors, using current
+Maintain/Admin permissions and the existing trusted internal-bot rules. For
+readiness runs it also rechecks the current PR head, open/non-draft state,
+prerequisite CI, review threads, changes requests, authorization, and target
+routing. These checks run inside each retrying job before checking out tested
+code or running expensive work, even when GitHub reuses the original successful
+admission job. A new commit or changed environment/live-replay mode blocks the
+retry; authorize a new run for the new requirement instead. Trusted-fork retries
+continue to verify the reviewed head without granting automatic fork admission.
+
+Retries reuse this workflow run's original binaries, scenario data, routing
+plan, and shard allocation when those setup jobs succeeded. Result verification
+uses the newest result for each shard and retains successful shards from older
+attempts. Missing results, incomplete coverage, or incompatible shard layouts
+cannot pass. Missing/expired shared artifacts require a fresh full run.
+
+This retry behavior applies to runs created after the updated workflow reaches
+`main`. GitHub reruns keep their original workflow revision, so older runs with
+the attempt-number restriction need a fresh `/e2e` run once before partial
+retries can use the fix. No PR code commit is required just to adopt the fix.
 
 After all other scenario jobs finish, **Notify PR readiness controller**
 explicitly dispatches the default-branch controller for that PR and run ID.
@@ -836,8 +858,8 @@ This reevaluates readiness before retrying and leaves active runs alone. If
 a controller fails after reserving but before dispatching, inspect Actions
 for an existing run, then use the same retry command to recover. Ordinary
 events do not retry failures or ambiguous reservations. Rerunning the entire
-scenario workflow also rechecks admission. A failed-jobs-only rerun cannot
-reuse an older admission decision; use the controller retry command instead.
+scenario workflow also rechecks admission. Failed-job retries recheck readiness
+inside the retried jobs and reuse successful shards on the same commit.
 Main's debounced dispatch, manual runs, merge groups, environment queues,
 and per-org locks remain supported.
 

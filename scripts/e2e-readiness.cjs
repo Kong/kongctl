@@ -287,7 +287,10 @@ function api(github, context) {
       `**Start or retry:** [Files changed → Review changes → Comment](${base}/pull/${s.pr.number}/files), ` +
         'submit a new review containing only \`/e2e\`. Only humans with repository Maintain or Admin access may do this.',
       'Each submitted review is bound by GitHub to its commit. Repeat after a push; older commands do not authorize new commits.',
-      runURL ? 'You can also open the run and choose **Re-run all jobs**. Do not use failed-jobs-only for readiness runs.' : '',
+      runURL ? 'For transient failures, open the run and choose **Re-run failed jobs** to retry failed shards on this commit. ' +
+        'Each retried job rechecks current permissions and readiness; successful shards are reused.' : '',
+      runURL ? 'Reruns retain their original workflow revision. Runs predating failed-shard retry support need a fresh ' +
+        '`/e2e` run on the same commit to adopt the fix.' : '',
       'A new command during active validation requests one follow-up run after it finishes.',
       'If dispatch was interrupted or its run disappeared, a new command recovers after a ten-minute visibility grace period.',
       `For immediate recovery, a human with repository Maintain or Admin access can run: \`gh workflow run e2e-required-status.yaml ` +
@@ -342,6 +345,15 @@ async function admit({github, context, core}) {
   core.setOutput('sha', s.pr.head.sha);
   core.setOutput('mode', s.mode);
   core.info(accepted ? `Admitted ${s.key}` : `Skipping expensive work: ${reason}`);
+  return {accepted, reason};
+}
+
+async function recheckRerun(args) {
+  await scenarioDispatch(args);
+  if (args.context.payload.inputs?.dispatch_source === 'readiness') {
+    const {accepted, reason} = await admit(args);
+    if (!accepted) throw new Error(`E2E retry denied: ${reason}`);
+  }
 }
 
 function scheduledBatch(pulls, now = Date.now()) {
@@ -548,7 +560,7 @@ async function reconcile({github, context, core, pause}) {
   }
 }
 module.exports = {PREREQUISITES, REQUIRED, requirement, ciReady, admit, reconcile,
-  scheduledBatch, authorize, scenarioDispatch, waitForCompletion,
+  scheduledBatch, authorize, scenarioDispatch, waitForCompletion, recheckRerun,
   AUTHORIZATION_JOB, AUTHORIZATION_STEP};
 
 
