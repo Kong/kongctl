@@ -7,8 +7,8 @@ import (
 	"io"
 	"strings"
 
+	"github.com/pb33f/go-yaml"
 	"github.com/spf13/cobra"
-	"go.yaml.in/yaml/v4"
 
 	"github.com/kong/go-apiops/filebasics"
 	"github.com/kong/go-apiops/patch"
