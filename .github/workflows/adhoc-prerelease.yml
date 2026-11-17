@@ -410,7 +410,7 @@ jobs:
         with:
           args: build --snapshot --clean --config ${{ steps.goreleaser_config.outputs.config }}
           distribution: goreleaser
-          version: v2.20.0
+          version: v2.20.2
 
       - name: Package ZIP assets
         shell: bash
