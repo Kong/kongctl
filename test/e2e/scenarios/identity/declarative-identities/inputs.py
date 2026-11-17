@@ -50,7 +50,7 @@ def main():
                                   "kongctl": {"namespace": "identity-auth-server-e2e"}, "clients": clients}],
                 "directories": [{
                     "ref": "people", "name": directory, "allow_all_control_planes": True, "vault": {"enabled": False},
-                    "kongctl": {"namespace": "identity-directory-e2e"},
+                    "kongctl": {"namespace": "identity-directory-e2e", "protected": True},
                     "principals": [{"ref": "person", "display_name": "Directory user", "type": "user",
                                     "labels": {"e2e-fixture": "REF:people#id"},
                                     "kongctl": {"namespace": "identity-principal-e2e", "protected": True},
@@ -90,9 +90,13 @@ def main():
                                                  "kongctl": {"protected": protected}}]
             write(work, name, value)
         value = json.loads(Path(work, "initial.json").read_text())
-        parent = value["identity"]["directories"][0]["principals"][0]
+        directory_entry = value["identity"]["directories"][0]
+        parent = directory_entry["principals"][0]
         parent["identities"] = []
         parent["kongctl"]["protected"] = False
+        principals = directory_entry["principals"]
+        ref = directory_entry["ref"]
+        value["identity"]["directories"][0] = {"ref": ref, "_external": {"id": directory}, "principals": principals}
         write(work, "teardown", value)
     else:
         raise ValueError("unknown action")
