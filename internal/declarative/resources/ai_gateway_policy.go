@@ -390,6 +390,11 @@ func OmitAIGatewayPolicyDatastoreConnections(payload map[string]any) {
 	vector, _ := config["vectordb"].(map[string]any)
 	delete(vector, "redis")
 	delete(vector, "pgvector")
+	storage, _ := config["storage_config"].(map[string]any)
+	delete(storage, "redis")
+	resources, _ := config["resources"].(map[string]any)
+	cache, _ := resources["cache"].(map[string]any)
+	delete(cache, "redis")
 }
 
 func aiGatewayPolicyExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {

@@ -230,11 +230,14 @@ Policies can reference datastores in the same gateway the same way, for
 example a Redis datastore shared by rate limiting policies instead of a
 Kong Gateway partial: `datastores: [{name: !ref shared-redis#name}]`. Set
 `config.strategy: redis` on rate limiting policies that use a Redis datastore.
-The API replaces the policy's `config.redis`, `config.vectordb.redis`, and
-`config.vectordb.pgvector` blocks with the datastore's connection, so planning
-does not compare those blocks for a policy with datastore references, and dumps
-omit them. Each policy type accepts specific datastore types; for example, AI
-Rate Limiting Advanced accepts `redis-ee`.
+The API replaces the policy's connection block with the datastore's connection:
+`config.redis` for rate limiting, `config.vectordb.redis` or
+`config.vectordb.pgvector` for semantic policies, `config.storage_config.redis`
+for ACME, and `config.resources.cache.redis` for Datakit. Planning does not
+compare those blocks for a policy with datastore references, and dumps and
+adopted declarative output omit them. Other policy settings still participate
+in comparison. Each policy type accepts specific datastore types; for example,
+AI Rate Limiting Advanced accepts `redis-ee`.
 
 ```yaml
 ai_gateways:

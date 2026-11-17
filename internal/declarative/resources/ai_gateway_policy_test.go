@@ -165,3 +165,60 @@ func TestAIGatewayPolicyResourceFromResponseOmitsDatastoreConnections(t *testing
 	require.NoError(t, err)
 	require.Equal(t, redis, payload["config"].(map[string]any)["redis"])
 }
+
+func TestAIGatewayPolicyResourceFromResponseOmitsNestedDatastoreConnections(t *testing.T) {
+	for _, tt := range []struct {
+		policyType string
+		config     string
+		exported   string
+	}{
+		{
+			policyType: "acme",
+			config: `{
+				"storage":"redis",
+				"storage_config":{"redis":{"host":"redis.example.test"},"shm":{"shm_name":"kong"}}
+			}`,
+			exported: `{"storage":"redis","storage_config":{"shm":{"shm_name":"kong"}}}`,
+		},
+		{
+			policyType: "datakit",
+			config: `{
+				"debug":false,
+				"resources":{
+					"cache":{"redis":{"host":"redis.example.test"},"memory":{"dictionary_name":"kong_db_cache"}},
+					"vault":null
+				}
+			}`,
+			exported: `{
+				"debug":false,"resources":{"cache":{"memory":{"dictionary_name":"kong_db_cache"}},"vault":null}
+			}`,
+		},
+	} {
+		t.Run(tt.policyType, func(t *testing.T) {
+			var config, exported map[string]any
+			require.NoError(t, json.Unmarshal([]byte(tt.config), &config))
+			require.NoError(t, json.Unmarshal([]byte(tt.exported), &exported))
+			response := kkComps.AIGatewayPolicy{
+				ID:          "policy-id",
+				Name:        tt.policyType,
+				DisplayName: tt.policyType,
+				Type:        tt.policyType,
+				Config:      config,
+				Datastores:  []kkComps.AIGatewayDatastoreRef{{Name: "shared-redis"}},
+			}
+			policy, err := AIGatewayPolicyResourceFromResponse("support-gateway", response)
+			require.NoError(t, err)
+			require.Equal(t, exported, policy.Config)
+			require.Equal(t, response.Datastores, policy.Datastores)
+			// Export must not remove connection settings from the observed response.
+			observed, err := json.Marshal(response.Config)
+			require.NoError(t, err)
+			require.JSONEq(t, tt.config, string(observed))
+
+			response.Datastores = nil
+			inline, err := AIGatewayPolicyResourceFromResponse("support-gateway", response)
+			require.NoError(t, err)
+			require.Equal(t, config, inline.Config)
+		})
+	}
+}

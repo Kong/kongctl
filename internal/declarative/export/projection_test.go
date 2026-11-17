@@ -1,6 +1,7 @@
 package export
 
 import (
+	"encoding/json"
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -65,4 +66,51 @@ func TestProjectionOmitsPolicyDatastoreConnections(t *testing.T) {
 	inline, err := ProjectAs[resources.AIGatewayPolicyResource](payload(nil))
 	require.NoError(t, err)
 	require.Contains(t, inline.Config, "redis")
+}
+
+func TestProjectionOmitsNestedPolicyDatastoreConnections(t *testing.T) {
+	for _, tt := range []struct {
+		policyType string
+		config     string
+		exported   string
+	}{
+		{
+			policyType: "acme",
+			config: `{
+				"storage":"redis",
+				"storage_config":{"redis":{"host":"redis.example.test"},"shm":{"shm_name":"kong"}}
+			}`,
+			exported: `{"storage":"redis","storage_config":{"shm":{"shm_name":"kong"}}}`,
+		},
+		{
+			policyType: "datakit",
+			config: `{
+				"debug":false,
+				"resources":{"cache":{"redis":{"host":"redis.example.test"},"memory":{"dictionary_name":"cache"}}}
+			}`,
+			exported: `{"debug":false,"resources":{"cache":{"memory":{"dictionary_name":"cache"}}}}`,
+		},
+	} {
+		t.Run(tt.policyType, func(t *testing.T) {
+			var config, exported map[string]any
+			require.NoError(t, json.Unmarshal([]byte(tt.config), &config))
+			require.NoError(t, json.Unmarshal([]byte(tt.exported), &exported))
+			payload := map[string]any{
+				"name": tt.policyType, "display_name": tt.policyType, "type": tt.policyType,
+				"config":     config,
+				"datastores": []any{map[string]any{"name": "shared-redis"}},
+			}
+			declaration, err := ProjectAs[resources.AIGatewayPolicyResource](payload)
+			require.NoError(t, err)
+			require.Equal(t, exported, declaration.Config)
+			require.Equal(t, []kkComps.AIGatewayDatastoreRef{{Name: "shared-redis"}}, declaration.Datastores)
+
+			payload["datastores"] = nil
+			inline, err := ProjectAs[resources.AIGatewayPolicyResource](payload)
+			require.NoError(t, err)
+			data, err := json.Marshal(inline.Config)
+			require.NoError(t, err)
+			require.JSONEq(t, tt.config, string(data))
+		})
+	}
 }

@@ -116,6 +116,70 @@ func TestAIGatewayPolicyPlannerComparesInlineRedisWithoutDatastore(t *testing.T)
 	require.Contains(t, changed, FieldConfig)
 }
 
+func TestAIGatewayPolicyPlannerComparesNestedDatastoreConnections(t *testing.T) {
+	for _, tt := range []struct {
+		policyType string
+		config     string
+		parentPath []string
+		field      string
+		newValue   any
+	}{
+		{
+			policyType: "acme",
+			config: `{
+				"account_email":"original@example.test","storage":"redis",
+				"storage_config":{"redis":{"host":"inline.example.test","port":6379,"timeout":1234}}
+			}`,
+			parentPath: []string{"storage_config"},
+			field:      "account_email",
+			newValue:   "updated@example.test",
+		},
+		{
+			policyType: "datakit",
+			config: `{
+				"debug":false,
+				"resources":{"cache":{"redis":{"host":"inline.example.test","port":6379,"timeout":1234}}}
+			}`,
+			parentPath: []string{"resources", "cache"},
+			field:      "debug",
+			newValue:   true,
+		},
+	} {
+		t.Run(tt.policyType, func(t *testing.T) {
+			for _, datastore := range []string{"shared-redis", ""} {
+				name := "referenced"
+				if datastore == "" {
+					name = "inline"
+				}
+				t.Run(name, func(t *testing.T) {
+					desired := testAIGatewayDatastorePolicyResource(t, tt.config, datastore)
+					desired.Type = tt.policyType
+					var config map[string]any
+					require.NoError(t, json.Unmarshal([]byte(tt.config), &config))
+					parent := config
+					for _, key := range tt.parentPath {
+						parent = parent[key].(map[string]any)
+					}
+					parent["redis"] = observedRedisDatastoreConnection
+					current := state.AIGatewayPolicy{AIGatewayPolicy: testAIGatewayDatastorePolicy(datastore, config)}
+					current.Type = tt.policyType
+
+					needsUpdate, _, changed, err := shouldUpdateAIGatewayPolicy(current, desired)
+					require.NoError(t, err)
+					require.Equal(t, datastore == "", needsUpdate, "changed fields: %#v", changed)
+
+					desired.Config[tt.field] = tt.newValue
+					needsUpdate, fields, changed, err := shouldUpdateAIGatewayPolicy(current, desired)
+					require.NoError(t, err)
+					require.True(t, needsUpdate)
+					require.Contains(t, changed, FieldConfig)
+					require.Equal(t, tt.newValue, fields[FieldConfig].(map[string]any)[tt.field])
+				})
+			}
+		})
+	}
+}
+
 func testAIGatewayDatastorePolicyResource(
 	t *testing.T,
 	config string,
