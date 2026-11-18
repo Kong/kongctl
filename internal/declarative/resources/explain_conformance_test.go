@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"reflect"
 	"slices"
 	"testing"
 
@@ -203,6 +204,7 @@ func TestAIGatewayModelProviderExplainBranchesTrackSDKRequestShapes(t *testing.T
 	}
 	assertAIGatewayProviderExplainSDKShape[kkComps.AIGatewayModelProviderAnthropic](t, node, "anthropic", allowOverlay)
 	assertAIGatewayProviderExplainSDKShape[kkComps.AIGatewayModelProviderAzure](t, node, "azure", allowOverlay)
+	assertAIGatewayProviderExplainSDKShape[kkComps.AIGatewayModelProviderBaseten](t, node, "baseten", allowOverlay)
 	assertAIGatewayProviderExplainSDKShape[kkComps.AIGatewayModelProviderBedrock](t, node, "bedrock", allowOverlay)
 	assertAIGatewayProviderExplainSDKShape[kkComps.AIGatewayModelProviderCerebras](t, node, "cerebras", allowOverlay)
 	assertAIGatewayProviderExplainSDKShape[kkComps.AIGatewayModelProviderCohere](t, node, "cohere", allowOverlay)
@@ -231,6 +233,92 @@ func TestAIGatewayModelProviderExplainBranchesTrackSDKRequestShapes(t *testing.T
 	assertAIGatewayProviderExplainSDKShape[kkComps.AIGatewayModelProviderVercel](t, node, "vercel", allowOverlay)
 	assertAIGatewayProviderExplainSDKShape[kkComps.AIGatewayModelProviderVllm](t, node, "vllm", allowOverlay)
 	assertAIGatewayProviderExplainSDKShape[kkComps.AIGatewayModelProviderXai](t, node, "xai", allowOverlay)
+}
+
+// TestAIGatewayTargetConfigExplainNodeCoversSDKUnion fails the build when the
+// SDK's AIGatewayTargetConfig union gains or loses a member without a
+// corresponding change to aiGatewayTargetConfigExplainNode.
+func TestAIGatewayTargetConfigExplainNodeCoversSDKUnion(t *testing.T) {
+	node, err := aiGatewayTargetConfigExplainNode()
+	require.NoError(t, err)
+	assertExplainUnionCoversSDKMembers[kkComps.AIGatewayTargetConfig](
+		t, node, "type", "internal/declarative/resources/ai_gateway_model.go",
+	)
+}
+
+// TestAIGatewayModelProviderExplainNodeCoversSDKUnion fails the build when
+// the SDK's CreateAIGatewayModelProviderRequest union gains or loses a
+// member without corresponding explain/scaffold handling.
+func TestAIGatewayModelProviderExplainNodeCoversSDKUnion(t *testing.T) {
+	node, err := aiGatewayProviderExplainNode(ExplainBuildContext{})
+	require.NoError(t, err)
+	assertExplainUnionCoversSDKMembers[kkComps.CreateAIGatewayModelProviderRequest](
+		t, node, aiGatewayProviderFieldType, "internal/declarative/resources/ai_gateway_provider.go",
+	)
+}
+
+// assertExplainUnionCoversSDKMembers asserts that every member of the SDK
+// union type T is represented by exactly one branch in node.OneOf (keyed by
+// discriminatorField's Const value), and that node.OneOf has no branches for
+// types the SDK union no longer has. It is independent of how the explain
+// node derives its type list: the SDK-side value comes from the const-tagged
+// discriminator field on each concrete member type, not from any naming
+// convention on the union wrapper's Go field names.
+func assertExplainUnionCoversSDKMembers[T any](
+	t *testing.T,
+	node *ExplainNode,
+	discriminatorField string,
+	editFile string,
+) {
+	t.Helper()
+
+	typ := reflect.TypeFor[T]()
+	var want []string
+	for field := range typ.Fields() {
+		if field.Tag.Get("union") != "member" {
+			continue
+		}
+		memberType := field.Type
+		for memberType.Kind() == reflect.Pointer {
+			memberType = memberType.Elem()
+		}
+		_, value, ok := explainConstDiscriminator(memberType)
+		require.Truef(t, ok, "SDK union member %q has no const-tagged type discriminator field", field.Name)
+		want = append(want, value)
+	}
+
+	got := make(map[string]struct{}, len(node.OneOf))
+	for _, branch := range node.OneOf {
+		field, ok := branch.property(discriminatorField)
+		require.Truef(t, ok, "explain union branch has no %q discriminator field", discriminatorField)
+		value, ok := field.Node.Const.(string)
+		require.Truef(t, ok, "explain union branch %q discriminator is not a const string", discriminatorField)
+		got[value] = struct{}{}
+	}
+
+	wantSet := make(map[string]struct{}, len(want))
+	var missing []string
+	for _, value := range want {
+		wantSet[value] = struct{}{}
+		if _, ok := got[value]; !ok {
+			missing = append(missing, value)
+		}
+	}
+	slices.Sort(missing)
+	require.Emptyf(t, missing,
+		"SDK added %s value(s) %v with no corresponding explain/scaffold handling; add a case in %s",
+		discriminatorField, missing, editFile)
+
+	var extra []string
+	for value := range got {
+		if _, ok := wantSet[value]; !ok {
+			extra = append(extra, value)
+		}
+	}
+	slices.Sort(extra)
+	require.Emptyf(t, extra,
+		"explain/scaffold in %s handles %s value(s) %v that no longer exist in the SDK union; remove them",
+		editFile, discriminatorField, extra)
 }
 
 func assertAIGatewayProviderExplainSDKShape[T any](

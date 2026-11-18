@@ -3,6 +3,7 @@ package resources
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"slices"
 	"time"
 
@@ -808,92 +809,24 @@ func aiGatewayModelConfigExplainNode(includeModelConfig bool) *ExplainNode {
 	return explainObject(fields...)
 }
 
+// aiGatewayTargetConfigExplainNode derives the target config variant list
+// from the SDK's AIGatewayTargetConfig union via reflection, so a provider
+// added to the SDK automatically gets explain/scaffold coverage without a
+// hand-maintained list to keep in sync.
 func aiGatewayTargetConfigExplainNode() (*ExplainNode, error) {
-	variants := []struct {
-		name string
-		node func() (*ExplainNode, error)
-	}{
-		{"anthropic", func() (*ExplainNode, error) {
-			return explainVariantNode[kkComps.AIGatewayTargetAnthropicConfig]("type", "anthropic")
-		}},
-		{"azure", func() (*ExplainNode, error) {
-			return explainVariantNode[kkComps.AIGatewayTargetAzureConfig]("type", "azure")
-		}},
-		{"baseten", func() (*ExplainNode, error) {
-			return explainVariantNode[kkComps.AIGatewayTargetBasetenConfig]("type", "baseten")
-		}},
-		{"bedrock", func() (*ExplainNode, error) {
-			return explainVariantNode[kkComps.AIGatewayTargetBedrockConfig]("type", "bedrock")
-		}},
-		{"cerebras", func() (*ExplainNode, error) {
-			return explainVariantNode[kkComps.AIGatewayTargetCerebrasConfig]("type", "cerebras")
-		}},
-		{"cohere", func() (*ExplainNode, error) {
-			return explainVariantNode[kkComps.AIGatewayTargetCohereConfig]("type", "cohere")
-		}},
-		{"dashscope", func() (*ExplainNode, error) {
-			return explainVariantNode[kkComps.AIGatewayTargetDashscopeConfig]("type", "dashscope")
-		}},
-		{"databricks", func() (*ExplainNode, error) {
-			return explainVariantNode[kkComps.AIGatewayTargetDatabricksConfig]("type", "databricks")
-		}},
-		{"deepseek", func() (*ExplainNode, error) {
-			return explainVariantNode[kkComps.AIGatewayTargetDeepseekConfig]("type", "deepseek")
-		}},
-		{"gemini", func() (*ExplainNode, error) {
-			return explainVariantNode[kkComps.AIGatewayTargetGeminiConfig]("type", "gemini")
-		}},
-		{"huggingface", func() (*ExplainNode, error) {
-			return explainVariantNode[kkComps.AIGatewayTargetHuggingfaceConfig](
-				"type",
-				"huggingface",
-			)
-		}},
-		{"kimi", func() (*ExplainNode, error) {
-			return explainVariantNode[kkComps.AIGatewayTargetKimiConfig]("type", "kimi")
-		}},
-		{"llama2", func() (*ExplainNode, error) {
-			return explainVariantNode[kkComps.AIGatewayTargetLlama2Config]("type", "llama2")
-		}},
-		{"mistral", func() (*ExplainNode, error) {
-			return explainVariantNode[kkComps.AIGatewayTargetMistralConfig]("type", "mistral")
-		}},
-		{"ollama", func() (*ExplainNode, error) {
-			return explainVariantNode[kkComps.AIGatewayTargetOllamaConfig]("type", "ollama")
-		}},
-		{"openai", func() (*ExplainNode, error) {
-			return explainVariantNode[kkComps.AIGatewayTargetOpenaiConfig]("type", "openai")
-		}},
-		{"sagemaker", func() (*ExplainNode, error) {
-			return explainVariantNode[kkComps.AIGatewayTargetSagemakerConfig]("type", "sagemaker")
-		}},
-		{"typesafe", func() (*ExplainNode, error) {
-			return explainVariantNode[kkComps.AIGatewayTargetTypesafeConfig]("type", "typesafe")
-		}},
-		{"vercel", func() (*ExplainNode, error) {
-			return explainVariantNode[kkComps.AIGatewayTargetVercelConfig]("type", "vercel")
-		}},
-		{"vllm", func() (*ExplainNode, error) {
-			return explainVariantNode[kkComps.AIGatewayTargetVllmConfig]("type", "vllm")
-		}},
-		{"xai", func() (*ExplainNode, error) {
-			return explainVariantNode[kkComps.AIGatewayTargetXaiConfig]("type", "xai")
-		}},
+	node, ok, err := autoExplainSDKUnionNode(
+		reflect.TypeFor[kkComps.AIGatewayTargetConfig](),
+		nil,
+		defaultExplainHints(""),
+		nil,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build AI Gateway target config schema: %w", err)
 	}
-
-	branches := make([]*ExplainNode, 0, len(variants))
-	for _, variant := range variants {
-		node, err := variant.node()
-		if err != nil {
-			return nil, fmt.Errorf(
-				"failed to build %s AI Gateway target config schema: %w",
-				variant.name,
-				err,
-			)
-		}
-		branches = append(branches, node)
+	if !ok {
+		return nil, fmt.Errorf("SDK AI Gateway target config is no longer a union")
 	}
-	return explainUnionNode(branches...), nil
+	return node, nil
 }
 
 func captureModelNamespaceScopes(rs *ResourceSet, defaultNamespace string) {
