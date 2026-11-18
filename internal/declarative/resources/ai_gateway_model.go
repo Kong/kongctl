@@ -826,6 +826,18 @@ func aiGatewayTargetConfigExplainNode() (*ExplainNode, error) {
 	if !ok {
 		return nil, fmt.Errorf("SDK AI Gateway target config is no longer a union")
 	}
+
+	// Keep Anthropic as the primary scaffold target (matching prior,
+	// hand-written behavior) regardless of the SDK union's field order,
+	// mirroring the equivalent pin in aiGatewayProviderExplainNode.
+	for i, branch := range node.OneOf {
+		typeField, ok := branch.property("type")
+		if ok && typeField.Node.Const == "anthropic" {
+			node.OneOf[0], node.OneOf[i] = node.OneOf[i], node.OneOf[0]
+			break
+		}
+	}
+	explainRefreshUnionAggregate(node)
 	return node, nil
 }
 

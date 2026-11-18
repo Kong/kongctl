@@ -235,9 +235,15 @@ func TestAIGatewayModelProviderExplainBranchesTrackSDKRequestShapes(t *testing.T
 	assertAIGatewayProviderExplainSDKShape[kkComps.AIGatewayModelProviderXai](t, node, "xai", allowOverlay)
 }
 
-// TestAIGatewayTargetConfigExplainNodeCoversSDKUnion fails the build when the
-// SDK's AIGatewayTargetConfig union gains or loses a member without a
-// corresponding change to aiGatewayTargetConfigExplainNode.
+// TestAIGatewayTargetConfigExplainNodeCoversSDKUnion guards
+// aiGatewayTargetConfigExplainNode's reflective derivation from the SDK's
+// AIGatewayTargetConfig union. Unlike the provider test below, this is not
+// an independent cross-check: aiGatewayTargetConfigExplainNode derives each
+// branch's "type" via the same explainConstDiscriminator call used here, so
+// a member added to the union cannot go uncovered by construction. This
+// test instead fails the build if a future edit hand-codes or filters
+// branches again (reintroducing the drift risk this refactor removed), or
+// if a new union member has no const-tagged type discriminator at all.
 func TestAIGatewayTargetConfigExplainNodeCoversSDKUnion(t *testing.T) {
 	node, err := aiGatewayTargetConfigExplainNode()
 	require.NoError(t, err)
@@ -246,9 +252,27 @@ func TestAIGatewayTargetConfigExplainNodeCoversSDKUnion(t *testing.T) {
 	)
 }
 
+// TestAIGatewayTargetConfigExplainNodePinsAnthropicAsScaffoldPrimary asserts
+// that the target config union's first branch stays "anthropic", which
+// scaffold renders as the uncommented example (scaffoldActiveNode picks
+// OneOf[0]). aiGatewayTargetConfigExplainNode pins this explicitly so an SDK
+// field reorder can't silently change scaffold's example output.
+func TestAIGatewayTargetConfigExplainNodePinsAnthropicAsScaffoldPrimary(t *testing.T) {
+	node, err := aiGatewayTargetConfigExplainNode()
+	require.NoError(t, err)
+	require.NotEmpty(t, node.OneOf)
+	typeField, ok := node.OneOf[0].property("type")
+	require.True(t, ok, "target config primary branch has no \"type\" discriminator field")
+	require.Equal(t, "anthropic", typeField.Node.Const)
+}
+
 // TestAIGatewayModelProviderExplainNodeCoversSDKUnion fails the build when
 // the SDK's CreateAIGatewayModelProviderRequest union gains or loses a
-// member without corresponding explain/scaffold handling.
+// member without corresponding explain/scaffold handling. Unlike the target
+// config test above, this is an independent cross-check: the provider's
+// "type" values are derived by aiGatewayModelProviderSDKUnionTypes via Go
+// field-name mangling, not via explainConstDiscriminator, so this is the
+// call site where real drift between the SDK and explain output can occur.
 func TestAIGatewayModelProviderExplainNodeCoversSDKUnion(t *testing.T) {
 	node, err := aiGatewayProviderExplainNode(ExplainBuildContext{})
 	require.NoError(t, err)
