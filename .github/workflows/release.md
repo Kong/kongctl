@@ -1160,12 +1160,26 @@ steps:
       echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
 
       gh api "/repos/$EXPR_GITHUB_REPOSITORY/releases/$RELEASE_ID" > /tmp/gh-aw/release-data/current_release.json
+      CURR_PUBLISHED_AT=$(jq -r '.published_at' /tmp/gh-aw/release-data/current_release.json)
 
-      PREV_RELEASE_TAG=$(gh release list \
-        --exclude-drafts \
-        --limit 20 \
-        --json tagName \
-        --jq '.[1].tagName // empty')
+      # Pick the most recently published stable release (no draft, no
+      # prerelease, not this release) that predates this release's publish
+      # time. This keeps a prerelease from being selected as the baseline,
+      # and keeps a rerun for an older stable release from picking a newer
+      # release as the baseline.
+      PREV_RELEASE_TAG=$(gh release list --exclude-drafts --limit 1000 \
+          --json tagName,isPrerelease,publishedAt \
+        | jq -r --arg tag "$RELEASE_TAG" --arg before "$CURR_PUBLISHED_AT" '
+            [.[] | select(
+              (.isPrerelease | not) and
+              .tagName != $tag and
+              .publishedAt != null and
+              .publishedAt < $before
+            )]
+            | sort_by(.publishedAt)
+            | last
+            | .tagName // empty
+          ')
 
       if [ -z "$PREV_RELEASE_TAG" ]; then
         echo "PREV_RELEASE_TAG=" >> "$GITHUB_ENV"
@@ -1175,17 +1189,34 @@ steps:
         echo "PREV_RELEASE_TAG=$PREV_RELEASE_TAG" >> "$GITHUB_ENV"
 
         PREV_PUBLISHED_AT=$(gh release view "$PREV_RELEASE_TAG" --json publishedAt --jq .publishedAt)
-        CURR_PUBLISHED_AT=$(gh release view "$RELEASE_TAG" --json publishedAt --jq .publishedAt)
-
-        gh pr list \
-          --state merged \
-          --limit 1000 \
-          --json number,title,author,labels,mergedAt,url,body \
-          --jq "[.[] | select(.mergedAt >= \"$PREV_PUBLISHED_AT\" and .mergedAt <= \"$CURR_PUBLISHED_AT\")]" \
-          > /tmp/gh-aw/release-data/pull_requests.json
 
         gh api "/repos/$EXPR_GITHUB_REPOSITORY/compare/${PREV_RELEASE_TAG}...${RELEASE_TAG}" \
           > /tmp/gh-aw/release-data/compare.json
+
+        # Squash-merge commit subjects end with their PR number, e.g.
+        # "feat: add X (#2798)". Matching only that anchored suffix (not any
+        # "#<digits>" in the subject) keeps a PR in scope even when its
+        # mergedAt timestamp falls outside the publish-time window below,
+        # without treating an unrelated reference, such as a revert's quoted
+        # original subject, as this release including that PR. A rebase-merged
+        # PR keeps its original commit subjects, which carry no PR number, so
+        # it still depends on the timestamp window below.
+        COMMIT_PR_NUMBERS=$(jq -c '
+            [(.commits // [])[]
+              | ((.commit.message // "") | split("\n")[0])
+              | scan("\\(#([0-9]+)\\)$") | .[0]]
+            | unique
+          ' /tmp/gh-aw/release-data/compare.json)
+
+        gh pr list --state merged --limit 1000 \
+            --json number,title,author,labels,mergedAt,url,body \
+          | jq --argjson refs "$COMMIT_PR_NUMBERS" \
+              --arg prev "$PREV_PUBLISHED_AT" --arg curr "$CURR_PUBLISHED_AT" '
+              [.[] | select(
+                (.mergedAt >= $prev and .mergedAt <= $curr) or
+                ((.number | tostring) as $n | ($refs | index($n)) != null)
+              )]
+            ' > /tmp/gh-aw/release-data/pull_requests.json
       fi
 
       if ! gh issue list \
@@ -1214,8 +1245,9 @@ release `${RELEASE_TAG}`.
 
 All data is pre-fetched in `/tmp/gh-aw/release-data/`:
 - `current_release.json` - Release metadata and existing generated notes
-- `pull_requests.json` - PRs merged between `${PREV_RELEASE_TAG}` and
-  `${RELEASE_TAG}`
+- `pull_requests.json` - This release's PRs: those merged between
+  `${PREV_RELEASE_TAG}` and `${RELEASE_TAG}`, plus any PR referenced by a
+  squash-merge commit subject in `compare.json`
 - `compare.json` - Commit comparison between previous and current tags
 - `issues.json` - Repository issues for optional cross-reference
 - `CHANGELOG.md` - Changelog context (if present)
