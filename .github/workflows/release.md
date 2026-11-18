@@ -1193,15 +1193,18 @@ steps:
         gh api "/repos/$EXPR_GITHUB_REPOSITORY/compare/${PREV_RELEASE_TAG}...${RELEASE_TAG}" \
           > /tmp/gh-aw/release-data/compare.json
 
-        # Commit subjects from squash merges carry their PR number, e.g.
-        # "feat: add X (#2798)". Matching on that keeps a PR in scope even
-        # when its mergedAt timestamp falls outside the publish-time window
-        # below, so timestamp filtering alone cannot drop a PR whose commits
-        # are included in this release.
+        # Squash-merge commit subjects end with their PR number, e.g.
+        # "feat: add X (#2798)". Matching only that anchored suffix (not any
+        # "#<digits>" in the subject) keeps a PR in scope even when its
+        # mergedAt timestamp falls outside the publish-time window below,
+        # without treating an unrelated reference, such as a revert's quoted
+        # original subject, as this release including that PR. A rebase-merged
+        # PR keeps its original commit subjects, which carry no PR number, so
+        # it still depends on the timestamp window below.
         COMMIT_PR_NUMBERS=$(jq -c '
             [(.commits // [])[]
               | ((.commit.message // "") | split("\n")[0])
-              | scan("#([0-9]+)") | .[0]]
+              | scan("\\(#([0-9]+)\\)$") | .[0]]
             | unique
           ' /tmp/gh-aw/release-data/compare.json)
 
@@ -1242,8 +1245,9 @@ release `${RELEASE_TAG}`.
 
 All data is pre-fetched in `/tmp/gh-aw/release-data/`:
 - `current_release.json` - Release metadata and existing generated notes
-- `pull_requests.json` - PRs merged between `${PREV_RELEASE_TAG}` and
-  `${RELEASE_TAG}`
+- `pull_requests.json` - This release's PRs: those merged between
+  `${PREV_RELEASE_TAG}` and `${RELEASE_TAG}`, plus any PR referenced by a
+  squash-merge commit subject in `compare.json`
 - `compare.json` - Commit comparison between previous and current tags
 - `issues.json` - Repository issues for optional cross-reference
 - `CHANGELOG.md` - Changelog context (if present)

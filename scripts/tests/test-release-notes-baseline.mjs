@@ -115,6 +115,16 @@ test("skips an intervening prerelease and keeps a PR present only via its commit
             author: { date: "2026-11-05T00:00:00Z" },
           },
         },
+        {
+          // A revert's subject quotes the reverted PR's original subject,
+          // which is not a reference to this release including that PR.
+          sha: "bbb2222",
+          html_url: "https://github.com/Kong/kongctl/commit/bbb2222",
+          commit: {
+            message: 'Revert "feat: add old thing (#777)"',
+            author: { date: "2026-11-06T00:00:00Z" },
+          },
+        },
       ],
     },
     "prs.json": [
@@ -125,6 +135,9 @@ test("skips an intervening prerelease and keeps a PR present only via its commit
       { number: 9000, title: "docs: unrelated", mergedAt: "2026-11-06T00:00:00Z", url: "x" },
       // Merged before the baseline window with no commit reference: excluded.
       { number: 8000, title: "old: unrelated", mergedAt: "2026-09-01T00:00:00Z", url: "x" },
+      // Only reachable through the revert's quoted subject, merged before
+      // the baseline window: must stay excluded.
+      { number: 777, title: "feat: add old thing", mergedAt: "2026-08-01T00:00:00Z", url: "x" },
     ],
   });
 
