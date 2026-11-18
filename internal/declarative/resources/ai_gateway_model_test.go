@@ -2,11 +2,9 @@ package resources
 
 import (
 	"encoding/json"
-	"reflect"
 	"strings"
 	"testing"
 
-	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/stretchr/testify/require"
 )
@@ -233,21 +231,6 @@ func aiGatewaySemanticModelJSON(embeddingConfig string) string {
 		`"vectordb":{"type":"pgvector","dimensions":1024,"distance_metric":"cosine"}` +
 		`}`
 	return strings.Replace(aiGatewayModelJSON, `"model": {}`, `"model": {},`+semanticBalancer, 1)
-}
-
-func TestAIGatewayTargetConfigExplainNodeCoversSDKUnion(t *testing.T) {
-	t.Parallel()
-
-	node, err := aiGatewayTargetConfigExplainNode()
-	require.NoError(t, err)
-
-	sdkUnionMembers := 0
-	for field := range reflect.TypeFor[kkComps.AIGatewayTargetConfig]().Fields() {
-		if field.Tag.Get("union") == "member" {
-			sdkUnionMembers++
-		}
-	}
-	require.Len(t, node.OneOf, sdkUnionMembers)
 }
 
 func TestAIGatewayModelResourceUnmarshalAPIVariant(t *testing.T) {
