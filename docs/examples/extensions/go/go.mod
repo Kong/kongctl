@@ -2,7 +2,7 @@ module github.com/kong/kongctl/docs/examples/extensions/go
 
 go 1.26.11
 
-require github.com/kong/kongctl v1.28.3
+require github.com/kong/kongctl v1.28.4
 
 require (
 	github.com/Kong/sdk-konnect-go v0.88.1-0.20261116190824-df9d11baeab7 // indirect
