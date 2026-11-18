@@ -128,6 +128,7 @@ jobs:
           node --test scripts/tests/test-release-recovery.mjs
           node --test scripts/tests/test-github-app-auth.mjs
           node --test scripts/tests/test-apple-notary-diagnostics.mjs
+          node --test scripts/tests/test-release-notes-baseline.mjs
       - name: test
         run: |
           go test -race -count=1 ./...
