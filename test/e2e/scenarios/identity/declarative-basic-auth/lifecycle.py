@@ -27,6 +27,7 @@ def main():
     parent_namespace, directory_namespace = "identity-basic-principals-e2e", "identity-basic-directories-e2e"
     marker = {"e2e-basic-auth": name[-36:]}
     fixture_map = {"e2e-fixture": name[-36:]}
+    adoption_fixture = {"tool": "kongctl", "version": name[-36:]}
     needles, captures = [], []
     username = "worker-" + name
 
@@ -171,11 +172,11 @@ def main():
         saved("reject-stale-owner", "apply", "stale-protection", failure="namespace")
         request("PUT", basic_path + "/" + login_id, {"username": username, "managed_by": metadata()})
         adopted_username = "adopt-" + name
-        adopted = request("POST", basic_path, {"username": adopted_username, "managed_by": fixture_map})
+        adopted = request("POST", basic_path, {"username": adopted_username, "managed_by": adoption_fixture})
         adopted_password_path = basic_path + "/" + adopted["id"] + "/passwords"
         adopted_password = capture(adopted_password_path, {"managed_by": fixture_map, "expires_at": "2031-01-01T00:00:00Z"})
         adopt_doc = document([basic("adopted", adopted_username)])
-        plan("reject-unowned", adopt_doc, failure="adopt")
+        plan("reject-unowned", adopt_doc, failure="unowned; explicitly adopt")
         invoke("adopt", ["adopt", "identity", "principal-basic-auth", "--directory-id", directory,
                          "--principal-id", principal, "--username", adopted_username, "--namespace", namespace])
         assert plan("adopted-no-op", adopt_doc)["summary"]["total_changes"] == 0
@@ -186,7 +187,16 @@ def main():
                                      "--directory-id", directory, "--principal-id", principal,
                                      "--namespace", foreign_namespace], failure="overwrite-namespace")
         foreign = request("POST", basic_path, {"username": "foreign-" + name, "managed_by": metadata(foreign_namespace)})
-        unowned = request("POST", basic_path, {"username": "unowned-" + name, "managed_by": fixture_map})
+        unknown = request("POST", basic_path, {"username": "unknown-" + name, "managed_by": fixture_map})
+        plan("reject-unknown-owner", document([basic("unknown", unknown["username"])]),
+             failure="unrecognized managed_by metadata")
+        for label, flags in (("reject-unknown-adoption", []),
+                             ("reject-unknown-adoption-overwrite", ["--overwrite-namespace"])):
+            invoke(label, ["adopt", "identity", "principal-basic-auth", unknown["id"],
+                           "--directory-id", directory, "--principal-id", principal,
+                           "--namespace", namespace, *flags], failure="unrecognized managed_by metadata")
+            retained = request("GET", basic_path + "/" + unknown["id"])
+            assert retained["managed_by"] == fixture_map and retained["username"] == unknown["username"]
         external_doc = document([{"ref": "external-login", "_external": {"selector": {"matchFields": {"username": username}}}}])
         assert plan("external-lookup", external_doc)["summary"]["total_changes"] == 0
         assert plan("external-only-sync", external_doc, "sync")["summary"]["total_changes"] == 0
@@ -229,7 +239,7 @@ def main():
         pruned = plan("empty-sync", document([]), "sync")
         assert pruned["summary"]["total_changes"] == 1
         saved("empty-sync-apply", "sync", "empty-sync")
-        assert {v["id"] for v in collection(basic_path)} == {foreign["id"], unowned["id"]}
+        assert {v["id"] for v in collection(basic_path)} == {foreign["id"], unknown["id"]}
         # Parent deletion observes all credentials, regardless of ownership.
         parent_doc = document(managed_parent=True)
         plan("unprotect-parent", parent_doc)
@@ -238,7 +248,7 @@ def main():
         plan("reject-parent-key", parent_doc, "delete", failure="API keys")
         request("DELETE", parent_path + "/api-keys/" + key["id"])
         plan("reject-parent-basic", parent_doc, "delete", failure="basic-auth")
-        for value in (foreign, unowned):
+        for value in (foreign, unknown):
             assert collection(basic_path + "/" + value["id"] + "/passwords") == []
             request("DELETE", basic_path + "/" + value["id"])
         # Cross-namespace final plans must order authorized children before their principal.
@@ -260,7 +270,8 @@ def main():
             if path.is_file():
                 clean(path.read_bytes())
         result = {"verified": True, "independent_ownership": True, "saved_plan_guards": True, "dump_reload": True,
-                  "scoped_sync": True, "credential_deletion_guards": True, "artifacts_clean": True}
+                  "scoped_sync": True, "credential_deletion_guards": True, "artifacts_clean": True,
+                  "unknown_owner_guard": True}
     finally:
         directories = [v for v in collection("/v2/directories") if v["name"] == name]
         assert len(directories) <= 1
@@ -281,7 +292,9 @@ def main():
                 for value in credentials:
                     m = value["managed_by"]
                     assert name in value["username"]
-                    assert m == fixture_map or (m.get("tool") == "kongctl" and m.get("kongctl-namespace") in (namespace, foreign_namespace))
+                    assert m in (fixture_map, adoption_fixture) or (
+                        m.get("tool") == "kongctl" and
+                        m.get("kongctl-namespace") in (namespace, foreign_namespace))
                     children = collection(path + "/basic-auths/" + value["id"] + "/passwords")
                     assert all(v["managed_by"] == fixture_map for v in children)
                     descendants.append((path, value, children))
