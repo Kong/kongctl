@@ -1,0 +1,147 @@
+defaults:
+  retry:
+    attempts: 1
+test:
+  info: AI cost management CRUD, saved references, no-op sync, reads, and deletion ordering.
+steps:
+- name: cost-management
+  skipInputs: true
+  commands:
+  - name: plan
+    run: [plan, --mode, apply, -f, '{{ .scenario_dir }}/cost.yaml']
+    outputFormat: disable
+    stdoutFile: '{{ .workdir }}/cost-plan.json'
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          total_changes: 4
+  - name: apply
+    run: [apply, --plan, '{{ .workdir }}/cost-plan.json', --auto-approve]
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          applied: 4
+          failed: 0
+  - name: budget
+    run: [get, ai, cost-management, budgets, --page-size, '1']
+    assertions:
+    - select: "[?name=='kongctl E2E monthly AI spend'] | [0]"
+      expect:
+        fields:
+          effect: limit
+    recordVars:
+    - name: budget_id
+      responsePath: "[?name=='kongctl E2E monthly AI spend'] | [0].id"
+  - name: rule
+    run: [get, konnect, ai, cost-management, notification-rules, '{{ .vars.budget_id }}']
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          'thresholds[0].percent': 80
+          'thresholds[1].percent': 100
+          'managed_by."kongctl-namespace"': ai-cost-e2e
+  - name: schedules
+    run: [get, ai, cost-management, export-schedules]
+    assertions:
+    - select: "[?name=='kongctl E2E monthly usage'] | [0]"
+      expect:
+        fields:
+          status: paused
+  - name: no-drift
+    run: [plan, --mode, sync, -f, '{{ .scenario_dir }}/cost.yaml']
+    outputFormat: disable
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          total_changes: 0
+  - name: dump
+    run:
+    - dump
+    - declarative
+    - --resources
+    - ai.cost_management.budgets,ai.cost_management.notification_channels,ai.cost_management.export_schedules
+    - --include-child-resources
+    - --output-file
+    - '{{ .workdir }}/dump.yaml'
+    outputFormat: disable
+    parseAs: raw
+  - name: dump-no-drift
+    run: [plan, --mode, apply, -f, '{{ .workdir }}/dump.yaml']
+    outputFormat: disable
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          total_changes: 0
+  - name: delete
+    run: [delete, -f, '{{ .scenario_dir }}/cost.yaml', --auto-approve]
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          applied: 4
+          failed: 0
+  - name: create-finance-budget
+    run: [apply, -f, '{{ .scenario_dir }}/finance.yaml', --auto-approve]
+    recordVars:
+    - name: finance_budget_id
+      responsePath: execution.applied_changes[0].resource_id
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          applied: 1
+          failed: 0
+  - name: create-operations-rule
+    run: [apply, -f, '-', --auto-approve]
+    stdin: &operations |
+      _defaults:
+        kongctl: {namespace: ai-cost-e2e-operations}
+      ai:
+        cost_management:
+          budgets:
+            - ref: finance
+              _external: {id: '{{ .vars.finance_budget_id }}'}
+          notification_rules:
+            - budget: finance
+              thresholds: [{percent: 90}]
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          applied: 1
+          failed: 0
+  - name: preserve-operations-rule
+    run: [plan, --mode, sync, -f, '{{ .scenario_dir }}/finance.yaml']
+    outputFormat: disable
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          total_changes: 0
+  - name: prevent-budget-cascade
+    run: [plan, --mode, delete, -f, '{{ .scenario_dir }}/finance.yaml']
+    outputFormat: disable
+    expectFailure:
+      contains: explicitly delete the rule first
+  - name: delete-operations-rule
+    run: [delete, -f, '-', --auto-approve]
+    stdin: *operations
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          applied: 1
+          failed: 0
+  - name: delete-finance-budget
+    run: [delete, -f, '{{ .scenario_dir }}/finance.yaml', --auto-approve]
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          applied: 1
+          failed: 0

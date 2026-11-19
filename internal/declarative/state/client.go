@@ -25,6 +25,7 @@ import (
 
 // ClientConfig contains all the API interfaces needed by the state client
 type ClientConfig struct {
+	AICostAPI                         *AICostAPI
 	IdentityPrincipalKeysAPI          helpers.IdentityPrincipalKeysAPI
 	IdentityGroupKeysAPI              helpers.IdentityGroupKeysAPI
 	IdentityStaticVaultCredentialsAPI helpers.IdentityStaticVaultCredentialsAPI
@@ -122,6 +123,7 @@ type ClientConfig struct {
 
 // Client wraps Konnect SDK for state management
 type Client struct {
+	Cost                              *AICostAPI
 	identityPrincipalKeysAPI          helpers.IdentityPrincipalKeysAPI
 	identityGroupKeysAPI              helpers.IdentityGroupKeysAPI
 	identityStaticVaultCredentialsAPI helpers.IdentityStaticVaultCredentialsAPI
@@ -223,6 +225,7 @@ func NewClient(config ClientConfig) *Client {
 		config.IdentityAuthServerClientsAPI = config.IdentityAuthServerClientAPI
 	}
 	return &Client{
+		Cost:                              config.AICostAPI,
 		identityStaticVaultCredentialsAPI: config.IdentityStaticVaultCredentialsAPI,
 
 		identityAuthServerClientAPI:      config.IdentityAuthServerClientAPI,

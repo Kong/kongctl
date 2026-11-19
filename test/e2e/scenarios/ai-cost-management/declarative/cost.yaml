@@ -1,0 +1,33 @@
+_defaults:
+  kongctl:
+    namespace: ai-cost-e2e
+ai:
+  cost_management:
+    budgets:
+      - ref: monthly
+        name: kongctl E2E monthly AI spend
+        effect: limit
+        scope: {filters: []}
+        limit: {value: "5000.00", currency: USD}
+        window:
+          type: fixed
+          interval: P1M
+          anchored_at: "2026-11-01T00:00:00+00:00[UTC]"
+        notification_rule:
+          thresholds: [{percent: 100}, {percent: 80}]
+          channels:
+            - id: !ref alerts#id
+    notification_channels:
+      - ref: alerts
+        name: kongctl E2E cost alerts
+        type: email
+        email:
+          recipients: [finance@example.com]
+    export_schedules:
+      - ref: monthly-export
+        name: kongctl E2E monthly usage
+        dataset: usage_events
+        cadence: monthly
+        status: paused
+        format: csv
+        compression: gzip

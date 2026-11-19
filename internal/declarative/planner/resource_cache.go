@@ -9,11 +9,13 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 )
 
 type planningResourceCache struct {
+	aiCost                         map[resources.ResourceType][]state.AICostObject
 	identityBasicAuths             map[string][]state.IdentityBasicAuth
 	identityGroups                 map[string][]state.IdentityGroup
 	identityPrincipalIdentities    map[string][]helpers.PrincipalIdentity
@@ -62,6 +64,7 @@ type planningResourceCache struct {
 
 func newPlanningResourceCache() *planningResourceCache {
 	return &planningResourceCache{
+		aiCost:                         make(map[resources.ResourceType][]state.AICostObject),
 		identityBasicAuths:             make(map[string][]state.IdentityBasicAuth),
 		identityGroups:                 make(map[string][]state.IdentityGroup),
 		identityPrincipalIdentities:    make(map[string][]helpers.PrincipalIdentity),

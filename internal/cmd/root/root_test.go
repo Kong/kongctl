@@ -2522,3 +2522,19 @@ func typoForTest(value string) string {
 	}
 	return value + "x"
 }
+
+func TestAICostManagementReadCommands(t *testing.T) {
+	for _, path := range []string{
+		"get ai cost-management budgets",
+		"get konnect ai cost-management budgets",
+		"list ai cost-management notification-channels",
+		"list konnect ai cost-management export-schedules",
+	} {
+		t.Run(path, func(t *testing.T) {
+			result := executeRootForTest(t, append(strings.Fields(path), "--help")...)
+			if result.exitCode != 0 || !strings.Contains(result.stdout, "kongctl "+path) {
+				t.Fatalf("unexpected command result: %s%s", result.stdout, result.stderr)
+			}
+		})
+	}
+}

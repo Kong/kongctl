@@ -427,6 +427,12 @@ func (l *Loader) parsePreparedYAML(prepared *preparedYAML) (*resources.ResourceS
 		return nil, fmt.Errorf("failed to resolve !env tags in defaults in %s: %w", sourcePath, err)
 	}
 
+	for _, set := range []*resources.ResourceSet{&rs, &placeholderRS} {
+		if err := set.NormalizeAICostRules(); err != nil {
+			return nil, err
+		}
+	}
+
 	// Apply file-level namespace and protected defaults
 	if err := l.applyNamespaceDefaults(&rs, temp.Defaults); err != nil {
 		return nil, fmt.Errorf("failed to apply namespace defaults: %w", err)
@@ -439,6 +445,7 @@ func (l *Loader) parsePreparedYAML(prepared *preparedYAML) (*resources.ResourceS
 		modelDefaultNamespace = *temp.Defaults.Kongctl.Namespace
 	}
 	rs.CaptureAIGatewayNamespaceScopes(modelDefaultNamespace)
+	rs.CaptureAICostNamespaces(modelDefaultNamespace)
 
 	// Extract nested child resources to root level first
 	l.extractNestedResources(&rs)

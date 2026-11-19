@@ -1,0 +1,15 @@
+_defaults:
+  kongctl:
+    namespace: ai-cost-e2e-finance
+ai:
+  cost_management:
+    budgets:
+      - ref: finance-budget
+        name: kongctl E2E finance budget
+        effect: limit
+        scope: {filters: []}
+        limit: {value: "10000", currency: USD}
+        window:
+          type: fixed
+          interval: P1M
+          anchored_at: "2026-11-01T00:00:00+00:00[UTC]"
