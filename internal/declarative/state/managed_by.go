@@ -7,10 +7,19 @@ import (
 	"fmt"
 	"maps"
 	"reflect"
+	"strings"
 
 	"github.com/kong/kongctl/internal/build"
 	"github.com/kong/kongctl/internal/declarative/resources"
 )
+
+type childAdoptionMetadataKey struct{}
+
+// WithChildAdoptionMetadata preserves unrelated metadata during an ownership-only
+// AI Gateway child adoption. Declarative writes retain their canonical map contract.
+func WithChildAdoptionMetadata(ctx context.Context) context.Context {
+	return context.WithValue(ctx, childAdoptionMetadataKey{}, true)
+}
 
 // Stamp at the actual write boundary so saved plans record the executing
 // binary, including direct SDK requests and auxiliary secret updates.
@@ -32,9 +41,23 @@ func stampManagedByRequest[T any](ctx context.Context, kind resources.ResourceTy
 			return fmt.Errorf("managed_by must contain string values")
 		}
 	}
+	current := metadata
 	metadata, err = resources.PrepareManagedBy(kind, metadata, build.Version(ctx))
 	if err != nil {
 		return err
+	}
+	if preserve, _ := ctx.Value(childAdoptionMetadataKey{}).(bool); preserve {
+		if !resources.HasIndependentChildOwnership(kind) {
+			return fmt.Errorf("child adoption metadata requires independent child ownership")
+		}
+		for key, value := range current {
+			if !strings.HasPrefix(key, "kongctl-") && key != resources.ManagedByToolKey && key != resources.ManagedByVersionKey {
+				metadata[key] = value
+			}
+		}
+		if err := resources.ValidateChildManagedBy(metadata, false); err != nil {
+			return err
+		}
 	}
 	payload["managed_by"], err = json.Marshal(metadata)
 	if err != nil {

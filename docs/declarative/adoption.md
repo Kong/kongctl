@@ -197,8 +197,17 @@ ambiguous exact identifier fails. `--all` and patterns select only one family
 under one parent; run separate commands for other families.
 
 Each adopted child receives generated `managed_by` entries: `tool`,
-`version`, `kongctl-namespace`, and `kongctl-protected`. Kongctl replaces the
-complete tool-owned map, retaining existing protection and public labels.
+`version`, `kongctl-namespace`, and `kongctl-protected`. Adoption updates
+kongctl-owned keys and preserves unrelated `managed_by` entries, existing
+protection, and public labels. If the merged map exceeds the API metadata
+limit, adoption fails before writing.
+
+A nonempty `managed_by` map without `kongctl-namespace` indicates ownership
+by another tool. Adoption rejects these children, including with
+`--overwrite-namespace`; that flag only transfers existing kongctl ownership.
+This also applies to `--all` and `--name-pattern`: every selected child is
+validated before any write, so a foreign-owned child blocks the selection.
+
 The parent, siblings outside the selection, independently owned descendants,
 consumer credentials, and group membership are unchanged.
 

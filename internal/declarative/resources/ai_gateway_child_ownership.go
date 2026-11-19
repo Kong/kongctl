@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"maps"
 	"reflect"
+	"slices"
 	"strconv"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
@@ -40,6 +41,9 @@ func ValidateChildManagedBy(metadata map[string]string, raw bool) error {
 // Unowned objects require explicit out-of-band adoption. Structural parenthood
 // and source defaults never authorize a write or an ownership transfer.
 func ValidateChildOwnership(kind string, metadata map[string]string, namespace string) error {
+	if err := ValidateForeignChildOwnership(kind, metadata); err != nil {
+		return err
+	}
 	owner := metadata[ChildNamespaceKey]
 	if owner == "" {
 		return fmt.Errorf("%s is unowned; explicitly adopt it into namespace %q before managing it", kind, namespace)
@@ -54,6 +58,18 @@ func ValidateChildOwnership(kind string, metadata map[string]string, namespace s
 		return fmt.Errorf("%s has invalid %s metadata", kind, ChildProtectedKey)
 	}
 	return nil
+}
+
+// ValidateForeignChildOwnership distinguishes foreign ownership from an empty map.
+func ValidateForeignChildOwnership(kind string, metadata map[string]string) error {
+	if len(metadata) == 0 || metadata[ChildNamespaceKey] != "" {
+		return nil
+	}
+	keys := slices.Sorted(maps.Keys(metadata))
+	if tool := metadata[ManagedByToolKey]; tool != "" {
+		return fmt.Errorf("%s is owned by another tool %q (managed_by keys: %v); kongctl cannot adopt it", kind, tool, keys)
+	}
+	return fmt.Errorf("%s is owned by another tool (managed_by keys: %v); kongctl cannot adopt it", kind, keys)
 }
 
 // IsChildProtected reads protection from the child's ownership metadata.

@@ -126,6 +126,27 @@ func adoptionManagedBy(current map[string]string, namespace string,
 	return metadata, nil
 }
 
+func aiAdoptionManagedBy(current map[string]string, namespace string,
+	overwrite bool, version string,
+) (map[string]string, error) {
+	if err := resources.ValidateForeignChildOwnership("child", current); err != nil {
+		return nil, err
+	}
+	metadata, err := adoptionManagedBy(current, namespace, overwrite, version)
+	if err != nil {
+		return nil, err
+	}
+	for key, value := range current {
+		if !strings.HasPrefix(key, "kongctl-") && key != resources.ManagedByToolKey && key != resources.ManagedByVersionKey {
+			metadata[key] = value
+		}
+	}
+	if err := resources.ValidateChildManagedBy(metadata, false); err != nil {
+		return nil, err
+	}
+	return metadata, nil
+}
+
 type preparedChildAdoption func() (*adoptCommon.AdoptResult, error)
 
 // Prepare the entire selection before the first write. APIs do not provide
