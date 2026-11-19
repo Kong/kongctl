@@ -4,6 +4,7 @@
     "ai-gateway-pgvector-connection-defaults.yaml",
     "ai-gateway-update-runtime-defaults.yaml",
     "backend-cluster-tls-defaults.yaml",
+    "internal-sdk-name-stabilization.yaml",
     "organization-team-konnect-managed-defaults.yaml",
     "patch-custom-portal-email-template-defaults.yaml",
     "portal-ai-settings-patch-defaults.yaml",
@@ -17,9 +18,15 @@
   ],
   "post_generation": [
     {
-      "file": "models/components/aigwkeyauthgeneratedconfig.go",
+      "file": "models/components/aigatewayauthstrategykeyauthresponse.go",
       "before": "IdentityRealms []IdentityRealms `json:\"identity_realms,omitempty\"`",
       "after": "IdentityRealms []IdentityRealms `json:\"identity_realms,omitzero\"`",
+      "optional_file": true
+    },
+    {
+      "file": "models/components/aigatewayauthstrategykeyauth.go",
+      "before": "IdentityRealms []AIGatewayAuthStrategyKeyAuthIdentityRealms `json:\"identity_realms,omitempty\"`",
+      "after": "IdentityRealms []AIGatewayAuthStrategyKeyAuthIdentityRealms `json:\"identity_realms,omitzero\"`",
       "optional_file": true
     },
     {
