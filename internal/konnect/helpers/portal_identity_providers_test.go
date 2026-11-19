@@ -76,9 +76,10 @@ func TestPortalIdentityProviderAPIImplCreatePortalIdentityProviderIncludesExplic
 			api := newPortalIdentityProviderTestAPI(client)
 			config := kkComps.CreateCreateIdentityProviderConfigOIDCIdentityProviderConfig(
 				kkComps.OIDCIdentityProviderConfig{
-					IssuerURL: "https://accounts.google.com",
-					ClientID:  "client-id-1",
-					Scopes:    []string{"openid"},
+					IssuerURL:    "https://accounts.google.com",
+					ClientID:     "client-id-1",
+					ClientSecret: new("client-secret-1"),
+					Scopes:       []string{"openid"},
 				},
 			)
 

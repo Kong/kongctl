@@ -272,7 +272,7 @@ func detailLines(detail string) []string {
 		return nil
 	}
 	var lines []string
-	for _, d := range strings.Split(detail, "\n") {
+	for d := range strings.SplitSeq(detail, "\n") {
 		if d == "" {
 			continue
 		}
