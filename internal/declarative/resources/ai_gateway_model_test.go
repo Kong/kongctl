@@ -233,6 +233,67 @@ func aiGatewaySemanticModelJSON(embeddingConfig string) string {
 	return strings.Replace(aiGatewayModelJSON, `"model": {}`, `"model": {},`+semanticBalancer, 1)
 }
 
+func TestAIGatewayModelResourceRejectsUpstreamURLAndBaseURL(t *testing.T) {
+	for _, providerType := range []string{"openai", "anthropic"} {
+		t.Run(providerType, func(t *testing.T) {
+			payload := strings.Replace(
+				aiGatewayModelJSON,
+				`"config": {"type": "openai"}`,
+				`"config": {"type": "`+providerType+`", `+
+					`"upstream_url": "https://example.com/upstream", `+
+					`"upstream_base_url": "https://example.com/base"}`,
+				1,
+			)
+
+			var model AIGatewayModelResource
+			require.NoError(t, json.Unmarshal([]byte(payload), &model))
+
+			err := model.Validate()
+			require.ErrorContains(t, err, "support-gpt")
+			require.ErrorContains(t, err, "upstream_url")
+			require.ErrorContains(t, err, "upstream_base_url")
+			require.ErrorContains(t, err, "mutually exclusive")
+		})
+	}
+}
+
+func TestAIGatewayModelResourceAllowsUpstreamBaseURLAlone(t *testing.T) {
+	payload := strings.Replace(
+		aiGatewayModelJSON,
+		`"config": {"type": "openai"}`,
+		`"config": {"type": "openai", "upstream_base_url": "https://example.com/base"}`,
+		1,
+	)
+
+	var model AIGatewayModelResource
+	require.NoError(t, json.Unmarshal([]byte(payload), &model))
+	require.NoError(t, model.Validate())
+
+	payloadMap, err := model.MutablePayloadMap()
+	require.NoError(t, err)
+	targets, ok := payloadMap["targets"].([]any)
+	require.True(t, ok)
+	require.Len(t, targets, 1)
+	target, ok := targets[0].(map[string]any)
+	require.True(t, ok)
+	config, ok := target["config"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "https://example.com/base", config["upstream_base_url"])
+}
+
+func TestAIGatewayModelResourceAllowsUpstreamURLAlone(t *testing.T) {
+	payload := strings.Replace(
+		aiGatewayModelJSON,
+		`"config": {"type": "openai"}`,
+		`"config": {"type": "openai", "upstream_url": "https://example.com/upstream"}`,
+		1,
+	)
+
+	var model AIGatewayModelResource
+	require.NoError(t, json.Unmarshal([]byte(payload), &model))
+	require.NoError(t, model.Validate())
+}
+
 func TestAIGatewayModelResourceUnmarshalAPIVariant(t *testing.T) {
 	var model AIGatewayModelResource
 	require.NoError(t, json.Unmarshal([]byte(aiGatewayAPIModelJSON), &model))

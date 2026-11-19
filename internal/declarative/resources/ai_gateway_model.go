@@ -136,6 +136,43 @@ func (a AIGatewayModelResource) Validate() error {
 	if !a.hasPayload() {
 		return fmt.Errorf("AI Gateway model %s must specify a valid api or model payload", a.Ref)
 	}
+	if err := validateAIGatewayTargetUpstreams(a.Ref, a.Targets()); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Targets returns the target list from whichever payload variant is set.
+func (a AIGatewayModelResource) Targets() []kkComps.AIGatewayTarget {
+	if a.AIGatewayModelAPI != nil {
+		return a.AIGatewayModelAPI.Targets
+	}
+	if a.AIGatewayModelModel != nil {
+		return a.AIGatewayModelModel.Targets
+	}
+	return nil
+}
+
+// validateAIGatewayTargetUpstreams rejects targets that set both upstream_url and
+// upstream_base_url. The SDK schema documents these as mutually exclusive in prose only
+// (no oneOf/dependentSchemas), so kongctl must enforce it before the API is called.
+func validateAIGatewayTargetUpstreams(ref string, targets []kkComps.AIGatewayTarget) error {
+	for _, target := range targets {
+		configMap, err := marshalObjectToMap(target.Config, "AI Gateway target config")
+		if err != nil {
+			// An unset config is a separate (API-enforced) validation concern; this
+			// function only checks the upstream fields when a config variant is present.
+			continue
+		}
+		_, hasUpstreamURL := configMap["upstream_url"]
+		_, hasUpstreamBaseURL := configMap["upstream_base_url"]
+		if hasUpstreamURL && hasUpstreamBaseURL {
+			return fmt.Errorf(
+				"AI Gateway model %s: target %q config: upstream_url and upstream_base_url are mutually exclusive",
+				ref, target.Name,
+			)
+		}
+	}
 	return nil
 }
 
