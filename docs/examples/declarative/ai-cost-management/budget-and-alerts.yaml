@@ -1,0 +1,38 @@
+_defaults:
+  kongctl:
+    namespace: ai-cost-example
+
+ai:
+  cost_management:
+    budgets:
+      - ref: monthly-ai
+        name: Example monthly AI spend
+        effect: limit
+        scope: {filters: []}
+        limit: {value: "5000", currency: USD}
+        window:
+          type: fixed
+          interval: P1M
+          anchored_at: "2026-11-01T00:00:00+00:00[UTC]"
+        notification_rule:
+          thresholds:
+            - percent: 80
+          channels:
+            - id: !ref finance-email#id
+
+    notification_channels:
+      - ref: finance-email
+        name: Example finance alerts
+        type: email
+        email:
+          recipients: [finance@example.com]
+
+    export_schedules:
+      - ref: monthly-usage
+        name: Example monthly AI usage
+        dataset: usage_events
+        cadence: monthly
+        time_zone: UTC
+        status: paused
+        format: csv
+        compression: gzip

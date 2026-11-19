@@ -12,7 +12,9 @@ kongctl get ai cost-management forecast
 ```
 
 Manage budgets, notification channels, notification rules, and export schedules
-under `ai.cost_management` in a declarative manifest.
+under `ai.cost_management` in a declarative manifest. See the
+[runnable examples](examples/declarative/ai-cost-management/README.md) for both
+single-team and federated workflows.
 
 ```yaml
 _defaults:

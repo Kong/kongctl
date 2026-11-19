@@ -1,0 +1,16 @@
+_defaults:
+  kongctl:
+    namespace: ai-cost-example-finance
+
+ai:
+  cost_management:
+    budgets:
+      - ref: shared-monthly-ai
+        name: Example shared monthly AI spend
+        effect: limit
+        scope: {filters: []}
+        limit: {value: "5000", currency: USD}
+        window:
+          type: fixed
+          interval: P1M
+          anchored_at: "2026-11-01T00:00:00+00:00[UTC]"
