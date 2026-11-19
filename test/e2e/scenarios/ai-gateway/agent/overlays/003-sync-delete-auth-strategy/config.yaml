@@ -6,7 +6,7 @@ ai_gateways:
   - ref: ai-gateway-agent-e2e
     name: ai-gateway-agent-e2e
     display_name: "AI Gateway Agent E2E"
-    min_runtime_version: "2.2"
+    min_runtime_version: "2.4"
     runtime_auto_upgrade: false
     description: "AI Gateway Agent e2e"
     proxy_urls:

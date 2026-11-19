@@ -1,0 +1,72 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-agent-e2e
+
+ai_gateways:
+  - ref: ai-gateway-agent-e2e
+    name: ai-gateway-agent-e2e
+    display_name: "AI Gateway Agent E2E"
+    min_runtime_version: "2.4"
+    runtime_auto_upgrade: false
+    description: "AI Gateway Agent e2e"
+    proxy_urls:
+      - host: ai-gateway-agent-e2e.example.com
+        port: 443
+        protocol: https
+    labels:
+      owner: platform
+      lifecycle: dev
+    auth_strategies:
+      - ref: agent-key-auth
+        name: agent-key-auth
+        type: key-auth
+        display_name: "Agent Key Auth"
+        labels:
+          team: support
+          phase: create
+        config:
+          key_names:
+            - apikey
+          hide_credentials: true
+    agents:
+      - ref: booking-agent
+        name: booking-agent
+        type: a2a
+        display_name: "Booking Agent Updated"
+        enabled: true
+        labels:
+          team: support
+          phase: targets-migration
+        config:
+          targets:
+            - address: booking-agent-1.internal.kongair.com:443
+            - address: booking-agent-2.internal.kongair.com:443
+              failover: true
+          balancer:
+            algorithm: consistent-hashing
+            hash_on_header: x-session-id
+          protocol: https
+          path: /booking
+          upstream:
+            auth:
+              type: aws
+              access_key_id: fake-agent-access-key
+              secret_access_key: !secret
+                source: !env AGENT_AWS_SECRET_ACCESS_KEY
+              session_token: !secret
+                source: !env AGENT_AWS_SESSION_TOKEN
+              region: us-east-1
+          proxy:
+            proxy_scheme: http
+            no_proxy: localhost,127.0.0.1
+          route:
+            paths:
+              - /booking
+          logging:
+            max_payload_size: 524288
+        access:
+          auth_strategies:
+            - !ref agent-key-auth
+          acls:
+            allow_when:
+              - "http.headers.x_end_user_id != null"
