@@ -1125,8 +1125,11 @@ jobs:
 
           run_started_at="$(date +%s)"
           set +e
-          "${KONGCTL_E2E_TEST_BIN}" -test.v -test.count=1 -test.timeout "${KONGCTL_E2E_TEST_TIMEOUT}" -test.run '^Test_Scenarios$' ${GOTESTFLAGS:-} \
-            2>&1 | tee "${ART_DIR}/run.log"
+          # The untouched raw stream always lands in run.log for downstream parsing and the
+          # artifact upload; e2e_ci_console.py only reshapes the copy shown in the live job console
+          # (folds per-scenario detail, drops repeated heartbeats, annotates failures).
+          "${KONGCTL_E2E_TEST_BIN}" -test.v -test.failfast -test.count=1 -test.timeout "${KONGCTL_E2E_TEST_TIMEOUT}" -test.run '^Test_Scenarios$' ${GOTESTFLAGS:-} \
+            2>&1 | tee "${ART_DIR}/run.log" | python3 "${GITHUB_WORKSPACE}/scripts/e2e_ci_console.py"
           code=${PIPESTATUS[0]}
           set -e
           run_finished_at="$(date +%s)"
