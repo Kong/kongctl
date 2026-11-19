@@ -119,7 +119,7 @@ func roleAssignmentLifecycleFixture(
 				for _, role := range observed.Data {
 					roles = append(roles, kkComps.PortalAssignedRoleResponse{
 						ID: *role.ID, RoleName: *role.RoleName, EntityID: *role.EntityID,
-						EntityTypeName: *role.EntityTypeName, EntityRegion: kkComps.EntityRegion(*role.EntityRegion),
+						EntityTypeName: *role.EntityTypeName, EntityRegion: kkComps.PortalAssignedRoleResponseEntityRegion(*role.EntityRegion),
 					})
 				}
 				return roles

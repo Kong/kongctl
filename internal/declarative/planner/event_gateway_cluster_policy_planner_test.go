@@ -187,7 +187,7 @@ func TestShouldUpdateClusterPolicy_ConfigChangedNestedField(t *testing.T) {
 							Action:       kkComps.ActionAllow, // Changed from deny to allow
 							ResourceType: kkComps.ResourceTypeTopic,
 							Operations: []kkComps.EventGatewayACLOperation{
-								{Name: kkComps.NameWrite}, // Changed from read to write
+								{Name: kkComps.EventGatewayACLOperationNameWrite}, // Changed from read to write
 							},
 							ResourceNames: kkComps.CreateResourceNamesArrayOfEventGatewayACLResourceName(
 								[]kkComps.EventGatewayACLResourceName{
