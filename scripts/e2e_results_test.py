@@ -259,6 +259,47 @@ new AsyncFunction('github', 'context', 'core', 'require', process.env.GUARD_SCRI
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('Scenario result coverage does not match shard assignments', result.stdout)
 
+    def test_failfast_partial_shard_is_reported_by_exit_code_not_coverage_mismatch(self):
+        # -test.failfast stops a shard at its first real failure, so a shard
+        # that exited non-zero can report fewer results than it was
+        # assigned. The nonzero exit code must surface the failure; a
+        # coverage-mismatch error must not preempt it with a less
+        # actionable message (and must not fire at all for this case).
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary)
+            helper = workspace / 'test/e2e/harness/ci/results.sh'
+            helper.parent.mkdir(parents=True)
+            helper.symlink_to(ROOT / 'test/e2e/harness/ci/results.sh')
+            scenarios = ['a/scenario.yaml', 'b/scenario.yaml']
+            for scenario in scenarios:
+                path = workspace / 'test/e2e/scenarios' / scenario
+                path.parent.mkdir(parents=True)
+                path.touch()
+            (workspace / 'e2e-routing.json').write_text(json.dumps({'live': scenarios}))
+
+            directory = workspace / '.downloaded-artifacts/e2e-artifacts-123-acceptance/results-1'
+            directory.mkdir(parents=True)
+            (directory / 'assigned-scenarios.txt').write_text(
+                f'shard_index=0\nshard_total=1\n\n{scenarios[0]}\n{scenarios[1]}\n')
+            (directory / 'scenario-results.txt').write_text(
+                'org_name=acceptance\nrun_attempt=1\nexit_code=1\n'
+                'duration_seconds=1\npassed_count=0\nfailed_count=1\n'
+                'skipped_count=0\nbeta_failed_count=0\nobserved_count=1\n\n'
+                f'[failed]\n{scenarios[0]}\n')
+
+            summary = workspace / 'e2e-details.md'
+            result = subprocess.run(
+                ['bash', '-c', self.step('e2e-verify', 'Verify scenario coverage and results')['run']],
+                cwd=workspace, capture_output=True, text=True,
+                env={**os.environ, 'GITHUB_WORKSPACE': str(workspace), 'GITHUB_RUN_ID': '123',
+                     'GITHUB_EVENT_NAME': 'pull_request', 'REPLAY_VERIFY_RESULT': 'success',
+                     'READINESS_DISPATCH': 'true', 'GITHUB_STEP_SUMMARY': str(summary),
+                     'RUNNER_TEMP': str(summary.parent), 'TMPDIR': str(workspace)},
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('1 scenario(s) failed; 1 shard(s) exited non-zero', result.stdout)
+            self.assertNotIn('Scenario result coverage does not match shard assignments', result.stdout)
+
     def test_diagnostic_org_filters_support_old_and_attempt_specific_names(self):
         org = 'kongctl-acceptance-4'
         for name in [f'e2e-artifacts-123-{org}', self.artifact_name(2, org)]:

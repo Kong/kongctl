@@ -1664,13 +1664,21 @@ jobs:
             fail "Scenario coverage mismatch across shard manifests."
           fi
 
-          result_coverage_error="$(e2e_result_coverage_error "${actual}" "${observed_scenarios}")"
+          # -test.failfast stops a shard at its first real scenario failure, so a
+          # shard that exited non-zero can legitimately report fewer results than
+          # it was assigned; the nonzero exit itself already blocks the run below.
+          allow_partial_coverage=false
+          if [ "${nonzero_exit_total}" -gt 0 ]; then
+            allow_partial_coverage=true
+          fi
+
+          result_coverage_error="$(e2e_result_coverage_error "${actual}" "${observed_scenarios}" "${allow_partial_coverage}")"
           if [ -n "${result_coverage_error}" ]; then
             fail "${result_coverage_error}"
           fi
 
           scenario_count="$(wc -l < "${actual}" | tr -d ' ')"
-          if [ "${observed_total}" -ne "${scenario_count}" ]; then
+          if [ "${allow_partial_coverage}" != true ] && [ "${observed_total}" -ne "${scenario_count}" ]; then
             fail "Observed result count ${observed_total} does not match assigned scenario count ${scenario_count}."
           fi
 

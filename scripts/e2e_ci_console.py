@@ -6,15 +6,14 @@ GitHub Actions job console only: each scenario's verbose output is folded
 under a collapsible ::group::, repeated progress heartbeats are dropped, and
 any scenario failure gets a ::error:: annotation plus an unfolded one-line
 summary. The caller is responsible for also teeing the untouched raw stream
-to run.log; this script never drops or reorders lines, so nothing observed
-here is lost from the artifact.
+to run.log.
 """
 
 import re
 import sys
 
 SCENARIO_RUN = re.compile(r"^=== RUN\s+Test_Scenarios/(.+)$")
-SCENARIO_RESULT = re.compile(r"^--- (PASS|FAIL|SKIP): Test_Scenarios/(.+?) \([0-9.]+s\)$")
+SCENARIO_RESULT = re.compile(r"^\s*--- (PASS|FAIL|SKIP): Test_Scenarios/(.+?) \([0-9.]+s\)$")
 HEARTBEAT = re.compile(r"^\[\d+/\d+\] elapsed \S+ · current: ")
 FAILURE_DETAIL = re.compile(r"scenario failed:")
 PANIC = re.compile(r"^panic:")
@@ -78,6 +77,7 @@ def transform_lines(lines):
 
 
 def main():
+    sys.stdin.reconfigure(errors="replace")
     for line in transform_lines(sys.stdin):
         sys.stdout.write(line + "\n")
         sys.stdout.flush()
