@@ -77,6 +77,62 @@ steps:
       expect:
         fields:
           total_changes: 0
+  - name: reset-omitted-settings
+    run: [apply, -f, '-', --auto-approve]
+    stdin: &reset |
+      _defaults:
+        kongctl: {namespace: ai-cost-e2e}
+      ai:
+        cost_management:
+          budgets:
+            - ref: monthly
+              name: kongctl E2E monthly AI spend
+              effect: limit
+              scope: {filters: []}
+              limit: {value: "5000.00", currency: USD}
+              window:
+                type: fixed
+                interval: P1M
+                anchored_at: "2026-11-01T00:00:00+00:00[UTC]"
+          export_schedules:
+            - ref: monthly-export
+              name: kongctl E2E monthly usage
+              dataset: usage_events
+              cadence: monthly
+              format: csv
+              compression: gzip
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          applied: 2
+          failed: 0
+  - name: verify-reset-budget
+    run: [get, ai, cost-management, budgets, '{{ .vars.budget_id }}']
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          priority: 100
+          length(keys(labels)): 0
+  - name: verify-paused-schedule
+    run: [get, ai, cost-management, export-schedules]
+    assertions:
+    - select: "[?name=='kongctl E2E monthly usage'] | [0]"
+      expect:
+        fields:
+          status: paused
+          length(keys(labels)): 0
+          length(keys(filters)): 0
+  - name: no-drift-after-reset
+    run: [plan, --mode, sync, -f, '-']
+    stdin: *reset
+    outputFormat: disable
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          total_changes: 0
   - name: delete
     run: [delete, -f, '{{ .scenario_dir }}/cost.yaml', --auto-approve]
     assertions:

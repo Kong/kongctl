@@ -15,6 +15,7 @@ import (
 )
 
 type planningResourceCache struct {
+	aiCostRules                    map[string]state.AICostObject
 	aiCost                         map[resources.ResourceType][]state.AICostObject
 	identityBasicAuths             map[string][]state.IdentityBasicAuth
 	identityGroups                 map[string][]state.IdentityGroup
@@ -64,6 +65,7 @@ type planningResourceCache struct {
 
 func newPlanningResourceCache() *planningResourceCache {
 	return &planningResourceCache{
+		aiCostRules:                    make(map[string]state.AICostObject),
 		aiCost:                         make(map[resources.ResourceType][]state.AICostObject),
 		identityBasicAuths:             make(map[string][]state.IdentityBasicAuth),
 		identityGroups:                 make(map[string][]state.IdentityGroup),

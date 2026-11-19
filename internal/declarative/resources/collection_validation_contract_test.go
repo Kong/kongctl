@@ -80,6 +80,10 @@ func TestCollectionValidationStepOrder(t *testing.T) {
 		ResourceTypeIdentityGroupAPIKey,
 		ResourceTypeIdentityAuthServerClaim,
 		ResourceTypeIdentityAuthServerClient,
+		ResourceTypeAICostBudget,
+		ResourceTypeAICostChannel,
+		ResourceTypeAICostSchedule,
+		ResourceTypeAICostRule,
 	}
 	var got []ResourceType
 	for _, step := range buildCollectionValidationSteps() {

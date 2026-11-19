@@ -16,6 +16,8 @@ import (
 const (
 	FieldAICostBudgetID = "budget_id"
 	FieldAICostEffect   = "effect"
+	FieldAICostFocus    = "focus"
+	FieldAICostSlack    = "slack"
 )
 
 type aiCostPlanner struct {
@@ -98,6 +100,19 @@ func (p *Planner) listAICost(ctx context.Context, kind resources.ResourceType) (
 	}
 	p.resourceCache.aiCost[kind] = items
 	return items, nil
+}
+
+// Keep each observed rule (including a missing rule) for this plan only.
+func (p *Planner) getAICostRule(ctx context.Context, budgetID string) (state.AICostObject, error) {
+	if rule, ok := p.resourceCache.aiCostRules[budgetID]; ok {
+		return rule, nil
+	}
+	rule, err := p.client.Cost.Get(ctx, resources.ResourceTypeAICostRule, budgetID)
+	if err != nil {
+		return nil, err
+	}
+	p.resourceCache.aiCostRules[budgetID] = rule
+	return rule, nil
 }
 
 func aiCostMetadata(desired resources.AICostResource) map[string]string {
@@ -188,7 +203,7 @@ func diffAICost(
 			if !managedByValuesEqual(current.GetManagedBy(), value) {
 				changes[key] = FieldChange{Old: current.GetManagedBy(), New: value}
 			}
-		case "slack":
+		case FieldAICostSlack:
 			// Webhook state is write-only, and the secret writer handles rotation.
 			continue
 		default:
@@ -275,7 +290,7 @@ func (p *Planner) planAICostRules(ctx context.Context, plan *Plan) error {
 				return fmt.Errorf("budget %q must be a limit budget", ref)
 			}
 			var err error
-			current, err = p.client.Cost.Get(ctx, resources.ResourceTypeAICostRule, id)
+			current, err = p.getAICostRule(ctx, id)
 			if err != nil {
 				return err
 			}
@@ -331,7 +346,7 @@ func (p *Planner) resolveAICostDeletes(ctx context.Context, plan *Plan) error {
 			if budget == nil || !resources.AICostRuleApplies(budget[FieldAICostEffect]) {
 				continue
 			}
-			rule, err := p.client.Cost.Get(ctx, resources.ResourceTypeAICostRule, change.ResourceID)
+			rule, err := p.getAICostRule(ctx, change.ResourceID)
 			if err != nil {
 				return err
 			}
@@ -355,7 +370,7 @@ func (p *Planner) resolveAICostDeletes(ctx context.Context, plan *Plan) error {
 				if !resources.AICostRuleApplies(budget[FieldAICostEffect]) {
 					continue
 				}
-				rule, err := p.client.Cost.Get(ctx, resources.ResourceTypeAICostRule, budget.GetID())
+				rule, err := p.getAICostRule(ctx, budget.GetID())
 				if err != nil {
 					return err
 				}

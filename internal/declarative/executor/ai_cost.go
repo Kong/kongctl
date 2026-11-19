@@ -116,6 +116,15 @@ func (a *aiCostExecutor) write(ctx context.Context, change *planner.PlannedChang
 		before := resources.AICostWriteFields(a.kind, current)
 		after := maps.Clone(before)
 		maps.Copy(after, fields)
+		if focus, planned := fields[planner.FieldAICostFocus]; planned && focus == nil {
+			delete(after, planner.FieldAICostFocus)
+		}
+		if slack, ok := before[planner.FieldAICostSlack].(map[string]any); ok {
+			desired, _ := fields[planner.FieldAICostSlack].(map[string]any)
+			merged := maps.Clone(slack)
+			maps.Copy(merged, desired)
+			after[planner.FieldAICostSlack] = merged
+		}
 		for _, field := range resources.AICostImmutableFields(a.kind) {
 			if !reflect.DeepEqual(before[field], after[field]) {
 				return "", fmt.Errorf("%s is immutable", field)
@@ -139,7 +148,7 @@ func (a *aiCostExecutor) write(ctx context.Context, change *planner.PlannedChang
 	}
 	result, err := a.api.Write(ctx, a.kind, id, fields)
 	if err != nil {
-		if slack, _ := fields["slack"].(map[string]any); slack["webhook_url"] != nil {
+		if slack, _ := fields[planner.FieldAICostSlack].(map[string]any); slack["webhook_url"] != nil {
 			return "", fmt.Errorf(
 				"notification channel write failed (HTTP status %d)",
 				declerrors.ExtractStatusCodeFromError(err),

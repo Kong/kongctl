@@ -81,6 +81,9 @@ Sync scopes budget, channel, and schedule pruning by collection and namespace.
 An explicit empty collection scopes that collection to the file's default
 namespace. An omitted collection leaves it alone. Changing the budget effect,
 channel type, or schedule cadence or time zone requires explicit replacement.
+Omitting the schedule status or time zone preserves its current value. Omitted
+labels and schedule filters reset to an empty map. Omitted budget priority and
+limit posture reset to `100` and `advisory`, respectively.
 
 On a Slack channel, use `slack.webhook_url: !secret {source: !env SLACK_WEBHOOK}`.
 Creating the channel requires this source. To rotate a webhook on an existing

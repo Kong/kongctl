@@ -10,6 +10,7 @@ import (
 
 	declexport "github.com/kong/kongctl/internal/declarative/export"
 	"github.com/kong/kongctl/internal/declarative/resources"
+	"golang.org/x/sync/errgroup"
 )
 
 func aiCostBudgetCollector() declarativeCollector {
@@ -20,34 +21,46 @@ func aiCostBudgetCollector() declarativeCollector {
 					return resources.AICostBudget{BaseResource: base, AICostBudgetConfig: config}
 				})
 		}, func(rs *resources.ResourceSet) *[]resources.AICostBudget { return &rs.EnsureCostManagement().Budgets },
-		func(ctx context.Context, d *declarativeDumpContext, budgets []resources.AICostBudget) error {
-			for i := range budgets {
-				budget := &budgets[i]
-				if budget.Effect != "limit" {
-					continue
-				}
-				rule, err := d.stateClient.Cost.Get(ctx, resources.ResourceTypeAICostRule, budget.GetKonnectID())
-				if err != nil {
-					return err
-				}
-				metadata := rule.GetManagedBy()
-				if metadata[resources.ManagedByToolKey] != resources.ManagedByTool ||
-					metadata[resources.ChildNamespaceKey] == "" {
-					continue
-				}
-				var config resources.AICostRuleConfig
-				if err := decodeAICostConfig(resources.ResourceTypeAICostRule, rule, &config); err != nil {
-					return err
-				}
-				budget.NotificationRule = &resources.AICostRule{
-					BaseResource: resources.BaseResource{
-						Kongctl: declexport.KongctlMetaFromLabels(resources.NormalizedChildOwnership(metadata)),
-					},
-					AICostRuleConfig: config,
-				}
+		collectAICostRules, resources.ResourceTypeAICostRule)
+}
+
+func collectAICostRules(ctx context.Context, d *declarativeDumpContext, budgets []resources.AICostBudget) error {
+	group, groupCtx := errgroup.WithContext(ctx)
+	group.SetLimit(4)
+	for i := range budgets {
+		budget := &budgets[i]
+		if !resources.AICostRuleApplies(budget.Effect) {
+			continue
+		}
+		if groupCtx.Err() != nil {
+			break
+		}
+		group.Go(func() error {
+			rule, err := d.stateClient.Cost.Get(groupCtx, resources.ResourceTypeAICostRule, budget.GetKonnectID())
+			if err != nil {
+				return err
+			}
+			metadata := rule.GetManagedBy()
+			if metadata[resources.ManagedByToolKey] != resources.ManagedByTool || metadata[resources.ChildNamespaceKey] == "" {
+				return nil
+			}
+			var config resources.AICostRuleConfig
+			if err := decodeAICostConfig(resources.ResourceTypeAICostRule, rule, &config); err != nil {
+				return err
+			}
+			budget.NotificationRule = &resources.AICostRule{
+				BaseResource: resources.BaseResource{
+					Kongctl: declexport.KongctlMetaFromLabels(resources.NormalizedChildOwnership(metadata)),
+				},
+				AICostRuleConfig: config,
 			}
 			return nil
-		}, resources.ResourceTypeAICostRule)
+		})
+	}
+	if err := group.Wait(); err != nil {
+		return err
+	}
+	return ctx.Err()
 }
 
 func aiCostChannelCollector() declarativeCollector {

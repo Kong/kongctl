@@ -50,3 +50,58 @@ ai:
 	_, err = New().LoadFile(writeLoaderTestFile(t, manifest+"literal-webhook\n"))
 	require.ErrorContains(t, err, "!secret")
 }
+
+func TestAICostCollectionsValidateDeclarations(t *testing.T) {
+	tests := []struct {
+		name, declarations, want string
+	}{
+		{"budget", `    budgets:
+      - ref: exemption
+        name: Exemption
+        effect: exempt
+        scope: {filters: []}
+        validity: {ends_at: "2030-01-01T00:00:00Z"}
+        limit: {value: "10", currency: USD}
+`, "cannot declare limit"},
+		{"channel", `    notification_channels:
+      - ref: email
+        name: Email
+        type: email
+        email: {recipients: [finance@example.com]}
+        slack: {}
+`, "email channel requires email.recipients"},
+		{"schedule", `    export_schedules:
+      - ref: export
+        name: Export
+        cadence: monthly
+        dataset: usage_events
+        format: csv
+`, "export schedule requires"},
+		{"rule", `    budgets:
+      - ref: budget
+        _external: {id: 4078f559-063b-4f10-9098-9e6553b21d9b}
+        notification_rule:
+          thresholds: [{percent: 80}, {percent: 80}]
+`, "thresholds must be distinct"},
+		{"repeated names", `    notification_channels:
+      - ref: finance
+        name: Alerts
+        type: email
+        email: {recipients: [finance@example.com]}
+      - ref: operations
+        name: Alerts
+        type: email
+        email: {recipients: [operations@example.com]}
+`, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := New().LoadFile(writeLoaderTestFile(t, "ai:\n  cost_management:\n"+tt.declarations))
+			if tt.want == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, tt.want)
+			}
+		})
+	}
+}

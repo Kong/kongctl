@@ -7,6 +7,8 @@ ai:
       - ref: monthly
         name: kongctl E2E monthly AI spend
         effect: limit
+        priority: 10
+        labels: {team: finance}
         scope: {filters: []}
         limit: {value: "5000.00", currency: USD}
         window:
@@ -29,5 +31,7 @@ ai:
         dataset: usage_events
         cadence: monthly
         status: paused
+        filters: {provider: {eq: openai}}
+        labels: {team: finance}
         format: csv
         compression: gzip

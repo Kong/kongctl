@@ -3,6 +3,7 @@ package resources
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 
@@ -176,7 +177,7 @@ func init() {
 		}),
 		WithManagedBy(ManagedByPolicy{MaxEntries: 5, OwnsLifecycle: true, PersistsRef: true}),
 		WithRootSyncScope(),
-		withCollectionValidationOmitted("names can repeat; global refs identify declarations"),
+		withCollectionValidation(271, aiCostCollectionValidation[AICostBudget]),
 	)
 	channel, ensureChannel := aiCostSlice(
 		func(cost *AICostManagement) *[]AICostChannel { return &cost.NotificationChannels },
@@ -190,7 +191,7 @@ func init() {
 		}),
 		WithManagedBy(ManagedByPolicy{MaxEntries: 5, OwnsLifecycle: true, PersistsRef: true}),
 		WithRootSyncScope(),
-		withCollectionValidationOmitted("names can repeat; global refs identify declarations"),
+		withCollectionValidation(272, aiCostCollectionValidation[AICostChannel]),
 	)
 	schedule, ensureSchedule := aiCostSlice(
 		func(cost *AICostManagement) *[]AICostSchedule { return &cost.ExportSchedules },
@@ -203,7 +204,7 @@ func init() {
 		}),
 		WithManagedBy(ManagedByPolicy{MaxEntries: 5, OwnsLifecycle: true, PersistsRef: true}),
 		WithRootSyncScope(),
-		withCollectionValidationOmitted("names can repeat; global refs identify declarations"),
+		withCollectionValidation(273, aiCostCollectionValidation[AICostSchedule]),
 	)
 	rule, ensureRule := aiCostSlice(func(cost *AICostManagement) *[]AICostRule { return &cost.NotificationRules })
 	registerResourceTypeWithSliceAccessors(
@@ -215,11 +216,20 @@ func init() {
 			return aiCostNamespace(r.GetType(), &r.BaseResource, r.IsExternal())
 		}),
 		WithManagedBy(ManagedByPolicy{MaxEntries: 5, OwnsLifecycle: true}),
+		withCollectionValidation(274, aiCostCollectionValidation[AICostRule]),
 		WithChildSyncScope(
 			ResourceTypeAICostBudget,
 			WithEmptyRootCollectionError(170, "each rule must select a budget"),
 		),
 	)
+}
+
+// Names can repeat. Validate each declaration without enforcing name uniqueness.
+func aiCostCollectionValidation[R any, P interface {
+	*R
+	Resource
+}](rs *ResourceSet) func(*R) error {
+	return func(value *R) error { return validateCollectionResource(rs, P(value)) }
 }
 
 func (r AICostBudget) GetType() ResourceType               { return ResourceTypeAICostBudget }
@@ -451,6 +461,12 @@ func AICostFields(r AICostResource) (map[string]any, error) {
 	if err := json.Unmarshal(data, &fields); err != nil {
 		return nil, err
 	}
+	aiCostDefaults(r.GetType(), fields)
+	if _, explicit := fields["focus"]; !explicit &&
+		r.GetType() == ResourceTypeAICostSchedule && fields["dataset"] == "usage_events" {
+		// A schedule switching away from FOCUS must drop the observed FOCUS options.
+		fields["focus"] = nil
+	}
 	return fields, nil
 }
 
@@ -476,8 +492,34 @@ func AICostMatch(metadata map[string]string, namespace, ref string) bool {
 
 func AICostRuleApplies(effect any) bool { return effect == "limit" }
 
+// These documented replacement defaults express the desired state when the
+// manifest omits a field. Schedule status and time zone preserve observed values.
+func aiCostDefaults(kind ResourceType, fields map[string]any) {
+	if kind != ResourceTypeAICostRule && fields["labels"] == nil {
+		fields["labels"] = map[string]any{}
+	}
+	//exhaustive:ignore
+	switch kind {
+	case ResourceTypeAICostBudget:
+		if fields["priority"] == nil {
+			fields["priority"] = float64(100)
+		}
+		if AICostRuleApplies(fields["effect"]) && fields["posture"] == nil {
+			fields["posture"] = "advisory"
+		}
+	case ResourceTypeAICostSchedule:
+		if fields["filters"] == nil {
+			fields["filters"] = map[string]any{}
+		}
+		if fields["schema_version"] == nil {
+			fields["schema_version"] = float64(1)
+		}
+	}
+}
+
 // AICostComparable normalizes values the service canonicalizes on writes.
 func AICostComparable(kind ResourceType, fields map[string]any) {
+	aiCostDefaults(kind, fields)
 	if name, ok := fields["name"].(string); ok {
 		fields["name"] = strings.TrimSpace(name)
 	}
@@ -514,7 +556,13 @@ func AICostWriteFields(kind ResourceType, data map[string]any) map[string]any {
 		}
 	}
 	if kind == ResourceTypeAICostChannel && fields["type"] == "slack" {
-		fields["slack"] = map[string]any{}
+		slack, _ := fields["slack"].(map[string]any)
+		slack = maps.Clone(slack)
+		delete(slack, "webhook_url")
+		if slack == nil {
+			slack = map[string]any{}
+		}
+		fields["slack"] = slack
 	}
 	return fields
 }
