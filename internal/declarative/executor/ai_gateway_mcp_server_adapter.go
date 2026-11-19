@@ -40,7 +40,12 @@ func (a *AIGatewayMCPServerAdapter) MapCreateFields(
 		create.AIGatewayMCPServerUpstreamServer == nil {
 		return fmt.Errorf("type must be a supported AI Gateway MCP Server type")
 	}
-	return nil
+	return validateAIGatewayMCPServerUpstreamTargets(
+		create.AIGatewayMCPServerConversionOnly,
+		create.AIGatewayMCPServerConversionListener,
+		create.AIGatewayMCPServerPassthroughListener,
+		create.AIGatewayMCPServerUpstreamServer,
+	)
 }
 
 // MapUpdateFields maps planner fields to UpdateAIGatewayMCPServerRequest.
@@ -64,7 +69,56 @@ func (a *AIGatewayMCPServerAdapter) MapUpdateFields(
 		update.AIGatewayMCPServerUpstreamServer == nil {
 		return fmt.Errorf("type must be a supported AI Gateway MCP Server type")
 	}
-	return nil
+	return validateAIGatewayMCPServerUpstreamTargets(
+		update.AIGatewayMCPServerConversionOnly,
+		update.AIGatewayMCPServerConversionListener,
+		update.AIGatewayMCPServerPassthroughListener,
+		update.AIGatewayMCPServerUpstreamServer,
+	)
+}
+
+// validateAIGatewayMCPServerUpstreamTargets enforces the url/targets exactly-one-of
+// rule and the targets-only balancer/protocol/path rule for the MCP Server variants
+// that proxy to an upstream. The "listener" variant aggregates tools from other MCP
+// Servers and has no upstream config, so it is not represented here.
+func validateAIGatewayMCPServerUpstreamTargets(
+	conversionOnly *kkComps.AIGatewayMCPServerConversionOnly,
+	conversionListener *kkComps.AIGatewayMCPServerConversionListener,
+	passthroughListener *kkComps.AIGatewayMCPServerPassthroughListener,
+	upstreamServer *kkComps.AIGatewayMCPServerUpstreamServer,
+) error {
+	switch {
+	case conversionOnly != nil:
+		cfg := conversionOnly.Config
+		return resources.ValidateAIGatewayUpstreamTargetsConfig(
+			"AI Gateway MCP Server", conversionOnly.Name,
+			cfg.URL != nil && *cfg.URL != "", len(cfg.Targets) > 0,
+			cfg.Balancer != nil, cfg.Protocol != nil, cfg.Path != nil,
+		)
+	case conversionListener != nil:
+		cfg := conversionListener.Config
+		return resources.ValidateAIGatewayUpstreamTargetsConfig(
+			"AI Gateway MCP Server", conversionListener.Name,
+			cfg.URL != nil && *cfg.URL != "", len(cfg.Targets) > 0,
+			cfg.Balancer != nil, cfg.Protocol != nil, cfg.Path != nil,
+		)
+	case passthroughListener != nil:
+		cfg := passthroughListener.Config
+		return resources.ValidateAIGatewayUpstreamTargetsConfig(
+			"AI Gateway MCP Server", passthroughListener.Name,
+			cfg.URL != nil && *cfg.URL != "", len(cfg.Targets) > 0,
+			cfg.Balancer != nil, cfg.Protocol != nil, cfg.Path != nil,
+		)
+	case upstreamServer != nil:
+		cfg := upstreamServer.Config
+		return resources.ValidateAIGatewayUpstreamTargetsConfig(
+			"AI Gateway MCP Server", upstreamServer.Name,
+			cfg.URL != nil && *cfg.URL != "", len(cfg.Targets) > 0,
+			cfg.Balancer != nil, cfg.Protocol != nil, cfg.Path != nil,
+		)
+	default:
+		return nil
+	}
 }
 
 // Create creates an AI Gateway MCPServer.

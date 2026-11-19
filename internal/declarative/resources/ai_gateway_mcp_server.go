@@ -147,6 +147,44 @@ func (a AIGatewayMCPServerResource) Validate() error {
 			)
 		}
 	}
+	switch a.MCPServerType() {
+	case "conversion-only":
+		cfg := a.AIGatewayMCPServerConversionOnly.Config
+		if err := ValidateAIGatewayUpstreamTargetsConfig(
+			"AI Gateway MCP Server", a.Ref,
+			cfg.URL != nil && *cfg.URL != "", len(cfg.Targets) > 0,
+			cfg.Balancer != nil, cfg.Protocol != nil, cfg.Path != nil,
+		); err != nil {
+			return err
+		}
+	case "conversion-listener":
+		cfg := a.AIGatewayMCPServerConversionListener.Config
+		if err := ValidateAIGatewayUpstreamTargetsConfig(
+			"AI Gateway MCP Server", a.Ref,
+			cfg.URL != nil && *cfg.URL != "", len(cfg.Targets) > 0,
+			cfg.Balancer != nil, cfg.Protocol != nil, cfg.Path != nil,
+		); err != nil {
+			return err
+		}
+	case "passthrough-listener":
+		cfg := a.AIGatewayMCPServerPassthroughListener.Config
+		if err := ValidateAIGatewayUpstreamTargetsConfig(
+			"AI Gateway MCP Server", a.Ref,
+			cfg.URL != nil && *cfg.URL != "", len(cfg.Targets) > 0,
+			cfg.Balancer != nil, cfg.Protocol != nil, cfg.Path != nil,
+		); err != nil {
+			return err
+		}
+	case "upstream-server":
+		cfg := a.AIGatewayMCPServerUpstreamServer.Config
+		if err := ValidateAIGatewayUpstreamTargetsConfig(
+			"AI Gateway MCP Server", a.Ref,
+			cfg.URL != nil && *cfg.URL != "", len(cfg.Targets) > 0,
+			cfg.Balancer != nil, cfg.Protocol != nil, cfg.Path != nil,
+		); err != nil {
+			return err
+		}
+	}
 	payload, err := a.PayloadMap()
 	if err != nil {
 		return err

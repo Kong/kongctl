@@ -174,3 +174,154 @@ func TestAIGatewayMCPServerRejectsAccessForConversionOnly(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorContains(t, err, `field "access" is not supported when type is "conversion-only"`)
 }
+
+func TestAIGatewayMCPServerUpstreamTargetsExactlyOneOf(t *testing.T) {
+	conversionTool := `{"name":"lookup","description":"Look up a customer","method":"GET","path":"/x"}`
+	cases := []struct {
+		name   string
+		input  string
+		errMsg string
+	}{
+		{
+			name: "conversion-only neither url nor targets",
+			input: fmt.Sprintf(`{
+				"ref": "support-tools", "ai_gateway": "support-gateway",
+				"type": "conversion-only", "name": "support-tools", "display_name": "Support Tools",
+				"config": {"route": {"paths": ["/support-tools"]}},
+				"tools": [%s]
+			}`, conversionTool),
+			errMsg: "exactly one of config.url or config.targets",
+		},
+		{
+			name: "conversion-only both url and targets",
+			input: fmt.Sprintf(`{
+				"ref": "support-tools", "ai_gateway": "support-gateway",
+				"type": "conversion-only", "name": "support-tools", "display_name": "Support Tools",
+				"config": {
+					"url": "https://support-tools.example.com",
+					"targets": [{"address": "support-tools-1.internal.kongair.com:443"}],
+					"route": {"paths": ["/support-tools"]}
+				},
+				"tools": [%s]
+			}`, conversionTool),
+			errMsg: "exactly one of config.url or config.targets",
+		},
+		{
+			name: "conversion-listener both url and targets",
+			input: fmt.Sprintf(`{
+				"ref": "support-listener", "ai_gateway": "support-gateway",
+				"type": "conversion-listener", "name": "support-listener", "display_name": "Support Listener",
+				"config": {
+					"url": "https://support-tools.example.com",
+					"targets": [{"address": "support-tools-1.internal.kongair.com:443"}],
+					"route": {"paths": ["/support-listener"]}
+				},
+				"tools": [%s]
+			}`, conversionTool),
+			errMsg: "exactly one of config.url or config.targets",
+		},
+		{
+			name: "passthrough-listener balancer without targets",
+			input: `{
+				"ref": "listener", "ai_gateway": "gateway",
+				"type": "passthrough-listener", "name": "listener", "display_name": "Listener",
+				"config": {
+					"url": "https://example.com",
+					"balancer": {"algorithm": "round-robin"},
+					"route": {"paths": ["/mcp"]}
+				}
+			}`,
+			errMsg: "config.balancer is only valid when config.targets is set",
+		},
+		{
+			name: "upstream-server protocol without targets",
+			input: `{
+				"ref": "upstream", "ai_gateway": "gateway",
+				"type": "upstream-server", "name": "upstream", "display_name": "Upstream",
+				"config": {
+					"url": "https://upstream.example.com",
+					"protocol": "https",
+					"tools_cache_ttl_seconds": 60,
+					"route": {"paths": ["/mcp"]}
+				}
+			}`,
+			errMsg: "config.protocol is only valid when config.targets is set",
+		},
+		{
+			name: "upstream-server path without targets",
+			input: `{
+				"ref": "upstream", "ai_gateway": "gateway",
+				"type": "upstream-server", "name": "upstream", "display_name": "Upstream",
+				"config": {
+					"url": "https://upstream.example.com",
+					"path": "/mcp",
+					"tools_cache_ttl_seconds": 60,
+					"route": {"paths": ["/mcp"]}
+				}
+			}`,
+			errMsg: "config.path is only valid when config.targets is set",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var resource AIGatewayMCPServerResource
+			require.NoError(t, json.Unmarshal([]byte(tc.input), &resource))
+			require.ErrorContains(t, resource.Validate(), tc.errMsg)
+		})
+	}
+}
+
+func TestAIGatewayMCPServerUpstreamTargetsOnlySucceeds(t *testing.T) {
+	for _, mcpType := range []string{
+		"conversion-only", "conversion-listener", "passthrough-listener", "upstream-server",
+	} {
+		t.Run(mcpType, func(t *testing.T) {
+			var extra string
+			switch mcpType {
+			case "conversion-only", "conversion-listener":
+				extra = `, "tools": [{"name":"lookup","description":"Look up a customer","method":"GET","path":"/x"}]`
+			case "upstream-server":
+				extra = `, "tools": [{"name":"remote-tool"}]`
+			}
+			config := `{
+				"targets": [{"address": "server-1.internal.kongair.com:443"}],
+				"balancer": {"algorithm": "round-robin"},
+				"protocol": "https",
+				"path": "/mcp",
+				"route": {"paths": ["/mcp"]}
+			}`
+			if mcpType == "upstream-server" {
+				config = `{
+					"targets": [{"address": "server-1.internal.kongair.com:443"}],
+					"balancer": {"algorithm": "round-robin"},
+					"protocol": "https",
+					"path": "/mcp",
+					"tools_cache_ttl_seconds": 60,
+					"route": {"paths": ["/mcp"]}
+				}`
+			}
+			input := fmt.Sprintf(`{
+				"ref": "server", "ai_gateway": "gateway",
+				"type": %q, "name": "server", "display_name": "Server",
+				"config": %s%s
+			}`, mcpType, config, extra)
+			var resource AIGatewayMCPServerResource
+			require.NoError(t, json.Unmarshal([]byte(input), &resource))
+			require.NoError(t, resource.Validate())
+		})
+	}
+}
+
+func TestAIGatewayMCPServerUpstreamTargetsListenerTypeUnaffected(t *testing.T) {
+	input := []byte(`{
+		"ref": "support-listener", "ai_gateway": "support-gateway",
+		"type": "listener", "name": "support-listener", "display_name": "Support Listener",
+		"sources": ["support-tools"],
+		"config": {"route": {"paths": ["/support-listener"]}}
+	}`)
+
+	var resource AIGatewayMCPServerResource
+	require.NoError(t, json.Unmarshal(input, &resource))
+	require.NoError(t, resource.Validate())
+}

@@ -30,11 +30,17 @@ func (a *AIGatewayAgentAdapter) MapCreateFields(
 	if err := mapAIGatewaySDKRequest("AI Gateway Agent create", fields, create); err != nil {
 		return err
 	}
-	if create.Name == "" || create.DisplayName == "" || create.Type == "" ||
-		create.Config.URL == nil || *create.Config.URL == "" {
-		return fmt.Errorf("name, display_name, type, and config.url are required")
+	if create.Name == "" || create.DisplayName == "" || create.Type == "" {
+		return fmt.Errorf("name, display_name, and type are required")
 	}
-	return nil
+	return resources.ValidateAIGatewayUpstreamTargetsConfig(
+		"AI Gateway Agent", create.Name,
+		create.Config.URL != nil && *create.Config.URL != "",
+		len(create.Config.Targets) > 0,
+		create.Config.Balancer != nil,
+		create.Config.Protocol != nil,
+		create.Config.Path != nil,
+	)
 }
 
 // MapUpdateFields maps planner fields to UpdateAIGatewayAgentRequest.
@@ -45,7 +51,17 @@ func (a *AIGatewayAgentAdapter) MapUpdateFields(
 	update *kkComps.UpdateAIGatewayAgentRequest,
 	_ map[string]string,
 ) error {
-	return mapAIGatewaySDKRequest("AI Gateway Agent update", fields, update)
+	if err := mapAIGatewaySDKRequest("AI Gateway Agent update", fields, update); err != nil {
+		return err
+	}
+	return resources.ValidateAIGatewayUpstreamTargetsConfig(
+		"AI Gateway Agent", update.Name,
+		update.Config.URL != nil && *update.Config.URL != "",
+		len(update.Config.Targets) > 0,
+		update.Config.Balancer != nil,
+		update.Config.Protocol != nil,
+		update.Config.Path != nil,
+	)
 }
 
 // Create creates an AI Gateway Agent.

@@ -111,6 +111,105 @@ func TestAIGatewayAgentPlannerIgnoresAPIDefaults(t *testing.T) {
 	require.Nil(t, changed)
 }
 
+func TestAIGatewayAgentPlannerTargetsIgnoresAPIDefaults(t *testing.T) {
+	agent := testAIGatewayAgentResourceWithConfig(t, `{
+		"targets": [{"address": "booking-agent-1.internal.kongair.com:443"}]
+	}`)
+	var current kkComps.AIGatewayAgent
+	require.NoError(t, json.Unmarshal([]byte(`{
+		"id": "agent-id",
+		"name": "booking-agent",
+		"type": "a2a",
+		"display_name": "Booking Agent",
+		"enabled": true,
+		"config": {
+			"targets": [{
+				"address": "booking-agent-1.internal.kongair.com:443",
+				"weight": 100,
+				"failover": false
+			}],
+			"max_request_body_size": 8388608
+		}
+	}`), &current))
+
+	current.ManagedBy = resources.BuildChildManagedBy("default", false, "dev")
+	needsUpdate, fields, changed, err := (&Planner{}).shouldUpdateAIGatewayAgent(
+		state.AIGatewayAgent{AIGatewayAgent: current},
+		agent,
+	)
+
+	require.NoError(t, err)
+	require.False(t, needsUpdate)
+	require.Nil(t, fields)
+	require.Nil(t, changed)
+}
+
+func TestAIGatewayAgentPlannerTargetsIgnoresTargetReordering(t *testing.T) {
+	agent := testAIGatewayAgentResourceWithConfig(t, `{
+		"targets": [
+			{"address": "booking-agent-1.internal.kongair.com:443"},
+			{"address": "booking-agent-2.internal.kongair.com:443", "weight": 50}
+		]
+	}`)
+	var current kkComps.AIGatewayAgent
+	require.NoError(t, json.Unmarshal([]byte(`{
+		"id": "agent-id",
+		"name": "booking-agent",
+		"type": "a2a",
+		"display_name": "Booking Agent",
+		"enabled": true,
+		"config": {
+			"targets": [
+				{"address": "booking-agent-2.internal.kongair.com:443", "weight": 50, "failover": false},
+				{"address": "booking-agent-1.internal.kongair.com:443", "weight": 100, "failover": false}
+			],
+			"max_request_body_size": 8388608
+		}
+	}`), &current))
+
+	current.ManagedBy = resources.BuildChildManagedBy("default", false, "dev")
+	needsUpdate, fields, changed, err := (&Planner{}).shouldUpdateAIGatewayAgent(
+		state.AIGatewayAgent{AIGatewayAgent: current},
+		agent,
+	)
+
+	require.NoError(t, err)
+	require.False(t, needsUpdate)
+	require.Nil(t, fields)
+	require.Nil(t, changed)
+}
+
+func TestAIGatewayAgentPlannerURLToTargetsMigrationChangesConfig(t *testing.T) {
+	agent := testAIGatewayAgentResourceWithConfig(t, `{
+		"targets": [{"address": "booking-agent-1.internal.kongair.com:443"}]
+	}`)
+	var current kkComps.AIGatewayAgent
+	require.NoError(t, json.Unmarshal([]byte(`{
+		"id": "agent-id",
+		"name": "booking-agent",
+		"type": "a2a",
+		"display_name": "Booking Agent",
+		"enabled": true,
+		"config": {
+			"url": "https://booking-agent.example.com",
+			"max_request_body_size": 8388608
+		}
+	}`), &current))
+
+	current.ManagedBy = resources.BuildChildManagedBy("default", false, "dev")
+	needsUpdate, fields, changed, err := (&Planner{}).shouldUpdateAIGatewayAgent(
+		state.AIGatewayAgent{AIGatewayAgent: current},
+		agent,
+	)
+
+	require.NoError(t, err)
+	require.True(t, needsUpdate)
+	require.Contains(t, changed, FieldConfig)
+	newConfig := fields[FieldConfig].(map[string]any)
+	require.Nil(t, newConfig["url"])
+	require.NotEmpty(t, newConfig["targets"])
+}
+
 func TestAIGatewayAgentPlannerIgnoresRedactedUpstreamCredentials(t *testing.T) {
 	agent := testAIGatewayAgentResourceWithConfig(t, `{
 		"url": "https://booking-agent.example.com",

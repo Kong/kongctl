@@ -34,7 +34,7 @@ func TestAIGatewayAgentAdapterMapCreateFields(t *testing.T) {
 	require.Equal(t, map[string]string{"team": "support"}, req.Labels)
 }
 
-func TestAIGatewayAgentAdapterMapCreateFieldsRequiresConfigURL(t *testing.T) {
+func TestAIGatewayAgentAdapterMapCreateFieldsRequiresExactlyOneOfURLOrTargets(t *testing.T) {
 	t.Parallel()
 
 	adapter := NewAIGatewayAgentAdapter(nil)
@@ -48,5 +48,44 @@ func TestAIGatewayAgentAdapterMapCreateFieldsRequiresConfigURL(t *testing.T) {
 	var req kkComps.CreateAIGatewayAgentRequest
 	err := adapter.MapCreateFields(context.Background(), nil, fields, &req)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "config.url")
+	require.Contains(t, err.Error(), "exactly one of config.url or config.targets")
+}
+
+func TestAIGatewayAgentAdapterMapCreateFieldsRejectsBothURLAndTargets(t *testing.T) {
+	t.Parallel()
+
+	adapter := NewAIGatewayAgentAdapter(nil)
+	fields := map[string]any{
+		planner.FieldName:        "booking-agent",
+		planner.FieldType:        "a2a",
+		planner.FieldDisplayName: "Booking Agent",
+		planner.FieldConfig: map[string]any{
+			"url":     "https://booking-agent.example.com",
+			"targets": []map[string]any{{"address": "booking-agent-1.internal.kongair.com:443"}},
+		},
+	}
+
+	var req kkComps.CreateAIGatewayAgentRequest
+	err := adapter.MapCreateFields(context.Background(), nil, fields, &req)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "exactly one of config.url or config.targets")
+}
+
+func TestAIGatewayAgentAdapterMapCreateFieldsAcceptsTargetsOnly(t *testing.T) {
+	t.Parallel()
+
+	adapter := NewAIGatewayAgentAdapter(nil)
+	fields := map[string]any{
+		planner.FieldName:        "booking-agent",
+		planner.FieldType:        "a2a",
+		planner.FieldDisplayName: "Booking Agent",
+		planner.FieldConfig: map[string]any{
+			"targets": []map[string]any{{"address": "booking-agent-1.internal.kongair.com:443"}},
+		},
+	}
+
+	var req kkComps.CreateAIGatewayAgentRequest
+	require.NoError(t, adapter.MapCreateFields(context.Background(), nil, fields, &req))
+	require.Len(t, req.Config.Targets, 1)
+	require.Equal(t, "booking-agent-1.internal.kongair.com:443", req.Config.Targets[0].Address)
 }

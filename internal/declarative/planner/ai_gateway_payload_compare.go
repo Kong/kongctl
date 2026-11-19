@@ -262,7 +262,7 @@ func normalizeAIGatewayUnorderedCollectionValue(key string, value any) any {
 	normalized := normalizeAIGatewayUnorderedCollections(value)
 	switch key {
 	case FieldTargets:
-		return sortAIGatewayObjectSlice(normalized, FieldName, FieldProvider, FieldType)
+		return sortAIGatewayObjectSlice(normalized, FieldName, FieldProvider, FieldType, FieldAddress)
 	case FieldFormats:
 		return sortAIGatewayObjectSlice(normalized, FieldType)
 	case "capabilities", "failover_criteria", "protocols":
@@ -486,7 +486,7 @@ func projectAIGatewayPolicyConfigValue(current any, desired any) any {
 
 func isAIGatewayDefaultValue(key string, value any) bool {
 	switch key {
-	case "allow_auth_override", "audits", "payloads", "preserve_host":
+	case "allow_auth_override", "audits", "payloads", "preserve_host", "failover":
 		return boolValueEqual(value, false)
 	case "name_header", "request_buffering", "response_buffering", "statistics", "strip_path":
 		return boolValueEqual(value, true)

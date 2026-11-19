@@ -264,6 +264,7 @@ const (
 // Common gateway and event-gateway plan field identifiers.
 const (
 	FieldACLMode                                    = "acl_mode"
+	FieldAddress                                    = "address"
 	FieldAddresses                                  = "addresses"
 	FieldAuthentication                             = "authentication"
 	FieldAuthType                                   = fieldcontracts.FieldAuthType
