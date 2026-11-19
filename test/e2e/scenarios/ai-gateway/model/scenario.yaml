@@ -31,6 +31,23 @@ steps:
     commands:
       - resetOrg: true
 
+  - name: 000b-reject-upstream-both
+    inputOverlayDirs:
+      - overlays/000-reject-upstream-both
+    commands:
+      - name: 000-plan-invalid-upstream-both
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        expectFailure:
+          exitCode: 1
+          contains: >-
+            upstream_url and upstream_base_url are mutually exclusive
+
   - name: 001-plan-apply-create
     commands:
       - name: 000-plan-semantic-embeddings
@@ -235,6 +252,7 @@ steps:
                 fields.config.route.model.body_param: model
                 fields.config.route.model.values[0]: "{{ .vars.model_name }}"
                 fields.targets[0].name: gpt-4o
+                fields.targets[0].config.upstream_base_url: https://example.com/openai-base
                 fields.targets[1].name: gpt-4o-mini
                 fields.access.acls.deny_when:
                   - "http.headers.x_end_user_id == null"
@@ -269,6 +287,11 @@ steps:
               fields:
                 deny_when:
                   - "http.headers.x_end_user_id == null"
+          - select: targets[0].config
+            expect:
+              fields:
+                type: openai
+                upstream_base_url: https://example.com/openai-base
       - name: 009-diff-no-changes
         outputFormat: text
         parseAs: raw

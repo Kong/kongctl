@@ -1,0 +1,44 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-model-e2e
+
+ai_gateways:
+  - ref: invalid-upstream-both-gateway
+    name: invalid-upstream-both-gateway
+    display_name: Invalid Upstream Both Gateway
+    min_runtime_version: "2.4"
+    model_providers:
+      - ref: invalid-upstream-both-provider
+        name: invalid-upstream-both-provider
+        type: openai
+        display_name: Invalid Upstream Both Provider
+        config:
+          auth:
+            type: basic
+            headers:
+              - name: Authorization
+                value: !secret {source: !env KONGCTL_E2E_MODEL_PROVIDER_KEY}
+    models:
+      - ref: invalid-upstream-both-model
+        type: model
+        name: invalid-upstream-both-model
+        display_name: Invalid Upstream Both Model
+        enabled: true
+        config:
+          route:
+            model:
+              body_param: model
+              values:
+                - invalid-upstream-both-model
+        formats:
+          - type: openai
+        targets:
+          - name: gpt-4o
+            provider: invalid-upstream-both-provider
+            config:
+              type: openai
+              upstream_url: https://example.com/upstream
+              upstream_base_url: https://example.com/upstream-base
+        policies: []
+        capabilities:
+          - generate

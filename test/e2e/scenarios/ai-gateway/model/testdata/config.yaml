@@ -6,7 +6,7 @@ ai_gateways:
   - ref: ai-gateway-model-e2e
     name: ai-gateway-model-e2e
     display_name: "AI Gateway Model E2E"
-    min_runtime_version: "2.2"
+    min_runtime_version: "2.4"
     runtime_auto_upgrade: false
     description: "AI Gateway Model e2e"
     proxy_urls:
@@ -46,6 +46,7 @@ ai_gateways:
             provider: support-openai
             config:
               type: openai
+              upstream_base_url: https://example.com/openai-base
           - name: gpt-4o-mini
             provider: support-openai
             config:
