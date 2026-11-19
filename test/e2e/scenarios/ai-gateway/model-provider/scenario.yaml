@@ -68,14 +68,17 @@ steps:
                   - dashscope
                   - databricks
                   - deepseek
+                  - fireworks
                   - gemini
                   - huggingface
                   - kimi
                   - llama2
+                  - meta
                   - mistral
                   - ollama
                   - openai
                   - sagemaker
+                  - togetherai
                   - typesafe
                   - vercel
                   - vllm
