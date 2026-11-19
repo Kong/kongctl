@@ -7,16 +7,25 @@ import (
 )
 
 func TestChildOwnershipDistinguishesForeignOwner(t *testing.T) {
-	for _, metadata := range []map[string]string{nil, {}} {
+	for _, metadata := range []map[string]string{
+		nil,
+		{},
+		{ChildProtectedKey: "true"},
+		{ManagedByToolKey: ManagedByTool, ManagedByVersionKey: "1"},
+		{ChildNamespaceKey: "", "kongctl-legacy": "value", ManagedByVersionKey: "1"},
+	} {
 		require.ErrorContains(t, ValidateChildOwnership("policy", metadata, "team-a"), "unowned; explicitly adopt")
 	}
 	for _, metadata := range []map[string]string{
 		{"tool": "cost-attribution"},
 		{"product": "cost-attribution", "installation": "present"},
+		{ManagedByToolKey: ManagedByTool, "product": "cost-attribution"},
 	} {
 		err := ValidateChildOwnership("policy", metadata, "team-a")
-		require.ErrorContains(t, err, "owned by another tool")
+		require.ErrorContains(t, err, "unrecognized managed_by metadata")
 		require.NotContains(t, err.Error(), "explicitly adopt")
+		require.NotContains(t, err.Error(), "owned by another tool")
+		require.NotContains(t, err.Error(), "cannot adopt")
 	}
 	require.ErrorContains(t, ValidateChildOwnership("policy", map[string]string{
 		"tool": "cost-attribution",

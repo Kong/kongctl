@@ -129,7 +129,7 @@ func TestFederatedModelCollisionsRequireAdoptionOrTransfer(t *testing.T) {
 	}{
 		{name: "unowned", diagnostic: "explicitly adopt"},
 		{
-			name: "foreign tool", diagnostic: `owned by another tool "cost-attribution"`,
+			name: "foreign tool", diagnostic: `tool: "cost-attribution"`,
 			metadata: map[string]string{resources.ManagedByToolKey: "cost-attribution"},
 		},
 		{

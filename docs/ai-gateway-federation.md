@@ -118,7 +118,7 @@ correction is separate from setting up ownership for existing resources.
 Declarative writes generate and replace the complete remote `managed_by`
 map rather than preserving outside entries. Do not use it to store user
 metadata. Ownership-only child adoption preserves unrelated entries and
-rejects nonempty maps without a kongctl namespace as foreign-owned;
+rejects unrecognized metadata without a kongctl namespace;
 `--overwrite-namespace` only transfers existing kongctl ownership.
 
 ## Deferred operations and API limitations

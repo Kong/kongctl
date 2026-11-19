@@ -5,6 +5,32 @@ it or reconciling its public configuration. Every command requires an explicit
 `--namespace`. Existing ownership requires `--overwrite-namespace`, even when
 it already names the requested namespace. Adoption preserves protection.
 
+## managed_by ownership guard
+
+All adoption commands for resources that store ownership in `managed_by`
+use the same guard, including AI Gateway children and Kong Identity
+directories, principals, principal identities, groups, and basic-auth records.
+Resources whose ownership is stored in labels retain their existing rules.
+
+There is no standardized cross-tool ownership schema for `managed_by`.
+Without a nonempty `kongctl-namespace`, unfamiliar keys or a nonempty `tool`
+value other than `kongctl` indicate unknown ownership. Adoption refuses to
+replace this metadata, even with `--overwrite-namespace`. Diagnostics report
+the metadata keys and tool when present; they do not prove another tool owns
+it. The flag only authorizes existing kongctl namespace transfers.
+
+Empty maps and maps containing only `kongctl-*`, `version`, and an
+absent, empty, or `kongctl` tool value are unowned without a namespace.
+They can be adopted, retaining orphaned `kongctl-protected` metadata.
+Existing kongctl ownership requires `--overwrite-namespace`, even when the
+namespace is unchanged.
+
+Valid adoption replaces kongctl-owned keys and preserves unrelated entries.
+The complete merged map must fit the API limit before any write. For
+principals and principal identities, the generated `kongctl-ref` consumes
+the fifth entry; unrelated entries cause adoption to fail rather than be
+silently dropped. Declarative writes retain their canonical map behavior.
+
 ## Inspect an adoption without writing
 
 Every adoption command accepts `--dry-run`. It defaults to `false`.
@@ -202,11 +228,9 @@ kongctl-owned keys and preserves unrelated `managed_by` entries, existing
 protection, and public labels. If the merged map exceeds the API metadata
 limit, adoption fails before writing.
 
-A nonempty `managed_by` map without `kongctl-namespace` indicates ownership
-by another tool. Adoption rejects these children, including with
-`--overwrite-namespace`; that flag only transfers existing kongctl ownership.
-This also applies to `--all` and `--name-pattern`: every selected child is
-validated before any write, so a foreign-owned child blocks the selection.
+The shared [managed_by ownership guard](#managed_by-ownership-guard) applies.
+Every selected child is validated before any write, so an unknown-ownership
+child blocks the entire `--all` or `--name-pattern` selection.
 
 The parent, siblings outside the selection, independently owned descendants,
 consumer credentials, and group membership are unchanged.

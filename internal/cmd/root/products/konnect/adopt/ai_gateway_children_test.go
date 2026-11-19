@@ -261,7 +261,8 @@ func TestAIChildAdoptionRejectsForeignOwnershipBeforeBulkWrites(t *testing.T) {
 				err := runChildAdoptions(setup, values, func(value childCandidate) (preparedChildAdoption, error) {
 					return family.prepare(t.Context(), adoptionGatewayID, value, "team-a", overwrite)
 				})
-				require.ErrorContains(t, err, `owned by another tool "cost-attribution"`)
+				require.ErrorContains(t, err, "unrecognized managed_by metadata")
+				require.Contains(t, err.Error(), `tool: "cost-attribution"`)
 				require.Zero(t, writes)
 				require.Empty(t, out.String())
 			}
