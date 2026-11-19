@@ -674,6 +674,7 @@ func aiGatewayModelExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 			explainArrayOf(
 				explainObject(
 					explainField("name", explainStringNode("datastore-name"), true, true),
+					explainField("purpose", explainConstStringNode("semantic-balancer"), false, false),
 				),
 			),
 			false,

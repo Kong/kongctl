@@ -297,7 +297,7 @@ steps:
             expect:
               fields:
                 type.const: conversion-only
-                config.properties.url.type: string
+                config.properties.url.type: [string, "null"]
                 tools.items.properties.method.type: string
 
   - name: 014-explain-ai-gateway-config-stores-nested-yaml

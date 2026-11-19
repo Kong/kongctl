@@ -1,4 +1,4 @@
-sdk_version: v0.88.1-0.20261116190824-df9d11baeab7
+sdk_version: v0.89.1-0.20261119142615-3a5f81f45f5d
 schema_version: 1
 resources:
   - resource_type: ai_gateway
@@ -522,6 +522,10 @@ resources:
       - path: models.config.route.strip_path
         type: boolean
         value: true
+        source: sdk
+      - path: models.datastores.purpose
+        type: string
+        value: semantic-balancer
         source: sdk
       - path: models.enabled
         type: boolean
@@ -1170,6 +1174,10 @@ resources:
       - path: config.route.strip_path
         type: boolean
         value: true
+        source: sdk
+      - path: datastores.purpose
+        type: string
+        value: semantic-balancer
         source: sdk
       - path: enabled
         type: boolean

@@ -76,9 +76,10 @@ func TestPortalIdentityProviderAPIImplCreatePortalIdentityProviderIncludesExplic
 			api := newPortalIdentityProviderTestAPI(client)
 			config := kkComps.CreateCreateIdentityProviderConfigOIDCIdentityProviderConfig(
 				kkComps.OIDCIdentityProviderConfig{
-					IssuerURL: "https://accounts.google.com",
-					ClientID:  "client-id-1",
-					Scopes:    []string{"openid"},
+					IssuerURL:    "https://accounts.google.com",
+					ClientID:     "client-id-1",
+					ClientSecret: new("client-secret-1"),
+					Scopes:       []string{"openid"},
 				},
 			)
 
@@ -119,11 +120,42 @@ func TestPortalIdentityProviderAPIImplCreatePortalIdentityProviderIncludesExplic
 			if got := configBody["client_id"]; got != "client-id-1" {
 				t.Fatalf("unexpected client_id: %v", got)
 			}
+			if got := configBody["client_secret"]; got != "client-secret-1" {
+				t.Fatalf("unexpected client_secret: %v", got)
+			}
 
 			if resp == nil || resp.PortalIdentityProvider == nil || resp.PortalIdentityProvider.ID == nil {
 				t.Fatalf("expected identity provider response, got %#v", resp)
 			}
 		})
+	}
+}
+
+func TestPortalIdentityProviderAPIImplCreatePortalIdentityProviderRequiresOIDCClientSecret(t *testing.T) {
+	t.Parallel()
+
+	client := &portalIdentityProviderCapturingClient{t: t}
+	api := newPortalIdentityProviderTestAPI(client)
+	config := kkComps.CreateCreateIdentityProviderConfigOIDCIdentityProviderConfig(
+		kkComps.OIDCIdentityProviderConfig{
+			IssuerURL: "https://accounts.google.com",
+			ClientID:  "client-id-1",
+			Scopes:    []string{"openid"},
+		},
+	)
+
+	_, err := api.CreatePortalIdentityProvider(t.Context(), "portal-123", kkComps.CreateIdentityProvider{
+		Type:   kkComps.IdentityProviderTypeOidc.ToPointer(),
+		Config: &config,
+	})
+	if err == nil {
+		t.Fatal("expected missing client secret to return an error")
+	}
+	if got, want := err.Error(), "oidc client secret is required"; got != want {
+		t.Fatalf("unexpected error: got %q, want %q", got, want)
+	}
+	if client.request != nil {
+		t.Fatalf("expected no request to be sent, got %#v", client.request)
 	}
 }
 
