@@ -1,0 +1,101 @@
+overlay: 1.0.0
+info:
+  title: Stabilize generated type names that only drift on internal SDK regeneration
+  version: 0.0.1
+actions:
+  # The internal SDK's generation lineage lacks the persisted Speakeasy naming
+  # history (`@generated-id`) that the public SDK has built up over many
+  # incremental regenerations, so Speakeasy resolves these inline schemas to
+  # shorter, unqualified names on a from-scratch internal build. Pin them back
+  # to the names kongctl's code already expects (matching the public SDK).
+  - target: $.components.schemas.ControlPlaneFilterParameters.properties.name
+    update:
+      title: ControlPlaneFilterParametersName
+  - target: $.paths['/v2/directories/{directoryId}'].delete.parameters[0].schema
+    update:
+      x-speakeasy-name-override: DeleteDirectoryQueryParamForce
+  - target: $.paths['/v3/apis/{apiId}'].patch.parameters[0].schema
+    update:
+      title: UpdateAPIQueryParamForce
+  - target: $.paths['/v3/apis/{apiId}/versions/{versionId}'].patch.parameters[0].schema
+    update:
+      title: UpdateAPIVersionQueryParamForce
+  - target: $.components.schemas.PortalMenuItem.properties.visibility
+    update:
+      title: PortalMenuItemVisibility
+  # NOTE on "Mode": VirtualClusterNamespace.mode also wants the bare name
+  # "Mode", but so does a growing, open-ended set of unrelated schemas
+  # (two CustomForm select-field variants, a Stripe billing checkout-session
+  # result, and likely more not yet found) across this much larger internal
+  # document. Each schema pinned away from "Mode" just promotes the next
+  # alphabetically-earlier competitor, so this isn't a fixable 2-or-3-way
+  # collision like the others above -- it's unbounded. Not pinning it here;
+  # kongctl's event_gateway_virtual_cluster_adapter.go instead references
+  # the qualified name (components.VirtualClusterNamespaceMode) directly.
+  # Pinning the three QueryParamForce names above frees "QueryParamForce" as a
+  # candidate again, and DeletePortal's own force param won that slot instead,
+  # breaking the pre-existing (hand-maintained) portals_i.go interface wrapper
+  # which still expects the qualified name. Pin it too.
+  - target: $.paths['/v3/portals/{portalId}'].delete.parameters[0].schema
+    update:
+      title: DeletePortalQueryParamForce
+  # Lesson learned pinning the groups below: "title"/"x-speakeasy-name-override"
+  # on a schema only sets what name THAT schema wants -- it does not grant it
+  # priority in a collision. Pulling a losing candidate up into a contested bare
+  # name by titling it never worked here. The only reliable move (consistent
+  # with every fix above) is pinning every *other* claimant away to a qualified
+  # name and leaving the desired winner completely untouched, so it wins by
+  # elimination once it's the sole remaining candidate.
+
+  # "Config": public gives ControlPlane the qualified name. Internally, pinning
+  # ControlPlane away just promotes the next contender -- first
+  # PortalUpdateIdentityProvider's oneOf "config" union (kongctl's production
+  # code requires that one to keep its original qualified name, so it's pinned
+  # here unconditionally), then an unrelated oauth.go Config once that's pinned
+  # too. Like "Mode", this is unbounded rather than a clean swap: kongctl's
+  # CreateAIGatewayAgentRequest.Config usage instead references the qualified
+  # name (CreateAIGatewayAgentRequestConfig) that the build reliably produces.
+  - target: $.components.schemas.ControlPlane.properties.config
+    update:
+      title: ControlPlaneConfig
+  - target: $.components.schemas.PortalUpdateIdentityProvider.properties.config
+    update:
+      title: PortalUpdateIdentityProviderConfig
+  # "EntityRegion": public qualifies AssignedRole and the AssignRole *request
+  # body*; kongctl's organization_team_role_adapter.go already references
+  # kkComps.AssignRoleEntityRegion directly, so this pin is a real dependency,
+  # not just cosmetic. PortalAssignedRoleResponse's own EntityRegion turns out
+  # to be unbounded like "Mode"/"Config"/the EventGatewayACLOperation "Name"
+  # below: pinning AssignedRole and AssignRole away just promotes a third
+  # schema (ParameterizedAssignedRole), then a fourth
+  # (AssignParameterizedRole) once that's pinned too. Not chasing further;
+  # kongctl's test fixtures for PortalAssignedRoleResponse use the qualified
+  # name the build reliably produces.
+  - target: $.components.schemas.AssignedRole.properties.entity_region
+    update:
+      title: AssignedRoleEntityRegion
+  - target: $.components.requestBodies.AssignRole.content['application/json'].schema.properties.entity_region
+    update:
+      title: AssignRoleEntityRegion
+  # AIGatewayProxyConfig.auth: public qualifies the request-side (non-output)
+  # auth schema. Pinning it frees "Auth" for the write-only-stripped
+  # response-side variant that Speakeasy synthesizes (not a named component)
+  # instead of an unrelated AIGatewayUpstreamConfig.auth; kongctl never spells
+  # out either of those output-side/upstream-side type names, so both outcomes
+  # are harmless.
+  - target: $.components.schemas.AIGatewayProxyConfig.properties.auth
+    update:
+      title: AIGatewayProxyConfigAuth
+  # EventGatewayACLRule.resource_type: public leaves this bare ("ResourceType").
+  # Internally it's contended by CatalogResourceMappingFilterParameters's
+  # "resource.type" oneOf union wrapper (kongctl never references it). Pin that
+  # away and EventGatewayACLRule wins "ResourceType" bare automatically.
+  - target: $.components.schemas.CatalogResourceMappingFilterParameters.properties['resource.type']
+    update:
+      x-speakeasy-name-override: CatalogResourceMappingFilterParametersResourceType
+  # EventGatewayACLOperation.name: public leaves this bare ("Name"). Unlike
+  # resource_type, this one is unbounded like "Config" and "Mode" -- pinning
+  # away CreateDeveloperRegistrationFormRequest's competing "name" enum just
+  # promotes a CustomFormSubmitFieldInput schema instead. kongctl's code
+  # instead references the qualified name (EventGatewayACLOperationName) that
+  # the build reliably produces.
