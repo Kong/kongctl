@@ -103,9 +103,14 @@ needed only for existing unowned models, including models created through
 older kongctl versions, the Konnect UI, or the API. A model already owned by
 the intended namespace needs no adoption or transfer.
 
-Models without `managed_by.kongctl-namespace` are unowned, even if their gateway
-is kongctl-managed or belongs to `default`. A file namespace default expresses
-desired ownership; it does not adopt remote models. Previously generated
+Models with empty `managed_by` are unowned, even if their gateway is
+kongctl-managed or belongs to `default`. Kongctl-only metadata without a
+namespace is also unowned. Unrecognized metadata without
+`kongctl-namespace` blocks adoption, including with
+`--overwrite-namespace`; see the shared
+[ownership guard](declarative/adoption.md#managed_by-ownership-guard).
+A file namespace default expresses desired ownership; it does not adopt
+remote models. Previously generated
 gateway-wide plans do not establish child ownership. After adopting a model or
 transferring its ownership, generate a new plan that reflects the current
 remote owner; execution rechecks ownership and rejects unowned or foreign

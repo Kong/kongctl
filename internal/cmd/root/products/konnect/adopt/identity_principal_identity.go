@@ -105,12 +105,15 @@ func adoptPrincipalIdentity(ctx context.Context, api helpers.IdentityPrincipalId
 	}
 	// Reproject with the complete generated map; helpers retain public fields.
 	previousManagedBy := current.ManagedBy
-	current.ManagedBy = resources.BuildPrincipalManagedBy(
+	current.ManagedBy = resources.PreserveUnrelatedManagedBy(previousManagedBy, resources.BuildPrincipalManagedBy(
 		namespace,
 		ref,
 		resources.IsChildProtected(current.ManagedBy),
 		build.Version(ctx),
-	)
+	))
+	if err := resources.ValidateChildManagedBy(current.ManagedBy, false); err != nil {
+		return nil, err
+	}
 	body, err := helpers.PrincipalIdentityReplacement(*current)
 	if err != nil {
 		return nil, err

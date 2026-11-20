@@ -115,8 +115,11 @@ user metadata or `kongctl` for supported ownership and protection settings.
 Regenerate any saved plans generated from those invalid manifests. This
 correction is separate from setting up ownership for existing resources.
 
-Kongctl generates and replaces the complete remote `managed_by` map rather
-than preserving outside entries. Do not use it to store user metadata.
+Declarative writes generate and replace the complete remote `managed_by`
+map rather than preserving outside entries. Do not use it to store user
+metadata. Ownership-only child adoption preserves unrelated entries and
+rejects unrecognized metadata without a kongctl namespace;
+`--overwrite-namespace` only transfers existing kongctl ownership.
 
 ## Deferred operations and API limitations
 

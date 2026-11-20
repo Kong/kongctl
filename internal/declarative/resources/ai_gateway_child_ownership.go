@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"maps"
 	"reflect"
+	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
 )
@@ -24,6 +26,21 @@ func BuildChildManagedBy(namespace string, protected bool, version string) map[s
 	}, version)
 }
 
+// PreserveUnrelatedManagedBy merges generated ownership with observed metadata
+// during adoption. Only kongctl-owned keys may be replaced or removed.
+func PreserveUnrelatedManagedBy(current, generated map[string]string) map[string]string {
+	metadata := maps.Clone(generated)
+	if metadata == nil {
+		metadata = make(map[string]string)
+	}
+	for key, value := range current {
+		if !strings.HasPrefix(key, "kongctl-") && key != ManagedByToolKey && key != ManagedByVersionKey {
+			metadata[key] = value
+		}
+	}
+	return metadata
+}
+
 func ValidateChildManagedBy(metadata map[string]string, raw bool) error {
 	if err := ValidateManagedBy(metadata, ManagedByPolicy{MaxEntries: ChildManagedByLimit}); err != nil {
 		return err
@@ -40,6 +57,9 @@ func ValidateChildManagedBy(metadata map[string]string, raw bool) error {
 // Unowned objects require explicit out-of-band adoption. Structural parenthood
 // and source defaults never authorize a write or an ownership transfer.
 func ValidateChildOwnership(kind string, metadata map[string]string, namespace string) error {
+	if err := ValidateForeignChildOwnership(kind, metadata); err != nil {
+		return err
+	}
 	owner := metadata[ChildNamespaceKey]
 	if owner == "" {
 		return fmt.Errorf("%s is unowned; explicitly adopt it into namespace %q before managing it", kind, namespace)
@@ -54,6 +74,31 @@ func ValidateChildOwnership(kind string, metadata map[string]string, namespace s
 		return fmt.Errorf("%s has invalid %s metadata", kind, ChildProtectedKey)
 	}
 	return nil
+}
+
+// ValidateForeignChildOwnership rejects unknown ownership metadata. Kongctl-only
+// metadata without a namespace remains unowned, including orphaned protection.
+func ValidateForeignChildOwnership(kind string, metadata map[string]string) error {
+	if len(metadata) == 0 || metadata[ChildNamespaceKey] != "" {
+		return nil
+	}
+	tool := metadata[ManagedByToolKey]
+	unrecognized := tool != "" && tool != ManagedByTool
+	for key := range metadata {
+		if !strings.HasPrefix(key, "kongctl-") && key != ManagedByToolKey && key != ManagedByVersionKey {
+			unrecognized = true
+		}
+	}
+	if !unrecognized {
+		return nil
+	}
+	keys := slices.Sorted(maps.Keys(metadata))
+	if tool != "" {
+		return fmt.Errorf("%s has unrecognized managed_by metadata without a kongctl namespace "+
+			"(tool: %q; managed_by keys: %v)", kind, tool, keys)
+	}
+	return fmt.Errorf("%s has unrecognized managed_by metadata without a kongctl namespace "+
+		"(managed_by keys: %v)", kind, keys)
 }
 
 // IsChildProtected reads protection from the child's ownership metadata.

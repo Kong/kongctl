@@ -123,7 +123,7 @@ func aiChildAdapter[T, Request any](name, alias, selector string, kind resources
 				if !reflect.DeepEqual(fresh, observed) {
 					return nil, fmt.Errorf("child changed after adoption validation; retry adoption")
 				}
-				id, err := update(ctx, parent, selected.id, request, namespace)
+				id, err := update(state.WithAdoptionMetadata(ctx), parent, selected.id, request, namespace)
 				if err != nil {
 					return nil, err
 				}

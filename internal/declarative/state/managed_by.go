@@ -12,6 +12,14 @@ import (
 	"github.com/kong/kongctl/internal/declarative/resources"
 )
 
+type adoptionMetadataKey struct{}
+
+// WithAdoptionMetadata preserves unrelated metadata during ownership-only
+// adoption. Declarative writes retain their canonical map contract.
+func WithAdoptionMetadata(ctx context.Context) context.Context {
+	return context.WithValue(ctx, adoptionMetadataKey{}, true)
+}
+
 // Stamp at the actual write boundary so saved plans record the executing
 // binary, including direct SDK requests and auxiliary secret updates.
 func stampManagedByRequest[T any](ctx context.Context, kind resources.ResourceType, request *T) error {
@@ -32,9 +40,19 @@ func stampManagedByRequest[T any](ctx context.Context, kind resources.ResourceTy
 			return fmt.Errorf("managed_by must contain string values")
 		}
 	}
+	current := metadata
 	metadata, err = resources.PrepareManagedBy(kind, metadata, build.Version(ctx))
 	if err != nil {
 		return err
+	}
+	if preserve, _ := ctx.Value(adoptionMetadataKey{}).(bool); preserve {
+		if !resources.UsesManagedByOwnership(kind) {
+			return fmt.Errorf("adoption metadata requires managed_by ownership")
+		}
+		metadata = resources.PreserveUnrelatedManagedBy(current, metadata)
+		if err := resources.ValidateChildManagedBy(metadata, false); err != nil {
+			return err
+		}
 	}
 	payload["managed_by"], err = json.Marshal(metadata)
 	if err != nil {

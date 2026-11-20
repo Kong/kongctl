@@ -39,3 +39,4 @@ steps:
           credential_deletion_guards: true
           artifacts_clean: true
           fixtures_removed: true
+          unknown_owner_guard: true
