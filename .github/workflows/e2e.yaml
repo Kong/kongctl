@@ -1125,8 +1125,11 @@ jobs:
 
           run_started_at="$(date +%s)"
           set +e
-          "${KONGCTL_E2E_TEST_BIN}" -test.v -test.count=1 -test.timeout "${KONGCTL_E2E_TEST_TIMEOUT}" -test.run '^Test_Scenarios$' ${GOTESTFLAGS:-} \
-            2>&1 | tee "${ART_DIR}/run.log"
+          # The untouched raw stream always lands in run.log for downstream parsing and the
+          # artifact upload; e2e_ci_console.py only reshapes the copy shown in the live job console
+          # (folds per-scenario detail, drops repeated heartbeats, annotates failures).
+          "${KONGCTL_E2E_TEST_BIN}" -test.v -test.failfast -test.count=1 -test.timeout "${KONGCTL_E2E_TEST_TIMEOUT}" -test.run '^Test_Scenarios$' ${GOTESTFLAGS:-} \
+            2>&1 | tee "${ART_DIR}/run.log" | python3 "${GITHUB_WORKSPACE}/scripts/e2e_ci_console.py"
           code=${PIPESTATUS[0]}
           set -e
           run_finished_at="$(date +%s)"
@@ -1661,13 +1664,21 @@ jobs:
             fail "Scenario coverage mismatch across shard manifests."
           fi
 
-          result_coverage_error="$(e2e_result_coverage_error "${actual}" "${observed_scenarios}")"
+          # -test.failfast stops a shard at its first real scenario failure, so a
+          # shard that exited non-zero can legitimately report fewer results than
+          # it was assigned; the nonzero exit itself already blocks the run below.
+          allow_partial_coverage=false
+          if [ "${nonzero_exit_total}" -gt 0 ]; then
+            allow_partial_coverage=true
+          fi
+
+          result_coverage_error="$(e2e_result_coverage_error "${actual}" "${observed_scenarios}" "${allow_partial_coverage}")"
           if [ -n "${result_coverage_error}" ]; then
             fail "${result_coverage_error}"
           fi
 
           scenario_count="$(wc -l < "${actual}" | tr -d ' ')"
-          if [ "${observed_total}" -ne "${scenario_count}" ]; then
+          if [ "${allow_partial_coverage}" != true ] && [ "${observed_total}" -ne "${scenario_count}" ]; then
             fail "Observed result count ${observed_total} does not match assigned scenario count ${scenario_count}."
           fi
 

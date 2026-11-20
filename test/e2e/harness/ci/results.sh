@@ -99,7 +99,8 @@ e2e_blocking_failure_reason() {
 e2e_result_coverage_error() {
   local assigned_file="$1"
   local observed_file="$2"
-  local assigned_sorted observed_sorted duplicate_results
+  local allow_partial="${3:-false}"
+  local assigned_sorted observed_sorted duplicate_results extra_results
 
   assigned_sorted="$(mktemp)"
   observed_sorted="$(mktemp)"
@@ -112,7 +113,19 @@ e2e_result_coverage_error() {
     rm -f "${assigned_sorted}" "${observed_sorted}"
     return 0
   fi
-  if ! diff -q "${assigned_sorted}" "${observed_sorted}" >/dev/null; then
+
+  extra_results="$(comm -13 "${assigned_sorted}" "${observed_sorted}")"
+  if [ -n "${extra_results}" ]; then
+    printf 'Observed results for scenarios outside shard assignments: %s' "${extra_results}"
+    rm -f "${assigned_sorted}" "${observed_sorted}"
+    return 0
+  fi
+
+  # -test.failfast stops a shard at its first real scenario failure, so a
+  # shard that exited non-zero can legitimately have fewer observed results
+  # than assigned scenarios; that exit code alone already makes it a
+  # blocking failure, so coverage mismatch must not mask it here.
+  if [ "${allow_partial}" != true ] && ! diff -q "${assigned_sorted}" "${observed_sorted}" >/dev/null; then
     printf 'Scenario result coverage does not match shard assignments.'
   fi
 

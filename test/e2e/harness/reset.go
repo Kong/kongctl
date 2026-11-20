@@ -1013,6 +1013,9 @@ func retryListItems(
 		session.RecordList(duration)
 		session.recordEvent("list", atry+1, duration, err)
 		if err == nil {
+			if atry > 0 {
+				Warnf("reset: list %s succeeded on attempt %d/%d after earlier failures", endpoint, atry+1, attempts)
+			}
 			return items, nil
 		}
 		detail := err.Error()
@@ -1063,6 +1066,9 @@ func retryDeleteOne(
 		session.RecordDelete(duration)
 		session.recordEvent("delete", atry+1, duration, err)
 		if err == nil {
+			if atry > 0 {
+				Warnf("reset: delete %s/%s succeeded on attempt %d/%d after earlier failures", endpoint, id, atry+1, attempts)
+			}
 			return nil
 		}
 		if he, ok := err.(*httpError); ok && he.status == http.StatusConflict {
