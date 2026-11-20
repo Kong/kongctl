@@ -270,7 +270,9 @@ test('workflow completion targets its PR and manual/main completion relies on re
   const f = fake();
   f.context.eventName = 'workflow_run';
   f.context.payload.inputs = {};
-  f.context.payload.workflow_run = {pull_requests: [], display_title: 'main · scenarios · debounced · head'};
+  f.context.payload.workflow_run = {
+    pull_requests: [], display_title: `main · scenarios · overnight · ${'a'.repeat(40)} · 100-1`,
+  };
   await reconcile(f);
   assert.equal(f.state.dispatches.length, 0);
 });

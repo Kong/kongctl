@@ -236,7 +236,9 @@ function api(github, context) {
       ciWait = {ready: false, waitingForCI, reason: `Awaiting prerequisite CI: ${waiting.join(', ')}.`};
       if (!waitingForCI) return {...scope, ...ciWait};
     }
-    const approved = details => ({...scope, ready: true, ...details, ...ciWait});
+    const approved = details => ciWait
+      ? {...scope, ...details, ...ciWait}
+      : {...scope, ready: true, ...details};
     const permission = new Map();
     const allowed = async user => {
       if (!permission.has(user.login)) permission.set(user.login, await maintainerAccess(github, context, user));
