@@ -124,7 +124,8 @@ test-e2e-harness:
 .PHONY: refresh-e2e-weights
 refresh-e2e-weights:
 	python3 scripts/e2e_weights.py \
-		test/e2e/baselines/post-cache-2026-09-observations.json
+		test/e2e/baselines/weights-refresh-2026-11-training-live.json \
+		test/e2e/baselines/weights-refresh-2026-11-training-pr.json
 
 .PHONY: test-e2e-metrics
 test-e2e-metrics: setup-e2e-replay test-e2e-readiness
@@ -289,8 +290,8 @@ E2E_BASELINE_SCAN ?= 100
 E2E_BASELINE_DIR ?= .e2e-artifacts/baseline
 E2E_BASELINE_COHORT ?= cache-enabled
 E2E_BASELINE_ALLOCATION ?= $(shell python3 scripts/e2e_weights.py --print-allocation-id)
-E2E_BASELINE_OBSERVATIONS ?= test/e2e/baselines/weighted-v1-2026-09-observations.json
-E2E_BASELINE_REPORT ?= test/e2e/baselines/weighted-v1-2026-09.md
+E2E_BASELINE_OBSERVATIONS ?= test/e2e/baselines/weighted-v1-2026-11-observations.json
+E2E_BASELINE_REPORT ?= test/e2e/baselines/weighted-v1-2026-11.md
 E2E_PROGRESS_MODE ?= live
 E2E_PROGRESS_DIR ?= .e2e-artifacts/progress
 

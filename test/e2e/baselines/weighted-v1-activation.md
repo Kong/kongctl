@@ -2,6 +2,21 @@
 
 Related: #2053 and the report-only foundation in #2094.
 
+The September activation below is historical. The November refresh in
+[#2840](weights-refresh-2026-11-analysis.md) supersedes its active weight
+snapshot and documents the new source cohort, held-out checks, and rollout
+measurement. The allocator and rollback strategy remain unchanged.
+
+The November snapshot qualifies 233 of 237 paths from 25 successful runs
+(ten full-live and fifteen PR-route, using live timings only). Its fallback
+is 21,185ms. The two `weights-refresh-2026-11-training-*.json` files record
+the source runs; their hashes are embedded in `scenario-weights.json`.
+The active measurement identity is:
+
+```text
+weighted-v1:8f9b1063ad0cbbf38ab0b5cf741c2e6df7eb52e2395132e77ad9c141c6c2f7d6
+```
+
 ## Frozen reference
 
 The completed `post-cache-2026-09-observations.json` contains 20 successful
@@ -49,9 +64,10 @@ They must not be compared directly with the measured 480s baseline median.
 ## Rollout and evaluation
 
 The activation PR exercises weighted allocation in its own full `.com` CI run;
-after merge, normal full `.com` runs use it too. Filtered, unsharded, and `.tech`
-runs continue using the original selector. Reset policy and concurrency remain
-unchanged. Weighted execution order is deterministic normalized-path order.
+after merge, normal full `.com` runs use it too. Filtered, unsharded, and
+`.tech` runs continue using the original selector. Reset policy and
+concurrency remain unchanged. Weighted execution order is deterministic
+normalized-path order.
 
 After passing CI and human review, collect normal runs with:
 
@@ -59,7 +75,9 @@ After passing CI and human review, collect normal runs with:
 make collect-e2e-baseline E2E_BASELINE_COUNT=20 E2E_BASELINE_SCAN=150
 ```
 
-This now updates the separate `weighted-v1-2026-09-*` files. The collector
+At activation this wrote the separate `weighted-v1-2026-09-*` files. Current
+defaults write `weighted-v1-2026-11-*`; override the observation and report
+paths explicitly when collecting another identity. The collector
 requires the exact algorithm and snapshot identity, rejects mixed allocations,
 and refuses to overwrite an observation file from another experiment.
 Keep committing partial observations before artifact expiry.
@@ -71,8 +89,9 @@ and cancelled workflows and beta failures. Success requires measured runtime
 improvement without worse reliability; better predictions alone do not count.
 
 For coverage/pinning defects or reproducible ordering-related failures, set the
-repository variable `KONGCTL_E2E_SHARD_STRATEGY` to `modulo`. New target-selection
-jobs capture that value once for their entire matrix. In-flight matrices keep
-their selected strategy. Rollback does not depend on valid weights. Collect any
-rollback runs separately as documented in the E2E README. Never weaken scenario
-assertions or reset safety to keep a speed improvement.
+repository variable `KONGCTL_E2E_SHARD_STRATEGY` to `modulo`. New
+target-selection jobs capture that value once for their entire matrix.
+In-flight matrices keep their selected strategy. Rollback does not depend on
+valid weights. Collect any rollback runs separately as documented in the E2E
+README. Never weaken scenario assertions or reset safety to keep a speed
+improvement.
