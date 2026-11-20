@@ -47,6 +47,8 @@ func TestResultAccountingSeparatesBetaFailures(t *testing.T) {
 	runLog := filepath.Join(dir, "run.log")
 	if err := os.WriteFile(runLog, []byte(strings.Join([]string{
 		"--- PASS: Test_Scenarios/test/e2e/scenarios/portal/pages/scenario.yaml (1.00s)",
+		"--- PASS: Test_Scenarios/test/e2e/scenarios/portal/pages/scenario.yaml/attempt-1 (0.50s)",
+		"--- PASS: Test_Scenarios/test/e2e/scenarios/portal/pages/scenario.yaml/attempt-2 (0.50s)",
 		"--- PASS: Test_Scenarios/scenarios/declarative/rename-sync-delete/scenario.yaml (2.00s)",
 		"--- FAIL: Test_Scenarios/test/e2e/scenarios/portal/assets/scenario.yaml (3.00s)",
 		"--- SKIP: Test_Scenarios/test/e2e/scenarios/portal/email/scenario.yaml (0.00s)",

@@ -5,7 +5,7 @@ e2e_extract_go_results() {
   local status="$2"
   local output_file="$3"
 
-  sed -n "s/^[[:space:]]*--- ${status}: Test_Scenarios\/\(.*\) (.*/\1/p" "${run_log}" |
+  sed -n "s/^[[:space:]]*--- ${status}: Test_Scenarios\/\(.*\/scenario\.yaml\) (.*/\1/p" "${run_log}" |
     sed 's#^test/e2e/scenarios/##' |
     sed 's#^scenarios/##' |
     sort -u >"${output_file}"

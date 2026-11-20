@@ -44,7 +44,7 @@ func decodeEvents(r io.Reader, fn func(testEvent)) error {
 func scenarioName(test string) (string, bool) {
 	const prefix = topLevelTest + "/"
 	path, ok := strings.CutPrefix(test, prefix)
-	if !ok {
+	if !ok || !strings.HasSuffix(path, "/scenario.yaml") {
 		return "", false
 	}
 	path = strings.TrimPrefix(path, "scenarios/")

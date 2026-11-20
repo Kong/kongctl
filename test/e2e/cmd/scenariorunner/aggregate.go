@@ -139,7 +139,16 @@ func (a *aggregator) applyOutput(ev testEvent) []update {
 			}
 		}
 	}
-	a.outputBuf[ev.Test] = append(a.outputBuf[ev.Test], ev.Output)
+	owner := ev.Test
+	if parent, _, ok := strings.Cut(ev.Test, "/scenario.yaml/"); ok {
+		parent += "/scenario.yaml"
+		if _, ok := scenarioName(parent); ok {
+			// Attempt output belongs to the scenario, whose final event owns
+			// warning rendering, failure details, and buffer release.
+			owner = parent
+		}
+	}
+	a.outputBuf[owner] = append(a.outputBuf[owner], ev.Output)
 	return nil
 }
 

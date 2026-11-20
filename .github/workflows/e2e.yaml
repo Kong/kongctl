@@ -1111,6 +1111,7 @@ jobs:
         id: scenarios
         env:
           KONGCTL_E2E_REPLAY_PLAN: ${{ github.workspace }}/e2e-routing.json
+          KONGCTL_E2E_SCENARIO_RETRY: ${{ vars.KONGCTL_E2E_SCENARIO_RETRY || 'report' }}
         run: |
           set -euo pipefail
 

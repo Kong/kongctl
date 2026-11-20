@@ -8,6 +8,20 @@ from e2e_diagnostics import summarize
 
 
 class DiagnosticsTests(unittest.TestCase):
+    def test_recovery_outcomes_are_separate_and_do_not_export_errors(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for outcome in ("first_pass", "recovered", "exhausted", "reset_failed", "failed"):
+                path = root / outcome / "scenario-recovery.json"
+                path.parent.mkdir()
+                path.write_text(json.dumps({"scenario": outcome + "/scenario.yaml", "mode": "report",
+                    "outcome": outcome, "eligible": outcome != "first_pass", "class": "http_5xx",
+                    "first_error": "secret-error-text"}))
+            summary = summarize(root)
+            self.assertIn("First-pass success: 1; recovered: 1; exhausted retry: 1; reset failed: 1", summary)
+            self.assertIn("| failed/scenario.yaml | report | failed | True | http_5xx |", summary)
+            self.assertNotIn("secret-error-text", summary)
+
     def test_malformed_records_do_not_discard_valid_summaries(self):
         valid = {
             "schema_version": 1, "scenario": "valid/scenario.yaml",

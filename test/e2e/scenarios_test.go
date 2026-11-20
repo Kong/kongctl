@@ -122,6 +122,11 @@ func Test_Scenarios(t *testing.T) {
 		t.Fatalf("invalid beta scenario configuration: %v", err)
 	}
 
+	recoveryMode, err := scenario.RecoveryModeFromEnv()
+	if err != nil {
+		t.Fatalf("invalid scenario recovery configuration: %v", err)
+	}
+
 	// test/e2e/cmd/scenariorunner renders its own compact progress from the
 	// -json event stream; skip the stderr heartbeat/redraw here so it doesn't
 	// show up as noise once that wrapper owns the terminal.
@@ -139,11 +144,11 @@ func Test_Scenarios(t *testing.T) {
 				defer progress.completeScenario()
 			}
 
-			maturity, err := scenario.Run(t, p, betaMode)
+			maturity, err := scenario.RunWithRecovery(t, p, betaMode, recoveryMode)
 			if err == nil {
 				return
 			}
-			if !scenario.IsAdvisoryFailure(maturity, betaMode) {
+			if t.Failed() || scenario.IsRecoveryBlocked(err) || !scenario.IsAdvisoryFailure(maturity, betaMode) {
 				t.Fatalf("scenario failed: %v", err)
 			}
 

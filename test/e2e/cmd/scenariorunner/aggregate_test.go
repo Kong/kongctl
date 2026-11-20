@@ -34,6 +34,7 @@ func TestScenarioNameStripsPrefixesAndSuffix(t *testing.T) {
 		{"Test_Scenarios/scenarios/identity/groups/scenario.yaml", "identity/groups", true},
 		{"Test_Scenarios/test/e2e/scenarios/apis/basic/scenario.yaml", "apis/basic", true},
 		{"Test_Scenarios", "", false},
+		{scenarioOneTest + "/attempt-1", "", false},
 		{"TestOther/foo", "", false},
 	}
 	for _, tc := range cases {
@@ -41,6 +42,47 @@ func TestScenarioNameStripsPrefixesAndSuffix(t *testing.T) {
 		if ok != tc.ok || got != tc.want {
 			t.Errorf("scenarioName(%q) = (%q, %v), want (%q, %v)", tc.test, got, ok, tc.want, tc.ok)
 		}
+	}
+}
+
+func TestAggregatorCollectsAttemptOutputOnce(t *testing.T) {
+	for _, action := range []string{"pass", "fail"} {
+		t.Run(action, func(t *testing.T) {
+			agg := newAggregator()
+			first, second := scenarioOneTest+"/attempt-1", scenarioOneTest+"/attempt-2"
+			warning := "[e2e WARN] subprocess deadline exceeded"
+			errorLine := "[e2e ERROR] operation failed"
+			updates := decodeFixture(t, agg, events(
+				t,
+				testEvent{Action: "run", Test: scenarioOneTest},
+				testEvent{Action: "run", Test: first},
+				testEvent{Action: "output", Test: first, Output: warning + "\n"},
+				testEvent{Action: "pass", Test: first},
+				testEvent{Action: "run", Test: second},
+				testEvent{Action: "output", Test: second, Output: errorLine + "\n"},
+				testEvent{Action: "pass", Test: second},
+				testEvent{Action: action, Test: scenarioOneTest},
+			))
+			started, finished := 0, 0
+			for _, u := range updates {
+				if u.kind == updateScenarioStarted {
+					started++
+				}
+				if u.kind == updateScenarioFinished {
+					finished++
+					if strings.Join(u.result.warnings, "\n") != warning+"\n"+errorLine {
+						t.Fatalf("missing or duplicated attempt warnings: %+v", u.result)
+					}
+					if action == "fail" && u.result.detail != warning+"\n"+errorLine {
+						t.Fatalf("missing attempt failure details: %+v", u.result)
+					}
+				}
+			}
+			if started != 1 || finished != 1 || agg.completed != 1 || len(agg.outputBuf) != 0 {
+				t.Fatalf("attempts affected progress or retained output: started=%d finished=%d aggregator=%+v",
+					started, finished, agg)
+			}
+		})
 	}
 }
 

@@ -13,6 +13,7 @@ import re
 import shlex
 
 from e2e_metrics import collect_metrics, parse_key_values
+from e2e_diagnostics import collect_recoveries, recovery_summary
 
 
 def read(path):
@@ -79,6 +80,11 @@ def collect(root, environ):
     data["events"] = []
     data["failures"] = []
     data["evidence_warnings"] = []
+    try:
+        data["scenario_recovery"] = collect_recoveries(root)
+    except (OSError, ValueError):
+        data["scenario_recovery"] = []
+        data["evidence_warnings"].append("Scenario recovery evidence is unavailable")
     seen_logs, seen_reset_events = set(), set()
     diagnostics = list(root.rglob("scenario-diagnostics.json"))
     if not diagnostics:
@@ -336,13 +342,14 @@ def render(report):
                      f"{seconds(s['job_seconds'])} | {cell(s['job_result'])} |")
     if report["missing_shards"]:
         lines += ["", "**Missing shard evidence:** " + ", ".join(map(cell, report["missing_shards"]))]
+    lines += recovery_summary([r for s in report["shards"] for r in s.get("scenario_recovery", [])])
     failures = [(s, f) for s in report["shards"] for f in s.get("failures", [])]
     if failures:
         lines += ["", "**Scenario failure evidence**", "", "| Shard / scenario | Step / command | Phase | Cause |",
                   "| --- | --- | --- | --- |"]
         lines += ["| " + " | ".join(map(cell, [s["org_name"] + " / " + f["scenario"],
                   f["step"] + " / " + f["command"], f["phase"], f["cause"]])) + " |" for s, f in failures[:20]]
-        lines.append("\nFailure evidence includes advisory scenarios; blocking/advisory counts are shown above.")
+        lines.append("\nFailure evidence includes recovered attempts and advisory scenarios; final counts are shown above.")
     events = [(s, e) for s in report["shards"] for e in s.get("events", [])]
     lines += ["", f"**Timeouts and transient events: {len(events)} observed**", "",
               "Counts are failed HTTP attempts or process deadlines, not unique root causes. "

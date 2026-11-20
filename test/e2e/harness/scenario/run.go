@@ -98,6 +98,11 @@ func runScenario(t *testing.T, scenarioPath string, s Scenario) (runErr error) {
 		}
 	}()
 	runErr = executeScenario(t, scenarioPath, s, cli, diagnostics)
+	// Only an operation failure can authorize restarting the scenario. Earlier
+	// recovered failures must not classify assertions, output, or configuration.
+	if runErr != nil && diagnostics.phase == "http" {
+		runErr = harness.ScenarioOperationFailure(runErr)
+	}
 	completed = true
 	return runErr
 }
@@ -708,7 +713,7 @@ func executeScenario(
 				if artifactHint != "" {
 					msg += fmt.Sprintf("\nartifacts: %s", artifactHint)
 				}
-				return fmt.Errorf("%s", msg)
+				return harness.ScenarioCommandFailure(fmt.Errorf("%s", msg), res)
 			}
 
 			diagnostics.phase = "output"
