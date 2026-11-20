@@ -13,12 +13,13 @@ ai_gateways:
     policies:
       - ref: pass-listener-policy
         name: pass-listener-policy
-        type: http-log
-        display_name: "Request log"
+        type: rate-limiting
+        display_name: "Rate Limiting"
         enabled: true
         global: false
         config:
-          http_endpoint: https://logging.example.com/mcp
+          minute: 60
+          policy: local
     consumer_groups:
       - ref: pass-listener
         name: pass-listener

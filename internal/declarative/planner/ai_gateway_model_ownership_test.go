@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"maps"
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -122,11 +123,26 @@ func TestFederatedModelsIsolateSyncAndLastModelRemoval(t *testing.T) {
 }
 
 func TestFederatedModelCollisionsRequireAdoptionOrTransfer(t *testing.T) {
-	for _, owner := range []string{"", "team-b"} {
-		t.Run("owner="+owner, func(t *testing.T) {
+	for _, tc := range []struct {
+		name, diagnostic string
+		metadata         map[string]string
+	}{
+		{name: "unowned", diagnostic: "explicitly adopt"},
+		{
+			name: "foreign tool", diagnostic: `tool: "cost-attribution"`,
+			metadata: map[string]string{resources.ManagedByToolKey: "cost-attribution"},
+		},
+		{
+			name: "another namespace", diagnostic: "explicit ownership transfer",
+			metadata: resources.BuildChildManagedBy("team-b", false, "test"),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
 			model := federatedModel(t, "shared-name", "team-a", "model")
 			observed := observedFederatedModel(t, model)
-			resources.AIGatewayModelManagedBy(observed)[resources.ModelNamespaceKey] = owner
+			metadata := resources.AIGatewayModelManagedBy(observed)
+			clear(metadata)
+			maps.Copy(metadata, tc.metadata)
 			api := &providerOrderModelAPI{
 				testAIGatewayModelAPI: testAIGatewayModelAPI{models: []kkComps.AIGatewayModel{observed}},
 			}
@@ -134,11 +150,7 @@ func TestFederatedModelCollisionsRequireAdoptionOrTransfer(t *testing.T) {
 			plan, err := planner.GeneratePlan(t.Context(), federatedResourceSet(model), Options{Mode: PlanModeApply})
 			require.Error(t, err)
 			require.Nil(t, plan)
-			if owner == "" {
-				require.ErrorContains(t, err, "explicitly adopt")
-			} else {
-				require.ErrorContains(t, err, "explicit ownership transfer")
-			}
+			require.ErrorContains(t, err, tc.diagnostic)
 		})
 	}
 }

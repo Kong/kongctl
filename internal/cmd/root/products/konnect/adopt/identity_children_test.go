@@ -73,6 +73,27 @@ func TestIdentityGroupBulkAdoptionPreflight(t *testing.T) {
 	}
 }
 
+func TestIdentityGroupBulkAdoptionRejectsUnknownMetadata(t *testing.T) {
+	for _, overwrite := range []bool{false, true} {
+		first := fixture.Group("first", "", false)
+		second := fixture.Group("second", "", false)
+		second.ManagedBy = map[string]string{"product": "another-product"}
+		api := &fixture.GroupAPI{Directories: map[string][]helpers.IdentityGroup{
+			adoptionGatewayID: {first, second},
+		}}
+		setup, out := childTestSetup(t, false, cmdCommon.JSON)
+		setup.AdoptFlags.OverwriteNamespace = overwrite
+		setup.SDK = identityAdoptionSDK{groups: api}
+		command, err := NewIdentityGroupCmd(verbs.Adopt, nil, nil)
+		require.NoError(t, err)
+		require.NoError(t, command.ParseFlags([]string{"--all"}))
+		err = runIdentityGroupAdoptions(command, nil, setup, adoptionGatewayID)
+		require.ErrorContains(t, err, "unrecognized managed_by metadata")
+		require.Empty(t, api.Writes)
+		require.Empty(t, out.String())
+	}
+}
+
 func TestIdentityClientAndUsernameBulkAdoption(t *testing.T) {
 	for _, dryRun := range []bool{false, true} {
 		method := kkComps.TokenEndpointAuthMethod("client_secret_basic")

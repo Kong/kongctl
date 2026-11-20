@@ -47,17 +47,15 @@ func adoptIdentityDirectory(ctx context.Context, api helpers.IdentityDirectories
 	if err != nil {
 		return nil, err
 	}
-	if current := directory.ManagedBy[resources.ChildNamespaceKey]; current != "" && !overwrite {
-		return nil, fmt.Errorf("directory %q already has namespace %q; use --overwrite-namespace to adopt it",
-			directory.Name, current)
+	metadata, err := adoptionManagedBy(directory.ManagedBy, namespace, overwrite, build.Version(ctx))
+	if err != nil {
+		return nil, err
 	}
 	request, err := helpers.IdentityDirectoryReplacement(*directory)
 	if err != nil {
 		return nil, err
 	}
-	request.ManagedBy = resources.BuildChildManagedBy(
-		namespace, resources.IsChildProtected(directory.ManagedBy), build.Version(ctx),
-	)
+	request.ManagedBy = metadata
 
 	if result, dryRun, err := adoptCommon.PrepareRootAdoption(ctx, adoptCommon.AdoptionChange{
 		AdoptResult: adoptCommon.AdoptResult{

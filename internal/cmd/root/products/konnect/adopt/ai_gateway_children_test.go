@@ -107,7 +107,7 @@ func aiAdoptionPayload(t *testing.T, family string) map[string]any {
 		delete(value, planner.FieldDisplayName)
 	}
 	value[planner.FieldLabels] = map[string]any{"public": "keep"}
-	value[planner.FieldManagedBy] = map[string]any{resources.ChildProtectedKey: "true", "outside": "replace"}
+	value[planner.FieldManagedBy] = map[string]any{}
 	value["created_at"], value["updated_at"] = "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"
 	// Real GET responses include API defaults. Round-trip the typed response so
 	// the fixture represents the complete observation consumed by adoption.
@@ -156,6 +156,9 @@ func TestAIChildAdoptionPreservesPublicPayloadAcrossFamilies(t *testing.T) {
 	for index, metadata := range aiChildFamilies(state.NewClient(state.ClientConfig{})) {
 		t.Run(metadata.name, func(t *testing.T) {
 			current := aiAdoptionPayload(t, metadata.name)
+			current[planner.FieldManagedBy] = map[string]any{
+				resources.ChildNamespaceKey: "previous", resources.ChildProtectedKey: "true", "outside": "keep",
+			}
 			updates := 0
 			client := aiAdoptionTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
@@ -194,7 +197,7 @@ func TestAIChildAdoptionPreservesPublicPayloadAcrossFamilies(t *testing.T) {
 			require.Equal(t, []childCandidate{{adoptionChildID, "team-child"}}, candidates)
 			before, err := json.Marshal(current)
 			require.NoError(t, err)
-			write, err := family.prepare(ctx, adoptionGatewayID, candidates[0], "team-a", false)
+			write, err := family.prepare(ctx, adoptionGatewayID, candidates[0], "team-a", true)
 			require.NoError(t, err)
 			result, err := write()
 			require.NoError(t, err)
@@ -208,7 +211,9 @@ func TestAIChildAdoptionPreservesPublicPayloadAcrossFamilies(t *testing.T) {
 			require.Equal(t, original, after, "adoption changes only ownership metadata")
 			managedBy, err := childPayloadMetadata(current)
 			require.NoError(t, err)
-			require.Equal(t, resources.BuildChildManagedBy("team-a", true, "adoption-test"), managedBy)
+			expected := resources.BuildChildManagedBy("team-a", true, "adoption-test")
+			expected["outside"] = "keep"
+			require.Equal(t, expected, managedBy)
 			_, err = family.prepare(ctx, adoptionGatewayID, candidates[0], "team-b", false)
 			require.ErrorContains(t, err, "overwrite-namespace")
 			require.Equal(t, 1, updates)
@@ -219,7 +224,48 @@ func TestAIChildAdoptionPreservesPublicPayloadAcrossFamilies(t *testing.T) {
 			require.Equal(t, 2, updates)
 			transferred, err := childPayloadMetadata(current)
 			require.NoError(t, err)
-			require.Equal(t, resources.BuildChildManagedBy("team-b", true, "adoption-test"), transferred)
+			expected[resources.ChildNamespaceKey] = "team-b"
+			require.Equal(t, expected, transferred)
+		})
+	}
+}
+
+func TestAIChildAdoptionRejectsForeignOwnershipBeforeBulkWrites(t *testing.T) {
+	for index, familyInfo := range aiChildFamilies(state.NewClient(state.ClientConfig{})) {
+		t.Run(familyInfo.name, func(t *testing.T) {
+			for _, overwrite := range []bool{false, true} {
+				foreign := aiAdoptionPayload(t, familyInfo.name)
+				foreign[planner.FieldManagedBy] = map[string]any{"tool": "cost-attribution"}
+				unowned := aiAdoptionPayload(t, familyInfo.name)
+				unowned[planner.FieldID] = "6078f559-063b-4f10-9098-9e6553b21d9b"
+				writes := 0
+				client := aiAdoptionTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+					if r.Method != http.MethodGet {
+						writes++
+						w.WriteHeader(http.StatusMethodNotAllowed)
+						return
+					}
+					w.Header().Set("Content-Type", "application/json")
+					value := foreign
+					if strings.HasSuffix(r.URL.Path, "/"+unowned[planner.FieldID].(string)) {
+						value = unowned
+					}
+					require.NoError(t, json.NewEncoder(w).Encode(value))
+				})
+				family := aiChildFamilies(client)[index]
+				setup, out := childTestSetup(t, false, cmdCommon.JSON)
+				values := []childCandidate{
+					{unowned[planner.FieldID].(string), "team-child"},
+					{adoptionChildID, "team-child"},
+				}
+				err := runChildAdoptions(setup, values, func(value childCandidate) (preparedChildAdoption, error) {
+					return family.prepare(t.Context(), adoptionGatewayID, value, "team-a", overwrite)
+				})
+				require.ErrorContains(t, err, "unrecognized managed_by metadata")
+				require.Contains(t, err.Error(), `tool: "cost-attribution"`)
+				require.Zero(t, writes)
+				require.Empty(t, out.String())
+			}
 		})
 	}
 }
@@ -282,7 +328,7 @@ func TestAIChildAdoptionDryRunAndUnsafeVault(t *testing.T) {
 			require.True(t, preview.DryRun)
 			require.Len(t, preview.Changes, 1)
 			require.Equal(t, adoptionGatewayID, preview.Changes[0].Parent["gateway_id"])
-			require.Equal(t, "true", preview.Changes[0].After[resources.ChildProtectedKey])
+			require.Equal(t, "false", preview.Changes[0].After[resources.ChildProtectedKey])
 			require.NotContains(t, out.String(), "config")
 		})
 	}
@@ -419,8 +465,10 @@ func TestAIChildAdoptionRejectsChangesAfterPreflight(t *testing.T) {
 	current[planner.FieldDisplayName] = "changed concurrently"
 	_, err = write()
 	require.ErrorContains(t, err, "changed after adoption validation")
-	current[planner.FieldManagedBy] = map[string]any{resources.ChildProtectedKey: "invalid"}
-	_, err = family.prepare(t.Context(), adoptionGatewayID, childCandidate{adoptionChildID, "team-child"}, "team-a", false)
+	current[planner.FieldManagedBy] = map[string]any{
+		resources.ChildNamespaceKey: "team-a", resources.ChildProtectedKey: "invalid",
+	}
+	_, err = family.prepare(t.Context(), adoptionGatewayID, childCandidate{adoptionChildID, "team-child"}, "team-a", true)
 	require.ErrorContains(t, err, "invalid protection")
 }
 

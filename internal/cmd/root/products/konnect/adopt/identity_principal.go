@@ -108,12 +108,15 @@ func adoptIdentityPrincipal(
 		}
 	}
 	request := helpers.IdentityPrincipalReplacement(*current)
-	request.ManagedBy = resources.BuildPrincipalManagedBy(
+	request.ManagedBy = resources.PreserveUnrelatedManagedBy(current.ManagedBy, resources.BuildPrincipalManagedBy(
 		namespace,
 		ref,
 		resources.IsChildProtected(current.ManagedBy),
 		build.Version(ctx),
-	)
+	))
+	if err := resources.ValidateChildManagedBy(request.ManagedBy, false); err != nil {
+		return nil, err
+	}
 	if err := adoptCommon.PrepareDeclarativeChild(
 		ctx, resources.ResourceTypeIdentityPrincipal, id, ref, namespace,
 		resources.IsChildProtected(request.ManagedBy), current,

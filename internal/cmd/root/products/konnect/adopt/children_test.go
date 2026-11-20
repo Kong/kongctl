@@ -2,6 +2,7 @@ package adopt
 
 import (
 	"fmt"
+	"maps"
 	"path"
 	"testing"
 
@@ -11,6 +12,55 @@ import (
 	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/yaml"
 )
+
+func TestAdoptionManagedByOwnershipGuard(t *testing.T) {
+	for _, current := range []map[string]string{
+		{"tool": "cost-attribution", "version": "1"},
+		{"product": "cost-attribution"},
+		{resources.ManagedByToolKey: resources.ManagedByTool, "product": "cost-attribution"},
+		{resources.ChildNamespaceKey: "", "product": "cost-attribution"},
+	} {
+		for _, overwrite := range []bool{false, true} {
+			before := maps.Clone(current)
+			_, err := adoptionManagedBy(current, "team-a", overwrite, "test")
+			require.ErrorContains(t, err, "unrecognized managed_by metadata")
+			require.Contains(t, err.Error(), "managed_by keys:")
+			require.Equal(t, before, current)
+		}
+	}
+	for _, current := range []map[string]string{nil, {}} {
+		metadata, err := adoptionManagedBy(current, "team-a", false, "test")
+		require.NoError(t, err)
+		require.Equal(t, resources.BuildChildManagedBy("team-a", false, "test"), metadata)
+	}
+	for _, current := range []map[string]string{
+		{resources.ChildProtectedKey: "true"},
+		{resources.ManagedByToolKey: resources.ManagedByTool, resources.ManagedByVersionKey: "1"},
+		{resources.ChildNamespaceKey: "", "kongctl-legacy": "keep"},
+	} {
+		for _, overwrite := range []bool{false, true} {
+			before := maps.Clone(current)
+			metadata, err := adoptionManagedBy(current, "team-a", overwrite, "test")
+			require.NoError(t, err)
+			require.Equal(t, resources.BuildChildManagedBy("team-a", resources.IsChildProtected(current), "test"), metadata)
+			require.Equal(t, before, current)
+		}
+	}
+	current := resources.BuildChildManagedBy("previous", true, "old")
+	current["outside"] = "keep"
+	before := maps.Clone(current)
+	_, err := adoptionManagedBy(current, "team-a", false, "test")
+	require.ErrorContains(t, err, "--overwrite-namespace")
+	metadata, err := adoptionManagedBy(current, "team-a", true, "test")
+	require.NoError(t, err)
+	require.Equal(t, "keep", metadata["outside"])
+	require.Equal(t, "test", metadata[resources.ManagedByVersionKey])
+	require.Equal(t, "true", metadata[resources.ChildProtectedKey])
+	require.Equal(t, before, current)
+	current["extra"] = "cannot-fit"
+	_, err = adoptionManagedBy(current, "team-a", true, "test")
+	require.ErrorContains(t, err, "5-entry")
+}
 
 func TestChildSelectionIsExplicitAndParentScoped(t *testing.T) {
 	values := []childCandidate{{"id-a", "team-a"}, {"id-b", "team-b"}, {"id-c", "outside"}}

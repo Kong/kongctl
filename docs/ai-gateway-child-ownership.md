@@ -36,9 +36,12 @@ ownership nor protection.
 
 `managed_by` is reserved for Kong tools and cannot be set in declarative
 configuration. Use `labels` for user metadata and `kongctl` for ownership and
-protection. Kongctl replaces the complete map with its generated keys; existing
-outside entries are removed. Metadata drift appears in plans and diffs even when
-no public payload changes. A version-only difference does not schedule a write;
+protection. Declarative writes replace the complete map with generated keys;
+existing outside entries are removed. Ownership-only adoption instead
+preserves unrelated entries and follows the shared
+[ownership guard](declarative/adoption.md#managed_by-ownership-guard).
+Metadata drift appears in plans and diffs even when no public payload changes.
+A version-only difference does not schedule a write;
 required writes record the executing binary's version. Public labels remain
 preserved unless explicitly changed.
 

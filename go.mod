@@ -7,7 +7,7 @@ require (
 	charm.land/bubbletea/v2 v2.1.1
 	charm.land/glamour/v2 v2.0.1
 	charm.land/lipgloss/v2 v2.1.1
-	github.com/Kong/sdk-konnect-go v0.88.1-0.20261116190824-df9d11baeab7
+	github.com/Kong/sdk-konnect-go v0.89.1-0.20261119142615-3a5f81f45f5d
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/ajg/form v1.9.0
@@ -15,7 +15,7 @@ require (
 	github.com/atotto/clipboard v0.1.4
 	github.com/charmbracelet/colorprofile v0.4.3
 	github.com/charmbracelet/x/ansi v0.11.9
-	github.com/daveshanley/vacuum v0.38.0
+	github.com/daveshanley/vacuum v0.39.3
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/itchyny/gojq v0.12.20

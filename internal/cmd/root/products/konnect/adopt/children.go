@@ -113,13 +113,17 @@ func selectChildren(values []childCandidate, selection childSelection) ([]childC
 func adoptionManagedBy(current map[string]string, namespace string,
 	overwrite bool, version string,
 ) (map[string]string, error) {
+	if err := resources.ValidateForeignChildOwnership("resource", current); err != nil {
+		return nil, err
+	}
 	if owner := current[resources.ChildNamespaceKey]; owner != "" && !overwrite {
 		return nil, fmt.Errorf("child already has namespace %q; use --overwrite-namespace to adopt it", owner)
 	}
 	if value, present := current[resources.ChildProtectedKey]; present && value != "true" && value != "false" {
 		return nil, fmt.Errorf("child has invalid protection metadata")
 	}
-	metadata := resources.BuildChildManagedBy(namespace, resources.IsChildProtected(current), version)
+	metadata := resources.PreserveUnrelatedManagedBy(current,
+		resources.BuildChildManagedBy(namespace, resources.IsChildProtected(current), version))
 	if err := resources.ValidateChildManagedBy(metadata, false); err != nil {
 		return nil, err
 	}
