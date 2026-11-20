@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import hashlib
 import json
 import math
@@ -51,7 +52,8 @@ def generate(paths: list[Path], scenario_root: Path) -> dict:
     sources = {}
     for path in sorted(set(paths)):
         raw = path.read_bytes()
-        document = validate_document(json.loads(raw), path)
+        content = gzip.decompress(raw) if path.suffix == ".gz" else raw
+        document = validate_document(json.loads(content), path)
         sources[path.as_posix()] = hashlib.sha256(raw).hexdigest()
         for run in document["runs"]:
             run_id = run["run_id"]
@@ -114,7 +116,7 @@ def main() -> None:
             parser.error("provide observation files or --print-allocation-id")
         weights = generate(args.observations, args.scenario_root)
         args.output.write_text(json.dumps(weights, indent=2, sort_keys=True) + "\n")
-    except (ValueError, KeyError, OSError) as error:
+    except (ValueError, KeyError, OSError, EOFError) as error:
         parser.error(str(error))
 
 
