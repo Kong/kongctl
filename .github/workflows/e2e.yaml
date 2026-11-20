@@ -5,8 +5,8 @@ run-name: >-
     inputs.trusted_pr_number != '' &&
     format('PR #{0} · trusted scenarios · {1}', inputs.trusted_pr_number, inputs.trusted_head_sha) ||
     github.event_name == 'workflow_dispatch' &&
-    inputs.dispatch_source == 'main-debounce' &&
-    format('main · scenarios · debounced · {0}', inputs.main_sha) ||
+    inputs.dispatch_source == 'main-overnight' &&
+    format('main · scenarios · overnight · {0} · {1}', inputs.main_sha, inputs.main_ticket) ||
     inputs.dispatch_source == 'readiness' &&
     format('readiness:{0}/{1}/{2}/{3}/{4}', inputs.readiness_pr, inputs.readiness_sha, inputs.konnect_environment, inputs.readiness_mode, inputs.readiness_ticket) ||
     github.event_name == 'merge_group' &&
@@ -42,9 +42,13 @@ on:
         type: string
         default: ''
       main_sha:
-        description: Main branch SHA selected by the debounce workflow
+        description: Exact main SHA selected by the overnight scheduler
         type: string
         default: ""
+      main_ticket:
+        description: Internal main validation reservation
+        type: string
+        default: ''
       trusted_pr_number:
         description: Fork PR number approved for trusted E2E
         type: string
@@ -140,7 +144,9 @@ jobs:
           ref: ${{ github.workflow_sha }}
           persist-credentials: false
           fetch-depth: 1
-          sparse-checkout: scripts/e2e-readiness.cjs
+          sparse-checkout: |
+            scripts/e2e-readiness.cjs
+            scripts/e2e-main.cjs
           sparse-checkout-cone-mode: false
       - name: Verify E2E dispatch maintainer
         id: actor-gate
@@ -162,6 +168,18 @@ jobs:
         with:
           script: |
             await require('./scripts/e2e-readiness.cjs').admit({github, context, core});
+      - name: Recheck main priority after environment queue
+        id: main-admission
+        if: inputs.dispatch_source == 'main-overnight'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          KONNECT_ENVIRONMENT: ${{ vars.KONGCTL_E2E_KONNECT_ENV || '' }}
+        with:
+          script: |
+            await require('./scripts/e2e-main.cjs').admit({github, context, core});
+      - name: Main validation deferred before live work
+        if: inputs.dispatch_source == 'main-overnight' && steps.main-admission.outputs.accepted == 'false'
+        run: echo 'Main validation returns to the scheduler without running scenarios.'
       - name: Checkout merge group
         if: github.event_name == 'merge_group'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -303,6 +321,7 @@ jobs:
           DISPATCH_SOURCE: ${{ github.event_name == 'workflow_dispatch' && inputs.dispatch_source || '' }}
           READINESS_ACCEPTED: ${{ steps.admission.outputs.accepted }}
           READINESS_SHA: ${{ inputs.readiness_sha }}
+          MAIN_ACCEPTED: ${{ steps.main-admission.outputs.accepted }}
           MAIN_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.main_sha || '' }}
           TRUSTED_PR_NUMBER: ${{ github.event_name == 'workflow_dispatch' && inputs.trusted_pr_number || '' }}
           TRUSTED_HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.trusted_head_sha || '' }}
@@ -317,7 +336,7 @@ jobs:
           superseded=false
           beta_mode=warn
           if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && \
-            [ "${DISPATCH_SOURCE}" != "main-debounce" ] && \
+            [ "${DISPATCH_SOURCE}" != "main-overnight" ] && \
             [ -z "${TRUSTED_PR_NUMBER}" ] && \
             [ -z "${TRUSTED_HEAD_SHA}" ]; then
             beta_mode=fail
@@ -396,23 +415,16 @@ jobs:
             exit 0
           fi
 
-          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ "${DISPATCH_SOURCE}" = "main-debounce" ]; then
-            if [ -z "${MAIN_SHA}" ]; then
-              echo "::error::Debounced E2E dispatch is missing main_sha."
-              exit 1
-            fi
-
-            current_main_sha="$(
-              gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/${DEFAULT_BRANCH}" --jq '.object.sha'
-            )"
-            if [ "${MAIN_SHA}" != "${current_main_sha}" ]; then
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ "${DISPATCH_SOURCE}" = "main-overnight" ]; then
+            if [ "${MAIN_ACCEPTED}" != true ]; then
+              superseded=true
               emit_outputs false false false
-              echo "Skipping stale debounced E2E for ${MAIN_SHA}; current ${DEFAULT_BRANCH} is ${current_main_sha}."
               exit 0
             fi
-
+            status_sha="${MAIN_SHA}"
+            checkout_ref="${MAIN_SHA}"
             emit_outputs true true false
-            echo "E2E required for debounced ${DEFAULT_BRANCH} dispatch at ${MAIN_SHA}."
+            echo "Full-live validation required for main SHA ${MAIN_SHA}."
             exit 0
           fi
 
@@ -482,7 +494,9 @@ jobs:
           ref: ${{ github.workflow_sha }}
           path: .e2e-rerun-controller
           persist-credentials: false
-          sparse-checkout: scripts/e2e-readiness.cjs
+          sparse-checkout: |
+            scripts/e2e-readiness.cjs
+            scripts/e2e-main.cjs
           sparse-checkout-cone-mode: false
       - name: Recheck rerun readiness before expensive work
         if: github.event_name == 'workflow_dispatch' && github.run_attempt > 1
@@ -602,7 +616,9 @@ jobs:
           ref: ${{ github.workflow_sha }}
           path: .e2e-rerun-controller
           persist-credentials: false
-          sparse-checkout: scripts/e2e-readiness.cjs
+          sparse-checkout: |
+            scripts/e2e-readiness.cjs
+            scripts/e2e-main.cjs
           sparse-checkout-cone-mode: false
       - name: Recheck rerun readiness before expensive work
         if: github.event_name == 'workflow_dispatch' && github.run_attempt > 1
@@ -824,7 +840,9 @@ jobs:
           ref: ${{ github.workflow_sha }}
           path: .e2e-rerun-controller
           persist-credentials: false
-          sparse-checkout: scripts/e2e-readiness.cjs
+          sparse-checkout: |
+            scripts/e2e-readiness.cjs
+            scripts/e2e-main.cjs
           sparse-checkout-cone-mode: false
       - name: Recheck rerun readiness before expensive work
         if: github.event_name == 'workflow_dispatch' && github.run_attempt > 1
@@ -967,7 +985,9 @@ jobs:
           ref: ${{ github.workflow_sha }}
           path: .e2e-rerun-controller
           persist-credentials: false
-          sparse-checkout: scripts/e2e-readiness.cjs
+          sparse-checkout: |
+            scripts/e2e-readiness.cjs
+            scripts/e2e-main.cjs
           sparse-checkout-cone-mode: false
       - name: Recheck rerun readiness before expensive work
         if: github.event_name == 'workflow_dispatch' && github.run_attempt > 1
@@ -1308,7 +1328,9 @@ jobs:
           ref: ${{ github.workflow_sha }}
           path: .e2e-rerun-controller
           persist-credentials: false
-          sparse-checkout: scripts/e2e-readiness.cjs
+          sparse-checkout: |
+            scripts/e2e-readiness.cjs
+            scripts/e2e-main.cjs
           sparse-checkout-cone-mode: false
       - name: Recheck rerun readiness before expensive work
         if: github.event_name == 'workflow_dispatch' && github.run_attempt > 1
@@ -1386,7 +1408,9 @@ jobs:
           ref: ${{ github.workflow_sha }}
           path: .e2e-rerun-controller
           persist-credentials: false
-          sparse-checkout: scripts/e2e-readiness.cjs
+          sparse-checkout: |
+            scripts/e2e-readiness.cjs
+            scripts/e2e-main.cjs
           sparse-checkout-cone-mode: false
       - name: Recheck rerun readiness before expensive work
         if: github.event_name == 'workflow_dispatch' && github.run_attempt > 1

@@ -79,7 +79,7 @@ Same-repository PRs targeting `.com` run the enabled subset through a local
 HTTPS replay proxy. All other scenarios still run against real Konnect.
 There is no agent, code-path mapping, model call, or per-PR approval step.
 
-Main's debounced runs, merge queues, manual runs, trusted fork runs and `.tech`
+Main's overnight runs, merge queues, manual runs, trusted fork runs and `.tech`
 runs stay fully live. Add the `e2e:force-live` PR label to request an all-live
 run. Adding/removing the label reevaluates the readiness controller. Maintain
 the label with the same permissions as other workflow-control labels.
@@ -108,9 +108,10 @@ Missing, duplicated, skipped or failed replay scenarios fail `E2E Required`.
 A stale cassette or unexpected request fails; there is no automatic live
 fallback. No scenarios run in a mixture of live and replay mode.
 
-The environment-wide workflow queue, per-org locks, main debounce timer and
-superseded-PR checks are unchanged. Replay does not acquire an org lock, but
-the enclosing workflow still holds its environment queue slot.
+The environment-wide workflow queue, per-org locks and superseded-PR checks
+remain in effect. Main uses the [overnight scheduler](main-validation.md).
+Replay does not acquire an org lock, but the enclosing workflow still holds
+its environment queue slot.
 
 ## Recording and expansion
 

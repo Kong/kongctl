@@ -873,7 +873,7 @@ for an existing run, then use the same retry command to recover. Ordinary
 events do not retry failures or ambiguous reservations. Rerunning the entire
 scenario workflow also rechecks admission. Failed-job retries recheck readiness
 inside the retried jobs and reuse successful shards on the same commit.
-Main's debounced dispatch, manual runs, merge groups, environment queues,
+Main's overnight dispatch, manual runs, merge groups, environment queues,
 and per-org locks remain supported.
 
 Fork PRs never receive automatic secret-backed execution. The controller
@@ -886,6 +886,9 @@ updates the aggregate merge gate. See
 GitHub displays workflow names as sections, job names as rows, and step names
 inside each job. `E2E Required` is a separate protected commit status, not a
 workflow job name. Main scheduling appears as `E2E / Main Scheduler`.
+
+See [overnight main validation](main-validation.md) for its schedule,
+PR priority, run-now/recovery commands, durable state and rollout metrics.
 
 The workflow also exposes the Konnect target, test timeout, HTTP timeout, and
 retry knobs above as repository or organization variables of the same names,

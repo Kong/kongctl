@@ -340,7 +340,7 @@ reset-org:
 
 .PHONY: test-e2e-readiness
 test-e2e-readiness:
-	node --test scripts/tests/test-e2e-readiness.cjs
+	node --test scripts/tests/test-e2e-readiness.cjs scripts/tests/test-e2e-main.cjs
 
 .PHONY: authorize-e2e
 authorize-e2e:
