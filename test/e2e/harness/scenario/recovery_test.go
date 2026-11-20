@@ -46,7 +46,9 @@ func TestRecoveryModesAndCleanupFailure(t *testing.T) {
 // Exercise the real runner in a subprocess so fail-fast and testing.T cleanup
 // failures are observable without marking this parent test failed.
 func TestScenarioRecoveryShard(t *testing.T) {
-	for _, name := range []string{"first", "middle", "last", "exhausted", "assertion", "reset", "report", "disabled"} {
+	for _, name := range []string{
+		"first", "middle", "last", "exhausted", "assertion", "reset", "report", "disabled", "unparsable",
+	} {
 		t.Run(name, func(t *testing.T) {
 			dir := t.TempDir()
 			//nolint:gosec // Re-execute this test binary with fixed fixture arguments.
@@ -101,6 +103,11 @@ func TestScenarioRecoveryShard(t *testing.T) {
 				if name == "assertion" && (r.Eligible || !strings.Contains(r.FirstError, "assertion mismatch")) {
 					t.Fatalf("assertion incorrectly eligible: %+v", r)
 				}
+				if name == "unparsable" && (r.Eligible ||
+					!strings.Contains(r.FirstError, "reported a failure to testing.T") ||
+					!strings.Contains(r.FirstError, "unparsable output") || strings.Contains(string(out), "attempt-2")) {
+					t.Fatalf("incorrect execution failure report: %+v\n%s", r, out)
+				}
 				if name == "report" && (!r.Eligible || r.Outcome != "failed") {
 					t.Fatalf("missing report-only eligibility: %+v", r)
 				}
@@ -148,6 +155,11 @@ func TestScenarioRecoveryFixture(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		if r.Method == http.MethodPost {
 			attempt := posts.Add(1)
+			if name == "unparsable" {
+				w.WriteHeader(http.StatusCreated)
+				_, _ = fmt.Fprint(w, "invalid JSON")
+				return
+			}
 			if name != "assertion" && (attempt == int32(failIndex+1) || name == "exhausted") {
 				w.WriteHeader(http.StatusInternalServerError)
 				_, _ = fmt.Fprint(w, `{"instance":"kong:trace:first-failure"}`)

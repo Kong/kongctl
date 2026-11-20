@@ -508,10 +508,16 @@ path at the end of the run and records logs in `run.log`.
     kongctl
   run.log
   tests/
-    Test_Scenarios_scenarios_portal_edit_scenario_yaml/
+    Test_Scenarios_scenarios_portal_edit_scenario.yaml/
       config/
         kongctl/
           config.yaml
+      scenario-recovery.json
+    Test_Scenarios_scenarios_portal_edit_scenario.yaml_attempt-1/
+      config/
+        kongctl/
+          config.yaml
+      scenario-diagnostics.json
       steps/
         000-reset-org/
           commands/
@@ -540,6 +546,13 @@ path at the end of the run and records logs in `run.log`.
               meta.json
               observation.json
 ```
+
+The scenario directory holds its recovery summary. Each attempt has a
+separate sibling directory (`_attempt-1`, then `_attempt-2` when retried),
+containing its profile, steps, command output, and diagnostics. Recovery
+resets are captured in a separate `_recovery-reset` sibling. The diagnosis
+tool searches all attempt directories, including when an interrupted run
+has not written its recovery summary.
 
 The harness keeps artifacts by default for local debugging and CI upload.
 

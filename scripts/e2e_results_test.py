@@ -300,6 +300,36 @@ new AsyncFunction('github', 'context', 'core', 'require', process.env.GUARD_SCRI
             self.assertIn('1 scenario(s) failed; 1 shard(s) exited non-zero', result.stdout)
             self.assertNotIn('Scenario result coverage does not match shard assignments', result.stdout)
 
+    def test_diagnosis_reads_all_attempts_and_legacy_commands(self):
+        for layout in ("legacy", "attempts", "interrupted"):
+            with self.subTest(layout=layout), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                name = "portal/edit/scenario.yaml"
+                parent = root / "tests" / diagnose.sanitize_name("Test_Scenarios/scenarios/" + name)
+                if layout != "interrupted":
+                    (parent / "config").mkdir(parents=True)
+                roots = [parent] if layout == "legacy" else [
+                    parent.with_name(parent.name + "_attempt-1"),
+                    parent.with_name(parent.name + "_attempt-2")]
+                for index, attempt in enumerate(roots):
+                    command = attempt / "steps/001-create/commands/000-create"
+                    command.mkdir(parents=True)
+                    (command / "meta.json").write_text(json.dumps({"exit_code": 1}))
+                    (command / "stderr.txt").write_text(f"connection reset by peer: kong:trace:{index}")
+                # Similar sibling names must never contribute another scenario's evidence.
+                other = parent.with_name(parent.name + "_attempt-2_other") / "commands/000-other"
+                other.mkdir(parents=True)
+                (other / "meta.json").write_text(json.dumps({"exit_code": 1}))
+                (other / "stderr.txt").write_text("unrelated failure")
+                result = diagnose.analyze_scenario_failure(root, name, 20)
+                self.assertIsNotNone(result.test_dir)
+                self.assertEqual(len(roots), len(result.failed_commands))
+                self.assertEqual([f"connection reset by peer: kong:trace:{index}" for index in range(len(roots))],
+                                 [command.stderr for command in result.failed_commands])
+                self.assertEqual("likely transient network/service issue", result.classification)
+                self.assertEqual([attempt / "steps/001-create/commands/000-create" for attempt in roots],
+                                 [command.path for command in result.failed_commands])
+
     def test_diagnostic_org_filters_support_old_and_attempt_specific_names(self):
         org = 'kongctl-acceptance-4'
         for name in [f'e2e-artifacts-123-{org}', self.artifact_name(2, org)]:

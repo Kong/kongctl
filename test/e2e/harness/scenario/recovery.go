@@ -100,7 +100,7 @@ func RunWithRecovery(t *testing.T, path string, beta BetaMode, mode RecoveryMode
 		})
 		if !ok {
 			return &RecoveryBlockedError{Cause: errors.Join(
-				fmt.Errorf("scenario attempt %d failed during setup or cleanup", attempt), err,
+				fmt.Errorf("scenario attempt %d reported a failure to testing.T", attempt), err,
 			)}
 		}
 		if skipped {

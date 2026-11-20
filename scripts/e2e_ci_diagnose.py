@@ -776,6 +776,12 @@ def find_test_dir(run_dir: Path, scenario_name: str) -> Path | None:
         if path.is_dir():
             return path
 
+    # A killed run may have attempt artifacts but no parent recovery report.
+    for candidate in sorted(candidates):
+        roots = scenario_artifact_dirs(tests_dir / candidate)
+        if roots:
+            return roots[0]
+
     suffixes = {sanitize_name(variant).replace(".", "_") for variant in variants if variant}
     for path in tests_dir.iterdir():
         if not path.is_dir():
@@ -784,6 +790,18 @@ def find_test_dir(run_dir: Path, scenario_name: str) -> Path | None:
         if any(path_key.endswith(suffix) for suffix in suffixes):
             return path
     return None
+
+
+def scenario_artifact_dirs(test_dir: Path) -> list[Path]:
+    match = re.fullmatch(r"(.+)_attempt-[1-9][0-9]*", test_dir.name)
+    base = test_dir.with_name(match.group(1)) if match else test_dir
+    roots = [base] if base.is_dir() else []
+    if base.parent.is_dir():
+        pattern = re.compile(re.escape(base.name) + r"_attempt-([1-9][0-9]*)")
+        attempts = [(int(match.group(1)), path) for path in base.parent.iterdir()
+                    if path.is_dir() and (match := pattern.fullmatch(path.name))]
+        roots.extend(path for _, path in sorted(attempts))
+    return roots
 
 
 def sanitize_name(name: str) -> str:
@@ -831,7 +849,9 @@ def extract_failure_excerpt(run_log: Path, scenario_name: str, max_lines: int) -
 
 def find_failed_commands(test_dir: Path, max_snippet_lines: int) -> list[CommandFailure]:
     failures: list[CommandFailure] = []
-    for meta_file in sorted(test_dir.rglob("commands/*/meta.json")):
+    meta_files = [meta for root in scenario_artifact_dirs(test_dir)
+                  for meta in sorted(root.rglob("commands/*/meta.json"))]
+    for meta_file in meta_files:
         try:
             meta = json.loads(meta_file.read_text(encoding="utf-8", errors="replace"))
         except json.JSONDecodeError:
