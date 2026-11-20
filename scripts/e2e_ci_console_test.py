@@ -9,6 +9,16 @@ SCRIPT = Path(__file__).with_name("e2e_ci_console.py")
 
 
 class TransformLinesTest(unittest.TestCase):
+    def test_attempts_do_not_open_scenario_groups_or_emit_false_failures(self):
+        prefix = "Test_Scenarios/scenarios/a/scenario.yaml"
+        lines = [f"=== RUN   {prefix}", f"=== RUN   {prefix}/attempt-1",
+                 f"    --- PASS: {prefix}/attempt-1 (1.00s)", f"=== RUN   {prefix}/attempt-2",
+                 f"    --- PASS: {prefix}/attempt-2 (1.00s)", f"    --- PASS: {prefix} (2.00s)"]
+        out = list(console.transform_lines(lines))
+        self.assertEqual(1, sum(line.startswith("::group::") for line in out))
+        self.assertEqual(1, out.count("::endgroup::"))
+        self.assertFalse(any(line.startswith("::error::") for line in out))
+
     def test_folds_passing_scenario_and_drops_heartbeats(self):
         lines = [
             "=== RUN   Test_Scenarios",

@@ -34,6 +34,15 @@ class RunReportTest(unittest.TestCase):
     def report(self):
         return aggregate(self.root, self.metadata, self.needs)
 
+    def test_recovery_is_reported_separately_from_final_results(self):
+        self.shard["scenario_recovery"] = [
+            {"scenario": "example/scenario.yaml", "mode": "active", "outcome": "recovered",
+             "eligible": True, "class": "http_5xx"}]
+        write(self.root / "shard/e2e-report-shard.json", self.shard)
+        report = self.report()
+        self.assertEqual("PASSED", report["state"])
+        self.assertIn("First-pass success: 0; recovered: 1; exhausted retry: 0", render(report))
+
     def test_wall_time_not_sum_and_queue_separate(self):
         second = dict(self.shard, org_name="org2", started_at=self.shard["started_at"] + 5,
                       finished_at=self.shard["finished_at"] + 5)

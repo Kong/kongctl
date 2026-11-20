@@ -12,8 +12,8 @@ to run.log.
 import re
 import sys
 
-SCENARIO_RUN = re.compile(r"^=== RUN\s+Test_Scenarios/(.+)$")
-SCENARIO_RESULT = re.compile(r"^\s*--- (PASS|FAIL|SKIP): Test_Scenarios/(.+?) \([0-9.]+s\)$")
+SCENARIO_RUN = re.compile(r"^=== RUN\s+Test_Scenarios/(.+/scenario\.yaml)$")
+SCENARIO_RESULT = re.compile(r"^\s*--- (PASS|FAIL|SKIP): Test_Scenarios/(.+?/scenario\.yaml) \([0-9.]+s\)$")
 HEARTBEAT = re.compile(r"^\[\d+/\d+\] elapsed \S+ · current: ")
 FAILURE_DETAIL = re.compile(r"scenario failed:")
 PANIC = re.compile(r"^panic:")

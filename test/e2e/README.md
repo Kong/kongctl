@@ -1405,3 +1405,26 @@ change retry eligibility, deadlines, or the required E2E gate.
 GitHub controls summary card ordering. Our workflow publishes one consolidated
 card instead of separate routing and shard cards. StepSecurity Harden Runner
 retains its own monitoring and summaries, which may appear before this report.
+
+### Scenario recovery
+
+`KONGCTL_E2E_SCENARIO_RETRY=report` (the default) records eligibility without
+retrying. Set it to `active` to restart an eligible scenario once after its
+`resetOrg` cleanup succeeds, or `off` to disable recovery. CI reads the same
+repository variable, defaulting to `report` for classification validation
+before activation. The existing org reservation is retained throughout.
+
+Unexpected HTTP 5xx responses, request timeouts, and connection resets are
+eligible. Assertions, configuration errors, process deadlines, and unknown
+errors remain failures. Command retry limits and unknown-outcome POST
+handling are unchanged. Recovery completes attempt cleanup, resets all
+regions declared by the scenario's `resetOrg` commands (or the default region
+when none is declared), and reruns the entire scenario. Disabled resets,
+missing reset credentials, or cleanup failure prevent recovery.
+
+Each scenario has one final Go test result. Attempt artifacts are separate;
+`scenario-recovery.json` preserves the first failure, including available
+trace IDs. Summaries distinguish first-pass success, recovered scenarios,
+exhausted retries, and reset failures. A recovered scenario continues to all
+unstarted scenarios; a final failure retains fail-fast behavior. Beta
+advisory behavior is retained, except recovery cleanup failure is blocking.

@@ -34,6 +34,7 @@ func TestScenarioNameStripsPrefixesAndSuffix(t *testing.T) {
 		{"Test_Scenarios/scenarios/identity/groups/scenario.yaml", "identity/groups", true},
 		{"Test_Scenarios/test/e2e/scenarios/apis/basic/scenario.yaml", "apis/basic", true},
 		{"Test_Scenarios", "", false},
+		{scenarioOneTest + "/attempt-1", "", false},
 		{"TestOther/foo", "", false},
 	}
 	for _, tc := range cases {
