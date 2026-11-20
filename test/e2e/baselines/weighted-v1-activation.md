@@ -9,12 +9,12 @@ measurement. The allocator and rollback strategy remain unchanged.
 
 The November snapshot qualifies 233 of 237 paths from 25 successful runs
 (ten full-live and fifteen PR-route, using live timings only). Its fallback
-is 21,185ms. The two `weights-refresh-2026-11-training-*.json` files record
+is 21,185ms. The two `weights-refresh-2026-11-training-*.json.gz` files record
 the source runs; their hashes are embedded in `scenario-weights.json`.
 The active measurement identity is:
 
 ```text
-weighted-v1:8f9b1063ad0cbbf38ab0b5cf741c2e6df7eb52e2395132e77ad9c141c6c2f7d6
+weighted-v1:6bbdbceee76361f16d5510c616a212971214d46dfe1a154f380794892ba3d20f
 ```
 
 ## Frozen reference

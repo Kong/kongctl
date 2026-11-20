@@ -936,11 +936,11 @@
   },
   "schema_version": 1,
   "source_sha256": {
-    "test/e2e/baselines/weights-refresh-2026-11-training-live.json": "2e76eb0852876d1ee4a08c125d905a32654951048f2a4d57366fd6c2567d7151",
-    "test/e2e/baselines/weights-refresh-2026-11-training-pr.json": "ebd30b3a810a1cc4f1ee99123093802b06c7ff9c29c99b6af8eb402bdbdf1ce9"
+    "test/e2e/baselines/weights-refresh-2026-11-training-live.json.gz": "a69e81c8a6ad55031e3b333317a083b3d7905f20f03701b6f5a1a4397c675124",
+    "test/e2e/baselines/weights-refresh-2026-11-training-pr.json.gz": "ff3b3e34e599efe1ca12d19040cb81524bd729cb0a083ea945e231b6088e0ba0"
   },
   "sources": [
-    "test/e2e/baselines/weights-refresh-2026-11-training-live.json",
-    "test/e2e/baselines/weights-refresh-2026-11-training-pr.json"
+    "test/e2e/baselines/weights-refresh-2026-11-training-live.json.gz",
+    "test/e2e/baselines/weights-refresh-2026-11-training-pr.json.gz"
   ]
 }

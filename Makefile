@@ -124,8 +124,8 @@ test-e2e-harness:
 .PHONY: refresh-e2e-weights
 refresh-e2e-weights:
 	python3 scripts/e2e_weights.py \
-		test/e2e/baselines/weights-refresh-2026-11-training-live.json \
-		test/e2e/baselines/weights-refresh-2026-11-training-pr.json
+		test/e2e/baselines/weights-refresh-2026-11-training-live.json.gz \
+		test/e2e/baselines/weights-refresh-2026-11-training-pr.json.gz
 
 .PHONY: test-e2e-metrics
 test-e2e-metrics: setup-e2e-replay test-e2e-readiness

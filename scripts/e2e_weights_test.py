@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import gzip
 import hashlib
 import json
 import subprocess
@@ -63,6 +64,20 @@ class E2EWeightsTest(unittest.TestCase):
         second = self.observations("second.json", runs)
         result = MODULE.generate([first, second], self.scenarios)
         self.assertEqual({"duration_ms": 30000, "samples": 10}, result["scenarios"]["a/scenario.yaml"])
+
+    def test_compressed_observations_preserve_weights_and_hash_saved_bytes(self):
+        plain = self.observations("observations.json", self.runs())
+        compressed = self.root / "observations.json.gz"
+        compressed.write_bytes(gzip.compress(plain.read_bytes(), mtime=0))
+        expected = MODULE.generate([plain], self.scenarios)
+        actual = MODULE.generate([compressed], self.scenarios)
+        self.assertEqual(expected["scenarios"], actual["scenarios"])
+        self.assertEqual(expected["default_duration_ms"], actual["default_duration_ms"])
+        self.assertEqual([compressed.as_posix()], actual["sources"])
+        self.assertEqual(
+            {compressed.as_posix(): hashlib.sha256(compressed.read_bytes()).hexdigest()},
+            actual["source_sha256"],
+        )
 
     def test_insufficient_and_unusable_samples_use_uniform_fallback(self):
         runs = self.runs(9)
