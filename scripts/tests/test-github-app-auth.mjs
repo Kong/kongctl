@@ -69,7 +69,7 @@ for (const mode of ["wrong-repository", "extra-repository", "sdk-read-denied"]) 
 for (const filename of ["test.yaml", "e2e.yaml", "adhoc-prerelease.yml", "declarative-benchmark.yaml", "release.md"]) {
   const source = readFileSync(new URL(`../../.github/workflows/${filename}`, import.meta.url), "utf8");
   const detectors = source.split("      - name: Detect private SDK dependency\n").slice(1);
-  assert.equal(detectors.length, filename === "e2e.yaml" ? 2 : 1, filename);
+  assert.equal(detectors.length, ["test.yaml", "e2e.yaml"].includes(filename) ? 2 : 1, filename);
   for (const [index, detector] of detectors.entries()) {
     test(`${filename} SDK detector ${index + 1} requires credentials only for private builds`, (t) => {
       const directory = mkdtempSync(join(tmpdir(), "kongctl-sdk-detect-"));
@@ -100,7 +100,7 @@ test("App authentication checks cannot run PR-head scripts or use a label write 
 for (const filename of ["test.yaml", "e2e.yaml", "declarative-benchmark.yaml", "release.md"]) {
   const source = readFileSync(new URL(`../../.github/workflows/${filename}`, import.meta.url), "utf8");
   const configurations = source.split(/      - name: Configure private module (?:access|reads)\n/).slice(1);
-  assert.equal(configurations.length, filename === "e2e.yaml" ? 2 : 1, filename);
+  assert.equal(configurations.length, ["test.yaml", "e2e.yaml"].includes(filename) ? 2 : 1, filename);
   for (const [index, configuration] of configurations.entries()) {
     const script = configuration.split("\n      - ")[0].split("        run: |\n")[1]
       .trimEnd().split("\n").map((line) => line.slice(10)).join("\n");
