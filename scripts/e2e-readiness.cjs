@@ -65,7 +65,7 @@ async function scenarioDispatch({github, context, core}) {
     if (await maintainerAccess(github, context, actor)) continue;
     const inputs = context.payload.inputs || {};
     const internal = actor?.type === 'Bot' && actor.login === 'github-actions[bot]' &&
-      ['readiness', 'main-debounce'].includes(inputs.dispatch_source) && !inputs.trusted_pr_number && !inputs.trusted_head_sha &&
+      ['readiness', 'main-overnight'].includes(inputs.dispatch_source) && !inputs.trusted_pr_number && !inputs.trusted_head_sha &&
       run.event === 'workflow_dispatch' && run.head_branch === defaultBranch &&
       run.head_repository?.full_name === `${context.repo.owner}/${context.repo.repo}` &&
       process.env.GITHUB_REF === `refs/heads/${defaultBranch}` &&
@@ -225,7 +225,18 @@ function api(github, context) {
     if (blocker) return {...scope, ready: false, reason: blocker};
     const runs = await paginate(github.rest.actions.listWorkflowRunsForRepo, {head_sha: pr.head.sha});
     const waiting = ciBlockers(runs, pr);
-    if (waiting.length) return {...scope, ready: false, reason: `Awaiting prerequisite CI: ${waiting.join(', ')}.`};
+    let ciWait;
+    if (waiting.length) {
+      const prerequisiteRuns = PREREQUISITES.map(({path}) =>
+        runs.filter(run => run.path?.split('@')[0] === path && run.event === 'pull_request' &&
+          run.head_sha === pr.head.sha && run.pull_requests?.some(pull => pull.number === pr.number))
+          .sort((a, b) => b.id - a.id)[0]);
+      const waitingForCI = prerequisiteRuns.every(run => run?.status !== 'completed' || run.conclusion === 'success') &&
+        prerequisiteRuns.some(run => !run || run.status !== 'completed');
+      ciWait = {ready: false, waitingForCI, reason: `Awaiting prerequisite CI: ${waiting.join(', ')}.`};
+      if (!waitingForCI) return {...scope, ...ciWait};
+    }
+    const approved = details => ({...scope, ready: true, ...details, ...ciWait});
     const permission = new Map();
     const allowed = async user => {
       if (!permission.has(user.login)) permission.set(user.login, await maintainerAccess(github, context, user));
@@ -236,14 +247,14 @@ function api(github, context) {
       Number.isSafeInteger(review.id) && review.user?.type === 'User').sort((a, b) => b.id - a.id);
     for (const review of requests) {
       if (await allowed(review.user) && await trustedReviewRequest(github, context, pr, review)) {
-        return {...scope, ready: true, request: `review-${review.id}`,
-          authorizer: review.user.login, authorizationURL: review.html_url};
+        return approved({request: `review-${review.id}`,
+          authorizer: review.user.login, authorizationURL: review.html_url});
       }
     }
     if (decision !== 'REVIEW_REQUIRED') {
       for (const review of latestReviews(reviews).filter(review => currentApproval(pr, review))) {
-        if (await allowed(review.user)) return {...scope, ready: true, authorizer: review.user.login,
-          authorizationURL: review.html_url};
+        if (await allowed(review.user)) return approved({authorizer: review.user.login,
+          authorizationURL: review.html_url});
       }
     }
     let authorized = false;
@@ -258,8 +269,9 @@ function api(github, context) {
         if (error.status !== 404) throw error;
       }
     }
-    return {...scope, ready: authorized, authorizationURL: evidence?.target_url,
-      reason: authorized ? '' : 'Awaiting maintainer Comment review: /e2e.'};
+    if (authorized) return approved({authorizationURL: evidence?.target_url});
+    return {...scope, ready: false, waitingForCI: false,
+      reason: ciWait?.reason || 'Awaiting maintainer Comment review: /e2e.'};
   }
   async function statuses(sha) {
     if (!statusCache.has(sha)) {
@@ -350,6 +362,10 @@ async function admit({github, context, core}) {
 
 async function recheckRerun(args) {
   await scenarioDispatch(args);
+  if (args.context.payload.inputs?.dispatch_source === 'main-overnight') {
+    const {accepted, reason} = await require('./e2e-main.cjs').admit(args);
+    if (!accepted) throw new Error(`Main E2E retry denied: ${reason}`);
+  }
   if (args.context.payload.inputs?.dispatch_source === 'readiness') {
     const {accepted, reason} = await admit(args);
     if (!accepted) throw new Error(`E2E retry denied: ${reason}`);
@@ -560,6 +576,7 @@ async function reconcile({github, context, core, pause}) {
   }
 }
 module.exports = {PREREQUISITES, REQUIRED, requirement, ciReady, admit, reconcile,
+  readinessAPI: api, maintainerAccess,
   scheduledBatch, authorize, scenarioDispatch, waitForCompletion, recheckRerun,
   AUTHORIZATION_JOB, AUTHORIZATION_STEP};
 

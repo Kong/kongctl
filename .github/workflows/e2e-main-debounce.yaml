@@ -1,81 +1,51 @@
 name: E2E / Main Scheduler
-run-name: main · schedule scenarios · ${{ github.sha }}
+run-name: main · overnight validation · ${{ github.event_name }}
 
 on:
-  push:
-    branches: ['main']
-    paths:
-      - go.mod
-      - go.sum
-      - main.go
-      - '*.go'
-      - internal/**
-      - test/e2e/**
-      - Makefile
-      - .goreleaser.yml
-      - .github/workflows/e2e.yaml
-      - .github/workflows/e2e-main-debounce.yaml
-      - scripts/e2e_replay*.py
-      - scripts/e2e-replay-isolated.sh
+  schedule:
+    # One new opportunity daily; retries only consume a pending opportunity.
+    - cron: '7 7 * * *'
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+    inputs:
+      recover_reservation:
+        description: Recover a missing dispatch after inspecting Actions (ten-minute grace)
+        type: boolean
+        default: false
 
 permissions:
   actions: write
-  contents: read
+  contents: write
+  pull-requests: read
+  statuses: read
 
 env:
   DO_NOT_TRACK: "1"
+  KONNECT_ENVIRONMENT: ${{ vars.KONGCTL_E2E_KONNECT_ENV || '' }}
 
-# Restart the timer on every matching main push. Only a quiet period dispatches
-# the real E2E workflow.
+# Serialize durable reservation updates, including manual requests and retries.
 concurrency:
-  group: kongctl-e2e-main-debounce
-  cancel-in-progress: true
+  group: kongctl-e2e-main-scheduler
+  queue: max
+  cancel-in-progress: false
 
 jobs:
   dispatch:
-    name: Schedule latest-main scenario run
+    name: Reconcile overnight main validation
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
-
-      - name: Wait 15 minutes for main to settle
-        run: sleep 900
-
-      - name: Dispatch latest-main scenario run
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-
-          latest_main_sha="$(
-            gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/${GITHUB_REF_NAME}" --jq '.object.sha'
-          )"
-          echo "Latest ${GITHUB_REF_NAME} SHA: ${latest_main_sha}"
-
-          gh api \
-            --method GET \
-            "/repos/${GITHUB_REPOSITORY}/actions/workflows/e2e.yaml/runs" \
-            -f event=workflow_dispatch \
-            -f status=queued \
-            -f branch="${GITHUB_REF_NAME}" \
-            -f per_page=100 \
-            --jq '.workflow_runs[] | select(.display_title | startswith("main · scenarios · debounced · ")) | .id' |
-            while IFS= read -r run_id; do
-              if [ -n "${run_id}" ]; then
-                echo "Canceling older queued debounced E2E run ${run_id}."
-                gh api \
-                  --method POST \
-                  "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/cancel" \
-                  >/dev/null
-              fi
-            done
-
-          gh workflow run e2e.yaml \
-            --repo "${GITHUB_REPOSITORY}" \
-            --ref "${GITHUB_REF_NAME}" \
-            -f dispatch_source=main-debounce \
-            -f main_sha="${latest_main_sha}"
+      - name: Checkout trusted scheduler
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Reconcile and reserve latest main
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            await require('./scripts/e2e-main.cjs').reconcile({github, context, core});

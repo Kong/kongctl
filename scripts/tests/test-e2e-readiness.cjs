@@ -891,7 +891,7 @@ for (const role of ['maintain', 'admin', 'write', 'read', 'triage', 'none', unde
   });
 }
 
-for (const source of ['', 'readiness', 'main-debounce']) {
+for (const source of ['', 'readiness', 'main-overnight']) {
   for (const role of ['maintain', 'admin', 'write']) {
     test(`human scenario dispatch ${source || 'manual'} checks repository role ${role}, including forks`, async () => {
       const f = fake();
@@ -931,7 +931,7 @@ for (const [name, mutate] of Object.entries({
 
 for (const [name, mutate] of Object.entries({
   'trusted readiness': () => {},
-  'trusted main debounce': f => {f.context.payload.inputs.dispatch_source = 'main-debounce';},
+  'trusted main overnight': f => {f.context.payload.inputs.dispatch_source = 'main-overnight';},
   'fork input': f => {f.context.payload.inputs.trusted_pr_number = '13';},
   'fork SHA without PR': f => {f.context.payload.inputs.trusted_head_sha = 'a'.repeat(40);},
   'untrusted branch': (f, run) => {run.head_branch = 'feature';},
