@@ -9,6 +9,7 @@ import (
 // declarative input. Sync planning uses this to distinguish omitted collections
 // from collections intentionally set to zero desired resources.
 type SyncScope struct {
+	AICostNamespaces map[ResourceType]map[string]struct{}
 	// ChildNamespaces records independently owned collection scope per family and parent.
 	ChildNamespaces map[ResourceType]map[string]map[string]struct{}
 	// ModelNamespaces separates model ownership from gateway collection scope.
@@ -304,6 +305,11 @@ func (s *SyncScope) Merge(other *SyncScope) {
 		}
 		for namespace := range other.IdentityDirectoryNamespaces {
 			s.IdentityDirectoryNamespaces[namespace] = struct{}{}
+		}
+	}
+	for kind, namespaces := range other.AICostNamespaces {
+		for namespace := range namespaces {
+			s.addAICostNamespace(kind, namespace)
 		}
 	}
 	for kind, parents := range other.ChildNamespaces {

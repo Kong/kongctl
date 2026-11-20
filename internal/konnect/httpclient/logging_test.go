@@ -199,6 +199,7 @@ func TestReviewedDeclarativeSecretCatalogIsCoveredByHTTPRedaction(t *testing.T) 
 			)
 			redacted := RedactSensitiveFields(payload)
 			exactKeysByResourceType := map[resources.ResourceType][]string{
+				resources.ResourceTypeAICostChannel:              {"webhook_url"},
 				resources.ResourceTypeAIGatewayConfigStoreSecret: {"value"},
 				resources.ResourceTypeAIGatewayCertificate:       {"key", "key_alt"},
 			}

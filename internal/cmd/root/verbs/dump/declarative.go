@@ -204,6 +204,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			PortalAPI:                           sdk.GetPortalAPI(),
 			APIAPI:                              sdk.GetAPIAPI(),
 			AppAuthAPI:                          sdk.GetAppAuthStrategiesAPI(),
+			AICostAPI:                           declstate.NewAICostAPI(sdk),
 			IdentityDirectoriesAPI:              sdk.GetIdentityDirectoriesAPI(),
 			IdentityVaultKeysAPI:                sdk.GetIdentityVaultKeysAPI(),
 			IdentityVaultProvidersAPI:           sdk.GetIdentityVaultProvidersAPI(),
@@ -291,6 +292,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			declstate.ClientConfig{
 				IdentityStaticVaultCredentialsAPI: sdk.GetIdentityStaticVaultCredentialsAPI(),
 
+				AICostAPI:                      declstate.NewAICostAPI(sdk),
 				IdentityDirectoriesAPI:         sdk.GetIdentityDirectoriesAPI(),
 				IdentityVaultKeysAPI:           sdk.GetIdentityVaultKeysAPI(),
 				IdentityVaultProvidersAPI:      sdk.GetIdentityVaultProvidersAPI(),

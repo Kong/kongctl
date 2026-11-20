@@ -1,6 +1,22 @@
 sdk_version: v0.89.1-0.20261119142615-3a5f81f45f5d
 schema_version: 1
 resources:
+  - resource_type: ai_cost_budget
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: ai_cost_export_schedule
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: ai_cost_notification_channel
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: ai_cost_notification_rule
+    defaults: []
+    overrides: []
+    exclusions: []
   - resource_type: ai_gateway
     defaults:
       - path: agents.config.logging.max_payload_size

@@ -327,6 +327,18 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 	}
 
 	segments := strings.Split(path, ".")
+	if len(segments) >= 3 && segments[0] == "ai" && segments[1] == "cost_management" {
+		kind, ok := aiCostExplainKind(segments[2])
+		if !ok {
+			return nil, fmt.Errorf("unsupported resource path %q", path)
+		}
+		subject, err := ResolveExplainSubject(strings.Join(append([]string{string(kind)}, segments[3:]...), "."))
+		if err != nil {
+			return nil, err
+		}
+		subject.DisplayPath = path
+		return subject, nil
+	}
 	if strings.TrimSpace(segments[0]) == "identity" {
 		if len(segments) < 2 {
 			return nil, fmt.Errorf("unsupported resource path %q", path)
@@ -424,6 +436,12 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 			Node: doc.Schema.clone(),
 		}}
 	}
+	if collection := aiCostExplainCollection(doc.ResourceType); collection != "" {
+		if err := applyAICostScaffold(subject, collection); err != nil {
+			return nil, err
+		}
+	}
+
 	if doc.ResourceType == ResourceTypeIdentityTrustedIDP ||
 		doc.ResourceType == ResourceTypeIdentityVaultProviderCredential ||
 		doc.ResourceType == ResourceTypeIdentityVaultProvider || doc.ResourceType == ResourceTypeIdentityVaultKey ||
@@ -1028,6 +1046,10 @@ func preferredExplainResourcePath(doc *ExplainDoc, visiting map[ResourceType]str
 		return "identity.identities"
 	}
 
+	if collection := aiCostExplainCollection(doc.ResourceType); collection != "" {
+		return "ai.cost_management." + collection
+	}
+
 	if _, ok := visiting[doc.ResourceType]; ok {
 		return ""
 	}
@@ -1103,6 +1125,9 @@ func buildExplainDoc(rt ResourceType) (*ExplainDoc, error) {
 	applyManagedByInputPolicy(node, rt)
 
 	rootKey := resourceSetRootKey(reg.typ)
+	if collection := aiCostExplainCollection(rt); collection != "" {
+		rootKey = "ai.cost_management." + collection
+	}
 	if rt == ResourceTypeIdentityAuthServer {
 		rootKey = "identity.auth_servers"
 	}

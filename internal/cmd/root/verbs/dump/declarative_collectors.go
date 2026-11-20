@@ -36,6 +36,9 @@ var declarativeCollectors = buildDeclarativeCollectors()
 func buildDeclarativeCollectors() map[string]declarativeCollector {
 	registrations := []declarativeCollector{
 		identityDirectoryCollector(),
+		aiCostBudgetCollector(),
+		aiCostChannelCollector(),
+		aiCostScheduleCollector(),
 		identityAuthServerCollector(),
 		rootCollector(
 			"portals",

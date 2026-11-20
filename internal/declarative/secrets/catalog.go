@@ -16,6 +16,7 @@ type Capability struct {
 }
 
 var capabilities = []Capability{
+	{resources.ResourceTypeAICostChannel, "/slack/webhook_url", true, true},
 	{resources.ResourceTypeIdentityPrincipalAPIKey, "/secret", true, false},
 	{resources.ResourceTypeIdentityVaultProvider, "/client_secret", true, true},
 	{resources.ResourceTypeIdentityVaultProviderCredential, "/secret", true, true},

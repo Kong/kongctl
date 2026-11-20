@@ -9,6 +9,7 @@ import (
 	commoncmd "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/root/products"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/aicost"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/aigateway"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/analytics"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/api"
@@ -414,6 +415,7 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 
 	// For all other verbs, build the standard command tree
 	if verb == verbs.Get || verb == verbs.List {
+		cmd.AddCommand(aicost.NewCmd(verb, addFlags, preRunE))
 		identityCmd, err := identity.NewIdentityCmd(verb, addFlags, preRunE)
 		if err != nil {
 			return nil, err

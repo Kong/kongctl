@@ -11,6 +11,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/output/jq"
 	"github.com/kong/kongctl/internal/cmd/root/products"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/aicost"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/identity"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/token"
@@ -133,7 +134,7 @@ Setting this value overrides tokens obtained from the login command.
 	if err != nil {
 		return nil, err
 	}
-	cmd.AddCommand(identityCmd)
+	cmd.AddCommand(identityCmd, aicost.NewDirectCmd(Verb))
 
 	patCmd, err := token.NewPATCmd(Verb, nil, nil)
 	if err != nil {

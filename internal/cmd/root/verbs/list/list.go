@@ -8,6 +8,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/output/columns"
 	"github.com/kong/kongctl/internal/cmd/output/jq"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/aicost"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/identity"
 	profileCmd "github.com/kong/kongctl/internal/cmd/root/profile"
@@ -109,7 +110,7 @@ Setting this value overrides tokens obtained from the login command.
 	if err != nil {
 		return nil, err
 	}
-	cmd.AddCommand(identityCmd)
+	cmd.AddCommand(identityCmd, aicost.NewDirectCmd(Verb))
 
 	cmd.AddCommand(profileCmd.NewProfileCmd())
 

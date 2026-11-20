@@ -23,6 +23,19 @@ func (p *Planner) rootPlanners() []rootPlanner {
 	base := NewBasePlanner(p)
 	roots := []rootPlanner{
 		{
+			resourceType: resources.ResourceTypeAICostBudget, displayName: "AI cost budget",
+			planner: &aiCostPlanner{BasePlanner: base, kind: resources.ResourceTypeAICostBudget},
+		},
+		{
+			resourceType: resources.ResourceTypeAICostChannel, displayName: "AI cost notification channel",
+			planner: &aiCostPlanner{BasePlanner: base, kind: resources.ResourceTypeAICostChannel},
+		},
+		{
+			resourceType: resources.ResourceTypeAICostSchedule, displayName: "AI cost export schedule",
+			planner: &aiCostPlanner{BasePlanner: base, kind: resources.ResourceTypeAICostSchedule},
+		},
+
+		{
 			resourceType: resources.ResourceTypeIdentityAuthServer, displayName: "Kong Identity auth server",
 			planner: &identityAuthServerPlanner{BasePlanner: base},
 		},
