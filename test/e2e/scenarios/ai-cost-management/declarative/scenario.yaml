@@ -35,7 +35,7 @@ steps:
     - name: budget_id
       responsePath: "[?name=='kongctl E2E monthly AI spend'] | [0].id"
   - name: rule
-    run: [get, konnect, ai, cost-management, notification-rules, '{{ .vars.budget_id }}']
+    run: [get, konnect, ai, cost-management, budget, notification-rule, --budget-id, '{{ .vars.budget_id }}']
     assertions:
     - select: '@'
       expect:
@@ -43,6 +43,20 @@ steps:
           'thresholds[0].percent': 80
           'thresholds[1].percent': 100
           'managed_by."kongctl-namespace"': ai-cost-e2e
+  - name: budget-balance
+    run: [get, ai, cost-management, budget, balance, --budget-id, '{{ .vars.budget_id }}']
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          budget.id: '{{ .vars.budget_id }}'
+  - name: rule-firings
+    run: [list, ai, cost-management, budget, notification-rule, firings, --budget-id, '{{ .vars.budget_id }}']
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          type(@): array
   - name: schedules
     run: [get, ai, cost-management, export-schedules]
     assertions:

@@ -4,10 +4,11 @@ Use `kongctl get ai cost-management` to inspect budgets, alert channels,
 export schedules, usage events, and spend. The explicit Konnect form also works.
 
 ```sh
-kongctl get ai cost-management budgets
-kongctl get ai cost-management budgets <budget-id>
-kongctl get ai cost-management budget-balances <budget-id>
-kongctl get ai cost-management notification-rules <budget-id>
+kongctl get ai cost-management budget
+kongctl get ai cost-management budget <budget-id>
+kongctl get ai cost-management budget balance --budget-id <budget-id>
+kongctl get ai cost-management budget notification-rule --budget-id <budget-id>
+kongctl get ai cost-management budget notification-rule firing --budget-id <budget-id>
 kongctl get ai cost-management forecast
 ```
 

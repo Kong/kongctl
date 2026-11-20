@@ -21,11 +21,23 @@ import (
 
 type readResource struct {
 	name        string
+	alias       string
 	description string
+	report      string
 	kind        resources.ResourceType
 	detail      bool
-	parent      bool
+	budgetScope budgetScope
 }
+
+type budgetScope int
+
+const (
+	unscoped budgetScope = iota
+	optionalBudget
+	requiredBudget
+)
+
+const budgetIDFlag = "budget-id"
 
 func NewDirectCmd(verb verbs.VerbValue) *cobra.Command {
 	return NewCmd(verb, nil, func(cmd *cobra.Command, _ []string) error {
@@ -44,8 +56,35 @@ func NewCmd(verb verbs.VerbValue, flags func(verbs.VerbValue, *cobra.Command),
 	cmdpkg.ConfigureRequiresSubcommand(ai)
 	cmdpkg.ConfigureRequiresSubcommand(cost)
 	ai.AddCommand(cost)
+	newCommand := func(resource readResource) *cobra.Command {
+		return newReadCommand(verb, flags, preRun, resource)
+	}
+	budget := newCommand(readResource{
+		name: "budget", alias: "budgets", description: "List or get AI cost budgets",
+		kind: resources.ResourceTypeAICostBudget, detail: true,
+	})
+	balance := readResource{
+		name: "balance", alias: "balances", description: "List budget balances", report: "budget-balances",
+	}
+	rule := &cobra.Command{Use: "notification-rule", Short: "Inspect a limit budget's notification rule"}
+	if verb == verbs.Get {
+		balance.description = "List budget balances or get a balance for one budget"
+		balance.budgetScope = optionalBudget
+		rule = newCommand(readResource{
+			name: "notification-rule", description: "Get a limit budget's notification rule",
+			kind: resources.ResourceTypeAICostRule, budgetScope: requiredBudget,
+		})
+	} else {
+		cmdpkg.ConfigureRequiresSubcommand(rule)
+	}
+	rule.AddCommand(newCommand(readResource{
+		name: "firing", alias: "firings", description: "List threshold firings for a limit budget",
+		report: "notification-firings", budgetScope: requiredBudget,
+	}))
+	budget.AddCommand(newCommand(balance), rule)
+	cost.AddCommand(budget)
+
 	for _, resource := range []readResource{
-		{name: "budgets", description: "List or get AI cost budgets", kind: resources.ResourceTypeAICostBudget, detail: true},
 		{
 			name: "notification-channels", description: "List or get budget alert destinations",
 			kind: resources.ResourceTypeAICostChannel, detail: true,
@@ -54,45 +93,59 @@ func NewCmd(verb verbs.VerbValue, flags func(verbs.VerbValue, *cobra.Command),
 			name: "export-schedules", description: "List or get recurring cost exports",
 			kind: resources.ResourceTypeAICostSchedule, detail: true,
 		},
-		{
-			name: "notification-rules", description: "Get the notification rule for a limit budget",
-			kind: resources.ResourceTypeAICostRule, detail: true, parent: true,
-		},
-		{name: "budget-balances", description: "List budget balances or get a budget balance", detail: true},
 		{name: "notification-events", description: "List or get AI cost notification events", detail: true},
-		{name: "notification-firings", description: "List threshold firings for a limit budget", parent: true},
 		{name: "exports", description: "List or get usage export jobs", detail: true},
 		{name: "usage-events", description: "List AI usage events"},
 		{name: "forecast", description: "Get the monthly AI cost forecast"},
 	} {
-		if resource.parent && resource.detail && verb == verbs.List {
-			continue
-		}
-		command := &cobra.Command{Use: resource.name, Short: resource.description, Args: cobra.NoArgs, PreRunE: preRun}
-		if resource.parent {
-			command.Use += " <budget-id>"
-			command.Args = cobra.ExactArgs(1)
-		} else if resource.detail && verb == verbs.Get {
-			command.Use += " [id]"
-			command.Args = cobra.MaximumNArgs(1)
-		}
-		if flags != nil {
-			flags(verb, command)
-		}
-		command.RunE = func(c *cobra.Command, args []string) error { return run(c, args, resource) }
-		cost.AddCommand(command)
+		cost.AddCommand(newCommand(resource))
 	}
 	return ai
 }
 
-func run(command *cobra.Command, args []string, resource readResource) error {
-	id := ""
-	if len(args) > 0 {
-		id = args[0]
-		if !util.IsValidUUID(id) {
-			return fmt.Errorf("%s requires a UUID", resource.name)
+func newReadCommand(verb verbs.VerbValue, flags func(verbs.VerbValue, *cobra.Command),
+	preRun func(*cobra.Command, []string) error, resource readResource,
+) *cobra.Command {
+	command := &cobra.Command{Use: resource.name, Short: resource.description, Args: cobra.NoArgs, PreRunE: preRun}
+	if resource.alias != "" {
+		command.Aliases = []string{resource.alias}
+	}
+	if resource.detail && verb == verbs.Get {
+		command.Use += " [id]"
+		command.Args = cobra.MaximumNArgs(1)
+	}
+	if flags != nil {
+		flags(verb, command)
+	}
+	if resource.budgetScope != unscoped {
+		command.Flags().String(budgetIDFlag, "", "Budget UUID")
+		if resource.budgetScope == requiredBudget {
+			_ = command.MarkFlagRequired(budgetIDFlag)
 		}
 	}
+	command.RunE = func(c *cobra.Command, args []string) error {
+		var id string
+		if resource.budgetScope != unscoped {
+			var err error
+			id, err = c.Flags().GetString(budgetIDFlag)
+			if err != nil {
+				return err
+			}
+			if (resource.budgetScope == requiredBudget || c.Flags().Changed(budgetIDFlag)) && !util.IsValidUUID(id) {
+				return fmt.Errorf("--%s requires a UUID", budgetIDFlag)
+			}
+		} else if len(args) > 0 {
+			id = args[0]
+			if !util.IsValidUUID(id) {
+				return fmt.Errorf("%s requires a UUID", resource.name)
+			}
+		}
+		return run(c, args, resource, id)
+	}
+	return command
+}
+
+func run(command *cobra.Command, args []string, resource readResource, id string) error {
 	helper := cmdpkg.BuildHelper(command, args)
 	cfg, err := helper.GetConfig()
 	if err != nil {
@@ -142,7 +195,11 @@ func run(command *cobra.Command, args []string, resource readResource) error {
 
 func read(ctx context.Context, api *state.AICostAPI, resource readResource, id string, size int64) (any, error) {
 	if resource.kind == "" {
-		return api.ReadReport(ctx, resource.name, id, size)
+		report := resource.report
+		if report == "" {
+			report = resource.name
+		}
+		return api.ReadReport(ctx, report, id, size)
 	}
 	if id == "" {
 		return api.List(ctx, resource.kind, size)

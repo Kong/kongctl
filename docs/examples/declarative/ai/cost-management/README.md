@@ -10,7 +10,7 @@ schedule. The rule uses `!ref finance-email#id` to reference the channel.
 ```sh
 kongctl plan --mode apply -f budget-and-alerts.yaml
 kongctl apply -f budget-and-alerts.yaml
-kongctl get ai cost-management budgets
+kongctl get ai cost-management budget
 kongctl get ai cost-management export-schedules
 ```
 
