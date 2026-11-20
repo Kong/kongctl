@@ -1,0 +1,65 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-model-e2e
+
+ai_gateways:
+  - ref: ai-gateway-model-e2e
+    name: ai-gateway-model-e2e
+    display_name: "AI Gateway Model E2E"
+    min_runtime_version: "2.4"
+    runtime_auto_upgrade: false
+    description: "AI Gateway Model e2e"
+    proxy_urls:
+      - host: ai-gateway-model-e2e.example.com
+        port: 443
+        protocol: https
+    labels:
+      owner: platform
+      lifecycle: dev
+    model_providers:
+      - ref: support-openai
+        name: support-openai
+        type: openai
+        display_name: "Support OpenAI"
+        config:
+          auth:
+            type: basic
+            headers:
+              - name: Authorization
+                value: !secret {source: !env KONGCTL_E2E_MODEL_PROVIDER_KEY}
+    models:
+      - ref: support-gpt
+        type: model
+        name: support-gpt
+        display_name: "Support GPT"
+        enabled: true
+        config:
+          route:
+            model:
+              body_param: model
+              values:
+                - support-gpt
+          balancer:
+            algorithm: round-robin
+            session_affinity:
+              ttl: 3600
+              storage:
+                type: local
+        formats:
+          - type: openai
+        targets:
+          - name: gpt-4o
+            provider: support-openai
+            config:
+              type: openai
+          - name: gpt-4o-mini
+            provider: support-openai
+            config:
+              type: openai
+        access:
+          acls:
+            deny_when:
+              - "http.headers.x_end_user_id == null"
+        policies: []
+        capabilities:
+          - generate

@@ -43,6 +43,14 @@ resources:
         type: boolean
         value: true
         source: sdk
+      - path: agents.config.targets.failover
+        type: boolean
+        value: false
+        source: sdk
+      - path: agents.config.targets.weight
+        type: integer
+        value: 100
+        source: sdk
       - path: agents.enabled
         type: boolean
         value: true
@@ -235,6 +243,14 @@ resources:
         type: string
         value: Authorization
         source: sdk
+      - path: mcp_servers.config.targets.failover
+        type: boolean
+        value: false
+        source: sdk
+      - path: mcp_servers.config.targets.weight
+        type: integer
+        value: 100
+        source: sdk
       - path: mcp_servers.enabled
         type: boolean
         value: true
@@ -406,6 +422,74 @@ resources:
       - path: models.config.balancer.retries
         type: integer
         value: 5
+        source: sdk
+      - path: models.config.balancer.session_affinity.enabled
+        type: boolean
+        value: true
+        source: sdk
+      - path: models.config.balancer.session_affinity.storage.cloud_authentication.is_serverless
+        type: boolean
+        value: true
+        source: sdk
+      - path: models.config.balancer.session_affinity.storage.cluster.max_redirections
+        type: integer
+        value: 5
+        source: sdk
+      - path: models.config.balancer.session_affinity.storage.cluster.nodes.ip
+        type: string
+        value: 127.0.0.1
+        source: sdk
+      - path: models.config.balancer.session_affinity.storage.cluster.nodes.port
+        type: integer
+        value: 6379
+        source: sdk
+      - path: models.config.balancer.session_affinity.storage.connect_timeout
+        type: integer
+        value: 2000
+        source: sdk
+      - path: models.config.balancer.session_affinity.storage.connection_is_proxied
+        type: boolean
+        value: false
+        source: sdk
+      - path: models.config.balancer.session_affinity.storage.database
+        type: integer
+        value: 0
+        source: sdk
+      - path: models.config.balancer.session_affinity.storage.host
+        type: string
+        value: 127.0.0.1
+        source: sdk
+      - path: models.config.balancer.session_affinity.storage.keepalive.pool_size
+        type: integer
+        value: 256
+        source: sdk
+      - path: models.config.balancer.session_affinity.storage.read_timeout
+        type: integer
+        value: 2000
+        source: sdk
+      - path: models.config.balancer.session_affinity.storage.send_timeout
+        type: integer
+        value: 2000
+        source: sdk
+      - path: models.config.balancer.session_affinity.storage.sentinel.nodes.host
+        type: string
+        value: 127.0.0.1
+        source: sdk
+      - path: models.config.balancer.session_affinity.storage.sentinel.nodes.port
+        type: integer
+        value: 6379
+        source: sdk
+      - path: models.config.balancer.session_affinity.storage.ssl
+        type: boolean
+        value: true
+        source: sdk
+      - path: models.config.balancer.session_affinity.storage.ssl_verify
+        type: boolean
+        value: true
+        source: sdk
+      - path: models.config.balancer.session_affinity.ttl
+        type: integer
+        value: 21600
         source: sdk
       - path: models.config.balancer.slots
         type: integer
@@ -703,6 +787,14 @@ resources:
         type: boolean
         value: true
         source: sdk
+      - path: config.targets.failover
+        type: boolean
+        value: false
+        source: sdk
+      - path: config.targets.weight
+        type: integer
+        value: 100
+        source: sdk
       - path: enabled
         type: boolean
         value: true
@@ -943,6 +1035,14 @@ resources:
         type: string
         value: Authorization
         source: sdk
+      - path: config.targets.failover
+        type: boolean
+        value: false
+        source: sdk
+      - path: config.targets.weight
+        type: integer
+        value: 100
+        source: sdk
       - path: enabled
         type: boolean
         value: true
@@ -1058,6 +1158,74 @@ resources:
       - path: config.balancer.retries
         type: integer
         value: 5
+        source: sdk
+      - path: config.balancer.session_affinity.enabled
+        type: boolean
+        value: true
+        source: sdk
+      - path: config.balancer.session_affinity.storage.cloud_authentication.is_serverless
+        type: boolean
+        value: true
+        source: sdk
+      - path: config.balancer.session_affinity.storage.cluster.max_redirections
+        type: integer
+        value: 5
+        source: sdk
+      - path: config.balancer.session_affinity.storage.cluster.nodes.ip
+        type: string
+        value: 127.0.0.1
+        source: sdk
+      - path: config.balancer.session_affinity.storage.cluster.nodes.port
+        type: integer
+        value: 6379
+        source: sdk
+      - path: config.balancer.session_affinity.storage.connect_timeout
+        type: integer
+        value: 2000
+        source: sdk
+      - path: config.balancer.session_affinity.storage.connection_is_proxied
+        type: boolean
+        value: false
+        source: sdk
+      - path: config.balancer.session_affinity.storage.database
+        type: integer
+        value: 0
+        source: sdk
+      - path: config.balancer.session_affinity.storage.host
+        type: string
+        value: 127.0.0.1
+        source: sdk
+      - path: config.balancer.session_affinity.storage.keepalive.pool_size
+        type: integer
+        value: 256
+        source: sdk
+      - path: config.balancer.session_affinity.storage.read_timeout
+        type: integer
+        value: 2000
+        source: sdk
+      - path: config.balancer.session_affinity.storage.send_timeout
+        type: integer
+        value: 2000
+        source: sdk
+      - path: config.balancer.session_affinity.storage.sentinel.nodes.host
+        type: string
+        value: 127.0.0.1
+        source: sdk
+      - path: config.balancer.session_affinity.storage.sentinel.nodes.port
+        type: integer
+        value: 6379
+        source: sdk
+      - path: config.balancer.session_affinity.storage.ssl
+        type: boolean
+        value: true
+        source: sdk
+      - path: config.balancer.session_affinity.storage.ssl_verify
+        type: boolean
+        value: true
+        source: sdk
+      - path: config.balancer.session_affinity.ttl
+        type: integer
+        value: 21600
         source: sdk
       - path: config.balancer.slots
         type: integer
@@ -1228,7 +1396,16 @@ resources:
         value: 100
         source: sdk
     overrides: []
-    exclusions: []
+    exclusions:
+      - path: config.balancer.classifier.timeout
+        reason: intelligent balancer only; not a public GA surface
+      - path: config.balancer.cost_quality_tradeoff
+        reason: intelligent balancer only; not a public GA surface
+      - path: config.balancer.strategy
+        reason: intelligent balancer only; also marked unstable upstream and removed
+          once a balancing strategy is chosen
+      - path: config.balancer.version
+        reason: intelligent balancer only; not a public GA surface
   - resource_type: ai_gateway_model_provider
     defaults:
       - path: token_vault.cache.redis.cloud_authentication.is_serverless

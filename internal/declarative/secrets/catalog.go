@@ -36,6 +36,7 @@ var capabilities = []Capability{
 	{resources.ResourceTypeAIGatewayAgent, "/config/upstream/auth/secret_access_key", true, true},
 	{resources.ResourceTypeAIGatewayAgent, "/config/upstream/auth/session_token", true, true},
 	{resources.ResourceTypeAIGatewayAgent, "/config/proxy/auth/password", true, true},
+	{resources.ResourceTypeAIGatewayModel, "/config/balancer/session_affinity/storage/password", true, true},
 	{resources.ResourceTypeAIGatewayDatastore, "/config/sentinel_password", true, true},
 	{
 		resources.ResourceTypeAIGatewayDatastore,

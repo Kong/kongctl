@@ -282,6 +282,7 @@ const (
 	FieldRuntimeAutoUpgrade                         = "runtime_auto_upgrade"
 	FieldPorts                                      = "ports"
 	FieldBalancer                                   = "balancer"
+	FieldSessionAffinity                            = "session_affinity"
 	FieldEmbeddings                                 = "embeddings"
 	FieldProvider                                   = "provider"
 	FieldProxyURLs                                  = fieldcontracts.FieldProxyURLs

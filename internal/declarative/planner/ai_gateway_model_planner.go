@@ -206,6 +206,7 @@ func (p *Planner) shouldUpdateAIGatewayModel(
 	)
 	normalizeAIGateway23References(desiredCompare, p.resources, desired.AIGateway)
 	normalizeAIGatewayModelVectorDBForComparison(currentCompare, desiredCompare)
+	normalizeAIGatewaySessionAffinityForComparison(currentCompare, desiredCompare)
 	currentCompare, desiredCompare = normalizeAIGatewayModelSelectorForComparison(currentCompare, desiredCompare)
 	currentCompare, desiredCompare = normalizeAIGatewayPolicyReferencesForComparison(
 		currentCompare,

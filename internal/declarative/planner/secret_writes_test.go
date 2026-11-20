@@ -123,6 +123,21 @@ func TestAIGatewayWriteOnlyFieldsPlanSecretOnlyUpdates(t *testing.T) {
 			return aiGatewaySecretResourceSet(&resource)
 		}
 	}
+	model := func(balancer string) func(*testing.T, string) *resources.ResourceSet {
+		return func(t *testing.T, placeholder string) *resources.ResourceSet {
+			t.Helper()
+			payload := `{"ref":"affinity-model","ai_gateway":"` + testAIGatewaySecretRef + `","type":"model",` +
+				`"name":"affinity-model","display_name":"Affinity model","formats":[{"type":"openai"}],` +
+				`"capabilities":["generate"],"targets":[` +
+				`{"name":"target-a","provider":"provider","config":{"type":"openai"}},` +
+				`{"name":"target-b","provider":"provider","config":{"type":"openai"}}],` +
+				`"config":{"route":{},"model":{},"balancer":` + strings.ReplaceAll(balancer, "SECRET", placeholder) + `}}`
+			var resource resources.AIGatewayModelResource
+			require.NoError(t, json.Unmarshal([]byte(payload), &resource))
+			resource.SetKonnectID("remote-id")
+			return aiGatewaySecretResourceSet(&resource)
+		}
+	}
 	cases := []testCase{
 		{
 			name:         "MCP AWS key",
@@ -428,6 +443,16 @@ func TestAIGatewayWriteOnlyFieldsPlanSecretOnlyUpdates(t *testing.T) {
 				certificate.SetKonnectID("remote-id")
 				return aiGatewaySecretResourceSet(&certificate)
 			},
+		},
+		{
+			name:         "model session affinity redis password",
+			resourceType: resources.ResourceTypeAIGatewayModel,
+			resourceRef:  "affinity-model",
+			field:        "/config/balancer/session_affinity/storage/password",
+			selector:     "config.balancer.session_affinity.storage.password",
+			resourceSet: model(
+				`{"algorithm":"round-robin","session_affinity":{"storage":{"type":"redis","password":"SECRET"}}}`,
+			),
 		},
 	}
 	for _, datastore := range []struct{ field, kind string }{
@@ -1140,6 +1165,8 @@ func aiGatewaySecretResourceSet(resource resources.Resource) *resources.Resource
 		rs.AIGatewayConfigStoreSecrets = []resources.AIGatewayConfigStoreSecretResource{*typed}
 	case *resources.AIGatewayCertificateResource:
 		rs.AIGatewayCertificates = []resources.AIGatewayCertificateResource{*typed}
+	case *resources.AIGatewayModelResource:
+		rs.AIGatewayModels = []resources.AIGatewayModelResource{*typed}
 	}
 	return rs
 }

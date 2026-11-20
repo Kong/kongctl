@@ -307,7 +307,103 @@ steps:
                 access.acls.deny_when:
                   - "http.headers.x_end_user_id == null"
 
-  - name: 002-sync-delete
+  - name: 002-plan-apply-session-affinity-migration
+    inputOverlayDirs:
+      - overlays/003-session-affinity-migration
+    commands:
+      - name: 000-plan-session-affinity-migration
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-session-affinity-migration.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.UPDATE: 2
+          - select: >-
+              changes[?resource_type=='ai_gateway' && resource_ref=='{{ .vars.gateway_ref }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                fields.min_runtime_version: "2.4"
+          - select: >-
+              changes[?resource_type=='ai_gateway_model' && resource_ref=='{{ .vars.model_ref }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                fields.config.balancer.algorithm: round-robin
+                fields.config.balancer.session_affinity.ttl: 3600
+                fields.config.balancer.session_affinity.storage.type: local
+      - name: 001-apply-session-affinity-migration
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-session-affinity-migration.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+      - name: 002-verify-session-affinity
+        run:
+          - get
+          - ai-gateway
+          - models
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - --model-name
+          - "{{ .vars.model_name }}"
+          - -o
+          - json
+        assertions:
+          - select: config.balancer
+            expect:
+              fields:
+                algorithm: round-robin
+                session_affinity.ttl: 3600
+                session_affinity.storage.type: local
+      - name: 003-diff-no-changes
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'No changes detected. Konnect is up to date.')": true
+      - name: 004-dump-session-affinity
+        skipInputs: true
+        run:
+          - dump
+          - declarative
+          - --resources=ai_gateways
+          - "--filter-name={{ .vars.gateway_ref }}"
+          - --include-child-resources
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          - select: >-
+              ai_gateways[0].models[?name=='{{ .vars.model_name }}'] | [0]
+            expect:
+              fields:
+                config.balancer.algorithm: round-robin
+                config.balancer.session_affinity.ttl: 3600
+                config.balancer.session_affinity.storage.type: local
+
+  - name: 003-sync-delete
     inputOverlayDirs:
       - overlays/002-sync-delete
     commands:

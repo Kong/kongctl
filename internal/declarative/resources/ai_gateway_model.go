@@ -66,6 +66,26 @@ func init() {
 			ResourceTypeAIGateway,
 			WithEmptyRootCollectionError(80, "each model must declare an ai_gateway parent"),
 		),
+		// The intelligent balancer algorithm ships as a private tech preview with no public
+		// GA date; kongctl does not model it. Exclude its exclusive fields from dump-default
+		// omission so they stay visible rather than being treated as stable API defaults.
+		WithDumpDefaultExclusion(
+			"config.balancer.strategy",
+			"intelligent balancer only; also marked unstable upstream and removed once a "+
+				"balancing strategy is chosen",
+		),
+		WithDumpDefaultExclusion(
+			"config.balancer.version",
+			"intelligent balancer only; not a public GA surface",
+		),
+		WithDumpDefaultExclusion(
+			"config.balancer.cost_quality_tradeoff",
+			"intelligent balancer only; not a public GA surface",
+		),
+		WithDumpDefaultExclusion(
+			"config.balancer.classifier.timeout",
+			"intelligent balancer only; not a public GA surface",
+		),
 	)
 }
 
@@ -307,6 +327,9 @@ func (a *AIGatewayModelResource) UnmarshalJSON(data []byte) error {
 	if err := normalizeAIGatewayRouteModel(raw); err != nil {
 		return err
 	}
+	if err := rejectAIGatewayConsistentHashingSessionAffinity(raw); err != nil {
+		return err
+	}
 
 	payload, err := json.Marshal(raw)
 	if err != nil {
@@ -405,6 +428,47 @@ func normalizeAIGatewayRouteModel(raw map[string]json.RawMessage) error {
 		return err
 	}
 	raw["config"] = encodedConfig
+	return nil
+}
+
+// rejectAIGatewayConsistentHashingSessionAffinity rejects config.balancer.session_affinity
+// under algorithm "consistent-hashing" before the SDK's union unmarshaller silently drops the
+// unrecognized key: AIGatewayModelBalancerConsistentHashingConfig has no session_affinity field
+// and no additionalProperties catch-all, so the SDK accepts and discards it rather than erroring.
+func rejectAIGatewayConsistentHashingSessionAffinity(raw map[string]json.RawMessage) error {
+	configRaw, ok := raw["config"]
+	if !ok || isJSONNull(configRaw) {
+		return nil
+	}
+	var config map[string]json.RawMessage
+	if err := json.Unmarshal(configRaw, &config); err != nil {
+		return fmt.Errorf("failed to decode AI Gateway model config: %w", err)
+	}
+	balancerRaw, ok := config["balancer"]
+	if !ok || isJSONNull(balancerRaw) {
+		return nil
+	}
+	var balancer map[string]json.RawMessage
+	if err := json.Unmarshal(balancerRaw, &balancer); err != nil {
+		return fmt.Errorf("failed to decode AI Gateway model config.balancer: %w", err)
+	}
+	if _, hasAffinity := balancer["session_affinity"]; !hasAffinity {
+		return nil
+	}
+	algorithmRaw, ok := balancer["algorithm"]
+	if !ok || isJSONNull(algorithmRaw) {
+		return nil
+	}
+	var algorithm string
+	if err := json.Unmarshal(algorithmRaw, &algorithm); err != nil {
+		return fmt.Errorf("failed to decode AI Gateway model config.balancer.algorithm: %w", err)
+	}
+	if algorithm == string(kkComps.AIGatewayModelBalancerConfigTypeConsistentHashing) {
+		return fmt.Errorf(
+			"AI Gateway model config.balancer.session_affinity is not supported with algorithm %q",
+			algorithm,
+		)
+	}
 	return nil
 }
 
@@ -620,7 +684,8 @@ func (AIGatewayModelResource) OmitInheritedFields(payload map[string]any) {
 }
 
 // OmitAIGatewayModelDatastoreConnections removes connection settings resolved
-// from a pgvector datastore. The API expands these fields and overrides inline
+// from a referenced datastore: pgvector semantic-balancer embeddings, or redis
+// session-affinity storage. The API expands these fields and overrides inline
 // connection values; exporting them would pin inherited settings in manifests.
 func OmitAIGatewayModelDatastoreConnections(payload map[string]any) {
 	stores, _ := payload[SchemaFieldDatastores].([]any)
@@ -629,12 +694,22 @@ func OmitAIGatewayModelDatastoreConnections(payload map[string]any) {
 	}
 	config, _ := payload[SchemaFieldConfig].(map[string]any)
 	balancer, _ := config["balancer"].(map[string]any)
-	vector, _ := balancer["vectordb"].(map[string]any)
-	if vector["type"] != "pgvector" {
-		return
+
+	if vector, ok := balancer["vectordb"].(map[string]any); ok && vector["type"] == "pgvector" {
+		for _, key := range []string{"host", "database", "port", "user", "password", "timeout", "ssl"} {
+			delete(vector, key)
+		}
 	}
-	for _, key := range []string{"host", "database", "port", "user", "password", "timeout", "ssl"} {
-		delete(vector, key)
+
+	affinity, _ := balancer["session_affinity"].(map[string]any)
+	if storage, ok := affinity["storage"].(map[string]any); ok && storage["type"] == "redis" {
+		for _, key := range []string{
+			"host", "port", "database", "username", "password", "ssl", "ssl_verify", "server_name",
+			"connect_timeout", "read_timeout", "send_timeout", "connection_is_proxied",
+			"cluster", "sentinel", "cloud_authentication", "keepalive",
+		} {
+			delete(storage, key)
+		}
 	}
 }
 
@@ -655,7 +730,10 @@ func aiGatewayModelExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 	if err != nil {
 		return nil, err
 	}
-	apiConfig := aiGatewayModelConfigExplainNode(false)
+	apiConfig, err := aiGatewayModelConfigExplainNode(false)
+	if err != nil {
+		return nil, err
+	}
 	apiConfig.rejectLoadField(
 		"model",
 		`AI Gateway model field "config.model" is only supported when type is "model"`,
@@ -674,7 +752,11 @@ func aiGatewayModelExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 			explainArrayOf(
 				explainObject(
 					explainField("name", explainStringNode("datastore-name"), true, true),
-					explainField("purpose", explainConstStringNode("semantic-balancer"), false, false),
+					explainField("purpose", &ExplainNode{
+						Kind:    explainKindString,
+						Literal: string(kkComps.PurposeSemanticBalancer),
+						Enum:    []any{string(kkComps.PurposeSemanticBalancer), string(kkComps.PurposeSessionAffinity)},
+					}, false, false),
 				),
 			),
 			false,
@@ -715,9 +797,13 @@ func aiGatewayModelExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 		),
 	}
 
+	modelConfig, err := aiGatewayModelConfigExplainNode(true)
+	if err != nil {
+		return nil, err
+	}
 	modelFields := append(
 		slices.Clone(commonFields),
-		explainField("config", aiGatewayModelConfigExplainNode(true), true, true),
+		explainField("config", modelConfig, true, true),
 		explainField("type", explainConstStringNode("model"), true, true),
 		explainField("capabilities", explainArrayOf(explainStringNode("generate")), true, true),
 	)
@@ -731,7 +817,11 @@ func aiGatewayModelExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 	return explainUnionNode(explainObject(modelFields...), explainObject(apiFields...)), nil
 }
 
-func aiGatewayModelConfigExplainNode(includeModelConfig bool) *ExplainNode {
+func aiGatewayModelConfigExplainNode(includeModelConfig bool) (*ExplainNode, error) {
+	sessionAffinity, err := aiGatewayBalancerSessionAffinityExplainNode()
+	if err != nil {
+		return nil, err
+	}
 	routeModel := explainObject(
 		explainField("body_param", explainStringNode("model"), false, true),
 		explainField("header_param", explainStringNode("X-Model"), false, false),
@@ -786,12 +876,7 @@ func aiGatewayModelConfigExplainNode(includeModelConfig bool) *ExplainNode {
 			false,
 			false,
 		),
-		explainField(
-			"balancer",
-			&ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}},
-			false,
-			false,
-		),
+		explainField("balancer", aiGatewayModelBalancerExplainNode(sessionAffinity), false, false),
 		explainField(
 			"proxy",
 			&ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}},
@@ -807,7 +892,29 @@ func aiGatewayModelConfigExplainNode(includeModelConfig bool) *ExplainNode {
 			false,
 		))
 	}
-	return explainObject(fields...)
+	return explainObject(fields...), nil
+}
+
+// aiGatewayModelBalancerExplainNode leaves most balancer fields unconstrained (the full
+// seven-algorithm oneOf is not modeled here), but gives session_affinity a concrete schema
+// since it is this config's reason to exist. session_affinity is omitted entirely for the
+// consistent-hashing algorithm, which rejectAIGatewayConsistentHashingSessionAffinity enforces.
+func aiGatewayModelBalancerExplainNode(sessionAffinity *ExplainNode) *ExplainNode {
+	node := &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}
+	node.addField(explainField("session_affinity", sessionAffinity, false, false))
+	return node
+}
+
+// aiGatewayBalancerSessionAffinityExplainNode derives the session_affinity shape from the SDK
+// type via reflection, so the local/redis storage union stays in sync with the SDK automatically.
+func aiGatewayBalancerSessionAffinityExplainNode() (*ExplainNode, error) {
+	hints := map[string]ExplainFieldHint{
+		"storage.password": {
+			Literal:      "!secret {source: !env SESSION_AFFINITY_REDIS_PASSWORD}",
+			PreferredTag: "!secret",
+		},
+	}
+	return autoExplainConcreteNode[kkComps.AIGatewayModelBalancerSessionAffinity](hints)
 }
 
 // aiGatewayTargetConfigExplainNode derives the target config variant list
