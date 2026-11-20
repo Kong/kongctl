@@ -76,6 +76,10 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
+          # Give the race-enabled suites their own cache, separate from build workflows.
+          cache-dependency-path: |
+            go.sum
+            .github/workflows/test.yaml
 
       - name: Use local private SDK module
         shell: bash
@@ -99,13 +103,27 @@ jobs:
           fi
 
       - name: Install installer test tools
+        shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y shellcheck zip unzip libarchive-tools
-      - name: Clear Go build cache before lint
-        run: go clean -cache
+          packages=()
+          for tool in shellcheck zip unzip bsdtar; do
+            if ! command -v "$tool" >/dev/null 2>&1; then
+              package="$tool"
+              if [ "$tool" = bsdtar ]; then
+                package=libarchive-tools
+              fi
+              packages+=("$package")
+            fi
+          done
+          if [ "${#packages[@]}" -gt 0 ]; then
+            sudo apt-get update
+            sudo apt-get install -y "${packages[@]}"
+          fi
       - name: Setup golangci-lint
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        env:
+          # Keep lint's fresh build cache separate from the restored race-test cache.
+          GOCACHE: ${{ runner.temp }}/golangci-lint-build-cache
         with:
           version: v2.15.0
       - name: test installer
