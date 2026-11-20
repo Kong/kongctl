@@ -57,6 +57,20 @@ steps:
       expect:
         fields:
           type(@): array
+  - name: notification-channels
+    run: [get, konnect, ai, cost-management, notifications, channels]
+    assertions:
+    - select: "[?name=='kongctl E2E cost alerts'] | [0]"
+      expect:
+        fields:
+          type: email
+  - name: notification-events
+    run: [list, ai, cost-management, notifications, events]
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          type(@): array
   - name: schedules
     run: [get, ai, cost-management, export-schedules]
     assertions:

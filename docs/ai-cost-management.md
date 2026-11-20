@@ -9,6 +9,8 @@ kongctl get ai cost-management budget <budget-id>
 kongctl get ai cost-management budget balance --budget-id <budget-id>
 kongctl get ai cost-management budget notification-rule --budget-id <budget-id>
 kongctl get ai cost-management budget notification-rule firing --budget-id <budget-id>
+kongctl get ai cost-management notifications channels
+kongctl get ai cost-management notifications events
 kongctl get ai cost-management forecast
 ```
 

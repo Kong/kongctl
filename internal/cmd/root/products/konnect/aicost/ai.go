@@ -84,16 +84,25 @@ func NewCmd(verb verbs.VerbValue, flags func(verbs.VerbValue, *cobra.Command),
 	budget.AddCommand(newCommand(balance), rule)
 	cost.AddCommand(budget)
 
-	for _, resource := range []readResource{
-		{
-			name: "notification-channels", description: "List or get budget alert destinations",
+	notifications := &cobra.Command{Use: "notifications", Short: "Inspect budget alert destinations and history"}
+	cmdpkg.ConfigureRequiresSubcommand(notifications)
+	notifications.AddCommand(
+		newCommand(readResource{
+			name: "channels", description: "List or get budget alert destinations",
 			kind: resources.ResourceTypeAICostChannel, detail: true,
-		},
+		}),
+		newCommand(readResource{
+			name: "events", description: "List or get AI cost notification events",
+			report: "notification-events", detail: true,
+		}),
+	)
+	cost.AddCommand(notifications)
+
+	for _, resource := range []readResource{
 		{
 			name: "export-schedules", description: "List or get recurring cost exports",
 			kind: resources.ResourceTypeAICostSchedule, detail: true,
 		},
-		{name: "notification-events", description: "List or get AI cost notification events", detail: true},
 		{name: "exports", description: "List or get usage export jobs", detail: true},
 		{name: "usage-events", description: "List AI usage events"},
 		{name: "forecast", description: "Get the monthly AI cost forecast"},
