@@ -1,0 +1,55 @@
+openapi: 3.0.3
+info:
+  title: Pet Store
+  version: 1.0.0
+servers:
+  - url: https://{env}.pets.example.com/v1
+    variables:
+      env:
+        default: api
+security:
+  - apiKey: []
+paths:
+  /pets:
+    parameters:
+      - name: X-Tenant
+        in: header
+        required: true
+        schema: {type: string}
+    get:
+      operationId: listPets
+      summary: List pets
+      parameters:
+        - name: limit
+          in: query
+          schema: {type: integer}
+    post:
+      operationId: createPet
+      description: Add a pet to the store
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Pet'}
+  /pets/{petId}:
+    get:
+      x-kong-mcp-tool-name: fetch-pet
+      parameters:
+        - {name: petId, in: path, required: true, schema: {type: string}}
+        - {name: session, in: cookie, schema: {type: string}}
+    delete:
+      x-kong-mcp-exclude: true
+      operationId: deletePet
+    head:
+      operationId: petExists
+components:
+  securitySchemes:
+    apiKey: {type: apiKey, in: header, name: X-API-Key}
+  schemas:
+    Pet:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string}
+        tags: {type: array, items: {type: string}}
+        parent: {$ref: '#/components/schemas/Pet'}

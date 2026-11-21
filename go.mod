@@ -30,6 +30,7 @@ require (
 	github.com/oapi-codegen/oapi-codegen/v2 v2.8.2
 	github.com/oapi-codegen/runtime v1.9.0
 	github.com/pb33f/go-yaml v0.1.1
+	github.com/pb33f/libopenapi v0.42.3
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
 	github.com/segmentio/cli v0.8.1
 	github.com/spf13/cobra v1.10.2
@@ -94,7 +95,6 @@ require (
 	github.com/pb33f/jsonpath v0.8.5 // indirect
 	github.com/pb33f/jsonschema/v6 v6.0.3 // indirect
 	github.com/pb33f/libasyncapi v0.0.7 // indirect
-	github.com/pb33f/libopenapi v0.42.3 // indirect
 	github.com/pb33f/libopenapi-validator v0.16.2 // indirect
 	github.com/pb33f/ordered-map/v2 v2.3.2 // indirect
 	github.com/pelletier/go-toml/v2 v2.4.3 // indirect

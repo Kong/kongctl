@@ -256,3 +256,76 @@ func TestScaffoldCmd_AnalyticsDashboardResources(t *testing.T) {
 		})
 	}
 }
+
+func TestScaffoldCmd_FromOpenAPI(t *testing.T) {
+	root := newTestRootWithScaffold(t, common.TEXT.String())
+
+	var stdout, stderr bytes.Buffer
+	root.SetOut(&stdout)
+	root.SetErr(&stderr)
+	root.SetIn(bytes.NewBufferString(`openapi: 3.0.3
+info: {title: Orders API, version: "1"}
+servers: [{url: https://orders.example.com/v1}]
+paths:
+  /orders/{id}:
+    get:
+      operationId: getOrder
+      summary: Get an order
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+`))
+	root.SetArgs([]string{
+		"scaffold", "ai_gateway_mcp_servers", "--from-openapi", "-", "--ai-gateway", "my-ai-gateway",
+	})
+
+	require.NoError(t, root.Execute())
+	assert.Empty(t, stderr.String())
+	for _, want := range []string{
+		"ai_gateway_mcp_servers:",
+		"ref: orders-api",
+		"ai_gateway: my-ai-gateway",
+		"type: conversion-listener",
+		"url: https://orders.example.com/v1",
+		"- /orders-api",
+		"name: get-order",
+		"path: /orders/{id}",
+	} {
+		assert.Contains(t, stdout.String(), want)
+	}
+}
+
+func TestScaffoldCmd_FromOpenAPIErrors(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{
+			name: "other resource path",
+			args: []string{"scaffold", "api", "--from-openapi", "spec.yaml", "--ai-gateway", "gw"},
+			want: "--from-openapi is only supported for ai_gateway_mcp_servers, not api",
+		},
+		{
+			name: "missing gateway",
+			args: []string{"scaffold", "ai_gateway_mcp_servers", "--from-openapi", "spec.yaml"},
+			want: "--from-openapi requires --ai-gateway",
+		},
+		{
+			name: "conversion flag without spec",
+			args: []string{"scaffold", "ai_gateway_mcp_servers", "--ai-gateway", "gw"},
+			want: "--ai-gateway requires --from-openapi",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := newTestRootWithScaffold(t, common.TEXT.String())
+			var output bytes.Buffer
+			root.SetOut(&output)
+			root.SetErr(&output)
+			root.SetArgs(tt.args)
+			err := root.Execute()
+			require.Error(t, err)
+			assert.Equal(t, tt.want, err.Error())
+		})
+	}
+}

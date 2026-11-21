@@ -1,0 +1,63 @@
+ai_gateway_mcp_servers:
+    - ref: pet-store
+      ai_gateway: my-ai-gateway
+      type: conversion-listener
+      name: pet-store
+      display_name: Pet Store
+      config:
+        url: https://api.pets.example.com/v1
+        route:
+            paths:
+                - /pet-store
+      tools:
+        - name: list-pets
+          description: List pets
+          method: GET
+          path: /pets
+          parameters:
+            - name: limit
+              in: query
+              required: false
+              schema:
+                type: integer
+            - name: X-Tenant
+              in: header
+              required: true
+              schema:
+                type: string
+        - name: create-pet
+          description: Add a pet to the store
+          method: POST
+          path: /pets
+          parameters:
+            - name: X-Tenant
+              in: header
+              required: true
+              schema:
+                type: string
+          request_body:
+            content:
+                application/json:
+                    schema:
+                        properties:
+                            name:
+                                type: string
+                            parent: {}
+                            tags:
+                                items:
+                                    type: string
+                                type: array
+                        required:
+                            - name
+                        type: object
+            required: true
+        - name: fetch-pet
+          description: GET /pets/{petId}
+          method: GET
+          path: /pets/{petId}
+          parameters:
+            - name: petId
+              in: path
+              required: true
+              schema:
+                type: string
