@@ -560,7 +560,9 @@ func redactBody(body []byte, contentType string) string {
 }
 
 func redactHTTPDiagnostic(err error, parsedURL *url.URL) string {
-	if isIdentityOrgChartImportRoute(routeFromURL(parsedURL)) || isIdentityAPIKeyRoute(routeFromURL(parsedURL)) {
+	route := routeFromURL(parsedURL)
+	if isIdentityOrgChartImportRoute(route) || isIdentityAPIKeyRoute(route) ||
+		isAICostNotificationChannelRoute(route) {
 		return redactedValue
 	}
 	return err.Error()
@@ -572,7 +574,7 @@ func redactBodyForURL(body []byte, contentType string, parsedURL *url.URL) strin
 	if len(body) > 0 && (isMeshCredentialRoute(route) || isAIGatewayDatastoreRoute(route) ||
 		isIdentityClientSecretRoute(route) || isIdentityPasswordRoute(route) ||
 		isIdentityVaultProviderCredentialRoute(route) || isIdentityOrgChartImportRoute(route) ||
-		isIdentityAPIKeyRoute(route)) {
+		isIdentityAPIKeyRoute(route) || isAICostNotificationChannelRoute(route)) {
 		return redactedValue
 	}
 	if isConfigStoreSecretRoute(route) {
@@ -581,6 +583,12 @@ func redactBodyForURL(body []byte, contentType string, parsedURL *url.URL) strin
 		exactKeys = normalizedKeySet([]string{"key", "key_alt"})
 	}
 	return redactBodyWithExactKeys(body, contentType, exactKeys)
+}
+
+// Channel validation errors can echo the incoming webhook URL.
+func isAICostNotificationChannelRoute(route string) bool {
+	const collection = "/v1/ai-cost-management/notification-channels"
+	return route == collection || strings.HasPrefix(route, collection+"/")
 }
 
 func isIdentityOrgChartImportRoute(route string) bool {

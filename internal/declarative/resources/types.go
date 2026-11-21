@@ -11,6 +11,10 @@ type ResourceType string
 
 // Resource type constants
 const (
+	ResourceTypeAICostBudget                            ResourceType = "ai_cost_budget"
+	ResourceTypeAICostChannel                           ResourceType = "ai_cost_notification_channel"
+	ResourceTypeAICostSchedule                          ResourceType = "ai_cost_export_schedule"
+	ResourceTypeAICostRule                              ResourceType = "ai_cost_notification_rule"
 	ResourceTypeIdentityAuthServer                      ResourceType = "identity_auth_server"
 	ResourceTypeIdentityAuthServerScope                 ResourceType = "identity_auth_server_scope"
 	ResourceTypeIdentityAuthServerClaim                 ResourceType = "identity_auth_server_claim"
@@ -169,6 +173,7 @@ func NormalizeResourceRef(value string) string {
 
 // ResourceSet contains all declarative resources from configuration files
 type ResourceSet struct {
+	AI       *AIResource       `yaml:"ai,omitempty" json:"ai,omitempty"`
 	Identity *IdentityResource `yaml:"identity,omitempty" json:"identity,omitempty"`
 	Portals  []PortalResource  `yaml:"portals,omitempty"                                        json:"portals,omitempty"`
 	// AuditLogs contains organization-scoped audit-log resources.

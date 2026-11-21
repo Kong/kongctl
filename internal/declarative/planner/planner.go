@@ -268,6 +268,9 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		p.changeCount = namespacePlanner.changeCount
 	}
 
+	if err := p.planAICostRules(ctx, basePlan); err != nil {
+		return nil, err
+	}
 	p.resolveMatchedPayloadIdentities(basePlan, rs)
 	if err := p.resolveIdentityAPIKeyDependencies(basePlan); err != nil {
 		return nil, err
@@ -387,6 +390,9 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		return nil, err
 	}
 	if err := p.resolveIdentityTrustedIDPDeletes(ctx, basePlan); err != nil {
+		return nil, err
+	}
+	if err := p.resolveAICostDeletes(ctx, basePlan); err != nil {
 		return nil, err
 	}
 	depResult, err := p.depResolver.ResolveDependenciesWithGroups(basePlan.Changes)

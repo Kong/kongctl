@@ -56,6 +56,8 @@ func newExternalLookupResolver(planner *Planner) *externalLookupResolver {
 		cache:   make(map[string]externalLookupCacheEntry),
 	}
 	r.adapters = map[resources.ResourceType]externalLookupAdapter{
+		resources.ResourceTypeAICostBudget:      r.lookupAICost,
+		resources.ResourceTypeAICostChannel:     r.lookupAICost,
 		resources.ResourceTypeIdentityBasicAuth: r.lookupIdentityBasicAuth,
 		resources.ResourceTypeIdentityPrincipalIdentity: func(context.Context, externalLookupRequest) (string, error) {
 			return "", fmt.Errorf("external principal identities require an explicit UUID")
@@ -1008,6 +1010,21 @@ func (r *externalLookupResolver) lookupIdentityGroup(ctx context.Context, req ex
 	}
 	if id == "" {
 		return "", fmt.Errorf("group matching name %q not found in selected directory", req.MatchFields[FieldName])
+	}
+	return id, nil
+}
+
+func (r *externalLookupResolver) lookupAICost(ctx context.Context, req externalLookupRequest) (string, error) {
+	id := req.MatchFields[FieldID]
+	if !util.IsValidUUID(id) {
+		return "", fmt.Errorf("AI Cost Management external references require an explicit UUID")
+	}
+	value, err := r.planner.client.Cost.Get(ctx, req.ResourceType, id)
+	if err != nil {
+		return "", err
+	}
+	if value == nil {
+		return "", fmt.Errorf("%s %s not found", req.ResourceType, id)
 	}
 	return id, nil
 }

@@ -35,6 +35,10 @@ type RelationshipDescriptor struct {
 }
 
 var relationshipDescriptors = map[ResourceType][]RelationshipDescriptor{
+	ResourceTypeAICostRule: {{
+		FieldPath: SchemaFieldAICostBudget, TargetType: ResourceTypeAICostBudget,
+		Kind: RelationshipKindKongctlParentSelector, RootOnly: true,
+	}},
 	ResourceTypeIdentityVaultProviderCredential: {
 		{
 			FieldPath:  "provider",

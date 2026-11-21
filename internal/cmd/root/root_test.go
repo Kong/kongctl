@@ -2522,3 +2522,69 @@ func typoForTest(value string) string {
 	}
 	return value + "x"
 }
+
+func TestAICostManagementReadCommands(t *testing.T) {
+	for _, tt := range []struct{ path, canonical string }{
+		{"get ai cost-management budget", "get ai cost-management budget"},
+		{"get konnect ai cost-management budgets", "get konnect ai cost-management budget"},
+		{"get ai cost-management notifications channels", "get ai cost-management notifications channels"},
+		{"list ai cost-management notifications events", "list ai cost-management notifications events"},
+		{
+			"get konnect ai cost-management notifications events",
+			"get konnect ai cost-management notifications events",
+		},
+		{"list konnect ai cost-management export-schedules", "list konnect ai cost-management export-schedules"},
+		{"get ai cost-management budget balance", "get ai cost-management budget balance"},
+		{"get ai cost-management budget notification-rule", "get ai cost-management budget notification-rule"},
+		{
+			"list ai cost-management budgets notification-rule firings",
+			"list ai cost-management budget notification-rule firing",
+		},
+	} {
+		t.Run(tt.path, func(t *testing.T) {
+			result := executeRootForTest(t, append(strings.Fields(tt.path), "--help")...)
+			if result.exitCode != 0 || !strings.Contains(result.stdout, "kongctl "+tt.canonical) {
+				t.Fatalf("unexpected command result: %s%s", result.stdout, result.stderr)
+			}
+		})
+	}
+}
+
+func TestAICostManagementNotificationsGroup(t *testing.T) {
+	for _, verb := range []string{"get", "list"} {
+		root := newRootCmd()
+		requireNoError(t, addCommandsWithRootForTest(root))
+		cost, _, err := root.Find([]string{verb, "ai", "cost-management"})
+		requireNoError(t, err)
+		for _, name := range []string{"notification-channels", "notification-events"} {
+			if findChildForTest(cost, name) != nil {
+				t.Fatalf("%s %s must be nested under notifications", verb, name)
+			}
+		}
+		result := executeRootForTest(t, verb, "ai", "cost-management", "notifications")
+		if result.exitCode == 0 || !strings.Contains(result.stderr, "requires a subcommand") {
+			t.Fatalf("expected a subcommand error, got %s%s", result.stdout, result.stderr)
+		}
+	}
+}
+
+func TestAICostManagementBudgetChildCommands(t *testing.T) {
+	root := newRootCmd()
+	requireNoError(t, addCommandsWithRootForTest(root))
+	cost, _, err := root.Find(strings.Fields("get ai cost-management"))
+	requireNoError(t, err)
+	for _, name := range []string{"budget-balances", "notification-rules", "notification-firings"} {
+		if findChildForTest(cost, name) != nil {
+			t.Fatalf("%s must be nested under budget", name)
+		}
+	}
+	for _, path := range []string{
+		"get ai cost-management budget notification-rule",
+		"list ai cost-management budget notification-rule firing",
+	} {
+		result := executeRootForTest(t, strings.Fields(path)...)
+		if result.exitCode == 0 || !strings.Contains(result.stderr, "budget-id") {
+			t.Fatalf("expected required budget ID for %s, got %s%s", path, result.stdout, result.stderr)
+		}
+	}
+}

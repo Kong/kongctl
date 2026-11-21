@@ -21,7 +21,7 @@ env:
   DO_NOT_TRACK: "1"
 
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
@@ -98,16 +98,112 @@ jobs:
             go mod edit -replace=github.com/Kong/sdk-konnect-go=./.private/sdk-konnect-go-internal
           fi
 
-      - name: Install installer test tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y shellcheck zip unzip libarchive-tools
-      - name: Clear Go build cache before lint
-        run: go clean -cache
       - name: Setup golangci-lint
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        env:
+          # Keep lint's fresh build cache separate from the restored race-test cache.
+          GOCACHE: ${{ runner.temp }}/golangci-lint-build-cache
         with:
           version: v2.15.0
+
+  suites:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          egress-policy: audit
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Detect private SDK dependency
+        id: sdk-auth
+        shell: bash
+        run: |
+          if grep -q 'sdk-konnect-go-internal' go.mod; then
+            echo "required=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create private SDK read token
+        id: sdk-token
+        if: steps.sdk-auth.outputs.required == 'true'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.API_OPS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.API_OPS_APP_SECRET }}
+          owner: Kong
+          repositories: sdk-konnect-go-internal
+          permission-contents: read
+
+      - name: Configure private module access
+        if: steps.sdk-auth.outputs.required == 'true'
+        shell: bash
+        env:
+          SDK_TOKEN: ${{ steps.sdk-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          : "${SDK_TOKEN:?SDK App token is required for sdk-konnect-go-internal}"
+          auth="$(printf 'x-access-token:%s' "$SDK_TOKEN" | base64 | tr -d '\n')"
+          echo "::add-mask::$auth"
+          for sdk_url in \
+            https://github.com/Kong/sdk-konnect-go-internal \
+            https://github.com/Kong/sdk-konnect-go-internal.git; do
+            git config --global "http.$sdk_url.extraheader" "AUTHORIZATION: basic $auth"
+          done
+          private_modules="${GOPRIVATE:-$(GOTOOLCHAIN=local go env GOPRIVATE)}"
+          case ",$private_modules," in
+            *,github.com/Kong/sdk-konnect-go-internal,*) ;;
+            *) private_modules="${private_modules:+$private_modules,}github.com/Kong/sdk-konnect-go-internal" ;;
+          esac
+          echo "GOPRIVATE=$private_modules" >> "$GITHUB_ENV"
+
+      - name: Setup go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          # Give the race-enabled suites their own cache, separate from build workflows.
+          cache-dependency-path: |
+            go.sum
+            .github/workflows/test.yaml
+
+      - name: Use local private SDK module
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if grep -q 'sdk-konnect-go-internal' go.mod; then
+            sdk_ref="$(
+              sed -nE 's#^replace github\.com/Kong/sdk-konnect-go => github\.com/Kong/sdk-konnect-go-internal v[^[:space:]]*-([0-9a-f]+)$#\1#p' go.mod
+            )"
+            if [ -z "${sdk_ref}" ]; then
+              echo "::error::Unable to determine sdk-konnect-go-internal ref from go.mod"
+              exit 1
+            fi
+
+            git clone --filter=blob:none \
+              https://github.com/Kong/sdk-konnect-go-internal \
+              .private/sdk-konnect-go-internal
+            git -C .private/sdk-konnect-go-internal checkout --detach "${sdk_ref}"
+            go mod edit -replace=github.com/Kong/sdk-konnect-go=./.private/sdk-konnect-go-internal
+          fi
+
+      - name: Install installer test tools
+        shell: bash
+        run: |
+          packages=()
+          for tool in shellcheck zip unzip bsdtar; do
+            if ! command -v "$tool" >/dev/null 2>&1; then
+              package="$tool"
+              if [ "$tool" = bsdtar ]; then
+                package=libarchive-tools
+              fi
+              packages+=("$package")
+            fi
+          done
+          if [ "${#packages[@]}" -gt 0 ]; then
+            sudo apt-get update
+            sudo apt-get install -y "${packages[@]}"
+          fi
       - name: test installer
         run: |
           make test-installer
@@ -127,6 +223,7 @@ jobs:
           bash scripts/tests/test-apple-release-gates.sh
           node --test scripts/tests/test-release-recovery.mjs
           node --test scripts/tests/test-github-app-auth.mjs
+          node --test scripts/tests/test-ci-test.mjs
           node --test scripts/tests/test-apple-notary-diagnostics.mjs
           node --test scripts/tests/test-release-notes-baseline.mjs
       - name: test
@@ -143,3 +240,23 @@ jobs:
       - name: test integration
         run: |
           go test -v -count=1 -tags=integration -race ${GOTESTFLAGS} ./test/integration/...
+
+  # Preserve the required check name and fail closed if either job does not pass.
+  test:
+    if: always()
+    needs: [lint, suites]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          egress-policy: audit
+      - name: Require lint and test suites
+        env:
+          LINT_RESULT: ${{ needs.lint.result }}
+          SUITES_RESULT: ${{ needs.suites.result }}
+        run: |
+          if [ "$LINT_RESULT" != success ] || [ "$SUITES_RESULT" != success ]; then
+            echo "Lint: $LINT_RESULT; test suites: $SUITES_RESULT"
+            exit 1
+          fi

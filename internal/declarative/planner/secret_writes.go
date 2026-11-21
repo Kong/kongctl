@@ -421,6 +421,9 @@ func secretResourceFields(ctx context.Context, resource resources.Resource, acti
 	if resource.GetType() == resources.ResourceTypeAIGatewayConfigStoreSecret && action == ActionUpdate {
 		delete(fields, FieldKey)
 	}
+	if cost, ok := resource.(*resources.AICostChannel); ok {
+		fields[FieldManagedBy] = aiCostMetadata(cost)
+	}
 	if metadata, independent := resources.IndependentChildMetadata(resource); independent {
 		protected := metadata != nil && metadata.Protected != nil && *metadata.Protected
 		fields[FieldManagedBy] = resources.BuildChildManagedBy(
@@ -713,6 +716,8 @@ func secretResourceNamespace(rs *resources.ResourceSet, resource resources.Resou
 		return resources.GetNamespace(metadata)
 	}
 	switch typed := resource.(type) {
+	case *resources.AICostChannel:
+		return resources.GetNamespace(typed.Kongctl)
 	case *resources.IdentityDirectoryResource:
 		return resources.GetNamespace(typed.Kongctl)
 	case *resources.DCRProviderResource:
