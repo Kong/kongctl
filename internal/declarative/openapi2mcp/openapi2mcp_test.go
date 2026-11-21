@@ -64,7 +64,9 @@ func TestConvertedOutputLoads(t *testing.T) {
 	assert.Equal(t, ServerType, server.MCPServerType())
 	require.NotNil(t, server.AIGatewayMCPServerConversionListener)
 	listener := server.AIGatewayMCPServerConversionListener
-	assert.Equal(t, "https://api.pets.example.com/v1", listener.Config.URL)
+	// sdk-konnect-go v0.89 made the listener config's URL optional (*string).
+	require.NotNil(t, listener.Config.URL)
+	assert.Equal(t, "https://api.pets.example.com/v1", *listener.Config.URL)
 	names := make([]string, 0, len(listener.Tools))
 	for _, tool := range listener.Tools {
 		names = append(names, tool.Name)
