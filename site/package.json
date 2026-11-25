@@ -18,15 +18,15 @@
   "dependencies": {
     "@fontsource-variable/funnel-sans": "5.3.0",
     "@fontsource-variable/roboto-mono": "5.3.0",
-    "astro": "7.4.7",
+    "astro": "7.4.12",
     "yaml": "2.9.1"
   },
   "devDependencies": {
     "@astrojs/check": "0.9.12",
-    "@playwright/test": "1.65.0",
+    "@playwright/test": "1.65.1",
     "@types/node": "26.6.6",
-    "jsdom": "31.0.0",
-    "prettier": "3.9.10",
+    "jsdom": "31.0.1",
+    "prettier": "3.10.1",
     "prettier-plugin-astro": "1.1.2",
     "typescript": "6.0.3",
     "vitest": "5.1.0"
