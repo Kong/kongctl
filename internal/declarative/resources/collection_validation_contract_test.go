@@ -84,6 +84,7 @@ func TestCollectionValidationStepOrder(t *testing.T) {
 		ResourceTypeAICostChannel,
 		ResourceTypeAICostSchedule,
 		ResourceTypeAICostRule,
+		ResourceTypeAICostPlugin,
 	}
 	var got []ResourceType
 	for _, step := range buildCollectionValidationSteps() {

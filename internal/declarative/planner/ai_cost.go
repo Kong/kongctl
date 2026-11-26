@@ -123,11 +123,24 @@ func aiCostMetadata(desired resources.AICostResource) map[string]string {
 	return metadata
 }
 
+// AICostParentField names the plan field holding the ID that identifies a
+// resource without one of its own, or "" for a resource with its own ID.
+func AICostParentField(kind resources.ResourceType) string {
+	//exhaustive:ignore
+	switch kind {
+	case resources.ResourceTypeAICostRule:
+		return FieldAICostBudgetID
+	case resources.ResourceTypeAICostPlugin:
+		return FieldAICostGatewayID
+	}
+	return ""
+}
+
 func (p *Planner) planAICostChange(
 	plan *Plan,
 	desired resources.AICostResource,
 	current state.AICostObject,
-	budgetID string,
+	parentID string,
 ) error {
 	kind, ref := desired.GetType(), desired.GetRef()
 	namespace := resources.GetNamespace(desired.CostMeta())
@@ -135,15 +148,15 @@ func (p *Planner) planAICostChange(
 		if current == nil {
 			return nil
 		}
-		return p.planAICostDelete(plan, kind, namespace, ref, current, budgetID)
+		return p.planAICostDelete(plan, kind, namespace, ref, current, parentID)
 	}
 	fields, err := resources.AICostFields(desired)
 	if err != nil {
 		return err
 	}
 	fields[FieldManagedBy] = aiCostMetadata(desired)
-	if budgetID != "" {
-		fields[FieldAICostBudgetID] = budgetID
+	if parentID != "" {
+		fields[AICostParentField(kind)] = parentID
 	}
 	change := PlannedChange{
 		ResourceType: string(kind),
@@ -161,8 +174,8 @@ func (p *Planner) planAICostChange(
 	} else {
 		change.Action = ActionUpdate
 		change.ResourceID = current.GetID()
-		if budgetID != "" {
-			change.ResourceID = budgetID
+		if parentID != "" {
+			change.ResourceID = parentID
 		}
 		change.ChangedFields, err = diffAICost(kind, current, fields)
 		if err != nil {
@@ -197,8 +210,13 @@ func diffAICost(
 	changes := make(map[string]FieldChange)
 	for key, value := range desired {
 		switch key {
-		case FieldAICostBudgetID:
+		case FieldAICostBudgetID, FieldAICostGatewayID:
 			continue
+		case FieldAICostInstallVersion:
+			// The request names the version to install; reads return the installed one.
+			if observed[FieldAICostVersion] != value {
+				changes[key] = FieldChange{Old: observed[FieldAICostVersion], New: value}
+			}
 		case FieldManagedBy:
 			if !managedByValuesEqual(current.GetManagedBy(), value) {
 				changes[key] = FieldChange{Old: current.GetManagedBy(), New: value}
@@ -240,16 +258,16 @@ func equalAICostValue(observed, desired any) bool {
 }
 
 func (p *Planner) planAICostDelete(plan *Plan, kind resources.ResourceType, namespace, ref string,
-	current state.AICostObject, budgetID string,
+	current state.AICostObject, parentID string,
 ) error {
 	if resources.IsChildProtected(current.GetManagedBy()) {
 		return fmt.Errorf("%s %q is protected", kind, ref)
 	}
 	id := current.GetID()
 	fields := map[string]any{}
-	if budgetID != "" {
-		id = budgetID
-		fields[FieldAICostBudgetID] = budgetID
+	if parentID != "" {
+		id = parentID
+		fields[AICostParentField(kind)] = parentID
 	}
 	if id == "" {
 		return fmt.Errorf("missing ID for %s %q", kind, ref)

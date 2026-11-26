@@ -15,6 +15,7 @@ const (
 	ResourceTypeAICostChannel                           ResourceType = "ai_cost_notification_channel"
 	ResourceTypeAICostSchedule                          ResourceType = "ai_cost_export_schedule"
 	ResourceTypeAICostRule                              ResourceType = "ai_cost_notification_rule"
+	ResourceTypeAICostPlugin                            ResourceType = "ai_cost_attribution_plugin"
 	ResourceTypeIdentityAuthServer                      ResourceType = "identity_auth_server"
 	ResourceTypeIdentityAuthServerScope                 ResourceType = "identity_auth_server_scope"
 	ResourceTypeIdentityAuthServerClaim                 ResourceType = "identity_auth_server_claim"

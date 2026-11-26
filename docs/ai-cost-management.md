@@ -11,6 +11,8 @@ kongctl get ai cost-management budget notification-rule --budget-id <budget-id>
 kongctl get ai cost-management budget notification-rule firing --budget-id <budget-id>
 kongctl get ai cost-management notifications channels
 kongctl get ai cost-management notifications events
+kongctl get ai cost-management attribution-plugins
+kongctl get ai cost-management attribution-plugins <ai-gateway-id>
 kongctl get ai cost-management forecast
 ```
 
@@ -101,4 +103,42 @@ kongctl dump declarative --resources ai.cost_management.budgets
 ```
 Add `--include-child-resources` to include budget notification rules.
 
-Manage attribution plugin installations through Konnect or `kongctl api`.
+## Attribution plugins
+
+The attribution plugin turns request headers and token claims into the tags and
+groups that budgets filter on. Declare one installation per AI Gateway under
+`ai.cost_management.attribution_plugins`. `ai_gateway` references a declared
+AI Gateway, which can be `_external`.
+
+```yaml
+ai_gateways:
+  - ref: engineering
+    _external:
+      selector:
+        matchFields: {name: Engineering}
+ai:
+  cost_management:
+    attribution_plugins:
+      - ref: engineering-attribution
+        ai_gateway: engineering
+        integrations: [claude-code, codex]
+        headers:
+          - {name: x-acme-tier, tag_key: pricing-tier}
+        operator_tags: {cost-center: platform}
+        install_version: "1.4.0"
+```
+
+`integrations` is required; use `[]` for none. Omitted `headers`, `prefixes`,
+`operator_tags`, and `group_patterns` reset to empty. Without
+`install_version`, each write installs the latest plugin version. Set
+`install_version` to the latest version to pin it:
+the plan then upgrades only when you change that value, and an apply fails
+when a newer version was installed outside the manifest until you set it.
+`kongctl get ai cost-management attribution-plugins` shows each installation's
+`version` and `latest_version`.
+
+kongctl refuses to take over an installation it doesn't manage, such as one
+made in Konnect. Remove that installation first. Moving a declaration to
+another AI Gateway requires a new ref. Sync prunes installations by namespace
+like budgets. Removing an installation while budget blocking is on for its
+gateway fails until blocking is turned off.

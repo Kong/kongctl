@@ -395,6 +395,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	if err := p.resolveAICostDeletes(ctx, basePlan); err != nil {
 		return nil, err
 	}
+	orderAICostPluginDeletes(basePlan)
 	depResult, err := p.depResolver.ResolveDependenciesWithGroups(basePlan.Changes)
 	if err != nil {
 		var paths []string

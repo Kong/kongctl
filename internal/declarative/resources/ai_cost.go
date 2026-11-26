@@ -22,6 +22,7 @@ type AICostManagement struct {
 	NotificationChannels []AICostChannel  `yaml:"notification_channels,omitempty" json:"notification_channels,omitempty"`
 	ExportSchedules      []AICostSchedule `yaml:"export_schedules,omitempty"      json:"export_schedules,omitempty"`
 	NotificationRules    []AICostRule     `yaml:"notification_rules,omitempty"    json:"notification_rules,omitempty"`
+	AttributionPlugins   []AICostPlugin   `yaml:"attribution_plugins,omitempty"   json:"attribution_plugins,omitempty"`
 }
 
 type AICostScope struct {
@@ -130,6 +131,32 @@ type AICostRuleConfig struct {
 	Message    *AICostMessage     `yaml:"message,omitempty"  json:"message"`
 }
 
+// AICostPlugin is the attribution plugin installation on one AI Gateway, which
+// the gateway's ID identifies.
+type AICostPlugin struct {
+	BaseResource       `       yaml:",inline"              json:",inline"`
+	AIGateway          string `yaml:"ai_gateway,omitempty" json:"ai_gateway,omitempty"`
+	AICostPluginConfig `       yaml:",inline"              json:",inline"`
+}
+
+type AICostHeaderMapping struct {
+	Name   string `yaml:"name"    json:"name"`
+	TagKey string `yaml:"tag_key" json:"tag_key"`
+}
+
+type AICostPrefixMapping struct {
+	Name string `yaml:"name" json:"name"`
+}
+
+type AICostPluginConfig struct {
+	Integrations   []string              `yaml:"integrations"              json:"integrations"`
+	Headers        []AICostHeaderMapping `yaml:"headers,omitempty"         json:"headers,omitempty"`
+	Prefixes       []AICostPrefixMapping `yaml:"prefixes,omitempty"        json:"prefixes,omitempty"`
+	OperatorTags   map[string]string     `yaml:"operator_tags,omitempty"   json:"operator_tags,omitempty"`
+	GroupPatterns  []string              `yaml:"group_patterns,omitempty"  json:"group_patterns,omitempty"`
+	InstallVersion *string               `yaml:"install_version,omitempty" json:"install_version,omitempty"`
+}
+
 func (rs *ResourceSet) CostManagement() *AICostManagement {
 	if rs.AI == nil {
 		return nil
@@ -222,6 +249,20 @@ func init() {
 			WithEmptyRootCollectionError(170, "each rule must select a budget"),
 		),
 	)
+	plugin, ensurePlugin := aiCostSlice(
+		func(cost *AICostManagement) *[]AICostPlugin { return &cost.AttributionPlugins },
+	)
+	registerResourceTypeWithSliceAccessors(
+		ResourceTypeAICostPlugin, plugin, ensurePlugin,
+		AutoExplain[AICostPlugin](WithExplainAliases("ai.cost_management.attribution_plugins")),
+		WithNamespace(264, func(r *AICostPlugin) NamespaceParticipant {
+			return aiCostNamespace(r.GetType(), &r.BaseResource, r.IsExternal())
+		}),
+		WithManagedBy(ManagedByPolicy{MaxEntries: 5, OwnsLifecycle: true, PersistsRef: true}),
+		WithRootSyncScope(),
+		withCollectionValidation(275, aiCostCollectionValidation[AICostPlugin]),
+		withReferenceValidation(140),
+	)
 }
 
 // Names can repeat. Validate each declaration without enforcing name uniqueness.
@@ -282,6 +323,23 @@ func (r AICostRule) GetParentRef() *ResourceRef {
 
 func (r AICostRule) GetDependencies() []ResourceRef {
 	return []ResourceRef{{Kind: ResourceTypeAICostBudget, Ref: NormalizeResourceRef(r.Budget)}}
+}
+
+func (r AICostPlugin) GetType() ResourceType               { return ResourceTypeAICostPlugin }
+func (r AICostPlugin) GetMoniker() string                  { return r.AIGateway }
+func (r AICostPlugin) Protected() bool                     { return r.Kongctl.IsProtected() }
+func (r *AICostPlugin) SetDefaults()                       {}
+func (r *AICostPlugin) TryMatchKonnectResource(_ any) bool { return false }
+func (r AICostPlugin) GetKonnectMonikerFilter() string     { return "" }
+func (r AICostPlugin) CostConfig() any                     { return r.AICostPluginConfig }
+func (r AICostPlugin) IsExternal() bool                    { return false }
+
+func (r AICostPlugin) GetDependencies() []ResourceRef {
+	return []ResourceRef{{Kind: ResourceTypeAIGateway, Ref: NormalizeResourceRef(r.AIGateway)}}
+}
+
+func (r AICostPlugin) GetReferenceFieldMappings() map[string]string {
+	return map[string]string{SchemaFieldAIGateway: string(ResourceTypeAIGateway)}
 }
 
 func validateCostExternal(block *ExternalBlock) error {
@@ -376,6 +434,19 @@ func (r *AICostRule) Validate() error {
 	return nil
 }
 
+func (r *AICostPlugin) Validate() error {
+	if err := ValidateRef(r.Ref); err != nil {
+		return err
+	}
+	if r.AIGateway == "" {
+		return fmt.Errorf("attribution plugin requires ai_gateway")
+	}
+	if r.Integrations == nil {
+		return fmt.Errorf("attribution plugin requires integrations; use [] for none")
+	}
+	return nil
+}
+
 func (rs *ResourceSet) NormalizeAICostRules() error {
 	cost := rs.CostManagement()
 	if cost == nil {
@@ -420,7 +491,9 @@ func (rs *ResourceSet) CaptureAICostNamespaces(defaultNamespace string) {
 		return
 	}
 	scope := rs.EnsureSyncScope()
-	for _, kind := range []ResourceType{ResourceTypeAICostBudget, ResourceTypeAICostChannel, ResourceTypeAICostSchedule} {
+	for _, kind := range []ResourceType{
+		ResourceTypeAICostBudget, ResourceTypeAICostChannel, ResourceTypeAICostSchedule, ResourceTypeAICostPlugin,
+	} {
 		declared := 0
 		for _, item := range rs.AllResources() {
 			if item.GetType() != kind {
@@ -442,6 +515,7 @@ func (r AICostBudget) CostMeta() *KongctlMeta   { return r.Kongctl }
 func (r AICostChannel) CostMeta() *KongctlMeta  { return r.Kongctl }
 func (r AICostSchedule) CostMeta() *KongctlMeta { return r.Kongctl }
 func (r AICostRule) CostMeta() *KongctlMeta     { return r.Kongctl }
+func (r AICostPlugin) CostMeta() *KongctlMeta   { return r.Kongctl }
 
 type AICostResource interface {
 	Resource
@@ -495,7 +569,7 @@ func AICostRuleApplies(effect any) bool { return effect == "limit" }
 // These documented replacement defaults express the desired state when the
 // manifest omits a field. Schedule status and time zone preserve observed values.
 func aiCostDefaults(kind ResourceType, fields map[string]any) {
-	if kind != ResourceTypeAICostRule && fields["labels"] == nil {
+	if aiCostHasLabels(kind) && fields["labels"] == nil {
 		fields["labels"] = map[string]any{}
 	}
 	//exhaustive:ignore
@@ -514,7 +588,21 @@ func aiCostDefaults(kind ResourceType, fields map[string]any) {
 		if fields["schema_version"] == nil {
 			fields["schema_version"] = float64(1)
 		}
+	case ResourceTypeAICostPlugin:
+		for _, key := range []string{"headers", "prefixes", "group_patterns"} {
+			if fields[key] == nil {
+				fields[key] = []any{}
+			}
+		}
+		if fields["operator_tags"] == nil {
+			fields["operator_tags"] = map[string]any{}
+		}
 	}
+}
+
+// Notification rules and attribution plugins have neither a name nor labels.
+func aiCostHasLabels(kind ResourceType) bool {
+	return kind != ResourceTypeAICostRule && kind != ResourceTypeAICostPlugin
 }
 
 // AICostComparable normalizes values the service canonicalizes on writes.
@@ -572,7 +660,7 @@ func AICostWriteField(kind ResourceType, key string) bool {
 	case "managed_by":
 		return true
 	case "name", "labels":
-		return kind != ResourceTypeAICostRule
+		return aiCostHasLabels(kind)
 	}
 	//exhaustive:ignore
 	switch kind {
@@ -597,6 +685,11 @@ func AICostWriteField(kind ResourceType, key string) bool {
 		)
 	case ResourceTypeAICostRule:
 		return slices.Contains([]string{"thresholds", "channels", "message"}, key)
+	case ResourceTypeAICostPlugin:
+		return slices.Contains(
+			[]string{"integrations", "headers", "prefixes", "operator_tags", "group_patterns", "install_version"},
+			key,
+		)
 	}
 	return false
 }

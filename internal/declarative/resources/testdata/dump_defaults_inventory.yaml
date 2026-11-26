@@ -1,6 +1,10 @@
 sdk_version: v0.89.1-0.20261119142615-3a5f81f45f5d
 schema_version: 1
 resources:
+  - resource_type: ai_cost_attribution_plugin
+    defaults: []
+    overrides: []
+    exclusions: []
   - resource_type: ai_cost_budget
     defaults: []
     overrides: []

@@ -16,5 +16,14 @@ kongctl get ai cost-management export-schedules
 
 To remove the resources, run `kongctl delete -f budget-and-alerts.yaml`.
 
+[attribution-plugin.yaml](attribution-plugin.yaml) installs the attribution
+plugin on an existing AI Gateway named `Example AI Gateway`. Replace the name
+with one of your gateways before applying.
+
+```sh
+kongctl apply -f attribution-plugin.yaml
+kongctl get ai cost-management attribution-plugins
+```
+
 See the [AI Cost Management guide](../../../../ai-cost-management.md) for details
 on ownership, sync, and Slack webhook secrets.

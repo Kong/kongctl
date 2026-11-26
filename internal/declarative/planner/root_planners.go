@@ -70,6 +70,11 @@ func (p *Planner) rootPlanners() []rootPlanner {
 			planner:      NewAIGatewayPlanner(base),
 		},
 		{
+			resourceType: resources.ResourceTypeAICostPlugin,
+			displayName:  "AI cost attribution plugin",
+			planner:      &aiCostPluginPlanner{BasePlanner: base},
+		},
+		{
 			resourceType: resources.ResourceTypeDashboard,
 			displayName:  "dashboard",
 			planner:      NewDashboardPlanner(base),
