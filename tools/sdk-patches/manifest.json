@@ -19,8 +19,8 @@
   "post_generation": [
     {
       "file": "models/components/aigatewayauthstrategykeyauthresponse.go",
-      "before": "IdentityRealms []AIGatewayAuthStrategyKeyAuthResponseIdentityRealms `json:\"identity_realms,omitempty\"`",
-      "after": "IdentityRealms []AIGatewayAuthStrategyKeyAuthResponseIdentityRealms `json:\"identity_realms,omitzero\"`",
+      "before": "IdentityRealms []IdentityRealms `json:\"identity_realms,omitempty\"`",
+      "after": "IdentityRealms []IdentityRealms `json:\"identity_realms,omitzero\"`",
       "optional_file": true
     },
     {
