@@ -91,8 +91,8 @@
     },
     {
       "file": "models/components/updateclient.go",
-      "before": "TokenEndpointAuthMethod *TokenEndpointAuthMethod `default:\"client_secret_post\" json:\"token_endpoint_auth_method\"`",
-      "after": "TokenEndpointAuthMethod *TokenEndpointAuthMethod `json:\"token_endpoint_auth_method,omitempty\"`",
+      "before": "TokenEndpointAuthMethod *UpdateTokenEndpointAuthMethod `default:\"client_secret_post\" json:\"token_endpoint_auth_method\"`",
+      "after": "TokenEndpointAuthMethod *UpdateTokenEndpointAuthMethod `json:\"token_endpoint_auth_method,omitempty\"`",
       "optional_file": true
     },
     {
