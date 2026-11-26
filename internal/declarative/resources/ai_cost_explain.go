@@ -7,6 +7,7 @@ var aiCostExplainCollections = map[ResourceType]string{
 	ResourceTypeAICostChannel:  "notification_channels",
 	ResourceTypeAICostSchedule: "export_schedules",
 	ResourceTypeAICostRule:     "notification_rules",
+	ResourceTypeAICostPlugin:   "attribution_plugins",
 }
 
 func aiCostExplainCollection(kind ResourceType) string { return aiCostExplainCollections[kind] }

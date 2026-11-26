@@ -1,0 +1,22 @@
+_defaults:
+  kongctl:
+    namespace: ai-cost-example
+
+ai_gateways:
+  - ref: example-gateway
+    _external:
+      selector:
+        matchFields:
+          name: Example AI Gateway
+
+ai:
+  cost_management:
+    attribution_plugins:
+      - ref: example-attribution
+        ai_gateway: example-gateway
+        integrations: [claude-code, codex]
+        headers:
+          - name: x-example-tier
+            tag_key: pricing-tier
+        operator_tags:
+          cost-center: example

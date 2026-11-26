@@ -30,7 +30,16 @@ func NewAICostAPI(client helpers.SDKAPI) *AICostAPI {
 
 type AICostObject map[string]any
 
-func (v AICostObject) GetID() string   { id, _ := v["id"].(string); return id }
+// GetID returns the object's ID. An attribution plugin has none of its own, so
+// its AI Gateway's ID identifies it.
+func (v AICostObject) GetID() string {
+	if id, _ := v["id"].(string); id != "" {
+		return id
+	}
+	id, _ := v["gateway_id"].(string)
+	return id
+}
+
 func (v AICostObject) GetName() string { name, _ := v["name"].(string); return name }
 func (v AICostObject) GetManagedBy() map[string]string {
 	result := map[string]string{}
@@ -118,6 +127,15 @@ func (a *AICostAPI) List(ctx context.Context, kind resources.ResourceType, size 
 				),
 			)
 		})
+	case resources.ResourceTypeAICostPlugin:
+		return costPages(size, func(size *int64, after *string) ([]c.AICostAttributionPlugin, c.CursorMeta, error) {
+			return costPage(
+				a.sdk.AttributionPlugins.ListCostAttributionPlugins(
+					ctx,
+					o.ListCostAttributionPluginsRequest{PageSize: size, PageAfter: after},
+				),
+			)
+		})
 	}
 	return nil, fmt.Errorf("unsupported AI Cost Management collection %q", kind)
 }
@@ -164,6 +182,9 @@ func (a *AICostAPI) Get(ctx context.Context, kind resources.ResourceType, id str
 	case resources.ResourceTypeAICostRule:
 		response, readErr := a.sdk.Budgets.GetCostNotificationRule(ctx, id)
 		value, err = costResult(response.GetAICostNotificationRule(), readErr)
+	case resources.ResourceTypeAICostPlugin:
+		response, readErr := a.sdk.AttributionPlugins.GetCostAttributionPlugin(ctx, id)
+		value, err = costResult(response.GetAICostAttributionPlugin(), readErr)
 	default:
 		return nil, fmt.Errorf("unsupported AI Cost Management resource %q", kind)
 	}
@@ -255,6 +276,13 @@ func (a *AICostAPI) Write(
 		}
 		response, err := a.sdk.Budgets.UpsertCostNotificationRule(ctx, id, request)
 		return costResult(response.GetAICostNotificationRule(), err)
+	case resources.ResourceTypeAICostPlugin:
+		request, err := costRequest[c.AICostAttributionPluginConfiguration](fields)
+		if err != nil {
+			return nil, err
+		}
+		response, err := a.sdk.AttributionPlugins.UpsertCostAttributionPlugin(ctx, id, request)
+		return costResult(response.GetAICostAttributionPlugin(), err)
 	}
 	return nil, fmt.Errorf("unsupported AI Cost Management resource %q", kind)
 }
@@ -274,6 +302,8 @@ func (a *AICostAPI) Delete(ctx context.Context, kind resources.ResourceType, id 
 		_, err = a.sdk.Exports.DeleteCostExportSchedule(ctx, id)
 	case resources.ResourceTypeAICostRule:
 		_, err = a.sdk.Budgets.DeleteCostNotificationRule(ctx, id)
+	case resources.ResourceTypeAICostPlugin:
+		_, err = a.sdk.AttributionPlugins.DeleteCostAttributionPlugin(ctx, id)
 	default:
 		return fmt.Errorf("unsupported AI Cost Management resource %q", kind)
 	}

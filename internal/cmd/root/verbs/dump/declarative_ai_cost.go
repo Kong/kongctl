@@ -87,6 +87,21 @@ func aiCostScheduleCollector() declarativeCollector {
 		}, nil)
 }
 
+// A dumped AI Gateway's ref is its ID, so the plugin refers to it by that ID.
+func aiCostPluginCollector() declarativeCollector {
+	return rootCollector("ai.cost_management.attribution_plugins",
+		func(ctx context.Context, d *declarativeDumpContext) ([]resources.AICostPlugin, error) {
+			return collectAICost(ctx, d, resources.ResourceTypeAICostPlugin,
+				func(base resources.BaseResource, config resources.AICostPluginConfig) resources.AICostPlugin {
+					return resources.AICostPlugin{
+						BaseResource: base, AIGateway: base.GetKonnectID(), AICostPluginConfig: config,
+					}
+				})
+		}, func(rs *resources.ResourceSet) *[]resources.AICostPlugin {
+			return &rs.EnsureCostManagement().AttributionPlugins
+		}, nil)
+}
+
 func collectAICost[R, C any](ctx context.Context, d *declarativeDumpContext, kind resources.ResourceType,
 	wrap func(resources.BaseResource, C) R,
 ) ([]R, error) {

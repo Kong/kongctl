@@ -27,7 +27,7 @@ func (e *Executor) registerAICostExecutors() {
 	}
 	for _, kind := range []resources.ResourceType{
 		resources.ResourceTypeAICostBudget, resources.ResourceTypeAICostChannel,
-		resources.ResourceTypeAICostSchedule, resources.ResourceTypeAICostRule,
+		resources.ResourceTypeAICostSchedule, resources.ResourceTypeAICostRule, resources.ResourceTypeAICostPlugin,
 	} {
 		handler := &aiCostExecutor{api: api, kind: kind}
 		e.registerResourceExecutor(
@@ -53,8 +53,9 @@ func (a *aiCostExecutor) ValidatePayload(_ context.Context, change planner.Plann
 	case planner.ActionExternalTool:
 		return fmt.Errorf("unsupported AI Cost Management action %q", change.Action)
 	}
+	parentField := planner.AICostParentField(a.kind)
 	for key := range change.Fields {
-		if a.kind == resources.ResourceTypeAICostRule && key == planner.FieldAICostBudgetID {
+		if parentField != "" && key == parentField {
 			continue
 		}
 		if !resources.AICostWriteField(a.kind, key) {
@@ -66,8 +67,8 @@ func (a *aiCostExecutor) ValidatePayload(_ context.Context, change planner.Plann
 		(a.kind != resources.ResourceTypeAICostRule && metadata[resources.ManagedByRefKey] != change.ResourceRef) {
 		return fmt.Errorf("%s requires generated kongctl ownership metadata", a.kind)
 	}
-	if a.kind == resources.ResourceTypeAICostRule && change.Fields[planner.FieldAICostBudgetID] == nil {
-		return fmt.Errorf("missing notification rule budget ID")
+	if parentField != "" && change.Fields[parentField] == nil {
+		return fmt.Errorf("missing %s %s", a.kind, parentField)
 	}
 	return validateChildPayloadOwnership(string(a.kind), metadata, change.Namespace)
 }
@@ -78,13 +79,15 @@ func (a *aiCostExecutor) write(ctx context.Context, change *planner.PlannedChang
 	}
 	fields := maps.Clone(change.Fields)
 	id := change.ResourceID
-	if a.kind == resources.ResourceTypeAICostRule {
-		parent, _ := fields[planner.FieldAICostBudgetID].(string)
+	if parentField := planner.AICostParentField(a.kind); parentField != "" {
+		parent, _ := fields[parentField].(string)
 		if !util.IsValidUUID(parent) || (id != "" && id != parent) {
-			return "", fmt.Errorf("invalid notification rule budget ID")
+			return "", fmt.Errorf("invalid %s %s", a.kind, parentField)
 		}
 		id = parent
-		delete(fields, planner.FieldAICostBudgetID)
+		delete(fields, parentField)
+	}
+	if a.kind == resources.ResourceTypeAICostRule {
 		budget, err := a.api.Get(ctx, resources.ResourceTypeAICostBudget, id)
 		if err != nil {
 			return "", err
@@ -159,7 +162,7 @@ func (a *aiCostExecutor) write(ctx context.Context, change *planner.PlannedChang
 	if !maps.Equal(result.GetManagedBy(), metadata) {
 		return "", fmt.Errorf("%s did not retain kongctl ownership", a.kind)
 	}
-	if a.kind == resources.ResourceTypeAICostRule {
+	if planner.AICostParentField(a.kind) != "" {
 		return id, nil
 	}
 	if result.GetID() == "" {
@@ -169,13 +172,13 @@ func (a *aiCostExecutor) write(ctx context.Context, change *planner.PlannedChang
 }
 
 func (a *aiCostExecutor) checkCreate(ctx context.Context, change *planner.PlannedChange, id string) error {
-	if a.kind == resources.ResourceTypeAICostRule {
-		rule, err := a.api.Get(ctx, a.kind, id)
+	if planner.AICostParentField(a.kind) != "" {
+		current, err := a.api.Get(ctx, a.kind, id)
 		if err != nil {
 			return err
 		}
-		if rule != nil {
-			return childCreationCollision("notification rule", change.ResourceRef)
+		if current != nil {
+			return childCreationCollision(string(a.kind), change.ResourceRef)
 		}
 		return nil
 	}

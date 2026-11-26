@@ -34,6 +34,31 @@ ai:
 	require.Empty(t, rs.SyncScope.AICostNamespaces[resources.ResourceTypeAICostSchedule])
 }
 
+func TestAICostAttributionPluginLoads(t *testing.T) {
+	const manifest = `
+_defaults:
+  kongctl: {namespace: platform}
+ai_gateways:
+  - ref: engineering
+    name: Engineering
+ai:
+  cost_management:
+    attribution_plugins:
+      - ref: engineering-attribution
+        ai_gateway: engineering
+        integrations: [claude-code, codex]
+        operator_tags: {cost-center: platform}
+        install_version: "1.4.0"
+`
+	rs, err := New().LoadFile(writeLoaderTestFile(t, manifest))
+	require.NoError(t, err)
+	plugins := rs.CostManagement().AttributionPlugins
+	require.Len(t, plugins, 1)
+	require.Equal(t, "engineering", plugins[0].AIGateway)
+	require.Equal(t, "1.4.0", *plugins[0].InstallVersion)
+	require.Contains(t, rs.SyncScope.AICostNamespaces[resources.ResourceTypeAICostPlugin], "platform")
+}
+
 func TestAICostSlackRequiresDeferredSecret(t *testing.T) {
 	const manifest = `
 ai:
@@ -83,6 +108,10 @@ func TestAICostCollectionsValidateDeclarations(t *testing.T) {
         notification_rule:
           thresholds: [{percent: 80}, {percent: 80}]
 `, "thresholds must be distinct"},
+		{"attribution plugin", `    attribution_plugins:
+      - ref: engineering-attribution
+        ai_gateway: engineering
+`, "requires integrations"},
 		{"repeated names", `    notification_channels:
       - ref: finance
         name: Alerts

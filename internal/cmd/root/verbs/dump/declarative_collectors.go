@@ -39,6 +39,7 @@ func buildDeclarativeCollectors() map[string]declarativeCollector {
 		aiCostBudgetCollector(),
 		aiCostChannelCollector(),
 		aiCostScheduleCollector(),
+		aiCostPluginCollector(),
 		identityAuthServerCollector(),
 		rootCollector(
 			"portals",
