@@ -318,12 +318,6 @@
       "optional_file": true
     },
     {
-      "file": "models/components/createprincipalkeybodyimported.go",
-      "before": "Secret string  `json:\"secret\"`",
-      "after": "Secret string  `json:\"secret\"`\n\t// Management metadata accepted by the Identity API for imported keys.\n\tManagedBy map[string]string `json:\"managed_by,omitempty\"`",
-      "optional_file": true
-    },
-    {
       "file": "models/components/updateprincipalkeybody.go",
       "before": "Name *string `json:\"name,omitempty\"`",
       "after": "Name optionalnullable.OptionalNullable[string] `json:\"name,omitempty\"`",
